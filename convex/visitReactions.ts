@@ -36,7 +36,7 @@ const comment = v.object({
 });
 const latestComment = v.object({
   commentId: v.id("visitComments"),
-  authorName: v.string(),
+  author: v.object({ profileId: v.id("profiles"), name: v.string() }),
   body: v.string(),
   mentions: v.array(mention),
 });
@@ -83,7 +83,7 @@ export const getSummary = query({
       if (author) {
         latest = {
           commentId: row._id,
-          authorName: author.name,
+          author: { profileId: author._id, name: author.name },
           body: row.body,
           mentions: await linkedMentions(ctx, row.mentions, {
             viewerId: viewer?._id,

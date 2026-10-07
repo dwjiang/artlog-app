@@ -164,6 +164,65 @@ it("opens the visit for likes, its comments for a comment, and the profile for a
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "Sam" } });
 });
 
+it("opens a person’s profile from their name or photo instead of the visit", async () => {
+  await render(<NotificationsScreen />);
+  await fireEvent.press(screen.getByRole("link", { name: "Ana" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "Ana" } });
+  // A pair of likers opens the newest one, whose photo leads.
+  await fireEvent.press(screen.getByText("B", { includeHiddenElements: true }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "Ben" } });
+  await fireEvent.press(screen.getByText("H", { includeHiddenElements: true }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "Hana" } });
+  expect(mockPush).toHaveBeenCalledTimes(3);
+});
+
+it("gives VoiceOver each named person’s profile as a row action", async () => {
+  await render(<NotificationsScreen />);
+  const row = screen.getByRole("button", { name: /^Ben \(@ben\) and Ana \(@ana\) liked/ });
+  expect(row.props.accessibilityActions).toEqual([
+    { name: "Ben", label: "View Ben’s profile (@ben)" },
+    { name: "Ana", label: "View Ana’s profile (@ana)" },
+  ]);
+  await fireEvent(row, "accessibilityAction", { nativeEvent: { actionName: "Ana" } });
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "Ana" } });
+});
+
+it.each(["visitLike", "commentMention"] as const)(
+  "distinguishes same-name profiles in %s VoiceOver actions",
+  async (kind) => {
+    const actor = { ...person("Alex"), profileId: "alex-art", username: "alex_art" };
+    const other = { ...person("Alex"), profileId: "alex-history", username: "alex_history" };
+    const notification = { id: "first", kind, createdAt: 3_000, actor, postId: "met", venue: "The Met", media };
+    mockList = {
+      data: {
+        seenAt: 1_000,
+        items:
+          kind === "visitLike"
+            ? [notification, { ...notification, id: "second", createdAt: 2_000, actor: other }]
+            : [{ ...notification, owner: other, body: "@me you'd love this room." }],
+      },
+      loading: false,
+      refresh: jest.fn(),
+    };
+    await render(<NotificationsScreen />);
+    const row = screen.getByRole("button", { name: /^Alex \(@alex_art\)/ });
+    const actions: { name: string; label: string }[] = row.props.accessibilityActions;
+    expect(actions.map(({ label }) => label)).toEqual([
+      "View Alex’s profile (@alex_art)",
+      "View Alex’s profile (@alex_history)",
+    ]);
+    for (const profile of [actor, other]) {
+      // iOS resolves a selected custom action by its spoken label, taking the first match.
+      const action = actions.find(({ label }) => label === `View Alex’s profile (@${profile.username})`)!;
+      await fireEvent(row, "accessibilityAction", { nativeEvent: { actionName: action.name } });
+      expect(mockPush).toHaveBeenLastCalledWith({
+        pathname: "/profile/[profileId]",
+        params: { profileId: profile.profileId },
+      });
+    }
+  },
+);
+
 it("says who added you to a visit and opens it", async () => {
   const added = {
     id: "added",
@@ -222,6 +281,8 @@ it("quotes mentions in visits and comments and opens the visit or its comments",
     pathname: "/visit/[postId]",
     params: { postId: "moma", comments: "1" },
   });
+  await fireEvent.press(screen.getByRole("link", { name: "Jonah" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/profile/[profileId]", params: { profileId: "Jonah" } });
 });
 
 it("rewrites an accepted request in place", async () => {

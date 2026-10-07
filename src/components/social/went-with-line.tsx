@@ -1,5 +1,4 @@
-import { useRouter } from "expo-router";
-import { Fragment, useState } from "react";
+import { Fragment } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { ThemedText as Text } from "@/components/themed-text";
@@ -7,6 +6,7 @@ import { Gallery } from "@/constants/theme";
 import type { PublicProfile } from "@/lib/social/types";
 
 import { AvatarStack } from "./avatar-stack";
+import { profileHref, TextLink } from "./tagged-text";
 
 /** What comes before the name at `index` in a list of `count`: "A and B", "A, B, and C". */
 const separator = (index: number, count: number) =>
@@ -16,8 +16,6 @@ export const joinNames = (names: readonly string[]) =>
 
 /** The friends a visit's author went with; each name opens that person's profile. */
 export function WentWithLine({ people, style }: { people: readonly PublicProfile[]; style?: StyleProp<ViewStyle> }) {
-  const router = useRouter();
-  const [pressed, setPressed] = useState<string>();
   return (
     <View style={[styles.row, style]}>
       <AvatarStack people={people.slice(0, 3)} size={16} />
@@ -26,17 +24,9 @@ export function WentWithLine({ people, style }: { people: readonly PublicProfile
         {people.map((person, index) => (
           <Fragment key={person.profileId}>
             {separator(index, people.length)}
-            <Text
-              accessibilityRole="link"
-              accessibilityHint="Opens their profile"
-              suppressHighlighting
-              onPressIn={() => setPressed(person.profileId)}
-              onPressOut={() => setPressed(undefined)}
-              onPress={() => router.push({ pathname: "/profile/[profileId]", params: { profileId: person.profileId } })}
-              style={[styles.name, pressed === person.profileId && styles.pressed]}
-            >
+            <TextLink href={profileHref(person.profileId)} accessibilityHint="Opens their profile" style={styles.name}>
               {person.name}
-            </Text>
+            </TextLink>
           </Fragment>
         ))}
       </Text>
@@ -48,5 +38,4 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
   text: { flexShrink: 1, fontSize: 12, lineHeight: 18, color: Gallery.muted },
   name: { fontWeight: "600", color: Gallery.ink },
-  pressed: { backgroundColor: Gallery.highlight },
 });

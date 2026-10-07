@@ -43,7 +43,7 @@ import { ProfileRow } from "./profile-row";
 import { ReactionIcon } from "./reaction-icon";
 import { useRichTextInput } from "./rich-text-input";
 import { PageFooter } from "./social-state";
-import { profileHref, TaggedText, tagHref } from "./tagged-text";
+import { profileHref, TaggedText, tagHref, TextLink } from "./tagged-text";
 import type { ReactionSummary, ReactionVisit } from "./visit-reactions";
 
 type CommentPage = FunctionReturnType<typeof api.visitReactions.listComments>;
@@ -365,9 +365,14 @@ function Comments({
               ? formatRelativeTime(item.createdAt, now)
               : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(item.createdAt);
           const actions = actionsFor(item);
+          const openAuthor = () => {
+            onDismiss();
+            router.push(profileHref(item.author.profileId));
+          };
           // VoiceOver reads the comment as one element, so each link is also one of its actions.
           const spoken = [
             ...actions,
+            { name: "profile", label: `View ${item.author.name}’s profile`, run: openAuthor },
             ...extractHashtags(item.body).map((tag) => ({
               name: `tag:${tag}`,
               label: `Open #${tag}`,
@@ -406,15 +411,19 @@ function Comments({
                 onLongPress={() => showActions(item)}
                 style={styles.commentContent}
               >
-                <ProfileAvatar
-                  name={item.author.name}
-                  photoUrl={item.author.photoUrl}
-                  avatar={item.author.avatar}
-                  size={28}
-                />
+                <MotionPressable accessible={false} onPress={openAuthor}>
+                  <ProfileAvatar
+                    name={item.author.name}
+                    photoUrl={item.author.photoUrl}
+                    avatar={item.author.avatar}
+                    size={28}
+                  />
+                </MotionPressable>
                 <View style={{ flex: 1 }}>
                   <View style={styles.byline}>
-                    <Text style={styles.name}>{item.author.name}</Text>
+                    <TextLink href={profileHref(item.author.profileId)} onOpen={onDismiss} style={styles.name}>
+                      {item.author.name}
+                    </TextLink>
                     {item.isAuthor && <Text style={styles.author}>Author</Text>}
                     <Text style={styles.meta}>{time}</Text>
                   </View>

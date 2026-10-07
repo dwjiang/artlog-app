@@ -25,6 +25,7 @@ import { api } from "../../../convex/_generated/api";
 import { LeaderboardParticipation } from "./leaderboard-participation";
 import { ProfileAvatar } from "./profile-avatar";
 import { SocialGate, SocialState } from "./social-state";
+import { profileHref } from "./tagged-text";
 
 export function LeaderboardScreen() {
   const session = useSocialSession();
@@ -115,12 +116,7 @@ export function LeaderboardScreen() {
               <MotionPressable
                 accessibilityRole="button"
                 accessibilityLabel={`${tied ? "Tied rank" : "Rank"} ${item.rank}, ${item.profile.name}${own ? ", you" : ""}, ${item.score} ${unit}${item.score === 1 ? "" : "s"}. Open public profile.`}
-                onPress={() =>
-                  router.push({
-                    pathname: "/profile/[profileId]",
-                    params: { profileId: item.profile.profileId },
-                  })
-                }
+                onPress={() => router.push(profileHref(item.profile.profileId))}
                 style={[
                   styles.row,
                   own && styles.ownRow,

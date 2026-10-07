@@ -22,6 +22,7 @@ import { ProfileAvatar } from "./profile-avatar";
 import { SocialInvitation } from "./social-invitation";
 import { PageFooter, SocialGate } from "./social-state";
 import { socialStyles } from "./social-styles";
+import { profileHref, TextLink } from "./tagged-text";
 
 type NotificationPage = FunctionReturnType<typeof api.notifications.list>;
 type Item = NotificationPage["page"][number];
@@ -168,9 +169,14 @@ function NotificationRow({
     first.kind === "visitComment" || first.kind === "visitMention" || first.kind === "commentMention"
       ? `“${first.body}”`
       : undefined;
+  const profiles = new Map(row.map(({ actor }) => [actor.profileId, actor]));
+  if (first.kind === "commentMention") profiles.set(first.owner.profileId, first.owner);
+  const people = [...profiles.values()].filter(({ profileId }) =>
+    segments.some((segment) => segment.profileId === profileId),
+  );
   const open = () => {
     if (first.kind === "friendRequest" || first.kind === "friendAccepted") {
-      router.push({ pathname: "/profile/[profileId]", params: { profileId: first.actor.profileId } });
+      router.push(profileHref(first.actor.profileId));
     } else {
       const comments = first.kind === "visitComment" || first.kind === "commentMention";
       router.push({
@@ -191,27 +197,39 @@ function NotificationRow({
         accessibilityLabel={[segments.map((segment) => segment.text).join(""), quote, age.spoken]
           .filter(Boolean)
           .join(" ")}
+        // VoiceOver reads the row as one element, so each name's link is also one of its actions.
+        accessibilityActions={people.map(({ name, username, profileId }) => ({
+          name: profileId,
+          label: `View ${name}’s profile (@${username})`,
+        }))}
+        onAccessibilityAction={({ nativeEvent }) => router.push(profileHref(nativeEvent.actionName))}
         onPress={open}
         // A quoted comment runs several lines, so its row hangs from the top instead of centering on the avatar.
         style={[styles.main, !quote && { alignItems: "center" }]}
       >
-        {row.length > 1 ? (
-          <AvatarPair people={[row[0].actor, row[1].actor]} />
-        ) : (
-          <ProfileAvatar
-            name={first.actor.name}
-            photoUrl={first.actor.photoUrl}
-            avatar={first.actor.avatar}
-            size={LEAD}
-          />
-        )}
+        <MotionPressable accessible={false} onPress={() => router.push(profileHref(first.actor.profileId))}>
+          {row.length > 1 ? (
+            <AvatarPair people={[row[0].actor, row[1].actor]} />
+          ) : (
+            <ProfileAvatar
+              name={first.actor.name}
+              photoUrl={first.actor.photoUrl}
+              avatar={first.actor.avatar}
+              size={LEAD}
+            />
+          )}
+        </MotionPressable>
         <View style={styles.body}>
           <Text style={styles.text}>
-            {segments.map((segment, index) => (
-              <Text key={index} style={segment.bold && styles.bold}>
-                {segment.text}
-              </Text>
-            ))}
+            {segments.map(({ text, profileId }, index) =>
+              profileId ? (
+                <TextLink key={index} href={profileHref(profileId)} style={styles.bold}>
+                  {text}
+                </TextLink>
+              ) : (
+                text
+              ),
+            )}
             {!quote && <> {time}</>}
           </Text>
           {quote && (

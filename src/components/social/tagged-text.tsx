@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { useState } from "react";
 import { StyleSheet } from "react-native";
 
@@ -10,6 +10,31 @@ import { richTextSegments } from "@/shared/social/rich-text";
 export const tagHref = (tag: string) => ({ pathname: "/tag/[tag]", params: { tag } }) as const;
 export const profileHref = (profileId: string) =>
   ({ pathname: "/profile/[profileId]", params: { profileId } }) as const;
+
+/**
+ * Text that opens `href`, on its own or nested inside another text. `onOpen` runs before the page opens, for hosts such
+ * as a native sheet that must close first.
+ */
+export function TextLink({ href, onOpen, style, ...props }: ThemedTextProps & { href: Href; onOpen?: () => void }) {
+  const router = useRouter();
+  const [pressed, setPressed] = useState(false);
+  return (
+    <Text
+      accessibilityRole="link"
+      suppressHighlighting
+      {...props}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      // A long press selects text to copy, so releasing it must not open the link.
+      onLongPress={() => setPressed(false)}
+      onPress={() => {
+        onOpen?.();
+        router.push(href);
+      }}
+      style={[style, pressed && styles.pressed]}
+    />
+  );
+}
 
 /**
  * Text whose #tags open their tag page and whose @handles open the profile `mentions` resolves them to; a handle the
@@ -26,30 +51,15 @@ export function TaggedText({
   mentions?: readonly Mention[];
   onOpenLink?: () => void;
 }) {
-  const router = useRouter();
-  const [pressed, setPressed] = useState<number>();
   return (
     <Text {...props}>
       {richTextSegments(children).map(({ text, tag, mention }, index) => {
         const profileId = mention && mentions.find((row) => row.username === mention)?.profileId;
         const href = tag ? tagHref(tag) : profileId ? profileHref(profileId) : undefined;
         return href ? (
-          <Text
-            key={index}
-            accessibilityRole="link"
-            suppressHighlighting
-            onPressIn={() => setPressed(index)}
-            onPressOut={() => setPressed(undefined)}
-            // A long press selects text to copy, so releasing it must not open the link.
-            onLongPress={() => setPressed(undefined)}
-            onPress={() => {
-              onOpenLink?.();
-              router.push(href);
-            }}
-            style={[styles.link, pressed === index && styles.pressed]}
-          >
+          <TextLink key={index} href={href} onOpen={onOpenLink} style={styles.link}>
             {text}
-          </Text>
+          </TextLink>
         ) : (
           text
         );

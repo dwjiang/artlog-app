@@ -23,7 +23,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 import { api } from "../../../convex/_generated/api";
 import { ProfileAvatar } from "./profile-avatar";
 import { PageFooter } from "./social-state";
-import { TaggedText } from "./tagged-text";
+import { profileHref, TaggedText } from "./tagged-text";
 import { VisitReactions } from "./visit-reactions";
 import { WentWithLine } from "./went-with-line";
 
@@ -106,11 +106,7 @@ export function VisitCard({
   const leaveVisit = useMutation(api.visitCompanions.leave);
   const { author, venue, visitedOn, audience, companions } = visit;
   const hasArtworks = visit.artworks.page.length > 0 || hasMoreArtworks(visit);
-  const openProfile = () =>
-    router.push({
-      pathname: "/profile/[profileId]",
-      params: { profileId: author.profileId },
-    });
+  const openProfile = () => router.push(profileHref(author.profileId));
   const others = author.profileId !== viewerProfileId;
   const leave = () =>
     leaveVisit({ postId: visit.postId }).then(

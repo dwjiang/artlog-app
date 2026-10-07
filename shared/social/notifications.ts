@@ -16,8 +16,9 @@ export function groupNotifications<T extends { kind: string; postId?: string }>(
   return rows;
 }
 
-export type NotificationSegment = { text: string; bold?: boolean };
-export type NotificationPerson = { name: string; username: string };
+/** A segment with a `profileId` is that person's name. */
+export type NotificationSegment = { text: string; profileId?: string };
+export type NotificationPerson = { profileId: string; name: string; username: string };
 
 export type NotificationSummary =
   | { kind: "friendRequest"; actor: NotificationPerson; accepted: boolean }
@@ -30,10 +31,10 @@ export type NotificationSummary =
   /** `owner` wrote the visit the comment is on; a comment on the actor's own visit reads "their visit". */
   | { kind: "commentMention"; actor: NotificationPerson; owner: NotificationPerson; venue: string };
 
-/** The sentence an inbox row and its push notification share; people's names are the bold segments. */
+/** The sentence an inbox row and its push notification share. */
 export function notificationSentence(summary: NotificationSummary): NotificationSegment[] {
-  const person = ({ name, username }: NotificationPerson): NotificationSegment[] => [
-    { text: name, bold: true },
+  const person = ({ profileId, name, username }: NotificationPerson): NotificationSegment[] => [
+    { text: name, profileId },
     { text: ` (@${username})` },
   ];
   switch (summary.kind) {
@@ -61,9 +62,17 @@ export function notificationSentence(summary: NotificationSummary): Notification
     case "visitMention":
       return [...person(summary.actor), { text: ` mentioned you in a visit to ${summary.venue}:` }];
     case "commentMention": {
-      const own = summary.owner.username === summary.actor.username;
-      const whose = own ? "their" : `${summary.owner.name}’s`;
-      return [...person(summary.actor), { text: ` mentioned you in a comment on ${whose} visit to ${summary.venue}:` }];
+      const { owner, actor } = summary;
+      const whose: NotificationSegment[] =
+        owner.profileId === actor.profileId
+          ? [{ text: "their" }]
+          : [{ text: owner.name, profileId: owner.profileId }, { text: "’s" }];
+      return [
+        ...person(actor),
+        { text: " mentioned you in a comment on " },
+        ...whose,
+        { text: ` visit to ${summary.venue}:` },
+      ];
     }
   }
 }

@@ -16,7 +16,7 @@ import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import { ReactionIcon } from "./reaction-icon";
-import { TaggedText } from "./tagged-text";
+import { profileHref, TaggedText, TextLink } from "./tagged-text";
 import { VisitReactionsSheet } from "./visit-reactions-sheet";
 
 export type ReactionVisit = Pick<SharedVisit, "postId">;
@@ -117,6 +117,7 @@ export function VisitReactionRow({
   onComments: () => void;
   onLikes: () => void;
 }) {
+  const router = useRouter();
   const liked = summary?.liked ?? false;
   const count = summary?.likeCount ?? 0;
   const others = count - 1;
@@ -194,7 +195,9 @@ export function VisitReactionRow({
       {latest && (
         <MotionPressable
           accessibilityRole="button"
-          accessibilityLabel={`${viewAll ? `${viewAll}. Latest from` : "Open comment from"} ${latest.authorName}: ${latest.body}`}
+          accessibilityLabel={`${viewAll ? `${viewAll}. Latest from` : "Open comment from"} ${latest.author.name}: ${latest.body}`}
+          accessibilityActions={[{ name: "profile", label: `View ${latest.author.name}’s profile` }]}
+          onAccessibilityAction={() => router.push(profileHref(latest.author.profileId))}
           accessibilityState={{ disabled }}
           disabled={disabled}
           onPress={onComments}
@@ -202,7 +205,9 @@ export function VisitReactionRow({
           hitSlop={{ bottom: 16 }}
         >
           <Text numberOfLines={2} style={styles.latestText}>
-            <Text style={styles.strong}>{latest.authorName}</Text>{" "}
+            <TextLink href={profileHref(latest.author.profileId)} style={styles.strong}>
+              {latest.author.name}
+            </TextLink>{" "}
             <TaggedText mentions={latest.mentions}>{latest.body}</TaggedText>
           </Text>
           {viewAll && <Text style={styles.viewAll}>{viewAll}</Text>}
