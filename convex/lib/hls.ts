@@ -1,8 +1,7 @@
 // HLS packed audio (RFC 8216 §3.4) cut from an MPEG Layer III stream, so AVPlayer can start a narration while its
 // speech is still being generated: it refuses progressive audio without byte ranges, which a live stream cannot offer.
 
-// EXT-X-TARGETDURATION, fixed while the playlist grows. At two seconds AVPlayer starts from the first segment; at four
-// it waited for the next playlist reload.
+// EXT-X-TARGETDURATION stays fixed while the playlist grows; short segments let AVPlayer start promptly.
 export const SEGMENT_SECONDS = 2;
 
 const BITRATES_KBPS = {

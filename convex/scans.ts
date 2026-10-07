@@ -273,7 +273,7 @@ export async function joinCandidate(
     : artwork.rightsStatus === "public_domain"
       ? details?.thumbnailUrl
       : undefined;
-  // The verifier's projected corners stay on the scan as evidence; the card no longer draws them.
+  // The verifier's projected corners stay on the scan as evidence and are omitted from the card.
   const { corners, ...fields } = match;
   return {
     artwork,

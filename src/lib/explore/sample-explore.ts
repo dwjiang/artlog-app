@@ -1,6 +1,6 @@
 import type { Exhibition, ExploreData, ExploreFriend, ExploreMuseum } from "./types";
 
-// Explore has no backend yet. These Chicago shows are invented; each image is a real public-domain work from the Art
+// These Chicago shows are invented; each image is a real public-domain work from the Art
 // Institute of Chicago. Dates sit at fixed offsets from today so every timing always has something to list.
 
 const aicImage = (id: string, label: string) => ({

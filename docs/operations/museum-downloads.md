@@ -1,7 +1,6 @@
 # Museum downloads
 
-The app has no downloads screen for now; the backend and the app's download and
-offline-recognition code remain for its return. Packages target the bundled model.
+Museum packages target the bundled model.
 Each package contains established, eligible museum-owned objects with reference
 embeddings, ORB features, and cached artwork metadata and reading. Only complete
 packages become available for offline recognition. Unmatched scans keep the normal
@@ -21,6 +20,5 @@ publishes the rest. Already downloaded packages remain local until updated or
 removed.
 
 Downloads live under the iPhone's `Documents/museum-downloads/`, separate from
-journal photos. Closing downloads, backgrounding the app, or losing connectivity
-pauses transfers; resume continues at the last verified chunk. Row menus check for
-updates and remove packages without deleting saved artworks, notes, or photos.
+journal photos. Cancelling a transfer, backgrounding the app, or losing connectivity
+pauses transfers; resume continues at the last verified chunk. Package removal does not delete saved artworks, notes, or photos.

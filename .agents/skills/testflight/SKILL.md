@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Invoking this skill is the explicit EAS build and submission request the project guide requires. It ships
 to the internal testing group only; a public link or App Store release follows
-`docs/todos/release/README.md`.
+`docs/operations/production.md`.
 
 Signing for the app and `ExpoWidgetsTarget` and the App Store Connect API key live on EAS, and
 `eas.json` holds `ascAppId`, so every command runs non-interactively. Local builds do not use EAS

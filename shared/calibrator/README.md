@@ -2,9 +2,9 @@
 
 The match calibrator (`convex/lib/calibrator/`) is a logistic regression over the fixed
 feature vector produced by `featurize()`. Its weights ship as `DEFAULT_CALIBRATOR` in
-`convex/lib/calibrator/weights.ts`, currently `lr-v4`, trained on 3,643 paintings against the
-full corpus package and checked on real gallery photos. Its evaluation is recorded in
-[calibrator findings](../../docs/experiments/README.md#calibrator-v2).
+`convex/lib/calibrator/weights.ts`. The
+[calibration contract](../../docs/experiments/README.md#calibration) covers evaluation inputs
+and scoring constraints.
 
 ## What the training job must emit
 
@@ -46,12 +46,11 @@ One JSON document shaped exactly like `CalibratorConfig`:
   0/1 booleans, unknown gallery and unknown on-view as 0, and `inlierLead` as the signed
   `log1p(inliers) - log1p(runnerUpInliers)`).
 - `thresholds` and the rule constants are part of the artifact: retraining may move them.
-- Bump `version` (`lr-vN`) on every retrain.
+- Each retrained artifact has a distinct `version` (`lr-vN`).
 
-## How it gets adopted
+## Integration contract
 
-A human replaces the `DEFAULT_CALIBRATOR` literal in `weights.ts` with the document.
+The document supplies the `DEFAULT_CALIBRATOR` literal in `weights.ts`.
 `weights.test.ts` fails if `featureNames` drifts from `FEATURE_NAMES` or the weight count
-changes. Adding a feature means appending to
-`FEATURE_NAMES`, retraining, and bumping the version; stored feedback rows record the
-version they were scored with.
+changes. The feature order, training transforms, weights, and version must agree;
+stored feedback rows record the version they were scored with.

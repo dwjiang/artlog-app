@@ -7,8 +7,6 @@
 
 import NitroModules
 
-// TODO: Use empty enums once Swift supports exporting them as namespaces
-//       See: https://github.com/swiftlang/swift/pull/83616
 public final class VisionRectAutolinking {
   public typealias bridge = margelo.nitro.visionrect.bridge.swift
 

@@ -15,7 +15,7 @@ A new `modelVersion` also moves the cosine scale, so retune every similarity cut
 weights and low-texture rule (refit with the [jobs guide](../data/README.md#calibrator-training)).
 
 `projection.npz` is the corpus PCA with square-root whitening: each of the top 512 components is
-divided by λ^¼. Full whitening searched better but amplified the phone's int8/fp16 noise past the
+divided by λ^¼. Square-root whitening limits amplification of the phone's int8/fp16 noise at the
 drift gate. Refit it only together with a new `modelVersion`:
 
 ```sh
@@ -41,7 +41,7 @@ uv run python export_coreml.py --out out/        # out/CRadioV3B.mlpackage, fake
 `model-manifest.json` records the model version, input/output names, the weight-file and
 package hashes and the tool versions. A faithful re-export reproduces
 `weightsSha256 = 426326043e6f6b58d8f8c27ae975335d34f3d6dfa2d2e58731384963cf5a216f`, the tracked
-weight file byte for byte (verified 2026-09-26 with torch 2.7.0 / coremltools 9.0). The
+weight file byte for byte with torch 2.7.0 / coremltools 9.0. The
 `fakequant_state.pt` next to it is the PyTorch checkpoint with the phone's dequantized weights;
 the index build loads it so index vectors carry the same int8 rounding as the phone.
 
@@ -101,9 +101,8 @@ cd scripts/model && uv run python verify_export.py --embeddings /tmp/harness.jso
 
 `verify_export.py` embeds the same crop files with the PyTorch fake-quant model (MPS fp16) and
 prints the mean/minimum cosine, exiting non-zero below the 0.99 / 0.97 thresholds.
-The model evaluation measured the iPhone's Neural Engine output equal to the Mac's `CPU_AND_NE` output
-on all 200 calibration images, so a Mac harness pass is the model-numerics half of the device
-check; only latency and memory need the phone.
+The Mac harness checks model numerics on shared calibration inputs. Use the physical-iPhone
+benchmark to check device numerics, latency and memory.
 
 The on-device reference for the drift check comes from the app itself: Settings → dev tools →
 **Export calibration embeddings** (dev builds only) downloads `shared/model/calibration/urls.txt`,
@@ -111,32 +110,6 @@ letterboxes each image with the production vision-rect module, embeds it, and sh
 `iphone-embeddings.json` (`{ url: number[] }`, normalized) plus `iphone-report.json`. Commit
 the embeddings as `scripts/data/calibration/iphone-embeddings.json` whenever the export changes.
 
-## Results, 2026-09-26: pca512 export (Apple M5 Pro)
-
-| Check                                                             | Result                                                |
-| ----------------------------------------------------------------- | ----------------------------------------------------- |
-| Export                                                            | 53 int8 weights; the projection stays fp16            |
-| Mac harness, 200 calibration crops vs PyTorch fake-quant MPS fp16 | mean cosine 0.99292, min 0.98325                      |
-| Pipeline drift check                                              | mean 0.99294, min 0.98329 against the reference below |
-| Mac `CPU_AND_NE` latency                                          | load 2.6 s cold, ~48 ms per crop                      |
-
-The committed `iphone-embeddings.json` is the 2026-09-10 phone vectors passed through the
-exported fp16 projection, not a new device export; the Mac harness covers the projection's
-Neural Engine numerics. Replace it with an in-app export when a device is available.
-
-## Results, 2026-09-10: 1536-float export, superseded (Apple M5 Pro, macOS 26.5, Xcode 26.6)
-
-| Check                                                                                             | Result                                                                                                                                                                                                                                    |
-| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Export                                                                                            | `weightsSha256` equals the evaluated int8 package; 53 quantized weights; 20 s after the cached download                                                                                                                                   |
-| Asset                                                                                             | `CRadioV3B-c-radiov3-b-int8-512-dinov2-v1.zip` 112 MB; `.mlmodelc` 114 MB                                                                                                                                                                 |
-| Mac harness, 200 calibration crops (PNG) vs PyTorch fake-quant MPS fp16                           | mean cosine 0.99704, min 0.99268 (the original evaluation measured 0.99701 / 0.99292 on its black-letterbox pixels)                                                                                                                       |
-| Same crops after a JPEG q0.95 round trip (the phone's crop file format)                           | mean 0.99689, min 0.99268 against PyTorch; 0.99891 / 0.98993 against the PNG embeddings                                                                                                                                                   |
-| Mac `CPU_AND_NE` latency                                                                          | load 2.7 s cold, ~60–70 ms per 512×512 crop                                                                                                                                                                                               |
-| Unsigned Release archive                                                                          | `artlog.app` 170 MB, of which the model is 114 MB (under the 200 MB target)                                                                                                                                                               |
-| iPhone 17 Pro simulator, CPU only                                                                 | warm-up load 408 ms, first predict 1.9 s; later predictions ~1.1 s                                                                                                                                                                        |
-| In-app calibration export on the simulator (download → vision-rect letterbox → JPEG crop → embed) | 200 vectors keyed by the exact `urls.txt` set, median 972 ms each, shared as a 6.5 MB JSON; cosine vs the Mac harness PNG vectors mean 0.99560, min 0.98288 (CPU compute plus the JPEG crop; the phone's Neural Engine matches the Mac's) |
-
-Not yet measured here: physical-iPhone warm-up and latency (the original evaluation: ~4.1 s load, 66.6 ms
-per prediction on the iPhone 16 Pro), and the on-device calibration export the index drift check
-will read; the paired iPhone was offline on 2026-09-10.
+The committed `iphone-embeddings.json` contains phone summary vectors passed through the
+exported fp16 projection. The Mac harness checks the projection's Neural Engine numerics;
+the physical-iPhone benchmark checks the complete model on device.

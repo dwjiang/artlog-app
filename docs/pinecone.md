@@ -30,7 +30,7 @@ A changed index host requires a new import checkpoint and a rebuild of existing 
 
 ```sh
 npx convex run vectorSync:status
-# After fixing a provider/configuration problem:
+# Retry after repairing the provider/configuration problem:
 npx convex run vectorSync:retryFailed
 cd scripts/data && uv run python -m pipeline.vector_sync
 ```
@@ -70,15 +70,14 @@ Private scan, rejection, contribution, and saved-artwork recognition payloads al
 live in R2, with ownership and lifecycle references in Convex. They enter Pinecone
 only when explicitly published for shared recognition.
 
-This schema replaces the old `embeddings` and `tentativeEmbeddings` tables and
-changes remote IDs to vector-row IDs plus content hash and partition. Reset and
-reseed the pre-release vector data, remove its old Pinecone records, and start a
-new import checkpoint; no compatibility path is provided. The full production corpus upload remains
-subject to [the production upload checklist](todos/production-upload/README.md).
+Remote IDs encode vector-row identity, content hash, and partition. Corpus
+replacement requires a fresh index and a matching import checkpoint; unrelated
+remote records are not removed by rebuild. [Corpus imports](operations/corpus-imports.md)
+owns target selection, verification, and recovery.
 
 ## Benchmark
 
-The [development benchmark](experiments/pinecone-dev-2026-09-26.md) records retrieval
+The [development benchmark](experiments/pinecone.md) records retrieval
 quality, recognition outcomes, latency, consistency, and Starter usage estimates.
 
 The internal `searchBenchmark:corpusPage` query exports versioned record identities

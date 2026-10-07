@@ -63,7 +63,7 @@ import schema from "./schema";
 // The label read and the moderation check are each retried at most once (tokenFactory.chatJson).
 const MAX_READ_CALLS = 4;
 const MAX_MODERATION_CALLS = 2;
-// Super's measured p95 on the 25-label set was 2.6 s; the default 8 s leaves no room for a slow day.
+// Label reading allows extra time for provider latency beyond the shared request timeout.
 const READ_TIMEOUT_MS = 20_000;
 
 const labelInput = v.object({

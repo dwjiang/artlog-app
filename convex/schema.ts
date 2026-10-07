@@ -134,7 +134,7 @@ export default defineSchema({
     // Stops automatic catalog retries only after a successful search found no usable sources.
     docentNoSources: v.optional(v.boolean()),
     factSheetNeedsReview: v.optional(v.boolean()),
-    // Derived from title and artist by a database trigger; corpus rows written before it carry none until backfilled.
+    // Derived from title and artist by a database trigger; imports bypass it and require the corpus backfill.
     searchText: v.optional(v.string()),
     // Derived from artist by the same trigger and backfill; absent for placeholder names such as "Unknown artist".
     artistKey: v.optional(v.string()),
@@ -821,7 +821,7 @@ export default defineSchema({
     publishedAt: v.number(),
     updatedAt: v.number(),
     publicationRevision: v.number(),
-    // Absent on posts published before visit wallpapers, which show the default wall color.
+    // Absent when no wallpaper is stored; readers use the default wall color.
     color: v.optional(v.string()),
     pattern: v.optional(wallPattern),
     // Bind each selection to its friendship so ending and restarting it cannot restore old tags.

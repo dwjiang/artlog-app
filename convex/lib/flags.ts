@@ -2,7 +2,7 @@ import { env } from "../_generated/server";
 
 export type FeatureFlag = "labelFlow" | "rightNow";
 
-// "Right now" defaults off because retrieval often returned stale or unrelated events.
+// "Right now" defaults off because retrieval can return stale or unrelated events.
 const flags: Record<FeatureFlag, { variable: keyof typeof env; defaultOn: boolean }> = {
   labelFlow: { variable: "FLAG_LABEL_FLOW", defaultOn: true },
   rightNow: { variable: "FLAG_RIGHT_NOW", defaultOn: false },

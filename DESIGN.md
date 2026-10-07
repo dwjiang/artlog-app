@@ -1,5 +1,4 @@
 ---
-version: alpha
 name: Artlog Index
 description: A personal art journal with Space Grotesk headings, native SF Pro body text, and ultramarine actions on white.
 omitted:

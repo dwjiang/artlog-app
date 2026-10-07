@@ -46,7 +46,7 @@ import schema from "./schema";
 // reclaims after an hour.
 export const CLAIM_MS = 10 * 60 * 1000;
 // Each chatJson call is retried at most once; linked references add one review call.
-// Measured p95 was 3.3 s for Super on smaller inputs; an owner page adds several thousand tokens.
+// Owner pages add several thousand input tokens, so the timeout allows for longer research inputs.
 const MODEL_TIMEOUT_MS = 20_000;
 
 export async function clearDocent(ctx: MutationCtx, artwork: Doc<"artworks">): Promise<void> {

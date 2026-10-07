@@ -19,8 +19,7 @@ import { MULTI_VIEW_DUPLICATE_COSINE } from "./promotion";
 import { getEmbedding } from "./scanEmbeddings";
 import schema from "./schema";
 
-// No ORB check backs a link, so its photo must already look like the work. Gallery photos still missed after the
-// whole-frame crop reached this against their artwork in 66 of 290 (2026-10-06); unrelated catalogue works, 0.12%.
+// No ORB check backs a link, so its photo must already look like the work before it can teach recognition.
 export const LINKED_VIEW_MIN_COSINE = 0.62;
 const REFERENCE_LIMIT = 16;
 // A work with this many visitor views needs no more, which also bounds the duplicate check.

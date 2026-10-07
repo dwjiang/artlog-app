@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 type Plans = { wantToSee: ReadonlySet<string>; reminders: ReadonlySet<string> };
 
-// Held in memory until Explore has a backend to save them to.
+// Explore choices live in memory for the app session.
 let plans: Plans = { wantToSee: new Set(), reminders: new Set() };
 const listeners = new Set<() => void>();
 

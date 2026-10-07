@@ -1,6 +1,6 @@
 # Scheduled Sentry fixes
 
-The **Sentry fixes** GitHub Actions workflow runs every 4 hours (00:17, 04:17, 08:17, 12:17, 16:17 and 20:17 America/Los_Angeles) once merged into `main`. It runs on GitHub-hosted Linux machines and authenticates Codex through the owner's ChatGPT subscription. No OpenAI API key or Sentry Seer calls are used. Subscription limits and GitHub Actions usage limits still apply.
+The **Sentry fixes** GitHub Actions workflow runs every 4 hours (00:17, 04:17, 08:17, 12:17, 16:17 and 20:17 America/Los_Angeles) from `main`. It runs on GitHub-hosted Linux machines and authenticates Codex through the owner's ChatGPT subscription. No OpenAI API key or Sentry Seer calls are used. Subscription limits and GitHub Actions usage limits still apply.
 
 ## Setup
 
@@ -14,7 +14,7 @@ Keep this repository private. Add these repository Actions secrets:
 
 Enable **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests**. That GitHub setting enables PR creation; this workflow never submits an approval or merges a PR. Its default token permissions remain read-only; only the publication job has repository write permissions.
 
-Manually merge the setup PR. In **Actions → Sentry fixes → Run workflow**, keep **dry_run** checked for the first run. It verifies Codex shell access in both sandbox modes, workspace writes, a subscription model call, GitHub reads, Sentry's production issue query, and the event query when an issue exists. It also tests the credential refresh write-back. Then start a new manual run with **dry_run** unchecked to test the full workflow. Scheduled runs are full runs.
+In **Actions → Sentry fixes → Run workflow**, keep **dry_run** checked to verify configuration. It verifies Codex shell access in both sandbox modes, workspace writes, a subscription model call, GitHub reads, Sentry's production issue query, and the event query when an issue exists. It also tests the credential refresh write-back. Then start a new manual run with **dry_run** unchecked to test the full workflow. Scheduled runs are full runs.
 
 To pause the schedule, disable the workflow in the Actions UI. GitHub schedules can be delayed; the workflow is not an incident paging system.
 
@@ -22,7 +22,7 @@ To pause the schedule, disable the workflow in the Actions UI. GitHub schedules 
 
 The analysis job has read-only GitHub permissions. It checks up to 100 unresolved issues in `daniel-jiang/artlog-app`, scoped to the last 24 hours and `environment=production`. Individual event samples must independently confirm production, the issue ID and timestamp. Errors never cause the query to broaden to other environments. Only the production Convex deployment and EAS production builds set a Sentry DSN, so nothing else reports.
 
-Each run takes one outcome: existing PR reviews/revisions first, otherwise the most frequent untracked issue. Any existing PR or GitHub issue mentioning a Sentry issue, including human and closed ones, prevents another attempt. The exception is a bot-created, doubly labeled `automatic fix skipped` issue reporting `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`: those failed before investigation and can be retried without deleting the reports. Any other tracked work still prevents a retry. Review targets require both `agent-generated` and `sentry-fix`, the `sentry-fix/artlog-app-*` branch convention, `main` as base and a head in this repository. Unlabeled human PRs are never reviewed or modified.
+Each run takes one outcome: existing PR reviews/revisions first, otherwise the most frequent untracked issue. Any existing PR or GitHub issue mentioning a Sentry issue, including human and closed ones, prevents another attempt. Retryable sandbox-infrastructure failures recorded by the workflow can be retried without deleting their reports. Any other tracked work still prevents a retry. Review targets require both `agent-generated` and `sentry-fix`, the `sentry-fix/artlog-app-*` branch convention, `main` as base and a head in this repository. Unlabeled human PRs are never reviewed or modified.
 
 A fresh Codex session reviews the proposed diff independently. It runs sequentially after the fixer, so the sessions share the subscription login without concurrent token rotation. The publication job has no Codex or Sentry credentials and runs no candidate build scripts. It validates the patch, rechecks PR eligibility and commit IDs, creates a draft PR or updates an eligible automation PR, and posts the review tied to the exact commit. New PR bodies also contain the initial review, so findings remain visible if comment publication fails.
 
@@ -52,6 +52,6 @@ npx tsc --noEmit
 npm run lint
 ```
 
-Live authentication and publication can only be verified in GitHub Actions after the workflow reaches `main`. A local unit test does not establish that the tokens have the required scopes or that a cloud Codex run can complete the app's tests.
+Live authentication and publication can only be verified in GitHub Actions by running the workflow on `main`. A local unit test does not establish that the tokens have the required scopes or that a cloud Codex run can complete the app's tests.
 
 References: [OpenAI subscription authentication in CI](https://learn.chatgpt.com/docs/auth/ci-cd-auth), [GitHub secret timing](https://docs.github.com/en/actions/reference/security/secrets#when-github-actions-reads-secrets), [Sentry issue filtering](https://docs.sentry.io/api/events/list-an-organizations-issues/).

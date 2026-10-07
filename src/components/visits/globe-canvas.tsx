@@ -65,7 +65,7 @@ export function GlobeCanvas({
   ref?: Ref<GlobeCanvasHandle>;
 }) {
   const [width, setWidth] = useState(0);
-  // Rasterized from the GSHHG coastline polygons supplied in the design mock.
+  // Rasterized from GSHHG coastline polygons.
   const [imageFailed, setImageFailed] = useState(false);
   const image = useImage(require("../../../assets/images/visit-globe-land.png"), () => setImageFailed(true));
   const { camera, pan, pinch, setCamera, settle, stop, save } = useGlobeCamera(

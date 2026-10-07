@@ -16,7 +16,7 @@
 - `cma-sample.json` — synthetic Cleveland Open Access page (invented values, live field names); covers type, CC0, image and outdoor-location filters.
 - `fng-sample.json` — synthetic Finnish National Gallery dump rows (invented values, live field names); covers organisation, category, CC0 and exhibition-date rules.
 
-- `wikidata-iceland.json` — saved WDQS response on 2026-09-09, with the query
+- `wikidata-iceland.json` — saved WDQS response with the query
   included. The 35 distinct Icelandic museums/gallery venues have coordinates
   and websites. Wikidata structured data is CC0; this fixture tests parsing,
   Unicode names, coordinates, and duplicate collapse without live requests.

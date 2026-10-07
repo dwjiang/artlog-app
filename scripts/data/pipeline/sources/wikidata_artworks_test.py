@@ -464,5 +464,5 @@ def test_other_flat_works_must_be_public_domain_and_prints_are_multiples():
     assert print_artwork.multiplicity == "multiple"
     assert print_object.medium == "print"
     assert by_id["Q1"][1].medium is None
-    # A drawing whose artist died in 1990 is not yet public domain.
+    # The drawing's artist fails the fixture's public-domain age cutoff.
     assert "Q8" not in by_id

@@ -18,7 +18,7 @@ from .sources.fetch import write_json
 
 log = logging.getLogger(__name__)
 
-# Preserves the 1536-d corpus merge mapping with pca512 vectors; see docs/experiments/README.md.
+# Duplicate-image cutoff for pca512 vectors; see docs/experiments/README.md.
 EMBEDDING_MERGE_COSINE = 0.93
 
 

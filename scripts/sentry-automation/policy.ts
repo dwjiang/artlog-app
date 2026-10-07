@@ -45,7 +45,7 @@ export function issueAlreadyTracked(issue: string, items: GithubItem[]): boolean
   if (!ISSUE.test(issue)) throw new Error("Invalid Sentry issue identifier");
   const pattern = new RegExp(`\\b${issue}\\b`);
   return items.some((item) => {
-    // Earlier runs misclassified this sandbox startup failure as an investigated dead end.
+    // Sandbox startup failures do not establish an investigated dead end and must remain retryable.
     const failedSandboxAttempt =
       !item.pull_request
       && item.user?.login === "github-actions[bot]"

@@ -12,8 +12,7 @@ const PAINTING_MEDIUM = /\b(oil|tempera|acrylic|canvas|panel)\b/i;
 const GENERIC_ARTIST =
   /^(unknown|anonymous|unidentified)\b|\b(workshop|school|circle|follower|manner) of\b|\b(painter|artist)$/i;
 const UNLABELED_TITLE = /^Q\d+$/;
-// Wikidata created items for paintings that already had a Wikipedia article in its first years; the bulk museum
-// imports that followed (2014 onwards) start well above this number.
+// Lower Wikidata item IDs favor individually documented paintings over bulk museum imports.
 const EARLY_WIKIDATA_ITEM = 12_000_000;
 
 export type PickCandidate = {

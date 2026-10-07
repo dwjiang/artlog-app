@@ -13,45 +13,30 @@ index so the next visitor gets an instant match. Nemotron on Nebius Token Factor
 sources. A scan taken with no signal waits on the phone and is identified when the connection
 returns.
 
-Built for the Nebius × NVIDIA Global AI Hackathon. iOS only.
-[Open work](docs/todos/) and [experiment findings](docs/experiments/README.md).
+iOS only. [Documentation](docs/README.md) covers operations and technical findings.
 
-## Demo
-
-- **TestFlight public link:** _PLACEHOLDER — available once Beta App Review clears._
-- **Video (under 3 minutes, YouTube):** _PLACEHOLDER._
-- Hackathon deliverables: [event requirements](docs/hackathon/README.md),
-  [feedback notes](docs/hackathon/feedback-notes.md),
-  [submission checklist](docs/todos/hackathon/README.md).
-
-The app opens to the camera with no account; anyone with the TestFlight build can scan within
-seconds.
+Scanning requires no account.
 
 ## Where NVIDIA and Nebius are used
 
-| Component                    | Model / service                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Code                                                                                                                                | Runs                                                                                                                                                                                                                                                                                                         |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Image embedding, every scan  | **NVIDIA C-RADIOv3-B**, DINOv2 adaptor summary, 512 px input, its 1,536-d output reduced in the model to 512 dims by a corpus-fitted PCA, exported to CoreML with int8 weights and fp16 compute (`modelVersion` `c-radiov3-b-int8-512-dinov2-pca512-v1`)                                                                                                                                                                                                         | `modules/coreml-embed/`, export recipe in `scripts/model/`                                                                          | On the phone's Neural Engine, about 67 ms per crop on an iPhone 16 Pro. Normal identification sends features without uploading the crop                                                                                                                                                                      |
-| Image embedding, index build | The **same weights**: the int8 state recovered from the CoreML export, dequantized to fp16, gated by a drift check against 200 committed iPhone reference embeddings before every build                                                                                                                                                                                                                                                                          | `scripts/data/pipeline/model.py`, `embed.py`, `drift_check.py`                                                                      | On the operator's Mac (see below)                                                                                                                                                                                                                                                                            |
-| Fact sheets                  | **NVIDIA Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`, `FACT_SHEET_MODEL`) extracts visual, technical and historical research from full page content, each fact citing the owner's page or the Art Institute's API text, Wikidata, the work's linked Wikipedia articles a score-filtered Tavily result or a reviewed reference attached to the exact Wikidata/Commons record                                                                          | `convex/docent.ts`, sources in `convex/lib/docentSources.ts`                                                                        | Token Factory, live on the first identification of an artwork with no cached fact sheet; cached on the artwork afterwards                                                                                                                                                                                    |
-| Docent prose                 | **NVIDIA Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, `DOCENT_MODEL`) writes three or four English sentences citing only those facts; a validator drops any sentence without a valid citation                                                                                                                                                                                                                                                      | `convex/docent.ts`, `convex/lib/docentValidator.ts`                                                                                 | Token Factory, once per artwork, then cached and served with the card                                                                                                                                                                                                                                        |
-| Audio-guide scripts          | **NVIDIA Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`) writes an independent 40- to 90-second audio-guide stop from the shared research: it names the stop's thread and best quote first, then a hook, what to look at, the strongest supported story and a takeaway in short spoken sentences after a label-style opening, every sentence cited with an evidence span that Convex checks verbatim against the research                               | `convex/narration.ts`, `shared/audio/guide.ts`                                                                                      | Token Factory on first listen, without reasoning; a rejected script is retried once with its problems named; scripts and their citations are cached per artwork and outlive a speech failure or a voice change; only new research or a new opening rewrites one                                              |
-| Spoken narration             | **OpenAI GPT-4o mini TTS** (`gpt-4o-mini-tts-2025-12-15`), **Shimmer** voice, with museum-guide delivery instructions                                                                                                                                                                                                                                                                                                                                            | `convex/narration.ts`, `shared/audio/speech.ts`                                                                                     | Convex generates MP3 audio from the spoken guide and keeps one rendering per artwork, re-rendering when its research, title, model or voice changes (`npx convex run narration:clear` re-renders everything after a prompt change); the phone caches audio with its matching transcript for repeat listening |
-| Text moderation              | **NVIDIA Nemotron 3.5 Lightning** (`MODERATION_MODEL`) screens label fields, museum-page fields and contributions before they reach a screen or the shared index                                                                                                                                                                                                                                                                                                 | `convex/lib/moderation.ts`                                                                                                          | Token Factory, live on every label read and contribution                                                                                                                                                                                                                                                     |
-| Post moderation              | **OpenAI omni-moderation** (`omni-moderation-latest`) checks comments, published visit reflections and profile bios before anyone else sees them; titles of the linked museum records are swapped for "the artwork" first, slurs and the strongest swearing are always blocked, and the word list in `shared/social/offensive-text.ts` answers when OpenAI fails or takes over 3 s                                                                               | `convex/lib/moderation.ts`                                                                                                          | OpenAI, live on every comment, publish and bio save; names and usernames use the full word list, and hand-typed artwork titles on public walls and posts drop only slurs and the strongest swearing                                                                                                          |
-| Label reading                | Apple Vision text recognition on the phone reads the wall label; **NVIDIA Nemotron 3 Super** (`LABEL_MODEL`) sorts the printed lines into title, artist, dates, medium, accession and credit line. Title and artist both correct on 21 of 25 test labels from the recognizer's lines (Mac harness, same Vision recognizer as the phone), against 24 of 25 for the retired vision model reading the photo; two of the four misses are OCR errors (`II` read as `I | `, a dropped accent) and two are labels naming several makers ([model evaluation](docs/experiments/README.md#token-factory-models)) | `modules/vision-rect/ios/TextRecognizer.swift`, `convex/label.ts`, prompt in `convex/lib/labelPrompt.ts`                                                                                                                                                                                                     | OCR on the phone (median 121 ms on the Mac harness; not yet timed on an iPhone); the sort on Token Factory, live on every label capture. The label photo never leaves the phone |
-| Token Factory client         | OpenAI-compatible chat completions at `api.tokenfactory.nebius.com/v1` with strict `json_schema` output; thinking is disabled on every request; per-device rate limits and a global daily call cap                                                                                                                                                                                                                                                               | `convex/lib/tokenFactory.ts`, `convex/lib/spend.ts`                                                                                 | From Convex actions only; the phone never calls a model provider                                                                                                                                                                                                                                             |
-| Nebius Serverless AI Jobs    | Measured with three probe jobs: an L40S job, a lifecycle-managed scratch bucket and a service-account REST path ([findings](docs/experiments/README.md#batch-infrastructure))                                                                                                                                                                                                                                                                                    | [archived probes](https://github.com/dwjiang/artlog-app/tree/9693725420d34ee7bd81079f3e801b076e1c6789/spikes/nebius-jobs)           | **Not on any production path.** See the next paragraph                                                                                                                                                                                                                                                       |
+| Component                    | Model / service                                                                                                                                                                                                                                                                                                                                                                                                                    | Code                                                                                                     | Runs                                                                                                                                                                                                                                                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Image embedding, every scan  | **NVIDIA C-RADIOv3-B**, DINOv2 adaptor summary, 512 px input, its 1,536-d output reduced in the model to 512 dims by a corpus-fitted PCA, exported to CoreML with int8 weights and fp16 compute (`modelVersion` `c-radiov3-b-int8-512-dinov2-pca512-v1`)                                                                                                                                                                           | `modules/coreml-embed/`, export recipe in `scripts/model/`                                               | On the phone's Neural Engine, about 67 ms per crop on an iPhone 16 Pro. Normal identification sends features without uploading the crop                                                                                                                                                                      |
+| Image embedding, index build | The **same weights**: the int8 state recovered from the CoreML export, dequantized to fp16, gated by a drift check against 200 committed iPhone reference embeddings before every build                                                                                                                                                                                                                                            | `scripts/data/pipeline/model.py`, `embed.py`, `drift_check.py`                                           | On the operator's Mac (see below)                                                                                                                                                                                                                                                                            |
+| Fact sheets                  | **NVIDIA Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`, `FACT_SHEET_MODEL`) extracts visual, technical and historical research from full page content, each fact citing the owner's page or the Art Institute's API text, Wikidata, the work's linked Wikipedia articles a score-filtered Tavily result or a reviewed reference attached to the exact Wikidata/Commons record                                            | `convex/docent.ts`, sources in `convex/lib/docentSources.ts`                                             | Token Factory, live on the first identification of an artwork with no cached fact sheet; cached on the artwork afterwards                                                                                                                                                                                    |
+| Docent prose                 | **NVIDIA Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`, `DOCENT_MODEL`) writes three or four English sentences citing only those facts; a validator drops any sentence without a valid citation                                                                                                                                                                                                                        | `convex/docent.ts`, `convex/lib/docentValidator.ts`                                                      | Token Factory, once per artwork, then cached and served with the card                                                                                                                                                                                                                                        |
+| Audio-guide scripts          | **NVIDIA Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`) writes an independent 40- to 90-second audio-guide stop from the shared research: it names the stop's thread and best quote first, then a hook, what to look at, the strongest supported story and a takeaway in short spoken sentences after a label-style opening, every sentence cited with an evidence span that Convex checks verbatim against the research | `convex/narration.ts`, `shared/audio/guide.ts`                                                           | Token Factory on first listen, without reasoning; a rejected script is retried once with its problems named; scripts and their citations are cached per artwork and outlive a speech failure or a voice change; only new research or a new opening rewrites one                                              |
+| Spoken narration             | **OpenAI GPT-4o mini TTS** (`gpt-4o-mini-tts-2025-12-15`), **Shimmer** voice, with museum-guide delivery instructions                                                                                                                                                                                                                                                                                                              | `convex/narration.ts`, `shared/audio/speech.ts`                                                          | Convex generates MP3 audio from the spoken guide and keeps one rendering per artwork, re-rendering when its research, title, model or voice changes (`npx convex run narration:clear` re-renders everything after a prompt change); the phone caches audio with its matching transcript for repeat listening |
+| Text moderation              | **NVIDIA Nemotron 3.5 Lightning** (`MODERATION_MODEL`) screens label fields, museum-page fields and contributions before they reach a screen or the shared index                                                                                                                                                                                                                                                                   | `convex/lib/moderation.ts`                                                                               | Token Factory, live on every label read and contribution                                                                                                                                                                                                                                                     |
+| Post moderation              | **OpenAI omni-moderation** (`omni-moderation-latest`) checks comments, published visit reflections and profile bios before anyone else sees them; titles of the linked museum records are swapped for "the artwork" first, slurs and the strongest swearing are always blocked, and the word list in `shared/social/offensive-text.ts` answers when OpenAI fails or takes over 3 s                                                 | `convex/lib/moderation.ts`                                                                               | OpenAI, live on every comment, publish and bio save; names and usernames use the full word list, and hand-typed artwork titles on public walls and posts drop only slurs and the strongest swearing                                                                                                          |
+| Label reading                | Apple Vision text recognition on the phone reads the wall label; **NVIDIA Nemotron 3 Super** (`LABEL_MODEL`) sorts the printed lines into title, artist, dates, medium, accession and credit line. OCR accuracy bounds the label sorter's input; labels with several makers can be ambiguous                                                                                                                                       | `modules/vision-rect/ios/TextRecognizer.swift`, `convex/label.ts`, prompt in `convex/lib/labelPrompt.ts` | OCR on the phone; the sort on Token Factory, live on every label capture. The label photo never leaves the phone                                                                                                                                                                                             |
+| Token Factory client         | OpenAI-compatible chat completions at `api.tokenfactory.nebius.com/v1` with strict `json_schema` output; thinking is disabled on every request; per-device rate limits and a global daily call cap                                                                                                                                                                                                                                 | `convex/lib/tokenFactory.ts`, `convex/lib/spend.ts`                                                      | From Convex actions only; the phone never calls a model provider                                                                                                                                                                                                                                             |
 
-**Where the index was actually built.** The corpus build ran on the operator's Mac (Apple M5 Pro, PyTorch on the
-MPS backend, fp16), shard by shard with the same fake-quantized weights the phone runs, because
-the Wikimedia Commons download sets the wall clock, not GPU time, and the Commons robot policy
-applies wherever the job runs ([scripts/data/README.md](scripts/data/README.md), "Index build"). No Nebius job
-has embedded, enriched or migrated the index; the only Nebius compute spent was three
-probe jobs, about $0.20. Nothing idles on Nebius by design: the request path is the phone and
-Convex, and what runs on Nebius is Token Factory, live, on every label read, every moderation
-check and the first identification of every uncached artwork. These identification and enrichment paths use NVIDIA models; audio-guide
-scripts also use Nemotron, with OpenAI TTS speaking the resulting cited script.
+The corpus build runs on the operator's Mac with PyTorch on the MPS backend,
+shard by shard with the same fake-quantized weights the phone runs. Downloads
+follow the Wikimedia Commons robot policy ([index build](scripts/data/README.md)).
+Token Factory serves the runtime label, moderation, research, docent and audio-guide
+requests; OpenAI TTS speaks the cited guide scripts.
 
 ## Tavily
 
@@ -64,7 +49,7 @@ does not depend on Tavily.
 | ------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Label verification  | `convex/label.ts`                                                        | When the accession and Wikidata checks fail, one museum-scoped search for the label's title and artist; a page image is confirmed on the phone the same way. `FLAG_LABEL_FLOW`, on by default                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Fact-sheet research | `convex/docent.ts` through `convex/lib/docentSources.ts`                 | One basic search requests full page content from approved and verified owner domains; thin research allows one fallback using an accession, alternate title or broader query. Museum essays must link to the work or match its owner, accession, title and artist. Up to five HTTPS citations from the exact Wikidata item and its linked Commons file are read with Tavily Extract without a publisher allowlist; a Super review rejects unrelated/uncertain pages and holds artist/date conflicts for manual review. Extracted passages are checked against the source text. Docent and audio share cached research; listening adds no search |
-| "Right now"         | `convex/rightNow.ts`, acceptance rules in `convex/lib/rightNowAccept.ts` | One search with `include_answer`, `topic: news`, a one-month window and the venue region's domain list; a sentence is shown only when the cited source contains it and names an explicit event date. `FLAG_RIGHT_NOW`, **off by default** following the [evaluation](docs/experiments/README.md#tavily-and-right-now)                                                                                                                                                                                                                                                                                                                           |
+| "Right now"         | `convex/rightNow.ts`, acceptance rules in `convex/lib/rightNowAccept.ts` | One search with `include_answer`, `topic: news`, a one-month window and the venue region's domain list; a sentence is shown only when the cited source contains it and names an explicit event date. `FLAG_RIGHT_NOW`, **off by default**; the [acceptance findings](docs/experiments/README.md#tavily-and-right-now) explain its evidence requirements                                                                                                                                                                                                                                                                                         |
 
 ## Architecture
 
@@ -115,9 +100,8 @@ installs on the chosen iPhone and starts Metro; `npm run ios` also builds and la
 app through Expo. Expo Go cannot load the native modules.
 
 The hosted production backend is `admired-goldfinch-660`; its corpus and configuration
-are recorded in the [deployment reference](docs/operations/production.md). Remaining release
-checks are in the [release checklist](docs/todos/release/README.md). Scanning, saving and the
-label flow work from any build.
+are described in the [deployment reference](docs/operations/production.md). Scanning, saving
+and the label flow use that backend.
 Writes to the shared index (contributions, rejections, venue confirmations) are signed with App
 Attest, which Apple binds to our Team ID, so a build signed by another team is refused for those;
 use the TestFlight build, or run your own backend.
@@ -219,63 +203,37 @@ Deleting data, by a guest or an account, retires each affected device: its auth 
 as a new device, and the deleting phone erases its local data. Journals, sessions and contribution crops are purged in
 the background; scans and contribution label details stay on the unlinked device row.
 
-Implemented APIs (derive wire types from `convex/_generated/api` or the shared validators):
-
-| API                               | Arguments                                                                                                                         | Return / behavior                                                                                                                  |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `accounts.me`                     | `{}`                                                                                                                              | `{ linked, deviceCount, accountId, email, scope }`                                                                                 |
-| `journalClaims.resume`            | `{ scope }`                                                                                                                       | `{ claimId, complete, moved }`; server chooses the target account                                                                  |
-| `sync.syncJournal`                | `{ scope, since, visits, saves }`                                                                                                 | `{ visits, saves, acceptedVisits, acceptedSaves, checkpoint, hasMore }`; at most 50 records / 512 KiB each direction               |
-| `visits.upsertJournal`            | `{ scope, visit }`                                                                                                                | Canonical private visit document; UUID idempotent, no server time-window merging                                                   |
-| `collections.saveToCollection`    | `{ scope, localId, savedAt, snapshot, visitLocalId?, venueId?, venueName?, gallery?, objectId?, artworkId?, scanId?, suggested }` | `{ collectionId, updatedAt, updatedBy, deletedAt? }`; preserves the immutable snapshot and records eligible scan confirmation once |
-| `collections.listMine` / `remove` | `{ scope, cursor?, limit? }` / `{ scope, localId }`                                                                               | `{ page, cursor, isDone }` / `null`; terminal deletion invalidates publication references                                          |
-| `profiles.create`                 | `{ username, name, bio? }`                                                                                                        | Public profile; repeated creation returns the original profile and username                                                        |
-| `profilePhotos.save`              | `{ name, username?, bio?, photo? }`                                                                                               | Public profile; omitted username or photo is kept, a new username must be free; omitted bio clears it; `photo: null` removes it    |
-| `profiles.getPublic`              | `{ profileId }`                                                                                                                   | Public profile or `null` for unavailable accounts                                                                                  |
-| `profiles.search`                 | `{ query, cursor?, limit? }`                                                                                                      | `{ page, cursor, isDone }`, normalized case/accent/whitespace full-text search                                                     |
-| `artworks.search`                 | `{ query, cursor?, limit? }`                                                                                                      | `{ page, cursor, isDone }` of shown catalog works matching title and artist words; public-domain pictures only                     |
-| `artists.search` / `works`        | `{ query }` / `{ artistId, cursor?, limit? }`                                                                                     | Up to 3 artists (normalized name, work count, a public-domain work as avatar) / that artist's catalog works                        |
-
-`JournalVisit` is `{ localId, venueId, visitedOn, timeZone, startedAt?, endedAt?, reflection? }`.
-`visitedOn` is a valid `YYYY-MM-DD` calendar day in an IANA time zone; actual capture/start/end
-timestamps are retained. `JournalSave` contains `localId`, `savedAt`, `snapshot`, optional
-`visitLocalId`/venue/catalog references, `note` and `deletedAt`. Parents arrive before saves.
+Wire types and limits come from [the shared journal contracts](shared/journal/) and
+[the shared social contracts](shared/social/contracts.ts), with generated APIs in
+`convex/_generated/api`. Visits retain a calendar day in an IANA time zone alongside
+actual capture/start/end timestamps. Parents arrive before saves.
 Checkpoints are owner-scoped monotonic change versions, independent of wall clocks. Private
 edits use server last-write stamps (`updatedAt`, `updatedBy`); photo arrivals advance the change
 version without changing those edit stamps. Clients discard responses from previous scopes.
 Private JPEG transfer uses authenticated `/collection-photo?scope=…&localId=…&kind=photo|crop`
 GET/POST, with a 10 MiB limit; the client cannot attach arbitrary storage IDs.
 
-Public profiles allow only `profileId`, username, name, optional bio and `publishedWallCount`.
-Artwork projections allow title, artist, date, medium and eligible media; an artwork's own page
-adds its museum. Artwork notes never leave their owner: an artwork's page returns its note only to
+Public profiles expose selected identity, biography and display media while keeping
+account and device identifiers private. Artwork projections expose catalog metadata
+and eligible media. Artwork notes never leave their owner: an artwork's page returns its note only to
 the owner. Public media is
 an eligible catalog URL or a contextual derivative reference (`wallItem` or `sharedVisit`)
 with dimensions, source and rights metadata. Private storage IDs and owner-photo URLs are
 excluded. Missing, revoked or ineligible imagery renders a square placeholder.
 
-Foundation owns both schemas, claims, ownership/access helpers, profile APIs, journal sync,
-photo ownership, shared limits/errors/projections, and city/ISO alpha-2 country plumbing.
 The venue pipeline and bundled SQLite schema preserve absent geography as absent values.
-Journal owns future history/detail screens and APIs; wall owns layout/publication workflows;
-social owns accepted friendships, blocks and shared-visit workflows; media/reporting own
-image delivery and submission. Their tables, indexes, independent revisions and reusable
-validators exist, but **no callable wall, friendship, feed, shared-publication, public-media or
-reporting endpoints are registered**. Publication requires a linked account and explicit
-profile; shared visits require accepted friendship with neither direction blocked. Registered
-anonymous devices can be report owners; reporting must check target accessibility.
+Publication requires a linked account and explicit profile. Friends-only visits require
+accepted friendship with neither direction blocked; public visits use their public
+audience. Reporting checks target accessibility. See the [journal and social
+contracts](docs/social-and-journal.md).
 
-Shared bounds are in `shared/journal/limits.ts`: pages default 20/max 50, cursor 8 KiB,
-search 2–100 characters, profile name 1–60/bio 160/username 3–30, private notes and reflections
-20,000, snapshot fields 10,000, wall selections 100, post selections 50, accepted friends 200,
-shared reflection 1,200, city 120, report reason 1–120/details 2,000. Validators also check
-UUIDs, dates, zones, timestamps, revisions, dimensions and layout numbers. Future mutations
-must enforce capacity and revision checks transactionally and call the shared access helpers.
+The [shared limits](shared/journal/limits.ts) bound pages, search, profiles, private
+writing, selections, friendships and reports. Validators check UUIDs, dates, zones,
+timestamps, revisions, dimensions and layout numbers. Mutations enforce capacity
+and revision checks transactionally through the shared access helpers.
 
-This is a pre-release schema break: use a fresh local app database. The initialization SQL is
-regenerated directly; there is no legacy migration path. Refresh the migration entry module
-when regenerating SQL so Metro invalidates the inline SQL transform cache. The foundation targets development
-`usable-owl-256`; it has not been released to the production backend described above.
+The initialization SQL is regenerated directly. Refresh the migration entry module
+when regenerating SQL so Metro invalidates the inline SQL transform cache.
 
 ## Rebuild the index from scratch
 
@@ -333,7 +291,6 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
    uv run python -m pipeline.build_index --stage dedupe
    ```
 
-   [Hub scoring is deferred](docs/todos/hub-scoring/README.md) as of 2026-09-12.
    Sample exports and imports require no penalty artifacts; the importer assigns zero
    hub penalties. A development/preview sample can contain 1,000 surviving paintings
    across sources, retaining alternate views and related metadata.
@@ -345,9 +302,9 @@ step 3 before starting the full build: checkpoints cannot mix pilot and full run
    is rebuilt; valid research is reused when only the paragraph is missing. The batch worker
    includes missing descriptions on contributed and currently on-view artworks.
 
-Measured per-call Token Factory costs at the 2026-09-08 list prices: Super label sort about
-$0.0004, Super fact sheet about $0.0012, Lightning docent call about $0.00007, Lightning
-moderation call about $0.00001. Tavily: one credit per search and up to two credits for a batch of five advanced reference extractions. Reference-bearing research adds one Super review call. Nebius compute for the build: $0.
+Provider calls share deployment-level daily caps. Tavily searches reserve one credit;
+advanced reference extraction reserves up to two credits for five URLs.
+Reference-bearing research also requires a Token Factory identity review.
 
 ## Data sources and terms
 
@@ -361,7 +318,7 @@ moderation call about $0.00001. Tavily: one credit per search and up to two cred
 | Wikipedia                                                             | Text is CC BY-SA 4.0. Research reads the linked English article and, when thin, at most one linked article in another supported language (MediaWiki plain text at scan time, lead paragraphs in the batch job). Facts quote the original language and link back; the docent is written in English                                                                                                                                                                                                |
 | Artwork reference pages                                               | Up to five public HTTPS pages explicitly cited by the exact Wikidata item or its linked Commons file, retrieved through Tavily advanced Extract. Used for attributed, verbatim research passages with both source and referring URLs retained; each publisher’s copyright and terms apply. Identity and attribution are reviewed before use.                                                                                                                                                     |
 | Museum websites                                                       | Never crawled. One page is fetched on a visitor's request (a QR code, an accession lookup, a search candidate), only on the venue's own hosts, with an identified User-Agent, per-device rate limits and the daily cap; the per-museum opt-out registry is checked before every fetch. Nothing fetched is stored                                                                                                                                                                                 |
-| Bundled app images                                                    | Public-domain or CC0 reproductions from The Met, the Art Institute of Chicago and Wikimedia Commons: onboarding examples, and 36 preset profile pictures redrawn in crayon with OpenAI `gpt-image-2` when the assets were made. Each folder's `credits.md` lists every work and source; these app assets are separate from the recognition corpus                                                                                                                                                |
+| Bundled app images                                                    | Public-domain or CC0 reproductions from The Met, the Art Institute of Chicago and Wikimedia Commons: onboarding examples, and 36 preset profile pictures redrawn in crayon with OpenAI `gpt-image-2` for the bundled assets. Each folder's `credits.md` lists every work and source; these app assets are separate from the recognition corpus                                                                                                                                                   |
 | WikiArt (`huggan/wikiart`)                                            | Not used: unknown license limited to non-commercial research, and no stable artwork identities                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Tavily, Convex, Cloudflare R2, Pinecone, Nebius Token Factory, OpenAI | Under their API terms. Keys live only in Convex environment variables and the gitignored `.env.local`. OpenAI receives the artwork narration text and, for moderation, the comments, reflections, notes and bios people share; the player discloses that its voice is AI-generated                                                                                                                                                                                                               |
 
@@ -380,25 +337,24 @@ Rights classification is implemented in `scripts/data/pipeline/rights.py`;
   Apple's [MapKit search service](https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/LocationAwarenessPG/EnablingSearch/EnablingSearch.html).
   Confirming a returned place sends that place's name, coordinates and optional website to
   Convex to register the venue; the device's GPS fix is not sent to Convex.
-- **One image can leave the phone, after a visitor action:** a contribution crop of at most
-  256 px shared automatically when a confirmed work is saved and withdrawable in Settings, the
-  only image the system keeps, as the card thumbnail for the next visitor. The label photo is
+- **Visitor contributions share a crop of at most 256 px:** the crop is shared when
+  a confirmed work is saved and can be withdrawn in Settings. It supplies a card thumbnail
+  for other visitors. The label photo is
   read on the phone and only its text lines are sent; label verification downloads a museum
   page's images to the phone to compare them and uploads none.
 - **Identity is the device:** an App Attest key Apple binds to one install on one iPhone.
   Contributions, rejections and venue confirmations carry an assertion, are rate-limited per
-  device and stay private until promoted. Sign in with Apple is optional and only syncs the
-  collection between devices; an account is never required to scan, save or contribute.
+  device. Optional Apple or Google sign-in syncs the private journal between devices
+  and enables profiles, publishing and friendship. An account is never required to scan,
+  save or contribute.
 - **Crash and handled-error reports from production go to Sentry.** Only the EAS production
   environment (`EXPO_PUBLIC_SENTRY_DSN`) and the production Convex deployment (`SENTRY_DSN`) set a
   DSN; leave both unset everywhere else so other builds and deployments send nothing. Reports
   include stack traces, device model, OS and app version, operation names, route templates and
   diagnostic breadcrumbs. Console output and request payloads are excluded; URLs, credentials and
   SQL parameters are redacted.
-  No photos, screenshots or location fixes are attached. An error also uploads a screen replay
-  starting about a minute before it. Sentry masks text and images; camera previews,
-  Skia canvases, maps and SwiftUI hosts showing personal data sit inside `Sentry.Mask`, so only
-  fixed control labels stay readable. Traces time app start and screen loads; request spans keep
+  No photos, screenshots, screen replays or location fixes are attached. Traces time
+  app start and screen loads; request spans keep
   only the host.
   Backend actions send allowlisted error codes and code locations directly to Sentry (no Pro
   integration needed).
@@ -431,7 +387,7 @@ Layout: `src/` (Expo Router app; pure logic under `src/lib/`, Drizzle + expo-sql
 pipeline), `shared/` (contracts shared by phone, backend and jobs), `scripts/model/` (CoreML export),
 [`scripts/model/benchmark/`](scripts/model/benchmark/README.md) (iPhone model measurements),
 [`scripts/evals/token-factory/`](scripts/evals/token-factory/README.md) (model quality comparisons),
-[`docs/`](docs/README.md) (experiment findings, operations, hackathon materials, and open work).
+[`docs/`](docs/README.md) (technical findings, operations, and product contracts).
 Agent guide: [AGENTS.md](AGENTS.md).
 
 ## License
@@ -441,6 +397,6 @@ generated into `convex/lib/thirdPartyNotices.json` and served by the backend at 
 Settings → About → Open source licenses.
 
 The bundled C-RADIOv3-B model is licensed separately under the
-[NVIDIA Open Model License Agreement (June 14, 2024)](modules/coreml-embed/ios/model-notices/c-radio-v3-b/nvidia-open-model-license.pdf).
+[NVIDIA Open Model License Agreement](modules/coreml-embed/ios/model-notices/c-radio-v3-b/nvidia-open-model-license.pdf).
 The complete agreement and required [Notice](modules/coreml-embed/ios/model-notices/c-radio-v3-b/Notice.txt)
 are included in the repository and packaged in the iOS app's `model-notices/c-radio-v3-b/` resources.

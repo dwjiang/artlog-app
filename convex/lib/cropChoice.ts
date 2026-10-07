@@ -1,5 +1,3 @@
-// Mac-harness photos (2026-10-03): nested crops of indexed paintings on phone and laptop screens gained 0.12 or
-// more, reaching 0.79–0.99; on framed and gallery photos the largest nested win was +0.075 at 0.515.
 /** A nested crop's closest artwork must be at least this similar before the crop replaces the outer boundary. */
 export const NESTED_CROP_MIN_SIMILARITY = 0.65;
 /** How much closer a nested crop's best match must be than the outer boundary's. */

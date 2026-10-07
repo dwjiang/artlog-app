@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { db } from "./client";
 
 export function ensureSavedWorkPhotoTimestamp(): void {
-  // This column was added to an already-shipped 0000 migration, which Drizzle won't replay.
+  // Drizzle does not replay applied migrations; inspect the live schema before adding a missing column.
   const columns = db.all<{ name: string }>(sql`PRAGMA table_info(savedWorks)`);
   if (columns.some((column) => column.name === "photoUpdatedAt")) return;
 

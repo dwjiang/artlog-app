@@ -18,7 +18,7 @@ const SEARCH_SCAN = 20;
 type Role = "author" | "companion";
 
 /**
- * People to offer for the handle being typed, only among those who could read the text (5A). The people around the
+ * People to offer for the handle being typed, only among those who could read the text. The people around the
  * text lead: a visit's author and recent commenters, or the friends picked for Went with. Friends come next, then
  * anyone Search finds. A bare `@` (empty query) offers the leading people and friends.
  */

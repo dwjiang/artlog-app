@@ -32,9 +32,8 @@ WORKERS = 6
 class ShardImages(Dataset):
     """Decoding, letterboxing and ORB run in DataLoader workers; the main process only
     batches the GPU forward. Module-level so macOS's `spawn` workers can import it. Pixels
-    cross the process boundary as numpy, not tensors: a tensor handed back from a spawned
-    worker goes through torch's shared-memory path and, on macOS, held every worker in a
-    5 s join timeout at shard end."""
+    cross the process boundary as numpy, not tensors: torch's shared-memory tensor transport
+    can delay spawned macOS workers during shutdown."""
 
     def __init__(self, files: list[Path], size: int = INPUT_SIZE):
         self.files = list(files)

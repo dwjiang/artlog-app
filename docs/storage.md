@@ -62,12 +62,12 @@ entry and queues an idempotent R2 deletion. Failures report through Sentry and
 retry with backoff; the hourly sweep recovers interrupted deletion actions. Direct
 uploads defer physical deletion until their upload URL has expired.
 
-## Deploying this schema
+## File identity
 
-This pre-release schema requires a fresh database and R2 bucket, or a reset and
-reseed of the previous deployment and its file references. Existing UUID object
-keys and Convex `_storage` IDs are not valid `files` references; removing the old
-`key` field alone does not convert them. There is no legacy lookup or storage fallback.
+Only `files` table IDs are valid file references. UUID object keys and Convex
+`_storage` IDs cannot stand in for them. Every producer and reader must use the
+same registry identity; changing a key's field name does not convert its bytes
+or references.
 
-After deployment, verify uploads, authenticated photos, public redirects, narration,
-museum packages, and file deletion.
+After storage configuration changes, verify uploads, authenticated photos,
+public redirects, narration, museum packages, and file deletion.

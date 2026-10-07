@@ -19,7 +19,6 @@ afterEach(() => {
 });
 
 it("restores journal sync when migration 0000 was applied before photoUpdatedAt was added", async () => {
-  // The original 0000 had no photoUpdatedAt; its unchanged journal timestamp skips the edited SQL.
   db.run(sql`ALTER TABLE savedWorks DROP COLUMN photoUpdatedAt`);
   const migrations = db.all(sql`SELECT * FROM __drizzle_migrations`);
   const owner = getLocalOwner();

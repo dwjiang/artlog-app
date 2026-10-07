@@ -338,7 +338,7 @@ export const identify = action({
     venueId: v.optional(v.id("museums")),
     visitId: v.optional(v.id("visits")),
     capturedAt: v.number(),
-    // Absent from scans queued by builds that predate it.
+    // Optional crop geometry locates the identified region in the source photo.
     cropCorners: v.optional(v.array(v.array(v.number()))),
   },
   returns: scanDisplay,

@@ -138,7 +138,7 @@ def test_prepare_uses_shared_calibration_images_and_rejects_changed_cached_bytes
     pixels = (artifacts / "calibration-448" / prepared[0]["file"]).read_bytes()
     assert len(pixels) == 448 * 448 * 3
     assert sha256(pixels).hexdigest() == prepared[0]["pixel_sha256"]
-    assert pixels[:3] == bytes(3)  # Historical reference uses centered black padding.
+    assert pixels[:3] == bytes(3)  # Calibration reference pixels use centered black padding.
     calibration.prepare(512)
     assert downloader.get.call_count == 2
     calibration.image_path(urls[1]).write_bytes(b"changed cached bytes")

@@ -6,8 +6,7 @@ build numbers across releases; this is the native build, not the marketing
 version. Numeric dotted builds are also supported.
 
 Before raising the minimum, verify the replacement is downloadable for affected
-users. Release the gate itself before relying on it: older binaries without the
-gate cannot display it. Describe the required-update behavior in App Review notes.
+users. Binaries without the gate cannot display the required-update screen. Describe the required-update behavior in App Review notes.
 
 Check the selected deployment before each command. These commands target the
 configured development deployment:
@@ -24,8 +23,8 @@ To remove the requirement:
 npx convex env remove MINIMUM_IOS_BUILD
 ```
 
-Production changes require an explicit release decision and the production
-deployment selector. Do not raise the production minimum while the replacement
+Production changes require explicit authorization and the production deployment
+selector. Do not raise the production minimum while the replacement
 is still in review or otherwise unavailable.
 
 The app checks before mounting navigation and sync, on foreground, on reconnect,

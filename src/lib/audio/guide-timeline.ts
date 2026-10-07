@@ -9,10 +9,9 @@ export const GUIDE_SECTION_TITLES: Record<GuideSection, string> = {
 };
 
 // Speech arrives without timings, so a sentence starts after its predecessors' share of the spoken text,
-// with a pause after each spoken stop. Fit on 2026-10-05 to the pauses in a 75.8 s Water Lilies render:
-// every estimated start landed within 1.2 s of the real one.
+// with a pause after each spoken stop.
 const PAUSE_WEIGHT = 14;
-// The same render's pace in characters (pauses included) per second, for a live guide whose length is still unknown.
+// Estimated weighted characters per second, including pauses, while the audio's duration is unknown.
 const WEIGHT_PER_SECOND = 16.2;
 const SPOKEN_STOP = /[.!?…]+["'”’)]*(?=\s|$)/g;
 

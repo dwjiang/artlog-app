@@ -1,16 +1,6 @@
 # Documentation
 
-- [Experiment findings](experiments/README.md): decisions, measurements, limitations, and archived evidence.
-- Operations: [production deployment](operations/production.md) and [corpus inventory](operations/corpus.md).
-- [Hackathon requirements](hackathon/README.md): recorded event rules, judging criteria, submission deliverables, and vendor feedback notes.
-
-## Open work
-
-- [Social and journal](todos/social-and-journal/README.md) — agreed contracts and planned API boundaries
-- [Production release](todos/release/README.md)
-- [Hackathon submission](todos/hackathon/README.md)
-- [Full corpus upload](todos/production-upload/README.md) — deferred
-- [Upstash vector migration](../plans/001-upstash-vector-migration.md) — deferred; follows the Convex storage and import fixes
-- [Independent-evidence promotion](todos/independent-evidence-promotion/README.md) — deferred; tentative labels stay tentative in this release
-- [Hub scoring](todos/hub-scoring/README.md) — deferred
-- [Deferred product work](todos/deferred-product/README.md)
+- Integrations and policies: [AI and search providers](integrations.md), [legal pages](legal.md), and [social and journal boundaries](social-and-journal.md).
+- Recognition: [model and evaluation findings](experiments/README.md), [Pinecone benchmark](experiments/pinecone.md), and [contribution identity](contribution-identity.md).
+- Storage and access: [R2 files](storage.md), [Pinecone](pinecone.md), and [Google sign-in](google-sign-in.md).
+- Operations: [production targeting](operations/production.md), [corpus artifacts](operations/corpus.md), [corpus imports](operations/corpus-imports.md), [museum packages](operations/museum-downloads.md), [app compatibility](operations/app-updates.md), and [Sentry automation](operations/sentry-automation.md).
