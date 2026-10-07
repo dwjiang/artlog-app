@@ -13,6 +13,8 @@ const limits = {
   likeVisit: { kind: "fixed window", rate: 60, period: MINUTE },
   likeComment: { kind: "fixed window", rate: 60, period: MINUTE },
   commentVisit: { kind: "fixed window", rate: 20, period: MINUTE },
+  // Shared by every demo account, on top of each account's own limits.
+  demoActivity: { kind: "fixed window", rate: 60, period: HOUR },
   report: { kind: "fixed window", rate: 10, period: DAY },
   registerDevice: { kind: "fixed window", rate: 10, period: HOUR },
   attestChallenge: { kind: "fixed window", rate: 30, period: HOUR },

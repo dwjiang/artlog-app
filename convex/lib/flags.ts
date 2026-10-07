@@ -1,11 +1,13 @@
 import { env } from "../_generated/server";
 
-export type FeatureFlag = "labelFlow" | "rightNow";
+export type FeatureFlag = "labelFlow" | "rightNow" | "demoActivity";
 
 // "Right now" defaults off because retrieval can return stale or unrelated events.
 const flags: Record<FeatureFlag, { variable: keyof typeof env; defaultOn: boolean }> = {
   labelFlow: { variable: "FLAG_LABEL_FLOW", defaultOn: true },
   rightNow: { variable: "FLAG_RIGHT_NOW", defaultOn: false },
+  // The demo bot's kill switch: its operations answer `feature_off` until a deployment opts in.
+  demoActivity: { variable: "FLAG_DEMO_ACTIVITY", defaultOn: false },
 };
 
 export function isEnabled(flag: FeatureFlag): boolean {

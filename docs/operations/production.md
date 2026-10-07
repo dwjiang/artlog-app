@@ -17,6 +17,8 @@ Production requires `APPLE_BUNDLE_ID=app.artlog.ios`,
 `APP_ATTEST_ALLOW_DEV=false`. Supported model versions must match the bundled
 CoreML asset and corpus. Keep `FLAG_RIGHT_NOW=off` because source retrieval does
 not establish semantic grounding; see [the evaluation limits](../experiments/README.md#tavily-and-right-now).
+Leave `DEMO_BOT_JWKS` and `FLAG_DEMO_ACTIVITY` unset unless demo activity on
+production was explicitly requested; see [demo activity](../demo-activity.md).
 
 Authentication uses independent `JWT_PRIVATE_KEY` and `JWKS`. Runtime providers
 require `NEBIUS_API_KEY`, `TAVILY_API_KEY`, and `OPENAI_API_KEY`. Without the OpenAI

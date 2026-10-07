@@ -89,6 +89,13 @@
         "no-restricted-imports": [
           "error",
           {
+            "paths": [
+              {
+                "name": "@convex-dev/auth/server",
+                "importNames": ["getAuthUserId"],
+                "message": "Use authUserId from convex/lib/auth so the demo bot's service token reads as signed out."
+              }
+            ],
             "patterns": [
               {
                 "group": ["**/_generated/server"],

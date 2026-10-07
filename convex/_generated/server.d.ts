@@ -37,8 +37,10 @@ type Env = {
   readonly CRAWLER_CONTACT: string | undefined;
   readonly DAILY_TAVILY_CREDIT_CAP: string | undefined;
   readonly DAILY_TOKEN_FACTORY_CALL_CAP: string | undefined;
+  readonly DEMO_BOT_JWKS: string | undefined;
   readonly DOCENT_MODEL: string | undefined;
   readonly FACT_SHEET_MODEL: string | undefined;
+  readonly FLAG_DEMO_ACTIVITY: string | undefined;
   readonly FLAG_LABEL_FLOW: string | undefined;
   readonly FLAG_RIGHT_NOW: string | undefined;
   readonly GOOGLE_WEB_CLIENT_ID: string | undefined;

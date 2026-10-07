@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
@@ -6,7 +5,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { action, internalQuery, query, type MutationCtx, type QueryCtx, env } from "./_generated/server";
 import { internalMutation, mutation } from "./functions";
 import { appIdHash, bytesToBase64Url, verifyAssertion } from "./lib/appAttest";
-import { findDeviceForUser, requireAuthUserId, requireDevice, requireDeviceFromAction } from "./lib/auth";
+import { authUserId, findDeviceForUser, requireAuthUserId, requireDevice, requireDeviceFromAction } from "./lib/auth";
 import { withErrorReporting } from "./lib/observability";
 import { limitKey } from "./lib/rateLimits";
 import { challengePurpose, devicePlatform } from "./lib/validators";
@@ -108,7 +107,7 @@ export const sessionRevoked = query({
   args: {},
   returns: v.boolean(),
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = await authUserId(ctx);
     return userId !== null && !(await ctx.db.get("users", userId));
   },
 });

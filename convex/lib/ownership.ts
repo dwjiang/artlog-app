@@ -1,10 +1,9 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
 
 import { type JournalOwner, ownerKey, sameOwner } from "../../shared/journal/contracts";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx, MutationCtx } from "../_generated/server";
-import { findDeviceForUser, requireDevice } from "./auth";
+import { authUserId, findDeviceForUser, requireDevice } from "./auth";
 
 type ReadCtx = QueryCtx | MutationCtx;
 export async function ownerForDevice(ctx: ReadCtx, device: Doc<"devices">): Promise<JournalOwner> {
@@ -111,7 +110,7 @@ export async function nextChangeVersion(ctx: MutationCtx, owner: JournalOwner): 
 }
 
 export async function optionalProfile(ctx: ReadCtx) {
-  const userId = await getAuthUserId(ctx);
+  const userId = await authUserId(ctx);
   if (!userId) return null;
   const device = await findDeviceForUser(ctx, userId);
   if (device?.banned) throw new ConvexError({ code: "device_banned" });

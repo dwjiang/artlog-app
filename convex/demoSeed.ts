@@ -1,32 +1,31 @@
 import { ConvexError, type Infer, v } from "convex/values";
 
-import { validateAlbumPhoto } from "../shared/collection/album";
 import { journalVisit } from "../shared/journal/contracts";
 import { isUuid, normalizeSearch } from "../shared/journal/limits";
 import { avatarId } from "../shared/social/avatars";
 import { validateProfile, validateWallItems, wallLayout, wallPattern } from "../shared/social/contracts";
 import { leaderboardVisibility } from "../shared/social/leaderboard";
 import { MAX_COMMENT_LENGTH } from "../shared/social/visit-reactions";
-import { randomWallStyle } from "../shared/wall/defaults";
 import { internal } from "./_generated/api";
-import type { Doc, Id } from "./_generated/dataModel";
-import { internalAction, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { internalAction, internalQuery, type MutationCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
+import {
+  addDemoSave,
+  demoAccountRange,
+  demoProfile,
+  demoProviderUserId,
+  demoSave,
+  insertDemoPost,
+  readableBy,
+  usableObject,
+  venueByKey,
+} from "./lib/demoAccounts";
 import { fileStorage } from "./lib/fileStorage";
 import { canonicalPair } from "./lib/friendships";
-import { upsertJournalSave, upsertJournalVisit } from "./lib/journal";
-import { findOwnedSave, nextChangeVersion } from "./lib/ownership";
-import { readablePublication } from "./lib/publicationAccess";
-import { changeEngagement } from "./lib/visitReactions";
-
-// Demo people are ordinary accounts that no sign-in can reach: real Apple subjects never start with this prefix.
-const DEMO_PREFIX = "demo:";
-const demoAccountRange = (ctx: QueryCtx) =>
-  ctx.db
-    .query("accounts")
-    .withIndex("by_provider_userId", (q) =>
-      q.eq("provider", "apple").gte("providerUserId", DEMO_PREFIX).lt("providerUserId", "demo;"),
-    );
+import { upsertJournalVisit } from "./lib/journal";
+import { findOwnedSave } from "./lib/ownership";
+import { insertVisitComment, insertVisitLike } from "./lib/visitReactions";
 
 export const storeImages = internalAction({
   args: { images: v.array(v.bytes()) },
@@ -64,22 +63,6 @@ export const inspect = internalQuery({
   },
 });
 
-const demoPhoto = v.object({
-  localId: v.string(),
-  storageId: v.id("files"),
-  width: v.number(),
-  height: v.number(),
-  capturedAt: v.number(),
-});
-const demoSave = v.object({
-  localId: v.string(),
-  objectKey: v.string(),
-  savedAt: v.number(),
-  note: v.optional(v.string()),
-  photos: v.array(demoPhoto),
-  // A crop of the first photo, as the scan flow stores it.
-  crop: v.optional(v.object({ storageId: v.id("files"), width: v.number(), height: v.number() })),
-});
 const { venueId: _venueId, ...visitFields } = journalVisit.fields;
 const demoVisit = v.object({
   ...visitFields,
@@ -114,7 +97,7 @@ export const seedPerson = internalMutation({
   returns: v.id("profiles"),
   handler: async (ctx, input) => {
     const fields = validateProfile(input);
-    const providerUserId = `${DEMO_PREFIX}${input.username}`;
+    const providerUserId = demoProviderUserId(input.username);
     if (
       await ctx.db
         .query("accounts")
@@ -159,7 +142,7 @@ export const seedPerson = internalMutation({
       const visitRow = await upsertJournalVisit(ctx, owner, deviceId, { ...visit, venueId: venue._id });
       const saveRows = [];
       for (const save of saves) {
-        saveRows.push(await seedSave(ctx, owner, deviceId, visitRow, venue, save));
+        saveRows.push(await addDemoSave(ctx, owner, deviceId, visitRow, venue, save));
       }
       if (post && visit.visibility !== "private") {
         if (!isUuid(post.postId)) throw new ConvexError({ code: "invalid_post" });
@@ -168,108 +151,13 @@ export const seedPerson = internalMutation({
           .withIndex("by_postId", (q) => q.eq("postId", post.postId))
           .unique();
         if (existing) throw new ConvexError({ code: "invalid_post" });
-        const publicationId = await ctx.db.insert("sharedVisits", {
-          postId: post.postId,
-          profileId,
-          visitId: visitRow._id,
-          visitLocalId: visitRow.localId,
-          visitedOn: visitRow.visitedOn,
-          status: "active",
-          audience: visit.visibility,
-          reflection: visitRow.reflection ?? "",
-          publishedAt: post.publishedAt,
-          updatedAt: post.publishedAt,
-          publicationRevision: 1,
-          ...randomWallStyle(),
-        });
-        for (const [position, { row, photoLocalIds }] of saveRows.entries()) {
-          await ctx.db.insert("sharedVisitItems", {
-            publicationId,
-            saveId: row._id,
-            saveLocalId: row.localId,
-            position,
-            ...(photoLocalIds.length > 0 ? { photoLocalIds } : {}),
-            highlighted: position < 3,
-          });
-        }
+        await insertDemoPost(ctx, { profileId, visit: visitRow, saves: saveRows, ...post });
       }
     }
     if (input.wall) await seedWall(ctx, owner, profileId, input.wall);
     return profileId;
   },
 });
-
-async function seedSave(
-  ctx: MutationCtx,
-  owner: { kind: "account"; accountId: Id<"accounts"> },
-  deviceId: Id<"devices">,
-  visit: Doc<"visits">,
-  venue: Doc<"museums">,
-  save: Infer<typeof demoSave>,
-) {
-  const object = await usableObject(ctx, save.objectKey);
-  const artwork = object && (await ctx.db.get("artworks", object.artworkId));
-  if (!object || !artwork || object.ownerId !== venue._id) {
-    throw new ConvexError({ code: "invalid_object", objectKey: save.objectKey });
-  }
-  const details = object.detailsId ? await ctx.db.get("objectDetails", object.detailsId) : null;
-  const placement = (
-    await ctx.db
-      .query("placements")
-      .withIndex("by_objectId", (q) => q.eq("objectId", object._id))
-      .take(20)
-  ).find((row) => row.venueId === venue._id && row.closedAt === undefined);
-  const row = await upsertJournalSave(ctx, owner, deviceId, {
-    localId: save.localId,
-    visitLocalId: visit.localId,
-    venueId: venue._id,
-    venueName: venue.name,
-    gallery: placement?.gallery,
-    savedAt: save.savedAt,
-    snapshot: {
-      title: artwork.title,
-      artist: artwork.artist,
-      date: artwork.date,
-      medium: details?.medium,
-      institution: venue.name,
-    },
-    objectId: object._id,
-    artworkId: artwork._id,
-    note: save.note,
-  });
-  await ctx.db.patch("collections", row._id, { confirmationRecorded: true });
-  for (const photo of save.photos) {
-    const fields = {
-      localId: photo.localId,
-      savedLocalId: row.localId,
-      kind: "full" as const,
-      capturedAt: photo.capturedAt,
-      visitLocalId: visit.localId,
-    };
-    validateAlbumPhoto(fields);
-    await ctx.db.insert("artworkPhotos", {
-      ...fields,
-      owner,
-      saveId: row._id,
-      storageId: photo.storageId,
-      width: photo.width,
-      height: photo.height,
-      updatedAt: photo.capturedAt,
-      changeVersion: await nextChangeVersion(ctx, owner),
-    });
-  }
-  if (save.crop && save.photos[0]) {
-    await ctx.db.patch("collections", row._id, {
-      cropStorageId: save.crop.storageId,
-      cropPhotoLocalId: save.photos[0].localId,
-      cropWidth: save.crop.width,
-      cropHeight: save.crop.height,
-      photoUpdatedAt: save.savedAt,
-      changeVersion: await nextChangeVersion(ctx, owner),
-    });
-  }
-  return { row, photoLocalIds: save.photos.map((photo) => photo.localId) };
-}
 
 async function seedWall(
   ctx: MutationCtx,
@@ -346,20 +234,19 @@ export const seedSocial = internalMutation({
         .withIndex("by_publication_profile", (q) => q.eq("publicationId", publication._id).eq("profileId", profile._id))
         .unique();
       if (existing) continue;
-      await ctx.db.insert("visitLikes", { publicationId: publication._id, profileId: profile._id });
-      await changeEngagement(ctx, publication._id, "likeCount", 1);
+      await insertVisitLike(ctx, publication._id, profile._id);
     }
     for (const comment of input.comments) {
       const body = comment.body.trim();
       if (!body || body.length > MAX_COMMENT_LENGTH) throw new ConvexError({ code: "invalid_comment" });
       const { profile, publication } = await readableBy(ctx, comment.username, comment.postId);
-      await ctx.db.insert("visitComments", {
+      await insertVisitComment(ctx, {
         publicationId: publication._id,
         profileId: profile._id,
         body,
         requestId: crypto.randomUUID(),
+        mentions: [],
       });
-      await changeEngagement(ctx, publication._id, "commentCount", 1);
     }
     return null;
   },
@@ -403,39 +290,3 @@ export const clear = internalMutation({
     return accounts.length;
   },
 });
-
-async function usableObject(ctx: QueryCtx, key: string) {
-  const object = await ctx.db
-    .query("objects")
-    .withIndex("by_key", (q) => q.eq("key", key))
-    .first();
-  return object && !object.reverted && !object.mergedInto && object.identityStatus === "established" ? object : null;
-}
-function venueByKey(ctx: QueryCtx, key: string) {
-  return ctx.db
-    .query("museums")
-    .withIndex("by_key", (q) => q.eq("key", key))
-    .unique();
-}
-async function demoProfile(ctx: QueryCtx, username: string) {
-  const profile = await ctx.db
-    .query("profiles")
-    .withIndex("by_username", (q) => q.eq("username", username))
-    .unique();
-  const account = profile && (await ctx.db.get("accounts", profile.accountId));
-  if (!profile || !account?.providerUserId.startsWith(DEMO_PREFIX)) {
-    throw new ConvexError({ code: "not_found", username });
-  }
-  return profile;
-}
-async function readableBy(ctx: QueryCtx, username: string, postId: string) {
-  const profile = await demoProfile(ctx, username);
-  const publication = await ctx.db
-    .query("sharedVisits")
-    .withIndex("by_postId", (q) => q.eq("postId", postId))
-    .unique();
-  if (!publication || !(await readablePublication(ctx, publication, profile._id))) {
-    throw new ConvexError({ code: "not_found", username, postId });
-  }
-  return { profile, publication };
-}
