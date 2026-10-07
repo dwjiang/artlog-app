@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from pipeline.dedupe import find_merges, run
-from pipeline.features import read_jsonl, write_jsonl
+from pipeline.features import file_hash, read_jsonl, write_jsonl
 from pipeline.model_version import EMBEDDING_DIM
 from pipeline.sources.fetch import write_json
 
@@ -282,4 +282,49 @@ def test_additions_never_join_two_imported_survivors(delta_package):
 
     assert read_jsonl(out / "merges.jsonl") == [
         {"from": "fng:9", "into": "met:1", "rule": "accession"}
+    ]
+
+
+def test_an_addition_answers_to_its_imported_artworks_rights(merged_corpus, delta_package):
+    base = merged_corpus()
+    # The imported art:1 has no public-domain claim; a museum record of the same artwork says it is.
+    artworks = read_jsonl(base / "artworks.jsonl")
+    for row in artworks:
+        if row["key"] == "art:1":
+            row["rightsStatus"] = "unknown"
+    write_jsonl(base / "artworks.jsonl", artworks)
+    stats = json.loads((base / "stats.json").read_text())
+    stats["files"]["artworks.jsonl"] = file_hash(base / "artworks.jsonl")
+    write_json(base / "stats.json", stats)
+
+    out, _ = delta_package(
+        artworks=[
+            {
+                "key": "art:1",
+                "title": "Painting 1",
+                "artist": "Artist 1",
+                "rightsStatus": "public_domain",
+            }
+        ],
+        objects=[
+            {
+                "key": "fng:5",
+                "artworkKey": "art:1",
+                "ownerKey": "museum:3",
+                "source": "corpus",
+                "sourceId": "5",
+                "imageRef": "https://fng.test/5.jpg",
+                "thumbnailUrl": "https://fng.test/5-small.jpg",
+                "pageUrl": "https://fng.test/5",
+            }
+        ],
+        placements=[],
+        axes={"fng:5": 3},
+        base=base,
+    )
+
+    assert read_jsonl(out / "artworks.jsonl") == []
+    assert "thumbnailUrl" not in read_jsonl(out / "objects.jsonl")[0]
+    assert read_jsonl(out / "external-references.jsonl") == [
+        {"table": "artworks", "key": "art:1", "rightsStatus": "unknown"}
     ]

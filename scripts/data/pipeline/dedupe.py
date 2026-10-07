@@ -359,8 +359,11 @@ def run_delta(bases: list[Path], features: Path, metadata: Path, out: Path) -> d
     merged_objects = []
     for row in sorted(objects, key=lambda row: priority(row["key"])):
         row = dict(row)
-        work = works.get(row["artworkKey"]) or base_works[row["artworkKey"]]
-        if (rights.get(row["artworkKey"]) or work["rightsStatus"]) != "public_domain":
+        # An imported artwork keeps its row, so its rights are the ones a thumbnail answers to.
+        key = row["artworkKey"]
+        if (base_works[key] if key in base_works else {"rightsStatus": rights[key]})[
+            "rightsStatus"
+        ] != "public_domain":
             row.pop("thumbnailUrl", None)
         if mapping[row["key"]] != row["key"]:
             row["mergedIntoKey"] = mapping[row["key"]]

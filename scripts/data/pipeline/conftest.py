@@ -133,8 +133,8 @@ def delta_package(merged_corpus, tmp_path):
     """Additions to the merged corpus, by default cma:1 duplicating the imported met:0 and a new fng:2. `axes` gives
     each addition's unit vector by the axis it lies on; the imported vectors lie on axis 0."""
 
-    def build(artworks=None, objects=None, placements=None, axes=None):
-        base = merged_corpus()
+    def build(artworks=None, objects=None, placements=None, axes=None, base=None):
+        base = base or merged_corpus()
         metadata = tmp_path / "additions"
         new_object = {"source": "corpus", "pageUrl": "https://museum.test/new"}
         artworks = artworks or [
