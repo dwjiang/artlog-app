@@ -253,6 +253,50 @@ def test_additions_attach_to_imported_survivors_without_rewriting_them(delta_pac
     assert stats["delta"]["aliasesOfImported"] == 1
 
 
+def test_additions_supply_descriptors_for_an_imported_object_without_features(delta_package):
+    from pipeline.push import Corpus
+
+    image = "https://cma.test/1.jpg"
+    out, stats = delta_package(
+        artworks=[
+            {
+                "key": "cma:1",
+                "title": "Painting 2",
+                "artist": "Artist 2",
+                "rightsStatus": "public_domain",
+            }
+        ],
+        objects=[
+            {
+                "key": "cma:1",
+                "artworkKey": "cma:1",
+                "ownerKey": "museum:1",
+                "accession": "2",
+                "source": "corpus",
+                "sourceId": "1",
+                "imageRef": image,
+                "pageUrl": "https://cma.test/1",
+            }
+        ],
+        placements=[],
+        axes={"cma:1": 1},
+    )
+
+    assert read_jsonl(out / "descriptor-index.jsonl") == [
+        {"objectKey": "met:2", "viewKey": "cma:1"}
+    ]
+    assert stats["descriptors"] == 1
+    corpus = Corpus(out)
+    assert corpus.referenced_rows() == {"objects": ["met:2"], "artworks": []}
+    assert corpus.batch("descriptors", 0, 1) == [
+        {
+            "objectKey": "met:2",
+            "extractedFrom": image,
+            **corpus.features.descriptors("cma:1"),
+        }
+    ]
+
+
 def test_additions_never_join_two_imported_survivors(delta_package):
     # Its accession matches met:1 while its image matches met:0, which has the same artist and owner.
     out, _ = delta_package(

@@ -8,7 +8,12 @@ import { bumpCounter } from "./ingest";
 import { cosine } from "./lib/cosine";
 import { isSupported } from "./lib/modelVersion";
 import { withErrorReporting } from "./lib/observability";
-import { eligibleObjectRecord, isLinkedView, recognitionPartition } from "./lib/recognitionEligibility";
+import {
+  eligibleLinkedScan,
+  eligibleObjectRecord,
+  isLinkedView,
+  recognitionPartition,
+} from "./lib/recognitionEligibility";
 import { deleteVector, insertArchivedVector, readVector } from "./lib/vectorStore";
 import { MULTI_VIEW_DUPLICATE_COSINE } from "./promotion";
 import { getEmbedding } from "./scanEmbeddings";
@@ -42,6 +47,7 @@ async function pendingLinkedView(ctx: QueryCtx, scanId: Id<"scans">) {
     !device
     || device.banned
     || !embedding
+    || !(await eligibleLinkedScan(ctx, scan))
     || object?.identityStatus !== "established"
     || !(await eligibleObjectRecord(ctx, object))
   ) {
@@ -125,7 +131,7 @@ export const commit = internalMutation({
   },
 });
 
-/** Withdraws the view a scan lent its linked work, once the scan names something else. */
+/** Withdraws the recognition view a scan lent its linked work. */
 export async function dropLinkedView(ctx: MutationCtx, scanId: Id<"scans">): Promise<void> {
   const scanVectors = await ctx.db
     .query("vectors")

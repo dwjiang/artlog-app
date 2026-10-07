@@ -4,7 +4,7 @@ import model from "../shared/model/model-version.json";
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { eligibleVector, recognitionPartition } from "./lib/recognitionEligibility";
-import { seedArtworkWithObject, seedDevice, seedScan, seedVector, testVector } from "./lib/testFactories";
+import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan, seedVector, testVector } from "./lib/testFactories";
 import { readVector } from "./lib/vectorStore";
 import { dropLinkedView, LINKED_VIEW_MIN_COSINE, MAX_VISITOR_VIEWS } from "./linkedViews";
 import { harness } from "./test.helpers";
@@ -22,14 +22,17 @@ const snapshot = { title: "Water Lilies", artist: "Claude Monet" };
 async function fixture({
   similarity = 0.8,
   source = "label",
-}: { similarity?: number; source?: "label" | "manual" } = {}) {
+  atVenue = false,
+}: { similarity?: number; source?: "label" | "manual"; atVenue?: boolean } = {}) {
   const t = harness();
   const user = await seedDevice(t);
+  const venueId = atVenue ? await t.run(seedMuseum) : undefined;
   const work = await t.run((ctx) => seedArtworkWithObject(ctx));
   const other = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { title: "Haystacks" } }));
   const scanId = await t.run((ctx) =>
     seedScan(ctx, {
       deviceId: user.deviceId,
+      venueId,
       vector: testVector(similarity),
       linked: { source, objectId: work.objectId, artworkId: work.artworkId, linkedAt: Date.now() },
     }),
@@ -40,6 +43,7 @@ async function fixture({
       localId: crypto.randomUUID(),
       savedAt: Date.now(),
       scanId,
+      venueId,
       objectId: work.objectId,
       artworkId: work.artworkId,
       snapshot,
@@ -52,7 +56,7 @@ async function fixture({
     t.run(async (ctx) =>
       (await ctx.db.query("vectors").collect()).filter((row) => row.source === "user_scan"),
     ) as Promise<Doc<"vectors">[]>;
-  return { t, user, work, other, scanId, save, views };
+  return { t, user, work, other, venueId, scanId, save, views };
 }
 
 it("lends the photo of a scan saved under its verified label's catalogue work to that work", async () => {
@@ -127,4 +131,52 @@ it("withdraws the lent photo once the scan names another work, and never serves 
   await t.run((ctx) => dropLinkedView(ctx, scanId));
   expect(await views()).toEqual([]);
   expect((await t.query(internal.ingest.counts, {})).vectors).toBe(0);
+});
+
+it("refuses new learning and an in-flight commit after the scan's venue opts out", async () => {
+  const { t, work, venueId, scanId, save, views } = await fixture({ atVenue: true });
+  expect(await t.query(internal.linkedViews.prepare, { scanId })).not.toBeNull();
+  await t.mutation(internal.revert.applyOptOut, { venueId: venueId!, requester: "museum" });
+  expect(await t.query(internal.linkedViews.prepare, { scanId })).toBeNull();
+  await t.mutation(internal.linkedViews.commit, { scanId, objectId: work.objectId, checked: [] });
+  await save();
+  expect(await views()).toEqual([]);
+});
+
+it("hides opted-out views immediately and removes them across scan pages without removing catalogue views", async () => {
+  const { t, user, work, other, venueId, scanId, save, views } = await fixture({ atVenue: true });
+  await save();
+  const [view] = await views();
+  // Put another learned view beyond the first cleanup page.
+  for (let i = 0; i < 25; i++) {
+    await t.run((ctx) => seedScan(ctx, { deviceId: user.deviceId, venueId }));
+  }
+  const laterScan = await t.run((ctx) =>
+    seedScan(ctx, {
+      deviceId: user.deviceId,
+      venueId,
+      vector: testVector(0.8),
+      linked: { source: "label", objectId: other.objectId, artworkId: other.artworkId, linkedAt: Date.now() },
+    }),
+  );
+  await t.action(internal.linkedViews.learn, { scanId: laterScan });
+  const elsewhere = await t.run((ctx) =>
+    seedScan(ctx, {
+      deviceId: user.deviceId,
+      vector: testVector(0.65),
+      linked: { source: "label", objectId: work.objectId, artworkId: work.artworkId, linkedAt: Date.now() },
+    }),
+  );
+  await t.action(internal.linkedViews.learn, { scanId: elsewhere });
+  expect(await views()).toHaveLength(3);
+
+  const optOutId = await t.mutation(internal.revert.applyOptOut, { venueId: venueId!, requester: "museum" });
+  expect(await t.run((ctx) => eligibleVector(ctx, view))).toBe(false);
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+  expect(await views()).toMatchObject([{ scanId: elsewhere }]);
+  expect((await t.query(internal.ingest.counts, {})).vectors).toBe(1);
+  expect(await t.run((ctx) => ctx.db.get("vectors", work.vectorId))).not.toBeNull();
+  expect(await t.run((ctx) => ctx.db.get("scans", scanId))).not.toBeNull();
+  expect(await t.run((ctx) => ctx.db.get("optOuts", optOutId))).toMatchObject({ appliedAt: Date.now() });
 });

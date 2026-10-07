@@ -117,6 +117,13 @@ export function isLinkedView(vector: Doc<"vectors">): boolean {
   return vector.source === "user_scan" && !!vector.scanId && !vector.feedbackId && !vector.proposalId;
 }
 
+export async function eligibleLinkedScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<boolean> {
+  if (scan.linked?.source !== "label") return false;
+  if (!scan.venueId) return true;
+  const venue = await ctx.db.get("museums", scan.venueId);
+  return !!venue && !(await isVenueOptedOut(ctx, venue));
+}
+
 export async function eligibleVector(ctx: QueryCtx, vector: Doc<"vectors">): Promise<boolean> {
   if (vector.source === "user" && !vector.contributionId) return false;
   if (vector.source === "user_scan" && !vector.scanId) return false;
@@ -130,7 +137,12 @@ export async function eligibleVector(ctx: QueryCtx, vector: Doc<"vectors">): Pro
     const scan = await ctx.db.get("scans", vector.scanId);
     const device = scan ? await ctx.db.get("devices", scan.deviceId) : null;
     if (!device || device.banned) return false;
-    if (isLinkedView(vector) && scan?.linked?.objectId !== vector.objectId) return false;
+    if (
+      isLinkedView(vector)
+      && (!scan || scan.linked?.objectId !== vector.objectId || !(await eligibleLinkedScan(ctx, scan)))
+    ) {
+      return false;
+    }
   }
   if (vector.feedbackId) {
     const feedback = await ctx.db.get("feedback", vector.feedbackId);

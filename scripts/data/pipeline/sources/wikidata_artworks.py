@@ -136,7 +136,7 @@ def fetch_artworks(
     if batch_size <= 0:
         raise ValueError("batch_size must be positive")
     out.mkdir(parents=True, exist_ok=True)
-    census_path = out / "census.json"
+    census_path = out / "artworks-census.json"
     if census_path.exists():
         census = json.loads(census_path.read_text())
     else:

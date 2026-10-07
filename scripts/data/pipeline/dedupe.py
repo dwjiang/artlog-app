@@ -278,9 +278,15 @@ def run_delta(bases: list[Path], features: Path, metadata: Path, out: Path) -> d
     }:
         raise ValueError("Merged output must be separate from its inputs")
     base_objects, base_works, base_placements, base_vectors = {}, {}, set(), {}
+    base_descriptors = set()
     for base in bases:
         base_stats = json.loads((base / "stats.json").read_text())
-        for name in ("artworks.jsonl", "objects.jsonl", "placements.jsonl"):
+        for name in (
+            "artworks.jsonl",
+            "objects.jsonl",
+            "placements.jsonl",
+            "descriptor-index.jsonl",
+        ):
             if file_hash(base / name) != base_stats["files"][name]:
                 raise ValueError(f"Base package {name} does not match its stats.json")
         base_objects |= {row["key"]: row for row in read_jsonl(base / "objects.jsonl")}
@@ -290,6 +296,9 @@ def run_delta(bases: list[Path], features: Path, metadata: Path, out: Path) -> d
             for row in read_jsonl(base / "placements.jsonl")
         }
         base_vectors |= Features(base).vectors
+        base_descriptors.update(
+            row["objectKey"] for row in read_jsonl(base / "descriptor-index.jsonl")
+        )
     frozen = {key: row.get("mergedIntoKey", key) for key, row in base_objects.items()}
 
     metadata_stats = json.loads((metadata / "stats.json").read_text())
@@ -385,7 +394,7 @@ def run_delta(bases: list[Path], features: Path, metadata: Path, out: Path) -> d
     ]
     descriptor_keys = {}
     for row in vector_index:
-        if row["objectKey"] not in base_objects:
+        if row["objectKey"] not in base_descriptors:
             descriptor_keys.setdefault(row["objectKey"], row["viewKey"])
     referenced_objects = {target for key in by_key if (target := mapping[key]) in base_objects} | {
         key for key, *_ in merged_placements if key in base_objects

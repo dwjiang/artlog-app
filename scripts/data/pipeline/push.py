@@ -116,12 +116,18 @@ class Corpus:
             if len(self.rows[stage]) != self.stats[stage]:
                 raise ValueError(f"Merged {stage} count disagrees with stats.json")
         if limit is not None:
-            # Only this package's own survivors, so a sample never needs rows imported earlier.
+            # Every alias travels with its survivor, including its artwork dependency.
+            local_works = {row["key"] for row in self.rows["artworks"]}
+            dependent_groups = {
+                row.get("mergedIntoKey", row["key"])
+                for row in self.objects.values()
+                if row["artworkKey"] not in local_works
+            }
             selected = select_objects(
                 [
                     row["objectKey"]
                     for row in self.rows["vectors"]
-                    if row["objectKey"] in self.objects
+                    if row["objectKey"] in self.objects and row["objectKey"] not in dependent_groups
                 ],
                 limit,
             )

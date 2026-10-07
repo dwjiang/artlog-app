@@ -591,6 +591,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_expiresAt", ["expiresAt"])
+    .index("by_venueId", ["venueId"])
     .index("by_device_localId", ["deviceId", "localId"]),
 
   devices: defineTable({

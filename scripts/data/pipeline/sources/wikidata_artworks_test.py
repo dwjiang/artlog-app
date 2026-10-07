@@ -35,6 +35,35 @@ def test_painting_fetch_covers_collections_and_remainder_and_resumes(tmp_path):
     assert any("remainder" in path for path in first["files"])
 
 
+def test_existing_painting_census_does_not_hide_flat_works(tmp_path):
+    from .wikidata_artworks import census_queries, metadata_query
+
+    painting = binding("Q1", image="painting.jpg")
+    print_ = binding("Q2", cls="http://www.wikidata.org/entity/Q11060274", image="print.jpg")
+    (tmp_path / "census.json").write_text(json.dumps([painting]))
+    painting_query, flat_query = census_queries(2026)
+    calls = []
+
+    def fetch(query, **kwargs):
+        calls.append(query)
+        if query == painting_query:
+            return [painting]
+        if query == flat_query:
+            return [print_]
+        assert query == metadata_query(["Q1", "Q2"])
+        return [painting, print_]
+
+    result = fetch_artworks(tmp_path, user_agent="test", fetch=fetch, current_year=2026)
+
+    assert result["complete"] and result["censusItems"] == result["items"] == 2
+    assert json.loads((tmp_path / result["files"][0]).read_text())["results"]["bindings"] == [
+        painting,
+        print_,
+    ]
+    assert fetch_artworks(tmp_path, user_agent="test", fetch=fetch, current_year=2026) == result
+    assert calls == [painting_query, flat_query, metadata_query(["Q1", "Q2"])]
+
+
 def test_repeated_slice_timeout_reports_partial_coverage(tmp_path):
     def fetch(query, **kwargs):
         if "SELECT DISTINCT" in query:
