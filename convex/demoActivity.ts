@@ -30,7 +30,7 @@ import { PICKS_PER_MUSEUM } from "./lib/museumPicks";
 import { readObjectDetails } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { limitKey, type RateLimitName } from "./lib/rateLimits";
-import { publicationItems, publicationRecordTitles } from "./lib/sharedPublications";
+import { publicationItems, publicationRecordTitles, readHeadroom } from "./lib/sharedPublications";
 import { insertVisitComment, insertVisitLike } from "./lib/visitReactions";
 import schema from "./schema";
 
@@ -148,7 +148,7 @@ export const getContext = query({
     const newest =
       people.length === 0
         ? []
-        : await mergedStream(
+        : mergedStream(
             people.map((profile) =>
               stream(ctx.db, schema)
                 .query("sharedVisits")
@@ -156,12 +156,15 @@ export const getContext = query({
                 .order("desc"),
             ),
             ["publishedAt", "_creationTime"],
-          ).take(CONTEXT_POST_SCAN);
+          );
     const posts = [];
-    for (const post of newest) {
-      if (posts.length === MAX_CONTEXT_POSTS) break;
+    let scanned = 0;
+    for await (const post of newest) {
+      // Read one candidate at a time, reserving room for its complete projection, including private save notes.
+      if (!(await readHeadroom(ctx))) break;
       const projected = await projectContextPost(ctx, post, usernames);
       if (projected) posts.push(projected);
+      if (++scanned === CONTEXT_POST_SCAN || posts.length === MAX_CONTEXT_POSTS) break;
     }
     return { characters, posts };
   },

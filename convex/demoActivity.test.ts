@@ -1,7 +1,7 @@
 import type { FunctionArgs } from "convex/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { calendarDate } from "../shared/journal/limits";
+import { calendarDate, LIMITS } from "../shared/journal/limits";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { DEMO_BOT_ISSUER } from "./lib/demoBot";
@@ -25,8 +25,7 @@ afterEach(() => vi.unstubAllEnvs());
 
 const jpeg = () => new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], { type: "image/jpeg" });
 
-async function world() {
-  const t = harness();
+async function world(t = harness()) {
   const venues = await t.run(async (ctx) => {
     const met = await seedMuseum(ctx, {
       key: MET,
@@ -450,6 +449,45 @@ describe("feed behavior", () => {
 });
 
 describe("context", () => {
+  it.each([
+    { content: "artwork notes", count: 60, artworkCount: 5, note: "界".repeat(LIMITS.note), reflection: "A visit." },
+    { content: "reflections", count: 200, artworkCount: 1, note: "A work.", reflection: "界".repeat(LIMITS.note) },
+  ])("returns complete newest posts within the read budget with long $content", async (input) => {
+    const { t, bot } = await world(harness({ transactionLimits: true }));
+    const template = await postActivity(t);
+    const now = Date.now();
+    const postIds = [];
+    for (let index = 0; index < input.count; index++) {
+      const photoIds = await uploads(t, input.artworkCount);
+      const activity: PostActivity = {
+        ...template,
+        submissionId: crypto.randomUUID(),
+        author: ["alice", "bob", "cara"][index % 3],
+        reflection: input.reflection,
+        artworks: photoIds.map((photoId, i) => ({ objectKey: `met:${i}`, note: input.note, photoIds: [photoId] })),
+      };
+      await bot.mutation(internal.demoActivity.insertPost, activity);
+      await t.run(async (ctx) => {
+        const post = (await ctx.db
+          .query("sharedVisits")
+          .withIndex("by_postId", (q) => q.eq("postId", activity.submissionId))
+          .unique())!;
+        await ctx.db.patch("sharedVisits", post._id, { publishedAt: now - index });
+      });
+      postIds.push(activity.submissionId);
+    }
+
+    const context = await bot.query(api.demoActivity.getContext, { since: now - DAY });
+    expect(context.characters.map((person) => person.username)).toEqual(["alice", "bob", "cara"]);
+    expect(context.posts.length).toBeGreaterThan(0);
+    expect(context.posts.length).toBeLessThan(100);
+    expect(context.posts.map((post) => post.postId)).toEqual(postIds.slice(0, context.posts.length));
+    for (const post of context.posts) {
+      expect(post.reflection).toBe(input.reflection);
+      expect(post.artworks.map((artwork) => artwork.title)).toEqual(TITLES.slice(0, input.artworkCount));
+    }
+  });
+
   it("lists demo characters and their recent posts with only demo reactions", async () => {
     const { t, bot } = await world();
     const viewer = await socialUser(t, "viewer");
