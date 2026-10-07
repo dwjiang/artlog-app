@@ -1,6 +1,6 @@
 import { Stack, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -32,6 +32,7 @@ import { ReportToolbar } from "./report-toolbar";
 import { PageFooter, SocialGate, SocialState, StateScreen } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { VisitCard } from "./visit-card";
+import { VisitSeparator } from "./visit-separator";
 
 const visitPage = (page: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => page;
 const visitId = (visit: SharedVisit) => visit.postId;
@@ -287,14 +288,16 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
                 <VisitAudienceFilter value={audience} choices={audiences} onChange={setAudience} />
               </View>
             )}
-            {visits.items.map((visit) => (
-              <VisitCard
-                key={visit.postId}
-                visit={visit}
-                token={session.token}
-                viewerProfileId={session.profileId}
-                onBlock={session.status === "ready" ? blocking.block : undefined}
-              />
+            {visits.items.map((visit, index) => (
+              <Fragment key={visit.postId}>
+                {index > 0 && <VisitSeparator />}
+                <VisitCard
+                  visit={visit}
+                  token={session.token}
+                  viewerProfileId={session.profileId}
+                  onBlock={session.status === "ready" ? blocking.block : undefined}
+                />
+              </Fragment>
             ))}
             {visits.done
               && !visits.loading
