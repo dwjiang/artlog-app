@@ -269,6 +269,6 @@ it("shows a shared artwork like a scan's result: details and museum, its story a
   expect(screen.getByText("The Museum of Modern Art")).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
   expect(screen.getByText(story.docent[0].sentence)).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Listen to this work" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Play audio guide" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Report description" })).toBeOnTheScreen();
 });

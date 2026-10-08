@@ -69,7 +69,7 @@ async function renderActions() {
 it("starts the artwork guide and opens its player from the listen row", async () => {
   await renderActions();
   expect(screen.getByText(/AI-generated voice/)).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Listen to this work" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Play audio guide" }));
   expect(mockController.play).toHaveBeenCalledWith({
     work: expect.objectContaining({
       artworkId,
@@ -104,7 +104,7 @@ it("resumes the current guide and shows its remaining time", async () => {
   };
   await renderActions();
   expect(screen.getByText("1:20 left · AI-generated voice")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Resume listening" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Resume audio guide" }));
   expect(mockController.toggle).toHaveBeenCalledTimes(1);
   expect(mockController.play).not.toHaveBeenCalled();
   expect(mockOpenPlayer).toHaveBeenCalledTimes(1);
@@ -144,7 +144,7 @@ it("reopens generation progress without duplicating or pausing the request", asy
 it("offers retry when the current narration fails", async () => {
   mockAudio = { ...mockAudio, current: track, phase: "error" };
   await renderActions();
-  await fireEvent.press(screen.getByRole("button", { name: "Retry narration" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Retry audio guide" }));
   expect(mockController.toggle).toHaveBeenCalledTimes(1);
   expect(mockOpenPlayer).toHaveBeenCalledTimes(1);
 });
@@ -199,12 +199,12 @@ it("does not offer to queue the current artwork again when its research changes"
   };
   await renderActions();
   expect(screen.getByRole("button", { name: "Already in player" })).toBeDisabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Listen to this work" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Play audio guide" }));
   expect(mockController.play).toHaveBeenCalledTimes(1);
 });
 
 it("omits the listen row when no narration research is available", async () => {
   mockFacts = [];
   await renderActions();
-  expect(screen.queryByRole("button", { name: "Listen to this work" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Play audio guide" })).toBeNull();
 });
