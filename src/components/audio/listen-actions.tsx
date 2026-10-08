@@ -34,9 +34,8 @@ export function ListenActions({
   const enrichment = useArtworkEnrichment(artworkId);
   const data = enrichment instanceof Error ? undefined : enrichment;
   const audio = useListening();
-  const facts = data?.narrationFacts ?? [];
   const cachedDuration = useCachedNarrationDuration(data?.narrationRenderId);
-  if (!data || facts.length === 0) return null;
+  if (!data?.narrationAvailable) return null;
   const work: ListeningWork = {
     artworkId,
     title,
@@ -45,14 +44,17 @@ export function ListenActions({
     imageUri: imageUri ?? data.thumbnailUrl,
     savedId,
     scanId,
-    facts,
+    facts: data.narrationFacts ?? [],
     researchUpdatedAt: data.narrationResearchUpdatedAt,
     opening: data.narrationOpening,
     renderId: data.narrationRenderId,
   };
   const track = { work };
+  // A play pressed before the work had research is still this guide once that research lands.
   const same =
-    !!audio.current && trackKey(audio.current) === trackKey(track) && researchKey(audio.current) === researchKey(track);
+    !!audio.current
+    && trackKey(audio.current) === trackKey(track)
+    && (researchKey(audio.current) === researchKey(track) || audio.current.work.facts.length === 0);
   const another = !!scanId && !!audio.current && audio.current.work.artworkId !== artworkId;
   const queued = audio.queue.some((item) => item.work.artworkId === artworkId);
   const savedProgress = audio.controller.progressFor(track);

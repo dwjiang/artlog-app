@@ -69,14 +69,28 @@ it.each([
   { artwork: { retiredAt: 1 } },
   { artwork: { identityStatus: "tentative" as const } },
   { artwork: { factSheetNeedsReview: true } },
-  { content: { docent: { en: [] } } },
 ])("omits stories that are unavailable or need review: %j", async (patch) => {
   const t = harness();
   const owner = await wallFixture(t);
-  await addStory(t, owner.saveId, patch.artwork, patch.content);
+  await addStory(t, owner.saveId, patch.artwork);
   const wall = await owner.as.mutation(api.walls.setLayout, owner.input);
   expect(await t.query(api.walls.getArtwork, { itemId: wall.items[0].itemId })).not.toHaveProperty("enrichment");
 });
+
+it.each([{ docent: { en: [] } }, { factSheet: undefined, docent: undefined }])(
+  "names the catalog work without a story, so viewers can start its research: %j",
+  async (content) => {
+    const t = harness();
+    const owner = await wallFixture(t);
+    const artworkId = await addStory(t, owner.saveId, {}, content);
+    const wall = await owner.as.mutation(api.walls.setLayout, owner.input);
+    expect((await t.query(api.walls.getArtwork, { itemId: wall.items[0].itemId }))?.enrichment).toEqual({
+      artworkId,
+      docent: [],
+      factSheet: [],
+    });
+  },
+);
 
 it("returns public visit stories without friendship and revokes access when made private", async () => {
   const t = harness();

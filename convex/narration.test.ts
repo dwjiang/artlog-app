@@ -6,6 +6,7 @@ import { api, internal } from "./_generated/api";
 import { patchArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
 import { FRAME_BYTES, speechMp3 } from "./lib/hls.fixtures";
+import { completion as chat, jsonResponse } from "./lib/labelFixtures";
 import { readSpend, seedArtworkWithObject, seedDevice } from "./lib/testFactories";
 import { harness, signIn } from "./test.helpers";
 
@@ -62,22 +63,27 @@ const completion = (value = script) =>
       headers: { "Content-Type": "application/json" },
     },
   );
-async function setup() {
+async function setup({ researched = true } = {}) {
   const t = harness();
   const device = await seedDevice(t);
   const { artworkId, vectorId } = await t.run((ctx) =>
-    seedArtworkWithObject(ctx, {
-      artwork: { factSheetUpdatedAt: 5 },
-      artworkContent: {
-        docent: { en: sentences },
-        factSheet: [...researchFixture, catalogueFact],
-      },
-    }),
+    seedArtworkWithObject(
+      ctx,
+      researched
+        ? {
+            artwork: { factSheetUpdatedAt: 5 },
+            artworkContent: {
+              docent: { en: sentences },
+              factSheet: [...researchFixture, catalogueFact],
+            },
+          }
+        : {},
+    ),
   );
   vi.stubEnv("CONVEX_SITE_URL", "https://test.convex.site");
   vi.stubEnv("OPENAI_API_KEY", "test-only-secret");
   vi.stubEnv("NEBIUS_API_KEY", "test-nebius-secret");
-  const fetcher = vi.fn<(url: string) => Promise<Response>>(async (url) =>
+  const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async (url) =>
     url.includes("tokenfactory") ? completion() : speech(),
   );
   vi.stubGlobal("fetch", fetcher);
@@ -101,6 +107,89 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+const ARTICLE = "https://en.wikipedia.org/wiki/Water_Lilies_(Monet_series)";
+const FACT_SHEET_MODEL = "test-fact-sheet-model";
+const DOCENT_MODEL = "test-docent-model";
+// Answers a first play's research with one article holding the shared research, so the guide fixture fits it.
+function answerResearch(
+  fetcher: ReturnType<typeof vi.fn<(url: string, init?: RequestInit) => Promise<Response>>>,
+  results = [
+    {
+      url: ARTICLE,
+      title: "Water Lilies",
+      content: "Monet's pond.",
+      raw_content: researchFixture.map((fact) => fact.text).join(" "),
+      score: 0.9,
+    },
+  ],
+) {
+  vi.stubEnv("TAVILY_API_KEY", "test-tavily");
+  vi.stubEnv("FACT_SHEET_MODEL", FACT_SHEET_MODEL);
+  vi.stubEnv("DOCENT_MODEL", DOCENT_MODEL);
+  fetcher.mockImplementation(async (url, init) => {
+    if (url.includes("tavily")) return jsonResponse({ results, usage: { credits: 1 } });
+    if (!url.includes("tokenfactory")) return speech();
+    const { model, messages } = JSON.parse(String(init?.body));
+    if (model === FACT_SHEET_MODEL) {
+      const [source] = JSON.parse(messages[1].content).input.sources;
+      return chat(researchFixture.map(({ text }) => ({ text, source: source.id })));
+    }
+    if (model === DOCENT_MODEL) {
+      return chat([
+        { sentence: "Monet painted the lilies and their reflections across the pond.", fact_ids: ["f1"] },
+        { sentence: "He returned to the garden again and again to study its changing light.", fact_ids: ["f2"] },
+      ]);
+    }
+    return completion();
+  });
+}
+const searches = (fetcher: { mock: { calls: unknown[][] } }) =>
+  fetcher.mock.calls.filter(([url]) => String(url).includes("tavily")).length;
+
+it("researches a work on its first play and narrates from that research, then replays without researching", async () => {
+  const { t, as, args, fetcher } = await setup({ researched: false });
+  answerResearch(fetcher);
+  expect(await as.query(api.artworks.enrichment, args)).toMatchObject({ narrationAvailable: true });
+  expect((await as.query(api.artworks.enrichment, args))?.narrationFacts).toBeUndefined();
+
+  const first = await as.action(api.narration.render, args);
+  expect(first).toMatchObject({ sentences: guideFixture, researchUpdatedAt: expect.any(Number) });
+  expect(first.facts).toEqual(researchFixture.map(({ id }) => expect.objectContaining({ id, sourceUrl: ARTICLE })));
+  await t.finishInProgressScheduledFunctions();
+  const researched = searches(fetcher);
+  expect(researched).toBeGreaterThan(0);
+  expect((await as.query(api.artworks.enrichment, args))?.narrationFacts?.map(({ id }) => id)).toEqual(["f1", "f2"]);
+
+  await as.action(api.narration.render, args);
+  expect(searches(fetcher)).toBe(researched);
+});
+
+it("waits for research already in flight, such as a scan's, instead of starting another", async () => {
+  vi.useFakeTimers();
+  const { t, as, args, artworkId, fetcher } = await setup({ researched: false });
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { enrichClaimedAt: Date.now() }));
+  const waiting = as.action(api.narration.render, args);
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(fetcher).not.toHaveBeenCalled();
+  await t.run(async (ctx) => {
+    await patchArtworkContent(ctx, { _id: artworkId }, { factSheet: researchFixture });
+    await ctx.db.patch("artworks", artworkId, { enrichClaimedAt: undefined, factSheetUpdatedAt: 5 });
+  });
+  await vi.advanceTimersByTimeAsync(3000);
+  expect((await waiting).sentences).toEqual(guideFixture);
+  expect(searches(fetcher)).toBe(0);
+});
+
+it("tells a first play there is no guide when its research finds nothing to cite, then stops offering one", async () => {
+  const { as, args, fetcher } = await setup({ researched: false });
+  answerResearch(fetcher, []);
+  await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
+    data: { code: "narration_unavailable" },
+  });
+  expect(fetcher.mock.calls.some(([url]) => url.includes("tokenfactory"))).toBe(false);
+  expect((await as.query(api.artworks.enrichment, args))?.narrationAvailable).toBe(false);
+});
+
 it("streams Shimmer with the museum instructions as a live playlist, then shares the stored file across devices", async () => {
   const { t, as, args, artworkId, fetcher, rows, files } = await setup();
   const held = heldSpeech();
@@ -112,6 +201,9 @@ it("streams Shimmer with the museum instructions as a live playlist, then shares
     sentences: guideFixture,
     renderId: expect.any(String),
     live: true,
+    // Catalogue lines never reach the guide, so the listener learns only the facts it cites.
+    facts: researchFixture.map(({ id, sourceUrl, sourceLabel }) => ({ id, sourceUrl, sourceLabel })),
+    researchUpdatedAt: 5,
   });
   held.release();
   await t.finishInProgressScheduledFunctions();
@@ -417,6 +509,24 @@ it("takes over a shared generation once its owner releases it instead of waiting
   await vi.advanceTimersByTimeAsync(2000);
   expect((await waiting).sentences).toEqual(guideFixture);
   expect(fetcher).toHaveBeenCalledTimes(2);
+});
+
+it("reports a listener left waiting behind a generation that never speaks, naming the artwork", async () => {
+  vi.useFakeTimers();
+  const { as, args, artworkId, fetcher } = await setup();
+  vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+  expect((await as.mutation(internal.narration.claim, { ...args, claim: "stuck" })).owned).toBe(true);
+  const waiting = as.action(api.narration.render, args).catch((error: unknown) => error);
+  await vi.advanceTimersByTimeAsync(121_000);
+  expect(await waiting).toMatchObject({ data: { code: "narration_busy" } });
+  const [url, init] = fetcher.mock.calls.at(-1) as unknown as [string, RequestInit];
+  expect(url).toContain("ingest.sentry.io");
+  const event = JSON.parse(String(init.body).split("\n")[2]);
+  expect(event.tags).toMatchObject({
+    operation: "narration.render",
+    error_code: "narration_busy",
+    artwork_id: artworkId,
+  });
 });
 
 it("deletes its speech when the research changes while it is being spoken", async () => {

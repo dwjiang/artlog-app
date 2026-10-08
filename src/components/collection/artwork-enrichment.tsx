@@ -11,11 +11,13 @@ import type { SavedWork } from "@/db/schema";
 import { useScan } from "@/lib/result/use-scan";
 import type { ContentReportTarget } from "@/lib/social/report";
 import { useArtworkEnrichment } from "@/lib/use-artwork-enrichment";
+import { useArtworkResearch } from "@/lib/use-artwork-research";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 
 export function ArtworkEnrichment({ artworkId }: { artworkId: Id<"artworks"> }) {
   const enrichment = useArtworkEnrichment(artworkId);
+  const docentWriting = useArtworkResearch(artworkId);
   if (!enrichment) return null;
   if (enrichment instanceof Error) {
     return (
@@ -25,7 +27,7 @@ export function ArtworkEnrichment({ artworkId }: { artworkId: Id<"artworks"> }) 
     );
   }
 
-  const { docent, docentWriting, factSheet, narration, narrationFacts, narrationWriting } = enrichment;
+  const { docent, factSheet, narration, narrationFacts, narrationWriting } = enrichment;
   return (
     <>
       {(!!docent?.length || docentWriting) && (

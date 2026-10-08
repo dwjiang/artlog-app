@@ -10,6 +10,7 @@ import {
 } from "@sentry/core";
 import { ConvexError } from "convex/values";
 
+import type { Id } from "../_generated/dataModel";
 import { env } from "../_generated/server";
 
 const expectedCodes = new Set([
@@ -97,7 +98,11 @@ const expectedCodes = new Set([
 const diagnosticCodes = new Set([
   "model_error",
   "model_unconfigured",
+  "research_failed",
   "narration_not_configured",
+  "narration_unavailable",
+  "narration_busy",
+  "narration_provider_failed",
   "search_error",
   "search_unconfigured",
   "wikidata_error",
@@ -200,7 +205,14 @@ function transportFor(dsn: string): Transport | undefined {
   return transport;
 }
 
-export async function reportBackendError(error: unknown, operation: string): Promise<string | null> {
+// Catalog ids name public works, never a person, so they can tie an event to the work it affected.
+type ReportContext = { artworkId?: Id<"artworks"> };
+
+export async function reportBackendError(
+  error: unknown,
+  operation: string,
+  context: ReportContext = {},
+): Promise<string | null> {
   try {
     // Only the production deployment sets a DSN, so every other deployment stays silent.
     const dsn = env.SENTRY_DSN;
@@ -220,7 +232,7 @@ export async function reportBackendError(error: unknown, operation: string): Pro
     const safeCode = code && diagnosticCodes.has(code) ? code : undefined;
     const safeReason =
       reason
-      && /^(http_[45]\d\d|bad_response|bad_json|schema|truncated|timeout|network|fetch_failed|invalid_output)$/.test(
+      && /^(http_[45]\d\d|bad_response|bad_json|schema|truncated|timeout|network|fetch_failed|invalid_output|sources_unavailable|no_facts|prose_rejected|catalogue_only|first_segment_timeout)$/.test(
         reason,
       )
         ? reason
@@ -238,6 +250,7 @@ export async function reportBackendError(error: unknown, operation: string): Pro
         operation,
         ...(safeCode ? { error_code: safeCode } : {}),
         ...(safeReason ? { reason: safeReason } : {}),
+        ...(context.artworkId ? { artwork_id: context.artworkId } : {}),
       },
       exception: {
         values: [

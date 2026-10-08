@@ -22,6 +22,7 @@ jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
   useMutation: () => jest.fn(),
 }));
+jest.mock("@/lib/use-artwork-enrichment", () => ({ useArtworkEnrichment: () => undefined }));
 jest.mock("@/lib/account/use-account", () => ({
   useAccount: () => ({
     ready: true,
@@ -471,6 +472,7 @@ it.each(["wall", "visit"])("renders sourced artwork stories in %s details", asyn
       ...visit.artworks.page[0],
       layout: { frame: "gilt" },
       enrichment: {
+        artworkId: "garden",
         docent: [{ sentence: "Painted beside the garden.", factIds: ["museum"] }],
         factSheet: [
           {

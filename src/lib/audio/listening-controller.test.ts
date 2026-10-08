@@ -354,6 +354,37 @@ it("reports an unavailable narration in a toast whose Retry replays the failed t
   controller.dispose();
 });
 
+it("reports a narration that failed on the phone with its artwork, leaving backend failures to the backend", async () => {
+  const { controller, deps } = setup();
+  const invalid = new Error("Narration transcript is invalid.");
+  deps.render.mockRejectedValueOnce(invalid);
+  await controller.play(track("a"));
+  expect(reportError).toHaveBeenCalledWith(invalid, "narration.prepare", { data: { artworkId: "a" } });
+  jest.mocked(reportError).mockClear();
+  deps.render.mockRejectedValueOnce(new ConvexError({ code: "narration_provider_failed" }));
+  await controller.play(track("b"));
+  expect(controller.snapshot().phase).toBe("error");
+  expect(reportError).not.toHaveBeenCalled();
+  controller.dispose();
+});
+
+it("plays a work before it has research and keeps the research its first play wrote", async () => {
+  const { controller, deps, play } = setup();
+  const facts = [{ id: "f1", sourceUrl: "https://museum.example/work", sourceLabel: "Museum" }];
+  deps.render.mockResolvedValueOnce({
+    uri: "file:///audio.mp3",
+    renderId: "first-render",
+    duration: 100,
+    sentences: [{ sentence: "A spoken guide.", factIds: ["f1"], section: "hook" }],
+    facts,
+    researchUpdatedAt: 7,
+  });
+  await play({ work: { ...track("a").work, facts: [], researchUpdatedAt: undefined } });
+  expect(deps.render).toHaveBeenCalledTimes(1);
+  expect(controller.snapshot().current?.work).toMatchObject({ artworkId: "a", facts, researchUpdatedAt: 7 });
+  controller.dispose();
+});
+
 it("ignores a stale toast Retry once another track has started", async () => {
   const { controller, deps } = setup();
   deps.render.mockRejectedValueOnce(new Error("No voice"));

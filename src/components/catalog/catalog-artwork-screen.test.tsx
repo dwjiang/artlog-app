@@ -44,6 +44,7 @@ const told = {
     { id: "f1", sourceUrl: "https://www.artic.edu/artworks/64818", sourceLabel: "Art Institute of Chicago" },
   ],
   narrationWriting: false,
+  narrationAvailable: true,
   narrationOpening: "Stacks of Wheat",
   rightsStatus: "public_domain",
 };
@@ -84,7 +85,8 @@ it("researches a work nobody has scanned once, showing loading lines until the r
   expect(mockResearch).toHaveBeenCalledTimes(1);
   expect(mockResearch).toHaveBeenCalledWith({ artworkId });
   expect(screen.queryByText("Background information isn’t available for this work yet.")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Listen to this work" })).toBeNull();
+  // The audio guide waits for a play; only the written story is researched on open.
+  expect(screen.getByRole("button", { name: "Listen to this work" })).toBeOnTheScreen();
 
   // The run claims the work, then ends without finding sources.
   mockEnrichment = { ...(mockEnrichment as object), docentWriting: true, docentGeneration: 1 };

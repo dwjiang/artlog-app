@@ -377,6 +377,17 @@ it("reports the description, and keeps each section and its heading while a new 
   expect(screen.queryByRole("button", { name: /^Report/ })).toBeNull();
 });
 
+it("starts the written story for a saved work that has none, showing loading lines while it is written", async () => {
+  const research = jest.spyOn(client, "mutation").mockResolvedValue(true);
+  results.set("artworks:enrichment", { rightsStatus: "public_domain", docentGeneration: 0, docentWriting: false });
+  await render(detail("lilies"));
+  expect(await screen.findByText("About this work")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Loading artwork information…")).toBeOnTheScreen();
+  expect(research).toHaveBeenCalledTimes(1);
+  expect(getFunctionName(research.mock.calls[0][0])).toBe("artworks:research");
+  expect(research.mock.calls[0][1]).toEqual({ artworkId: "artwork-1" });
+});
+
 it("skips the enrichment query for a work saved without an artwork", async () => {
   await render(detail("plain"));
   expect(await screen.findByText("Untitled")).toBeOnTheScreen();

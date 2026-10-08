@@ -5,12 +5,13 @@ import { fetch } from "expo/fetch";
 import { removeFileIfExists } from "@/lib/files/remove-file";
 import { validateGuide } from "@/shared/audio/guide";
 
-import type { GuideSentence } from "../../../convex/lib/validators";
+import type { FactChip, GuideSentence } from "../../../convex/lib/validators";
 import type { ListeningTrack } from "./narration";
 import type { NarrationPreparationStage } from "./narration-preparation";
 
 type Rendered = { uri: string; sentences: GuideSentence[]; renderId: string; live: boolean };
-type Generate = (args: { artworkId: ListeningTrack["work"]["artworkId"] }) => Promise<Rendered>;
+type Research = { facts: FactChip[]; researchUpdatedAt?: number };
+type Generate = (args: { artworkId: ListeningTrack["work"]["artworkId"] }) => Promise<Rendered & Research>;
 
 function cacheDirectory() {
   return new Directory(Paths.cache, "narration");
@@ -28,15 +29,18 @@ export function createNarrationRenderer(generate: Generate) {
     cancel() {
       pending?.abort();
     },
-    async render(track: ListeningTrack, onStage?: (stage: NarrationPreparationStage) => void): Promise<Rendered> {
+    async render(
+      track: ListeningTrack,
+      onStage?: (stage: NarrationPreparationStage) => void,
+    ): Promise<Rendered & Partial<Research>> {
       pending?.abort();
       const request = new AbortController();
       pending = request;
-      const factIds = new Set(track.work.facts.map((fact) => fact.id));
       const { opening } = track.work;
       const directory = cacheDirectory();
       directory.create({ intermediates: true, idempotent: true });
-      const local = (renderId: string): Rendered | undefined => {
+      const local = (renderId: string, facts: FactChip[]): Rendered | undefined => {
+        const factIds = new Set(facts.map((fact) => fact.id));
         const file = new File(directory, `${renderId}.mp3`);
         const transcript = new File(directory, `${renderId}.json`);
         if (!file.exists || file.size === 0 || !transcript.exists) return undefined;
@@ -48,17 +52,19 @@ export function createNarrationRenderer(generate: Generate) {
         }
       };
       if (request.signal.aborted) throw new Error("Narration cancelled.");
-      const known = track.work.renderId ? local(track.work.renderId) : undefined;
+      const known = track.work.renderId ? local(track.work.renderId, track.work.facts) : undefined;
       if (known) return known;
       onStage?.("generating");
       const audio = await generate({ artworkId: track.work.artworkId });
       if (request.signal.aborted) throw new Error("Narration cancelled.");
-      const sentences = validateGuide(audio.sentences, factIds, opening);
+      // A first play researches the work, so the guide's facts come from the render rather than the track.
+      const research = { facts: audio.facts, researchUpdatedAt: audio.researchUpdatedAt };
+      const sentences = validateGuide(audio.sentences, new Set(audio.facts.map((fact) => fact.id)), opening);
       if (!sentences) throw new Error("Narration transcript is invalid.");
       // Speech still being generated plays from its playlist; a later play downloads the finished file.
       if (audio.live) return { ...audio, sentences };
-      const downloaded = local(audio.renderId);
-      if (downloaded) return downloaded;
+      const downloaded = local(audio.renderId, audio.facts);
+      if (downloaded) return { ...downloaded, ...research };
       onStage?.("downloading");
       const file = new File(directory, `${audio.renderId}.mp3`);
       const transcript = new File(directory, `${audio.renderId}.json`);
@@ -75,7 +81,7 @@ export function createNarrationRenderer(generate: Generate) {
         await partial.move(file);
         transcript.write(JSON.stringify(sentences));
         if (request.signal.aborted) throw new Error("Narration cancelled.");
-        return { uri: file.uri, sentences, renderId: audio.renderId, live: false };
+        return { uri: file.uri, sentences, renderId: audio.renderId, live: false, ...research };
       } finally {
         clearTimeout(timeout);
         if (partial.uri !== file.uri) removeFileIfExists(partial);

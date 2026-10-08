@@ -63,6 +63,8 @@ const generated = {
   renderId: "render-1",
   sentences: guideFixture,
   live: false,
+  facts: researchFixture,
+  researchUpdatedAt: 5,
 };
 beforeEach(() => {
   mockFiles.clear();
@@ -94,9 +96,11 @@ it("has no cached duration source for missing, empty, or superseded audio", asyn
 it("replays a known render offline without a backend or network request", async () => {
   const generate = jest.fn(async () => generated);
   const renderer = createNarrationRenderer(generate);
-  const first = await renderer.render(track);
+  const { facts, researchUpdatedAt, ...first } = await renderer.render(track);
   expect(generate).toHaveBeenCalledWith({ artworkId: "work" });
+  expect({ facts, researchUpdatedAt }).toEqual({ facts: generated.facts, researchUpdatedAt: 5 });
   generate.mockRejectedValue(new Error("Offline"));
+  // A known render already belongs to the track's research, so the replay brings none.
   expect(await renderer.render(known)).toEqual(first);
   expect(generate).toHaveBeenCalledTimes(1);
   expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -233,4 +237,13 @@ it("does not report a download for live speech or a cancelled generation", async
   });
   await expect(renderer.render(track, onStage)).rejects.toThrow("cancelled");
   expect(onStage.mock.calls).toEqual([["generating"]]);
+});
+
+it("checks a first play's guide against the research the render wrote, which the track did not have", async () => {
+  const unresearched: ListeningTrack = { work: { ...track.work, facts: [] } };
+  const rendered = await createNarrationRenderer(async () => generated).render(unresearched);
+  expect(rendered).toMatchObject({ sentences: guideFixture, facts: researchFixture, researchUpdatedAt: 5 });
+  await expect(createNarrationRenderer(async () => ({ ...generated, facts: [] })).render(unresearched)).rejects.toThrow(
+    "Narration transcript is invalid.",
+  );
 });
