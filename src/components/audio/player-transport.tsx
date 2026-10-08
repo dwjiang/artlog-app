@@ -4,6 +4,7 @@ import { contentShape, font, frame, menuOrder, shapes } from "@expo/ui/swift-ui/
 import Slider from "@react-native-community/slider";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
+import Animated, { type SharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { NativeChoiceMenu } from "@/components/choice-menu";
 import { LoadingRing } from "@/components/loading-ring";
@@ -14,6 +15,7 @@ import { type GuideTimeline, guideParts, guideProgress, sectionAt } from "@/lib/
 import { canSeekTo, type ListeningState } from "@/lib/audio/listening-controller";
 import { audioTime } from "@/lib/audio/narration";
 import { preparationLabel } from "@/lib/audio/narration-preparation";
+import { useGeneratedRange } from "@/lib/audio/use-generated-range";
 import { useListening } from "@/lib/audio/use-listening";
 
 import type { GuideSection } from "../../../convex/lib/validators";
@@ -117,11 +119,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
       </View>
       <View style={styles.times}>
         <Text style={styles.time}>{preparing ? "—:—" : audioTime(position)}</Text>
-        {seekable && (
-          <Text style={styles.time}>
-            {audio.duration ? `−${audioTime(audio.duration - position)}` : `${audioTime(availableDuration)} available`}
-          </Text>
-        )}
+        {seekable && <Text style={styles.time}>−{audioTime(scale - position)}</Text>}
       </View>
       <View style={styles.controls}>
         <AudioIconButton
@@ -250,6 +248,11 @@ function SectionMenu({
   );
 }
 
+function partFill(value: number, start: number, end: number) {
+  "worklet";
+  return end > start ? Math.min(1, Math.max(0, (value - start) / (end - start))) : 0;
+}
+
 /** The progress bar under the transparent slider, split into the guide's sections. */
 function SectionTrack({
   timeline,
@@ -263,18 +266,23 @@ function SectionTrack({
   available: number;
 }) {
   const parts = guideParts(timeline, scale);
-  const share = (value: number, start: number, end: number): `${number}%` =>
-    `${end > start ? Math.min(100, Math.max(0, ((value - start) / (end - start)) * 100)) : 0}%`;
+  const length = parts[parts.length - 1].end;
+  const generated = useGeneratedRange(available, length);
   return (
     <View style={styles.track} pointerEvents="none">
       {parts.map(({ start, end }) => (
         <View key={start} style={[styles.part, { flex: Math.max(end - start, 0.001) }]}>
-          {available > 0 && <View style={[styles.generated, { width: share(available, start, end) }]} />}
-          <View style={[styles.elapsed, { width: share(position, start, end) }]} />
+          <GeneratedFill generated={generated} start={start / length} end={end / length} />
+          <View style={[styles.elapsed, { width: `${partFill(position, start, end) * 100}%` }]} />
         </View>
       ))}
     </View>
   );
+}
+
+function GeneratedFill({ generated, start, end }: { generated: SharedValue<number>; start: number; end: number }) {
+  const fill = useAnimatedStyle(() => ({ transform: [{ scaleX: partFill(generated.get(), start, end) }] }));
+  return <Animated.View style={[styles.generated, fill]} />;
 }
 
 function TransportAction({
@@ -343,7 +351,16 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: Gallery.softBorder,
   },
-  generated: { position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: Gallery.accentBorder },
+  // Scaled rather than resized so each frame of the sweep skips layout; the part's rounded clip shapes its ends.
+  generated: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: "100%",
+    transformOrigin: "left",
+    backgroundColor: Gallery.accentBorder,
+  },
   elapsed: { position: "absolute", left: 0, top: 0, bottom: 0, backgroundColor: Gallery.accent },
   times: {
     flexDirection: "row",

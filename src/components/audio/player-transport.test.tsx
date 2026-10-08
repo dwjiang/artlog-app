@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
 import { guideTimeline } from "@/lib/audio/guide-timeline";
+import { audioTime } from "@/lib/audio/narration";
 import type { NarrationPreparationStage } from "@/lib/audio/narration-preparation";
 
 import type { GuideSentence } from "../../../convex/lib/validators";
@@ -199,7 +200,7 @@ it("offers no seeking and no time left while the narration's length is still unk
   expect(mockSeek).not.toHaveBeenCalled();
 });
 
-it("spans a live guide's estimated length while its audio is still generating", async () => {
+it("spans a live guide's estimated length and counts the time left in it while its audio is still generating", async () => {
   mockAudio.sentences = guide;
   mockAudio.duration = 0;
   mockAudio.availableDuration = 4;
@@ -207,10 +208,11 @@ it("spans a live guide's estimated length while its audio is still generating", 
   const slider = screen.getByRole("adjustable", { name: "Narration position" });
   expect(slider.props.maximumValue).toBeGreaterThan(4);
   expect(slider).toHaveAccessibilityValue({ text: "0:12 of 0:04 available" });
-  expect(screen.getByText("0:04 available")).toBeOnTheScreen();
+  expect(screen.getByText(`−${audioTime(guideTimeline(guide).length - 12)}`)).toBeOnTheScreen();
+  expect(screen.queryByText(/available/)).not.toBeOnTheScreen();
 });
 
-it("enables the growing generated range and changes to time remaining when the full duration arrives", async () => {
+it("enables the growing generated range and counts the time left until the full duration arrives", async () => {
   mockAudio.duration = 0;
   const { rerender } = await render(<PlayerTransport view="player" onView={jest.fn()} />);
   mockAudio.availableDuration = 24;
@@ -220,11 +222,11 @@ it("enables the growing generated range and changes to time remaining when the f
   expect(slider).toHaveProp("maximumValue", 24);
   expect(slider).toHaveProp("value", 12);
   expect(slider).toHaveAccessibilityValue({ text: "0:12 of 0:24 available" });
-  expect(screen.getByText("0:24 available")).toBeOnTheScreen();
-  expect(screen.queryByText(/^−/)).not.toBeOnTheScreen();
+  expect(screen.getByText("−0:12")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Back 15 seconds" })).toBeEnabled();
   await fireEvent(slider, "slidingStart", 12);
   await fireEvent(slider, "valueChange", 18);
+  expect(screen.getByText("−0:06")).toBeOnTheScreen();
   mockAudio.availableDuration = 48;
   await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
   expect(slider).toHaveProp("maximumValue", 24);
@@ -236,5 +238,4 @@ it("enables the growing generated range and changes to time remaining when the f
   await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
   expect(slider).toHaveProp("maximumValue", 60);
   expect(screen.getByText("−0:48")).toBeOnTheScreen();
-  expect(screen.queryByText(/available/)).not.toBeOnTheScreen();
 });
