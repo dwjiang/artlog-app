@@ -26,13 +26,13 @@ const mockController = {
 };
 const mockOpenPlayer = jest.fn();
 let mockAudio: ListeningState;
-let mockFacts = facts;
+let mockEnrichment: { narrationAvailable: boolean; narrationFacts?: typeof facts; narrationResearchUpdatedAt?: number };
 let mockCachedDuration: number | undefined;
 
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("convex/react", () => ({
   useQueries: () => ({
-    enrichment: { narrationFacts: mockFacts, narrationOpening: opening },
+    enrichment: { ...mockEnrichment, narrationOpening: opening },
   }),
 }));
 jest.mock("@/lib/audio/use-listening", () => ({
@@ -46,7 +46,7 @@ jest.mock("@/lib/audio/use-cached-narration-duration", () => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockController.progressFor.mockReturnValue(undefined);
-  mockFacts = facts;
+  mockEnrichment = { narrationAvailable: true, narrationFacts: facts };
   mockCachedDuration = undefined;
   mockAudio = {
     queue: [],
@@ -203,8 +203,28 @@ it("does not offer to queue the current artwork again when its research changes"
   expect(mockController.play).toHaveBeenCalledTimes(1);
 });
 
-it("omits the listen row when no narration research is available", async () => {
-  mockFacts = [];
+it("omits the listen row when the work cannot be narrated", async () => {
+  mockEnrichment = { narrationAvailable: false };
   await renderActions();
   expect(screen.queryByRole("button", { name: "Play audio guide" })).toBeNull();
+});
+
+it("offers the guide for a work with no research yet, leaving that research to its first play", async () => {
+  mockEnrichment = { narrationAvailable: true };
+  await renderActions();
+  await fireEvent.press(screen.getByRole("button", { name: "Play audio guide" }));
+  expect(mockController.play).toHaveBeenCalledWith({ work: expect.objectContaining({ artworkId, facts: [] }) });
+});
+
+it("keeps showing a first play's progress once the research it is writing lands", async () => {
+  mockEnrichment = { narrationAvailable: true, narrationFacts: facts, narrationResearchUpdatedAt: 5 };
+  mockAudio = {
+    ...mockAudio,
+    current: { work: { ...track.work, facts: [] } },
+    phase: "loading",
+    preparationStage: "generating",
+  };
+  await renderActions();
+  await fireEvent.press(screen.getByRole("button", { name: "Generating narration…" }));
+  expect(mockController.play).not.toHaveBeenCalled();
 });

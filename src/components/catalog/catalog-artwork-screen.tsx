@@ -1,6 +1,4 @@
-import { useMutation } from "convex/react";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet } from "react-native";
 
 import { ArtworkFrame } from "@/components/artwork/artwork-frame";
@@ -11,10 +9,10 @@ import { SocialState } from "@/components/social/social-state";
 import { Gallery, Spacing } from "@/constants/theme";
 import { pageSizedImage } from "@/lib/catalog/catalog-image";
 import { useCatalogReady } from "@/lib/catalog/use-catalog-ready";
-import { isNetworkError } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useArtworkEnrichment } from "@/lib/use-artwork-enrichment";
+import { useArtworkResearch } from "@/lib/use-artwork-research";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -26,14 +24,7 @@ export function CatalogArtworkScreen({ artworkId }: { artworkId: Id<"artworks"> 
   const artwork = useSocialQuery(api.artworks.get, catalog.ready ? { artworkId } : "skip", catalog.scope);
   const enrichment = useArtworkEnrichment(artworkId);
   const story = enrichment instanceof Error ? undefined : enrichment;
-  const requestedGeneration = useResearch(
-    artworkId,
-    !!story && !story.docent?.length && !story.docentWriting,
-    story?.docentGeneration,
-  );
-  // Claiming advances the generation even if the client misses the whole run while disconnected.
-  const writing =
-    !!story?.docentWriting || (requestedGeneration !== undefined && story?.docentGeneration === requestedGeneration);
+  const writing = useArtworkResearch(artworkId);
 
   if (!catalog.ready && catalog.offline) {
     return <State title="You’re offline." detail="Connect to open this artwork." icon="wifi.slash" />;
@@ -99,25 +90,6 @@ export function CatalogArtworkScreen({ artworkId }: { artworkId: Id<"artworks"> 
       />
     </ScrollView>
   );
-}
-
-/** Asks once per visit to the page for research the work has never had. */
-function useResearch(artworkId: Id<"artworks">, needed: boolean, generation: number | undefined) {
-  const start = useMutation(api.artworks.research);
-  const asked = useRef(false);
-  const [requestedGeneration, setRequestedGeneration] = useState<number>();
-  useEffect(() => {
-    if (!needed || generation === undefined || asked.current) return;
-    asked.current = true;
-    start({ artworkId })
-      .then((started) => {
-        if (started) setRequestedGeneration(generation);
-      })
-      .catch((cause) => {
-        if (!isNetworkError(cause)) reportError(cause, "catalog.research");
-      });
-  }, [artworkId, needed, generation, start]);
-  return requestedGeneration;
 }
 
 function State(props: Parameters<typeof SocialState>[0]) {

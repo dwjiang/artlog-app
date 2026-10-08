@@ -13,21 +13,9 @@ import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
 import { narrationEntry, renderedNarration, scriptCurrent } from "./lib/narrationCache";
 import { readObjectDetails } from "./lib/objectDetails";
-import {
-  docentSentence,
-  factChip,
-  guideSentence,
-  rightsStatus,
-  snapshotFields,
-  type FactSheetEntry,
-} from "./lib/validators";
+import { docentSentence, factChip, guideSentence, rightsStatus, snapshotFields, toFactChip } from "./lib/validators";
+import { narrationResearch } from "./narration";
 import { joinCandidate } from "./scans";
-
-const chip = ({ id, sourceUrl, sourceLabel }: FactSheetEntry) => ({
-  id,
-  sourceUrl,
-  sourceLabel,
-});
 
 // Artwork-level enrichment for a saved work: the snapshot never changes, this can.
 export const enrichment = query({
@@ -39,6 +27,8 @@ export const enrichment = query({
       docentWriting: v.boolean(),
       docentGeneration: v.number(),
       factSheet: v.optional(v.array(factChip)),
+      // A play can narrate the work, researching it first when it has never been researched.
+      narrationAvailable: v.boolean(),
       narrationFacts: v.optional(v.array(factChip)),
       narrationResearchUpdatedAt: v.optional(v.number()),
       narrationOpening: v.string(),
@@ -68,13 +58,8 @@ export const enrichment = query({
       }
     }
     const content = await readArtworkContent(ctx, artwork);
-    const narrationFacts =
-      content?.factSheet
-      && !artwork.factSheetNeedsReview
-      && !artwork.retiredAt
-      && artwork.identityStatus === "established"
-        ? guideResearch(content.factSheet)
-        : [];
+    const research = narrationResearch(artwork, content);
+    const narrationFacts = research === "ready" ? guideResearch(content?.factSheet ?? []) : [];
     const rendered = narrationFacts.length > 0 ? await renderedNarration(ctx, artwork) : null;
     const entry = narrationFacts.length > 0 ? await narrationEntry(ctx, artworkId) : null;
     // The script shows as soon as it is written, before its audio; a claimed row without one is being written.
@@ -83,8 +68,9 @@ export const enrichment = query({
       docent: content?.docent?.en,
       docentWriting: !content?.docent?.en && artwork.enrichClaimedAt !== undefined && !artwork.factSheetNeedsReview,
       docentGeneration: artwork.enrichGeneration,
-      factSheet: content?.factSheet?.map(chip),
-      narrationFacts: narrationFacts.length > 0 ? narrationFacts.map(chip) : undefined,
+      factSheet: content?.factSheet?.map(toFactChip),
+      narrationAvailable: research !== "unavailable",
+      narrationFacts: narrationFacts.length > 0 ? narrationFacts.map(toFactChip) : undefined,
       narrationResearchUpdatedAt: narrationFacts.length > 0 ? artwork.factSheetUpdatedAt : undefined,
       narrationRenderId: rendered?.renderId,
       narration: script?.sentences,

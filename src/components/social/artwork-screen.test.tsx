@@ -36,6 +36,8 @@ jest.mock("@/lib/audio/use-listening");
 jest.mock("@/lib/audio/use-cached-narration-duration", () => ({ useCachedNarrationDuration: () => undefined }));
 const mockEnrichment = jest.fn();
 jest.mock("@/lib/use-artwork-enrichment", () => ({ useArtworkEnrichment: () => mockEnrichment() }));
+const mockResearch = jest.fn();
+jest.mock("convex/react", () => ({ ...jest.requireActual("convex/react"), useMutation: () => mockResearch }));
 jest.mock("expo-image", () => ({
   Image: (props: object) => {
     const { View } = jest.requireActual("react-native");
@@ -57,6 +59,7 @@ const media = (photoLocalId: string): Extract<NonNullable<SharedArtwork["photos"
 let artwork: SharedArtwork;
 beforeEach(() => {
   jest.clearAllMocks();
+  mockResearch.mockResolvedValue(true);
   process.env.EXPO_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
   mockSession = {
     key: "viewer",
@@ -244,6 +247,7 @@ it("shows a shared artwork like a scan's result: details and museum, its story a
     docentWriting: false,
     docentGeneration: 0,
     factSheet: story.factSheet,
+    narrationAvailable: true,
     narrationFacts: story.factSheet,
     narrationWriting: false,
     narrationOpening: "The Starry Night",
@@ -271,4 +275,30 @@ it("shows a shared artwork like a scan's result: details and museum, its story a
   expect(screen.getByText(story.docent[0].sentence)).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Play audio guide" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Report description" })).toBeOnTheScreen();
+});
+
+it("starts the written story for a shared catalog work that has none, and offers its audio guide", async () => {
+  const story = { artworkId: "starry" as never, docent: [], factSheet: [] };
+  mockEnrichment.mockReturnValue({
+    docentWriting: false,
+    docentGeneration: 0,
+    narrationWriting: false,
+    narrationAvailable: true,
+    narrationOpening: "The Starry Night",
+    rightsStatus: "public_domain",
+  });
+  mockQuery.mockImplementation((query, args) => ({
+    data:
+      args !== "skip" && getFunctionName(query) === "sharedVisits:getArtwork"
+        ? { ...artwork, enrichment: story }
+        : null,
+    refresh: jest.fn(),
+  }));
+  await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
+  await act(async () => {});
+  expect(mockResearch).toHaveBeenCalledTimes(1);
+  expect(mockResearch).toHaveBeenCalledWith({ artworkId: "starry" });
+  expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
+  expect(screen.getByLabelText("Loading artwork information…")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Play audio guide" })).toBeOnTheScreen();
 });

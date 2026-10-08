@@ -56,6 +56,7 @@ it("returns docent sentences, source chips and the public-domain thumbnail to a 
     docentWriting: false,
     docentGeneration: 0,
     narrationWriting: false,
+    narrationAvailable: true,
     narrationFacts: chips,
     narrationResearchUpdatedAt: 5,
     narrationOpening: openingFixture,
@@ -78,6 +79,7 @@ it("omits the thumbnail for in-copyright works and reverted objects, and returns
     docentWriting: false,
     docentGeneration: 0,
     narrationWriting: false,
+    narrationAvailable: true,
     narrationOpening: openingFixture,
   });
   const reverted = await t.run((ctx) => seedArtworkWithObject(ctx, { object: { reverted: true } }));
@@ -86,6 +88,7 @@ it("omits the thumbnail for in-copyright works and reverted objects, and returns
     docentWriting: false,
     docentGeneration: 0,
     narrationWriting: false,
+    narrationAvailable: true,
     narrationOpening: openingFixture,
   });
   const gone = await t.run((ctx) => seedArtworkWithObject(ctx));
@@ -124,7 +127,23 @@ it("keeps catalogue lines as source chips but out of the narration research", as
   expect(enrichment?.narrationFacts).toEqual(chips);
   expect(enrichment?.factSheet?.map((chip) => chip.id)).toEqual(["f1", "f2", "f3"]);
   const bare = await t.run((ctx) => seedArtworkWithObject(ctx, { artworkContent: { factSheet: [catalogue] } }));
-  expect((await as.query(api.artworks.enrichment, { artworkId: bare.artworkId }))?.narrationFacts).toBeUndefined();
+  const unnarratable = await as.query(api.artworks.enrichment, { artworkId: bare.artworkId });
+  expect(unnarratable?.narrationAvailable).toBe(false);
+  expect(unnarratable).not.toHaveProperty("narrationFacts");
+});
+
+it("offers a guide for an unresearched work until research finds nothing to cite, or while a run writes it", async () => {
+  const t = harness();
+  const { as } = await seedDevice(t);
+  const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
+  const available = async () => (await as.query(api.artworks.enrichment, { artworkId }))?.narrationAvailable;
+  expect(await available()).toBe(true);
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { enrichClaimedAt: Date.now() }));
+  expect(await available()).toBe(true);
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { enrichClaimedAt: undefined, docentNoSources: true }));
+  expect(await available()).toBe(false);
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { docentNoSources: undefined, retiredAt: 1 }));
+  expect(await available()).toBe(false);
 });
 
 it("withholds additional narration facts while their sources need review", async () => {
@@ -136,7 +155,9 @@ it("withholds additional narration facts while their sources need review", async
       artworkContent: { docent: { en: docent }, factSheet },
     }),
   );
-  expect((await as.query(api.artworks.enrichment, { artworkId }))?.narrationFacts).toBeUndefined();
+  const withheld = await as.query(api.artworks.enrichment, { artworkId });
+  expect(withheld?.narrationAvailable).toBe(false);
+  expect(withheld).not.toHaveProperty("narrationFacts");
 });
 
 it("returns the rendered audio guide script until the research behind it changes", async () => {

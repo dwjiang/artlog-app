@@ -16,7 +16,7 @@ import { withErrorReporting } from "./lib/observability";
 import { loadOrb, orbHash } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
 import { eligibleObject, eligibleVector } from "./lib/recognitionEligibility";
-import { orbReference } from "./lib/validators";
+import { orbReference, toFactChip } from "./lib/validators";
 import { readVector } from "./lib/vectorStore";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 import schema from "./schema";
@@ -251,11 +251,7 @@ export const buildPage = internalAction({
               date: artwork.date,
               rightsStatus: artwork.rightsStatus,
               docent: content?.docent?.en,
-              factSheet: content?.factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
-                id,
-                sourceUrl,
-                sourceLabel,
-              })),
+              factSheet: content?.factSheet?.map(toFactChip),
             },
             placement: placement && {
               venueId: placement.venueId,

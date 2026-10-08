@@ -10,6 +10,7 @@ import { HighlightHeading } from "@/components/highlight-heading";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import type { SharedArtwork } from "@/lib/social/types";
+import { useArtworkResearch } from "@/lib/use-artwork-research";
 
 import { TaggedText } from "./tagged-text";
 
@@ -56,23 +57,35 @@ export function PublishedArtwork({
           <TaggedText selectable>{ownNote}</TaggedText>
         </View>
       )}
-      {enrichment && (
-        <ArtworkStory
-          artworkId={enrichment.artworkId}
-          title={artwork.title}
-          artist={artwork.artist}
-          date={artwork.date}
-          docent={enrichment.docent}
-          factSheet={enrichment.factSheet}
-          report={{ kind: "docent", artworkId: enrichment.artworkId }}
-        />
-      )}
+      {enrichment && <PublishedStory artwork={artwork} story={enrichment} />}
       {artwork.media.kind !== "placeholder" && artwork.media.credit && (
         <Text selectable variant="metadata" themeColor="textSecondary">
           {artwork.media.credit}
         </Text>
       )}
     </View>
+  );
+}
+
+function PublishedStory({
+  artwork,
+  story,
+}: {
+  artwork: SharedArtwork["artwork"];
+  story: NonNullable<SharedArtwork["enrichment"]>;
+}) {
+  const writing = useArtworkResearch(story.artworkId);
+  return (
+    <ArtworkStory
+      artworkId={story.artworkId}
+      title={artwork.title}
+      artist={artwork.artist}
+      date={artwork.date}
+      docent={story.docent}
+      factSheet={story.factSheet}
+      status={writing ? "writing" : undefined}
+      report={{ kind: "docent", artworkId: story.artworkId }}
+    />
   );
 }
 
