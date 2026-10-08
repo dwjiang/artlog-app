@@ -325,6 +325,7 @@ it("shows listen controls and the audio guide transcript inline once narration e
   results.set("artworks:enrichment", {
     rightsStatus: "public_domain",
     narrationOpening: "Water Lilies, by Claude Monet.",
+    narrationAvailable: true,
     narrationFacts: [{ id: "f9", sourceUrl: "https://museum.example/lilies", sourceLabel: "Test Museum" }],
     narration: [
       { sentence: "Water Lilies, by Claude Monet.", factIds: [] },

@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 
 import {
   GUIDE_MAX_WORDS,
@@ -14,8 +14,9 @@ import {
 } from "../shared/audio/guide";
 import { SPEECH_INSTRUCTIONS, SPEECH_MODEL, SPEECH_VOICE } from "../shared/audio/speech";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { action, env, httpAction, internalAction, internalQuery, type ActionCtx } from "./_generated/server";
+import { CLAIM_MS, researchArtwork } from "./docent";
 import { internalMutation } from "./functions";
 import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice, requireDeviceFromAction } from "./lib/auth";
@@ -29,14 +30,20 @@ import {
   narrationProvenance,
   renderedNarration,
   scriptCurrent,
-  type RenderedNarration,
 } from "./lib/narrationCache";
 import { audioEvidenceOf, clearNarration, releaseNarrationFiles } from "./lib/narrationEvidence";
 import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { limitDevice, limitKey } from "./lib/rateLimits";
 import { reserveSpend } from "./lib/spend";
 import { chatJson } from "./lib/tokenFactory";
-import { factSheetEntry, guideSentence, type FactSheetEntry, type GuideSentence } from "./lib/validators";
+import {
+  factChip,
+  factSheetEntry,
+  guideSentence,
+  toFactChip,
+  type FactSheetEntry,
+  type GuideSentence,
+} from "./lib/validators";
 
 const audio = v.object({
   uri: v.string(),
@@ -44,8 +51,11 @@ const audio = v.object({
   renderId: v.string(),
   live: v.boolean(),
 });
+// The facts the guide was written from, for a listener who pressed play before the work had research.
+const rendered = v.object({ ...audio.fields, facts: v.array(factChip), researchUpdatedAt: v.optional(v.number()) });
 const segment = v.object({ storageId: v.id("files"), duration: v.number() });
 const LEASE_MS = 180_000;
+const RESEARCH_WAIT_MS = 120_000;
 const FIRST_SEGMENT_POLL_MS = 250;
 const FIRST_SEGMENT_TIMEOUT_MS = 30_000;
 // Long enough for a listener who paused the live playlist to finish it; later plays get the whole file.
@@ -53,30 +63,76 @@ const SEGMENT_RETENTION_MS = 60 * 60_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Research is written on a work's first play, never when a page opens: "missing" lets a play start it and
+// "writing" waits for a run already in flight, such as a scan's.
+export type NarrationResearch = "ready" | "writing" | "missing" | "unavailable";
+export function narrationResearch(
+  artwork: Doc<"artworks">,
+  content: Doc<"artworkContent"> | null,
+  now = Date.now(),
+): NarrationResearch {
+  if (artwork.retiredAt || artwork.identityStatus !== "established" || artwork.factSheetNeedsReview) {
+    return "unavailable";
+  }
+  if (content?.factSheet?.length) return guideResearch(content.factSheet).length > 0 ? "ready" : "unavailable";
+  if (artwork.enrichClaimedAt !== undefined && artwork.enrichClaimedAt > now - CLAIM_MS) return "writing";
+  return artwork.docentNoSources ? "unavailable" : "missing";
+}
+
+export const researchState = internalQuery({
+  args: { artworkId: v.id("artworks") },
+  returns: v.union(v.literal("ready"), v.literal("writing"), v.literal("missing"), v.literal("unavailable")),
+  handler: async (ctx, { artworkId }) => {
+    const artwork = await ctx.db.get("artworks", artworkId);
+    return artwork ? narrationResearch(artwork, await readArtworkContent(ctx, artwork)) : "unavailable";
+  },
+});
+
+// Researches the work once if it never was, or waits out a run in flight; the claim then decides availability.
+async function awaitResearch(ctx: ActionCtx, artworkId: Id<"artworks">, deviceId: Id<"devices">) {
+  let researched = false;
+  for (let waited = 0; waited < RESEARCH_WAIT_MS; waited += 1000) {
+    const state = await ctx.runQuery(internal.narration.researchState, { artworkId });
+    if (state === "missing" && !researched) {
+      researched = true;
+      await researchArtwork(ctx, artworkId, deviceId);
+    } else if (state === "writing") {
+      await sleep(1000);
+    } else {
+      return;
+    }
+  }
+}
+
+const claimResult = v.object({
+  owned: v.boolean(),
+  audio: v.union(audio, v.null()),
+  facts: v.array(factSheetEntry),
+  opening: v.string(),
+  researchUpdatedAt: v.optional(v.number()),
+  sentences: v.optional(v.array(guideSentence)),
+});
+
 export const claim = internalMutation({
   args: { artworkId: v.id("artworks"), claim: v.string() },
-  returns: v.object({
-    owned: v.boolean(),
-    audio: v.union(audio, v.null()),
-    facts: v.array(factSheetEntry),
-    opening: v.string(),
-    sentences: v.optional(v.array(guideSentence)),
-  }),
-  handler: async (ctx, args) => {
+  returns: claimResult,
+  handler: async (ctx, args): Promise<Infer<typeof claimResult>> => {
     const device = await requireDevice(ctx);
     const artwork = await ctx.db.get("artworks", args.artworkId);
-    if (!artwork || artwork.retiredAt || artwork.identityStatus !== "established" || artwork.factSheetNeedsReview) {
+    const content = artwork && (await readArtworkContent(ctx, artwork));
+    if (!artwork || narrationResearch(artwork, content) !== "ready") {
       throw new ConvexError({ code: "narration_unavailable" });
     }
-    const content = await readArtworkContent(ctx, artwork);
-    const facts = guideResearch(content?.factSheet ?? []);
-    if (facts.length === 0) throw new ConvexError({ code: "narration_unavailable" });
-    const opening = guideOpening(artwork);
+    const research = {
+      facts: guideResearch(content?.factSheet ?? []),
+      opening: guideOpening(artwork),
+      researchUpdatedAt: artwork.factSheetUpdatedAt,
+    };
     const audio = await renderedNarration(ctx, artwork);
-    if (audio) return { facts, opening, owned: false, audio };
+    if (audio) return { ...research, owned: false, audio };
     const entry = await narrationEntry(ctx, artwork._id);
     if (entry?.claimedAt !== undefined && narrationCurrent(entry, artwork) && Date.now() - entry.claimedAt < LEASE_MS) {
-      return { facts, opening, owned: false, audio: liveNarration(entry, artwork) };
+      return { ...research, owned: false, audio: liveNarration(entry, artwork) };
     }
     await limitDevice(ctx, "narration", device._id);
     await limitKey(ctx, "narrationDaily", "global");
@@ -97,7 +153,7 @@ export const claim = internalMutation({
     } else {
       await ctx.db.insert("narrationAudio", fields);
     }
-    return { facts, opening, owned: true, audio: null, sentences };
+    return { ...research, owned: true, audio: null, sentences };
   },
 });
 
@@ -360,9 +416,10 @@ async function authorScript(ctx: ActionCtx, facts: FactSheetEntry[], opening: st
 
 export const render = action({
   args: { artworkId: v.id("artworks") },
-  returns: audio,
-  handler: async (ctx, { artworkId }): Promise<RenderedNarration> => {
-    await requireDeviceFromAction(ctx);
+  returns: rendered,
+  handler: async (ctx, { artworkId }): Promise<Infer<typeof rendered>> => {
+    const device = await requireDeviceFromAction(ctx);
+    await awaitResearch(ctx, artworkId, device._id);
     const claimId = crypto.randomUUID();
     let claimed = await ctx.runMutation(internal.narration.claim, {
       artworkId,
@@ -371,15 +428,21 @@ export const render = action({
     // Share an in-flight generation instead of paying for the same script twice. Claiming again
     // each second returns its playlist once speech starts, or takes the generation over if it failed.
     for (let attempt = 0; !claimed.audio && !claimed.owned; attempt++) {
-      if (attempt === 120) throw new ConvexError({ code: "narration_busy" });
+      if (attempt === 120) {
+        // Another generation held its claim for two minutes without speaking or releasing it.
+        const busy = new ConvexError({ code: "narration_busy" });
+        await reportBackendError(busy, "narration.render", { artworkId });
+        throw busy;
+      }
       await sleep(1000);
       claimed = await ctx.runMutation(internal.narration.claim, {
         artworkId,
         claim: claimId,
       });
     }
-    const { audio, facts, opening, sentences: cached } = claimed;
-    if (audio) return audio;
+    const { audio, facts, opening, researchUpdatedAt, sentences: cached } = claimed;
+    const research = { facts: facts.map(toFactChip), researchUpdatedAt };
+    if (audio) return { ...audio, ...research };
     try {
       if (!env.OPENAI_API_KEY || !env.NEBIUS_API_KEY) {
         throw new ConvexError({ code: "narration_not_configured" });
@@ -389,7 +452,7 @@ export const render = action({
         throw new ConvexError({ code: "narration_unavailable" });
       }
     } catch (error) {
-      await reportBackendError(error, "narration.render");
+      await reportBackendError(error, "narration.render", { artworkId });
       await ctx.runMutation(internal.narration.finish, {
         artworkId,
         claim: claimId,
@@ -401,10 +464,13 @@ export const render = action({
     for (let waited = 0; waited < FIRST_SEGMENT_TIMEOUT_MS; waited += FIRST_SEGMENT_POLL_MS) {
       await sleep(FIRST_SEGMENT_POLL_MS);
       const progress = await ctx.runQuery(internal.narration.progress, { artworkId, claim: claimId });
+      // `speak` reports its own failure before releasing the claim.
       if (!progress) throw new ConvexError({ code: "narration_provider_failed" });
-      if (progress.audio) return progress.audio;
+      if (progress.audio) return { ...progress.audio, ...research };
     }
-    throw new ConvexError({ code: "narration_provider_failed" });
+    const slow = new ConvexError({ code: "narration_provider_failed", reason: "first_segment_timeout" });
+    await reportBackendError(slow, "narration.render", { artworkId });
+    throw slow;
   },
 });
 
@@ -465,7 +531,7 @@ export const speak = internalAction({
       storageId = await fileStorage.store(ctx, new Blob(chunks, { type: "audio/mpeg" }));
       await ctx.runMutation(internal.narration.finish, { artworkId, claim, storageId });
     } catch (error) {
-      await reportBackendError(error, "narration.speak");
+      await reportBackendError(error, "narration.speak", { artworkId });
       if (storageId) await fileStorage.delete(ctx, storageId);
       await ctx.runMutation(internal.narration.finish, { artworkId, claim });
     }

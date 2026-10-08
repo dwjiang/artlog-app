@@ -1,6 +1,7 @@
 import { ConvexError } from "convex/values";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import type { Id } from "../_generated/dataModel";
 import { reportBackendError, withErrorReporting } from "./observability";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -88,6 +89,17 @@ it.each(["schema", "bad_json", "fetch_failed"])("tags the %s failure reason", as
   await reportBackendError(new ConvexError({ code: "model_error", reason }), "docent.ensure");
   const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
   expect(event.tags).toMatchObject({ error_code: "model_error", reason });
+});
+
+it("names the research failure and the catalog work it left without a guide", async () => {
+  const artworkId = "jd7artwork" as Id<"artworks">;
+  await reportBackendError(new ConvexError({ code: "research_failed", reason: "prose_rejected" }), "docent.ensure", {
+    artworkId,
+  });
+  const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
+  expect(event.tags).toMatchObject({ error_code: "research_failed", reason: "prose_rejected", artwork_id: artworkId });
+  expect(event.exception.values[0].value).toBe("research_failed");
+  expect(event.fingerprint).toEqual(["convex", "docent.ensure", "research_failed"]);
 });
 
 it("reports a rethrown error once, under the innermost operation", async () => {

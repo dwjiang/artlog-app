@@ -1,8 +1,9 @@
 import { ConvexError, v } from "convex/values";
 
+import { guideResearch } from "../shared/audio/guide";
 import referenceReview from "../shared/sources/reference-review.json";
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalQuery, type ActionCtx, type MutationCtx, env } from "./_generated/server";
 import { internalMutation, mutation } from "./functions";
 import { patchArtworkContent, readArtworkContent, type ArtworkContentFields } from "./lib/artworkContent";
@@ -256,6 +257,14 @@ type Generated = {
   docentEn: DocentSentence[];
   researchConflicts?: ResearchConflict[];
 };
+// Why a run wrote nothing. Only "no_sources", a successful search that found nothing, is permanent.
+type Unwritten = "no_sources" | "sources_unavailable" | "no_facts" | "prose_rejected";
+
+// Each unwritten reason other than an empty search leaves the work without prose or an audio guide.
+async function reportUnwritten(reason: Unwritten, operation: string, artworkId?: Id<"artworks">) {
+  if (reason === "no_sources") return;
+  await reportBackendError(new ConvexError({ code: "research_failed", reason }), operation, { artworkId });
+}
 
 // Only successful empty research is permanent; source failures and rejected model output stay retryable.
 async function generate(
@@ -263,7 +272,7 @@ async function generate(
   models: Models,
   artwork: DocentTarget,
   context: DocentContext,
-): Promise<Generated | "no_sources" | null> {
+): Promise<Generated | Unwritten> {
   const cached = context.cachedFactSheet?.length ? context.cachedFactSheet : undefined;
   let sources: Awaited<ReturnType<typeof gatherSources>> | undefined;
   if (!cached) {
@@ -275,7 +284,7 @@ async function generate(
       pageUrl: context.pageUrl,
       accession: context.accession,
     });
-    if (sources.sources.length === 0) return sources.failures > 0 ? null : "no_sources";
+    if (sources.sources.length === 0) return sources.failures > 0 ? "sources_unavailable" : "no_sources";
   }
   const hasReferences = sources?.sources.some((source) => source.referenceUrl);
   const reserved = cached ? 2 : hasReferences ? 6 : 4;
@@ -302,7 +311,7 @@ async function generate(
       calls += result.calls;
       if (result.value.conflicts.length > 0) return { docentEn: [], researchConflicts: result.value.conflicts };
       sources!.sources = result.value.sources;
-      if (sources!.sources.length === 0) return sources!.failures > 0 ? null : "no_sources";
+      if (sources!.sources.length === 0) return sources!.failures > 0 ? "sources_unavailable" : "no_sources";
     }
     let factSheet = cached;
     if (!factSheet) {
@@ -320,28 +329,26 @@ async function generate(
       calls += sheet.calls;
       factSheet = buildFactSheet(sheet.value, sources!.sources);
     }
-    let docentEn: DocentSentence[] = [];
-    if (factSheet.length > 0) {
-      const prose = await chatJson({
-        model: models.docent,
-        system: DOCENT_PROMPT,
-        user: docentUser(factSheet),
-        schemaName: "docent",
-        schema: DOCENT_SCHEMA,
-        maxTokens: DOCENT_MAX_TOKENS,
-        parse: parseDocent,
-        timeoutMs: MODEL_TIMEOUT_MS,
-      });
-      calls += prose.calls;
-      docentEn = validateDocent(
-        prose.value.map(({ sentence, fact_ids }) => ({
-          sentence,
-          factIds: fact_ids,
-        })),
-        new Set(factSheet.map((fact) => fact.id)),
-      );
-    }
-    return docentEn.length > 0 ? { ...(cached ? {} : { factSheet }), docentEn } : null;
+    if (factSheet.length === 0) return "no_facts";
+    const prose = await chatJson({
+      model: models.docent,
+      system: DOCENT_PROMPT,
+      user: docentUser(factSheet),
+      schemaName: "docent",
+      schema: DOCENT_SCHEMA,
+      maxTokens: DOCENT_MAX_TOKENS,
+      parse: parseDocent,
+      timeoutMs: MODEL_TIMEOUT_MS,
+    });
+    calls += prose.calls;
+    const docentEn = validateDocent(
+      prose.value.map(({ sentence, fact_ids }) => ({
+        sentence,
+        factIds: fact_ids,
+      })),
+      new Set(factSheet.map((fact) => fact.id)),
+    );
+    return docentEn.length > 0 ? { ...(cached ? {} : { factSheet }), docentEn } : "prose_rejected";
   } catch (error) {
     if (error instanceof ConvexError && typeof error.data.calls === "number") {
       calls += error.data.calls;
@@ -357,54 +364,75 @@ async function generate(
   }
 }
 
+const skipped = (error: unknown): error is ConvexError<{ code: string }> =>
+  error instanceof ConvexError && (error.data.code === "spend_cap" || error.data.code === "rate_limited");
+
+// Reuses a current fact sheet and only rewrites the sentences when they were invalidated. Every claimed run
+// that writes nothing marks the artwork failed so the card can offer a retry. Spend and rate limits reach the
+// caller, so a listener waiting on the run can be told.
+export async function researchArtwork(ctx: ActionCtx, artworkId: Id<"artworks">, deviceId: Id<"devices">) {
+  const generation = await ctx.runMutation(internal.docent.claim, {
+    artworkId,
+  });
+  if (generation === null) return;
+  let written = false;
+  let noSources = false;
+  try {
+    const models = configuredModels();
+    if (!models) {
+      console.warn("FACT_SHEET_MODEL or DOCENT_MODEL is not configured; skipping docent generation");
+      await reportBackendError(new ConvexError({ code: "model_unconfigured" }), "docent.ensure");
+      return;
+    }
+    const context = await ctx.runQuery(internal.docent.load, { artworkId });
+    if (!context || context.artwork.enrichGeneration !== generation || context.artwork.factSheetNeedsReview) {
+      return;
+    }
+    await limitDevice(ctx, "docent", deviceId);
+    const result = await generate(ctx, models, context.artwork, {
+      cachedFactSheet: context.content?.factSheet,
+      pageUrl: context.pageUrl,
+      accession: context.accession,
+      owner: context.owner,
+    });
+    if (typeof result === "string") {
+      noSources = result === "no_sources";
+      await reportUnwritten(result, "docent.ensure", artworkId);
+      return;
+    }
+    written = await ctx.runMutation(internal.docent.writeEnrichment, {
+      artworkId,
+      generation,
+      ...result,
+    });
+    // The audio guide skips catalogue lines, so research made only of them leaves the work without one.
+    if (written && result.factSheet?.length && guideResearch(result.factSheet).length === 0) {
+      await reportBackendError(
+        new ConvexError({ code: "narration_unavailable", reason: "catalogue_only" }),
+        "docent.ensure",
+        { artworkId },
+      );
+    }
+  } catch (error) {
+    if (!skipped(error)) await reportBackendError(error, "docent.ensure", { artworkId });
+    throw error;
+  } finally {
+    if (!written) {
+      await ctx.runMutation(internal.docent.fail, { artworkId, generation, noSources });
+    }
+  }
+}
+
 // Scheduled after a confident identification (identify.ts) and by retry; the card never waits on it.
-// Reuses a current fact sheet and only rewrites the sentences when they were invalidated. Every
-// claimed run that writes nothing marks the artwork failed so the card can offer a retry.
 export const ensure = internalAction({
   args: { artworkId: v.id("artworks"), deviceId: v.id("devices") },
   returns: v.null(),
   handler: async (ctx, { artworkId, deviceId }) => {
-    const generation = await ctx.runMutation(internal.docent.claim, {
-      artworkId,
-    });
-    if (generation === null) return null;
-    let written = false;
-    let noSources = false;
     try {
-      const models = configuredModels();
-      if (!models) {
-        console.warn("FACT_SHEET_MODEL or DOCENT_MODEL is not configured; skipping docent generation");
-        return null;
-      }
-      const context = await ctx.runQuery(internal.docent.load, { artworkId });
-      if (!context || context.artwork.enrichGeneration !== generation || context.artwork.factSheetNeedsReview) {
-        return null;
-      }
-      await limitDevice(ctx, "docent", deviceId);
-      const result = await generate(ctx, models, context.artwork, {
-        cachedFactSheet: context.content?.factSheet,
-        pageUrl: context.pageUrl,
-        accession: context.accession,
-        owner: context.owner,
-      });
-      noSources = result === "no_sources";
-      if (!result || result === "no_sources") return null;
-      written = await ctx.runMutation(internal.docent.writeEnrichment, {
-        artworkId,
-        generation,
-        ...result,
-      });
+      await researchArtwork(ctx, artworkId, deviceId);
     } catch (error) {
-      if (error instanceof ConvexError && (error.data.code === "spend_cap" || error.data.code === "rate_limited")) {
-        console.warn("Docent generation skipped", error.data);
-        return null;
-      }
-      await reportBackendError(error, "docent.ensure");
-      throw error;
-    } finally {
-      if (!written) {
-        await ctx.runMutation(internal.docent.fail, { artworkId, generation, noSources });
-      }
+      if (!skipped(error)) throw error;
+      console.warn("Docent generation skipped", error.data);
     }
     return null;
   },
@@ -541,15 +569,19 @@ export const ensureForScan = internalAction({
       const models = configuredModels();
       if (!models) {
         console.warn("FACT_SHEET_MODEL or DOCENT_MODEL is not configured; skipping docent generation");
+        await reportBackendError(new ConvexError({ code: "model_unconfigured" }), "docent.ensureForScan");
         return null;
       }
       await limitDevice(ctx, "docent", deviceId);
       const result = await generate(ctx, models, context.target, context);
-      if (result === "no_sources") unavailable = true;
-      if (!result || result === "no_sources") return null;
+      if (typeof result === "string") {
+        unavailable = result === "no_sources";
+        await reportUnwritten(result, "docent.ensureForScan");
+        return null;
+      }
       written = await ctx.runMutation(internal.docent.writeScan, { scanId, generation, ...result });
     } catch (error) {
-      if (error instanceof ConvexError && (error.data.code === "spend_cap" || error.data.code === "rate_limited")) {
+      if (skipped(error)) {
         console.warn("Docent generation skipped", error.data);
         return null;
       }

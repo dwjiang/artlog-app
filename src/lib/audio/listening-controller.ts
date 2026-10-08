@@ -4,7 +4,7 @@ import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 
-import type { GuideSentence } from "../../../convex/lib/validators";
+import type { FactChip, GuideSentence } from "../../../convex/lib/validators";
 import { researchKey, trackKey, type ListeningTrack } from "./narration";
 import type { NarrationPreparationStage } from "./narration-preparation";
 
@@ -87,7 +87,16 @@ export type ListeningDependencies = {
   render(
     track: ListeningTrack,
     onStage?: (stage: NarrationPreparationStage) => void,
-  ): Promise<{ uri: string; sentences: GuideSentence[]; renderId: string; duration?: number; live?: boolean }>;
+  ): Promise<{
+    uri: string;
+    sentences: GuideSentence[];
+    renderId: string;
+    duration?: number;
+    live?: boolean;
+    /** The research the guide was written from, which a work played before it had any learns here. */
+    facts?: FactChip[];
+    researchUpdatedAt?: number;
+  }>;
   cancel(): void;
   create(uri: string): AudioHandle;
   configure(): Promise<void>;
@@ -194,7 +203,6 @@ export class ListeningController {
     }, 1000);
   }
   async play(track: ListeningTrack, autoplay = true, waiting = false) {
-    if (track.work.facts.length === 0) return;
     this.remember();
     this.release();
     const generation = ++this.generation;
@@ -240,7 +248,9 @@ export class ListeningController {
           this.fail("Couldn’t load audio.");
         }
       }, 15000);
+      const { facts = track.work.facts, researchUpdatedAt = track.work.researchUpdatedAt } = rendered;
       this.update({
+        current: { ...track, work: { ...track.work, facts, researchUpdatedAt } },
         preparationStage: "buffering",
         duration: rendered.duration ?? saved?.duration ?? 0,
         sentences: rendered.sentences,
@@ -302,7 +312,12 @@ export class ListeningController {
         }
       });
     } catch (error) {
-      if (generation === this.generation) this.fail(preparationError(error));
+      if (generation !== this.generation) return;
+      // The backend reports its own failures; this covers the download, the transcript check and the player.
+      if (!convexErrorCode(error)) {
+        reportError(error, "narration.prepare", { data: { artworkId: track.work.artworkId } });
+      }
+      this.fail(preparationError(error));
     }
   }
   private fail(message: string) {

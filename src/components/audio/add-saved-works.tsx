@@ -33,7 +33,7 @@ export function AddSavedWorks() {
         artworkId: work.artworkId,
       });
       if (!scope.isOwnerCurrent()) return;
-      if (!enriched?.narrationFacts?.length) {
+      if (!enriched?.narrationAvailable) {
         setError(`Narration isn’t available for ${work.title} yet.`);
         return;
       }
@@ -45,7 +45,7 @@ export function AddSavedWorks() {
           date: work.date || undefined,
           savedId: work.localId,
           imageUri: work.cropPath ? captureFileUri(work.cropPath) : enriched.thumbnailUrl,
-          facts: enriched.narrationFacts,
+          facts: enriched.narrationFacts ?? [],
           researchUpdatedAt: enriched.narrationResearchUpdatedAt,
           opening: enriched.narrationOpening,
           renderId: enriched.narrationRenderId,

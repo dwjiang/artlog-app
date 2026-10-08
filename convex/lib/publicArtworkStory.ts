@@ -3,10 +3,11 @@ import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { readArtworkContent } from "./artworkContent";
-import { docentSentence, factChip } from "./validators";
+import { docentSentence, factChip, toFactChip } from "./validators";
 
 export const publicArtworkStory = v.object({
-  // The catalog work the story belongs to, so viewers can open its audio guide as they would after a scan.
+  // The catalog work the story belongs to, so viewers can open its audio guide as they would after a scan
+  // and start its research when it has none.
   artworkId: v.id("artworks"),
   docent: v.array(docentSentence),
   factSheet: v.array(factChip),
@@ -29,17 +30,11 @@ export async function projectArtworkStory(ctx: QueryCtx, save: Doc<"collections"
   const docent = content?.docent?.en?.filter(
     (line) => line.factIds.length > 0 && line.factIds.every((id) => sources.has(id)),
   );
-  if (!docent?.length) return undefined;
+  if (!docent?.length) return { artworkId: artwork._id, docent: [], factSheet: [] };
   const cited = new Set(docent.flatMap((line) => line.factIds));
   return {
     artworkId: artwork._id,
     docent,
-    factSheet: facts
-      .filter((fact) => cited.has(fact.id))
-      .map(({ id, sourceUrl, sourceLabel }) => ({
-        id,
-        sourceUrl,
-        sourceLabel,
-      })),
+    factSheet: facts.filter((fact) => cited.has(fact.id)).map(toFactChip),
   };
 }

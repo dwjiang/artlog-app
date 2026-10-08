@@ -114,6 +114,12 @@ export const factChip = v.object({
   sourceLabel: v.string(),
 });
 export type FactChip = Infer<typeof factChip>;
+// What a client sees of a fact: its citation, never the internal fact text or score.
+export const toFactChip = ({ id, sourceUrl, sourceLabel }: FactChip): FactChip => ({
+  id,
+  sourceUrl,
+  sourceLabel,
+});
 
 export const docentSentence = v.object({
   sentence: v.string(),

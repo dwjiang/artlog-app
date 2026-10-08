@@ -597,6 +597,66 @@ describe("docent.ensure", () => {
   });
 });
 
+describe("research failure reports", () => {
+  const SENTRY = "https://example.ingest.sentry.io/";
+  const reports = () =>
+    calls(SENTRY)
+      .map(([, init]) => JSON.parse(String(init?.body).split("\n")[2]))
+      .filter((event) => event.tags.operation === "docent.ensure");
+  beforeEach(() => {
+    vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+    routes.push((url) => (url.href.startsWith(SENTRY) ? new Response("{}") : undefined));
+  });
+
+  it.each([
+    ["facts", "research_failed", "no_facts", () => models([{ text: "An unsupported statement.", sourceUrl: PAGE }])],
+    [
+      "prose",
+      "research_failed",
+      "prose_rejected",
+      () => models(facts, [{ sentence: "This sentence cites an unknown fact.", fact_ids: ["missing"] }]),
+    ],
+    ["catalogue-only research", "narration_unavailable", "catalogue_only", () => models([facts[2]])],
+  ])("names the artwork whose %s left it without an audio guide", async (_case, code, reason, respond) => {
+    const { work, ensure } = await fixture();
+    page(PAGE, ownerPage);
+    wikidata();
+    tavily();
+    respond();
+    await ensure();
+    expect(reports()).toEqual([
+      expect.objectContaining({
+        tags: expect.objectContaining({ error_code: code, reason, artwork_id: work.artworkId }),
+      }),
+    ]);
+  });
+
+  it("names the artwork whose every source failed", async () => {
+    const { work, ensure } = await fixture();
+    page(PAGE, "down", { status: 503 });
+    wikidata(500);
+    tavily(undefined, 500);
+    await ensure();
+    expect(reports()).toEqual([
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          error_code: "research_failed",
+          reason: "sources_unavailable",
+          artwork_id: work.artworkId,
+        }),
+      }),
+    ]);
+  });
+
+  it("stays quiet when a working search finds nothing to cite", async () => {
+    const { artwork, ensure } = await fixture({ pageUrl: null, wikidataId: null });
+    tavily({ results: [], usage: { credits: 1 } });
+    await ensure();
+    expect(await artwork()).toHaveProperty("docentNoSources", true);
+    expect(reports()).toEqual([]);
+  });
+});
+
 describe("catalog research", () => {
   it.each(["rate limit", "spend cap", "source failure"])("recovers on a later open after a %s", async (failure) => {
     vi.useFakeTimers();

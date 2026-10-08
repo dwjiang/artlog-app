@@ -28,6 +28,7 @@ import {
   docentSentence,
   docentStatus,
   factChip,
+  toFactChip,
   labelFlowDisplay,
   rightsStatus,
   scanLink,
@@ -323,11 +324,7 @@ async function displayScan(ctx: QueryCtx, scan: Doc<"scans">): Promise<ScanDispl
     runnerUps: runnerUps.flatMap((joined) => (joined ? [joined.candidate] : [])),
     docent: confirmed ? confirmed.docent : content?.docent?.en,
     docentStatus: confirmed ? scanDocentStatus(confirmed) : prose && docentStatusOf(prose, content),
-    factSheet: factSheet?.map(({ id, sourceUrl, sourceLabel }) => ({
-      id,
-      sourceUrl,
-      sourceLabel,
-    })),
+    factSheet: factSheet?.map(toFactChip),
     rightNow: scan.rightNow,
     labelFlow: scan.labelFlow && displayLabelFlow(scan.labelFlow),
     confirmed: confirmed && {
