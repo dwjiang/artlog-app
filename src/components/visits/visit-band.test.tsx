@@ -1,20 +1,27 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
+import { showToast } from "@/lib/ui/toast";
 import type { VenueView } from "@/lib/venue/use-venue";
 
 import { VisitBand, VisitBandLayout } from "./visit-band";
 
 const mockPush = jest.fn();
 const mockNavigate = jest.fn();
+const mockStartVisit = jest.fn();
 let mockVisit: VenueView["visit"];
 let mockVenue: VenueView["venue"];
+let mockReady: VenueView["ready"];
 let mockWorks: { localId: string; cropPath: string | null; title: string }[] = [];
 let mockLoading = false;
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush, navigate: mockNavigate }) }));
 jest.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => "device:test" }));
-jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({ visit: mockVisit, venue: mockVenue }) }));
+jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
+jest.mock("@/lib/ui/toast", () => ({ showToast: jest.fn(), showErrorToast: jest.fn() }));
+jest.mock("@/lib/venue/use-venue", () => ({
+  useVenue: () => ({ visit: mockVisit, venue: mockVenue, ready: mockReady, startVisit: mockStartVisit }),
+}));
 jest.mock("@/lib/journal/use-visit-works", () => ({
   useVisitWorks: (visitLocalId?: string) => ({ works: visitLocalId ? mockWorks : [], loading: mockLoading }),
 }));
@@ -38,6 +45,8 @@ beforeEach(() => {
     timeZone: "America/Chicago",
   };
   mockVenue = { kind: "seeded", venueId: "id-aic" as never, name: "Art Institute of Chicago" };
+  mockReady = undefined;
+  mockStartVisit.mockResolvedValue(mockVisit);
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -100,4 +109,43 @@ it("shows nothing while the tab bar is hidden, or without an open visit", async 
   mockVisit = undefined;
   await render(<VisitBand />);
   expect(screen.queryByRole("button")).toBeNull();
+});
+
+describe("before the visit", () => {
+  beforeEach(() => {
+    mockVisit = undefined;
+    mockReady = { kind: "here", venue: mockVenue! };
+  });
+
+  it("shows only where asked: on the camera and Home", async () => {
+    await render(<VisitBand />);
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("names the museum, which opens the chooser, and starts the visit on the camera where End will be", async () => {
+    await render(<VisitBand onCamera beforeVisit />);
+    await fireEvent.press(screen.getByRole("button", { name: "Art Institute of Chicago" }));
+    expect(mockPush).toHaveBeenCalledWith("/venue-picker");
+    expect(screen.queryByRole("button", { name: "End visit" })).toBeNull();
+    await fireEvent.press(screen.getByRole("button", { name: "Start visit" }));
+    expect(mockStartVisit).toHaveBeenCalledWith("id-aic");
+    expect(showToast).toHaveBeenCalledWith("Visit started.");
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it("opens the camera after starting the visit away from it", async () => {
+    await render(<VisitBand beforeVisit />);
+    await fireEvent.press(screen.getByRole("button", { name: "Start visit" }));
+    expect(mockNavigate).toHaveBeenCalledWith("/scan");
+  });
+
+  it("asks which museum while several nearby are undecided; Start visit opens the chooser", async () => {
+    mockVenue = undefined;
+    mockReady = { kind: "choose" };
+    await render(<VisitBand onCamera beforeVisit />);
+    expect(screen.getByRole("button", { name: "Which museum?" })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: "Start visit" }));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: "/venue-picker", params: { mode: "start" } });
+    expect(mockStartVisit).not.toHaveBeenCalled();
+  });
 });

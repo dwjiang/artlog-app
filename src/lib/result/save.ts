@@ -7,7 +7,7 @@ import type { PendingScan, Visit } from "@/db/schema";
 import { flushJournal } from "@/lib/account/collection-sync";
 import { captureOwner } from "@/lib/account/owner-store";
 import { requestCollectionSync } from "@/lib/account/sync-events";
-import type { CaptureCompletion, CompletionVisit } from "@/lib/capture/completion";
+import type { CaptureCompletion, VisitOutcome } from "@/lib/capture/completion";
 import { clearPhotoDraft, readPhotoDraft, readPhotoSession } from "@/lib/capture/photo-draft";
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
 import { convex } from "@/lib/convex-client";
@@ -80,7 +80,7 @@ export async function saveResult(
   const choice = captureVisitChoice(capture, session);
   const openBefore = openVisitLocalId();
   let visit: LinkedVisit | undefined;
-  let outcome: CompletionVisit["outcome"] | undefined;
+  let outcome: VisitOutcome | undefined;
   if (choice.kind === "visit") {
     visit = await getVisit(choice.localId, current.owner);
     if (!visit) {
@@ -221,22 +221,16 @@ export async function saveResult(
     contribution: contribution && !contextChanged ? shareSavedLabel(contribution, localId) : undefined,
     completion: {
       savedId: localId,
-      title: existing?.title ?? snapshot.title,
-      artist: existing ? existing.artist : snapshot.artist,
-      date: existing ? existing.date : snapshot.date,
-      medium: existing ? existing.medium : snapshot.medium,
+      capture: {
+        capturedAt: capture.capturedAt,
+        venueId,
+        photoIds: [
+          ...photos.filter((photo) => photo.path === capture.photoPath).map((photo) => photo.localId),
+          ...additional.map((photo) => photo.localId),
+        ],
+      },
       previewPath: scanPreviewPath(capture.cropPath),
-      visit:
-        visit && outcome
-          ? {
-              localId: visit.localId,
-              venueName: visit.venueName,
-              startedAt: visit.startedAt,
-              visitedOn: visit.visitedOn,
-              timeZone: visit.timeZone,
-              outcome,
-            }
-          : undefined,
+      visitOutcome: visit && outcome,
     },
   };
 }

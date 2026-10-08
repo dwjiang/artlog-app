@@ -13,7 +13,7 @@ import { resolveMentions } from "./lib/mentions";
 import { flaggedUserTexts } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
-import { projectArtworkDetail, projectOwnNote, recordTitles } from "./lib/projections";
+import { projectArtworkDetail, recordTitles } from "./lib/projections";
 import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
 import { readablePublication, requireSharedVisit, requireSharedVisitItem } from "./lib/publicationAccess";
 import { withdrawProfilePosts } from "./lib/publicationUpdates";
@@ -191,18 +191,16 @@ export const getArtwork = query({
     ...sharedVisitCard.fields,
     artwork: artworkDetail,
     enrichment: v.optional(publicArtworkStory),
-    ownNote: v.optional(v.string()),
   }),
   handler: async (ctx, { postId, itemId }) => {
     const profile = await optionalProfile(ctx);
-    const { publication, item, save } = await requireSharedVisitItem(ctx, postId, itemId, profile?._id);
+    const { item, save } = await requireSharedVisitItem(ctx, postId, itemId, profile?._id);
     const album = await projectVisitAlbum(ctx, item, save, postId);
     const enrichment = await projectArtworkStory(ctx, save);
     return {
       ...album,
       artwork: projectArtworkDetail(album.artwork, save),
       ...(enrichment ? { enrichment } : {}),
-      ...projectOwnNote(save, publication.profileId, profile?._id),
     };
   },
 });

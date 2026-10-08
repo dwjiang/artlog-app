@@ -17,7 +17,7 @@ export default function HomeLayout() {
         <Stack.Screen name="index" options={{ ...LargeTitleHeader, title: "Artlog" }} />
       </Stack>
       {/* Home carries the visit on its Now card until the card scrolls away. */}
-      {nowCardAway && <VisitBand />}
+      {nowCardAway && <VisitBand beforeVisit />}
     </NowCardScrolledAway>
   );
 }

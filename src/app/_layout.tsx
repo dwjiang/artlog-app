@@ -216,6 +216,10 @@ function AppContent() {
                   name="visit-museum"
                   options={{ ...visitSheet, ...TransparentHeader, ...groupedScreen, title: "Change Museum" }}
                 />
+                <Stack.Screen
+                  name="add-to-visit"
+                  options={{ ...visitSheet, ...TransparentHeader, ...groupedScreen, title: "Choose Museum" }}
+                />
                 <Stack.Screen name="visit-share/[visitId]" options={{ headerShown: false }} />
                 <Stack.Screen
                   name="visit-globe"

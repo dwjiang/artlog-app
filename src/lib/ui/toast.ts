@@ -1,7 +1,8 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 export type ToastAction = { label: string; onPress: () => void };
-export type Toast = { id: number; message: string; action?: ToastAction };
+/** `image` is a local file URI shown at the toast's leading edge, such as the artwork a toast confirms. */
+export type Toast = { id: number; message: string; action?: ToastAction; image?: string };
 export type ToastLift = { height: number; room: number };
 
 const DURATION_MS = 4200;
@@ -23,9 +24,9 @@ const snapshot = () => current;
 const liftSnapshot = (): ToastLift | undefined => lift;
 
 /** One confirmation at a time; a new message replaces the previous one and restarts the timer. */
-export function showToast(message: string, action?: ToastAction) {
+export function showToast(message: string, action?: ToastAction, image?: string) {
   clearTimeout(timer);
-  current = { id: ++nextId, message, action };
+  current = { id: ++nextId, message, action, image };
   emit();
   // Dismissal is scheduled only while a layer is showing the toast, so screens under test leave no timers behind.
   if (listeners.size > 0) {

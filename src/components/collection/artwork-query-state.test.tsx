@@ -47,12 +47,10 @@ jest.mock("@/lib/account/collection-sync", () => ({
 jest.mock("@/lib/collection/pending-removals", () => ({
   scheduleRemoval: jest.fn(),
 }));
-jest.mock("./note-editor", () => ({ NoteEditor: () => null }));
 jest.mock("./artwork-album", () => ({ ArtworkAlbum: () => null }));
 jest.mock("./artwork-enrichment", () => ({ ArtworkEnrichment: () => null }));
 jest.mock("./artwork-encounters", () => ({
   ArtworkEncounterList: () => null,
-  ArtworkVisitNote: () => null,
   useArtworkEncounters: () => ({ encounters: [], loading: false }),
 }));
 

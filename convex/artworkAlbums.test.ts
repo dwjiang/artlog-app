@@ -23,6 +23,7 @@ async function fixture() {
   const encounters = [first.visit, second.visit].map((visit) => ({
     savedLocalId,
     visitLocalId: visit.localId,
+    // Builds from before artwork notes were removed still send one.
     note: "PRIVATE ENCOUNTER NOTE",
   }));
   const input = { scope: owner.scope, since: 0, photos, encounters };
@@ -34,6 +35,7 @@ it("syncs three private photos and two unique encounters on one artwork", async 
   const first = await owner.as.mutation(api.artworkAlbums.sync, input);
   expect(first.photos).toHaveLength(3);
   expect(first.encounters).toHaveLength(2);
+  for (const row of first.encounters) expect(row).not.toHaveProperty("note");
   expect(first.saves).toHaveLength(1);
   const repeated = await owner.as.mutation(api.artworkAlbums.sync, input);
   expect(repeated.photos).toHaveLength(3);
@@ -60,6 +62,47 @@ it("rejects foreign parents and never returns another owner’s album", async ()
       })
     ).photos,
   ).toEqual([]);
+});
+
+it("assigns unvisited photos once and preserves that assignment through stale and competing syncs", async () => {
+  const { t, owner, outsider, first, second, photos, input } = await fixture();
+  const photo = { ...photos[0], visitLocalId: undefined };
+  const sync = (next: typeof photo | (typeof photos)[number], since = 0) =>
+    owner.as.mutation(api.artworkAlbums.sync, { ...input, since, photos: [next], encounters: [] });
+  await sync(photo);
+  const assigned = await sync({ ...photo, visitLocalId: second.visit.localId });
+  expect(assigned.photos[0].visitLocalId).toBe(second.visit.localId);
+  const stale = await sync(photo, assigned.checkpoint);
+  expect(stale.photos[0].visitLocalId).toBe(second.visit.localId);
+  const competing = await sync({ ...photo, visitLocalId: first.visit.localId }, stale.checkpoint);
+  expect(competing.photos[0].visitLocalId).toBe(second.visit.localId);
+  await expect(sync({ ...photo, capturedAt: photo.capturedAt + 1 })).rejects.toThrow("invalid_photo");
+  const foreign = await socialVisit(t, outsider, 0);
+  await expect(sync({ ...photo, visitLocalId: foreign.visit.localId })).rejects.toThrow("not_found");
+});
+
+it("makes a recovered photo available for explicit sharing in its assigned visit", async () => {
+  const { owner, second, photos, input } = await fixture();
+  const photo = { ...photos[0], visitLocalId: undefined };
+  await owner.as.mutation(api.artworkAlbums.sync, { ...input, photos: [photo], encounters: [] });
+  const upload = await owner.as.fetch(
+    `/collection-photo?scope=${encodeURIComponent(owner.scope)}&localId=${photo.savedLocalId}&photoId=${photo.localId}&kind=photo`,
+    { method: "POST", body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), headers: { "Content-Type": "image/jpeg" } },
+  );
+  expect(upload.status).toBe(200);
+  const recovered = await owner.as.mutation(api.artworkAlbums.sync, {
+    ...input,
+    photos: [{ ...photo, visitLocalId: second.visit.localId }],
+    encounters: [{ savedLocalId: photo.savedLocalId, visitLocalId: second.visit.localId }],
+  });
+  expect(recovered.visits).toContainEqual(expect.objectContaining({ localId: second.visit.localId }));
+  const published = await owner.as.action(api.sharedVisits.publish, {
+    ...second.selection,
+    saveLocalIds: [photo.savedLocalId],
+    photoSelections: [{ saveLocalId: photo.savedLocalId, photoLocalIds: [photo.localId] }],
+  });
+  const post = await owner.as.query(api.sharedVisits.get, { postId: published.postId! });
+  expect(post.artworks.page[0].photos).toHaveLength(1);
 });
 
 it("serves each private photo only to its owner and revokes bytes when the artwork is deleted", async () => {
@@ -159,11 +202,10 @@ it("publishes only explicitly selected photos, permits repeated wall placements,
   expect((await owner.as.query(api.sharedVisits.get, { postId: published.postId! })).artworks.page).toEqual([]);
 });
 
-it("merges only on explicit owner request and preserves photos, encounters, and both private notes", async () => {
+it("merges only on explicit owner request and preserves photos and encounters", async () => {
   const { t, owner, outsider, first, second, input } = await fixture();
   await owner.as.mutation(api.artworkAlbums.sync, input);
   const target = await socialVisit(t, owner, 1);
-  await t.run((ctx) => ctx.db.patch("collections", target.saves[0].id, { note: "Target note" }));
   await owner.as.mutation(api.walls.setLayout, {
     scope: owner.scope,
     revision: 0,
@@ -192,12 +234,7 @@ it("merges only on explicit owner request and preserves photos, encounters, and 
   expect(
     result.encounters.filter((row) => row.savedLocalId === target.saves[0].localId && row.deletedAt === undefined),
   ).toHaveLength(2);
-  expect(result.saves[1].note).toContain("Target note");
-  expect(result.saves[1].note).toContain("PRIVATE NOTE");
   expect(result.saves[0].deletedAt).toBeDefined();
-  expect(JSON.stringify(await owner.as.query(api.walls.getPublic, { profileId: owner.profileId }))).not.toMatch(
-    /PRIVATE NOTE|Target note/,
-  );
   expect(await t.run((ctx) => ctx.db.get("visits", second.visit._id))).not.toBeNull();
 });
 

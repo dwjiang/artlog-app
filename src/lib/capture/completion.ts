@@ -1,19 +1,17 @@
-/** The visit a save landed in: `started` opened it, `joined` added to the open one, `past` went to a visit on the books. */
-export type CompletionVisit = {
-  localId: string;
-  venueName: string;
-  startedAt: number | null;
-  visitedOn: string;
-  timeZone: string;
-  outcome: "started" | "joined" | "past";
+import type { Id } from "../../../convex/_generated/dataModel";
+
+/** How a save met a visit: `started` opened it, `joined` added to the open one, `past` went to a visit on the books. */
+export type VisitOutcome = "started" | "joined" | "past";
+
+export type SavedCaptureContext = {
+  capturedAt: number;
+  venueId?: Id<"museums">;
+  photoIds: string[];
 };
 
 export type CaptureCompletion = {
   savedId: string;
-  title: string;
-  artist?: string | null;
-  date?: string | null;
-  medium?: string | null;
+  capture: SavedCaptureContext;
   previewPath: string | null;
-  visit?: CompletionVisit;
+  visitOutcome?: VisitOutcome;
 };

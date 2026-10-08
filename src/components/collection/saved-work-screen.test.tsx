@@ -1,18 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { AccessibilityInfo, DeviceEventEmitter, ScrollView, Text, type HostInstance } from "react-native";
 
 import { Gallery } from "@/constants/theme";
-import {
-  addArtworkPhoto,
-  editArtworkPhoto,
-  editEncounter,
-  linkArtworkVisit,
-  selectArtworkPhotos,
-} from "@/db/repos/artwork-album";
-import { getNote, setNote } from "@/db/repos/notes";
+import { addArtworkPhoto, editArtworkPhoto, linkArtworkVisit, selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { editSavedWork, insertSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
 
@@ -159,7 +152,7 @@ function detail(savedId: string) {
   );
 }
 
-it("opens in reading mode with explicit note editing", async () => {
+it("opens in reading mode with no note to add", async () => {
   await render(detail("lilies"));
   expect(await screen.findByText(/Water Lilies/)).toBeOnTheScreen();
   for (const value of ["Claude Monet", "Oil on canvas"]) {
@@ -168,7 +161,7 @@ it("opens in reading mode with explicit note editing", async () => {
   expect(screen.queryByDisplayValue("Water Lilies")).toBeNull();
   expect(screen.queryByDisplayValue("Claude Monet")).toBeNull();
   expect(screen.queryByLabelText("Notes")).toBeNull();
-  expect(screen.getByRole("button", { name: "Add note" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: /(Add|Edit) note/ })).toBeNull();
   expect(screen.getByLabelText("full photo 1 of Water Lilies").props.source).toEqual([
     { uri: "file:///documents/photos/lilies.jpg" },
   ]);
@@ -313,22 +306,6 @@ it("shows the photo on this device for a hung work rather than its published med
   expect((await screen.findByLabelText("full photo 1 of Water Lilies")).props.source).toEqual([
     { uri: "file:///documents/photos/lilies.jpg" },
   ]);
-});
-
-it("saves the note on blur", async () => {
-  await render(detail("lilies"));
-  await fireEvent.press(await screen.findByRole("button", { name: /(Add|Edit) note/ }));
-  const input = await screen.findByLabelText("Notes");
-  await waitFor(() => expect(input).toBeEnabled());
-  await fireEvent.changeText(input, "Seen with Sam");
-  await fireEvent(input, "blur");
-  expect(await getNote("lilies")).toMatchObject({ text: "Seen with Sam" });
-});
-
-it("shows the saved note when the work is opened again", async () => {
-  await setNote("lilies", "Seen with Sam and Ana");
-  await render(detail("lilies"));
-  expect(await screen.findByText("Seen with Sam and Ana")).toBeOnTheScreen();
 });
 
 it("renders the artwork enrichment when the backend has it", async () => {
@@ -480,15 +457,7 @@ it.each(["devices:me", "artworks:enrichment"])(
     await render(detail("lilies"));
     expect(await screen.findByText(/Water Lilies/)).toBeOnTheScreen();
     expect(screen.getByLabelText("full photo 1 of Water Lilies")).toBeOnTheScreen();
-    await fireEvent.press(await screen.findByRole("button", { name: /(Add|Edit) note/ }));
-    const input = screen.getByLabelText("Notes");
-    await waitFor(() => expect(input).toBeEnabled());
-    await fireEvent.changeText(input, "Still editable without enrichment");
-    await fireEvent(input, "blur");
-    expect(await getNote("lilies")).toMatchObject({
-      text: "Still editable without enrichment",
-    });
-    expect(screen.getByRole("button", { name: "Done editing note" })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Link visit" })).toBeEnabled();
 
     await act(() => {
       results.set(query, success);
@@ -498,7 +467,7 @@ it.each(["devices:me", "artworks:enrichment"])(
   },
 );
 
-it("keeps encounter photos and notes specific to the selected visit and opens other encounters on the same artwork", async () => {
+it("keeps encounter photos specific to the selected visit and opens other encounters on the same artwork", async () => {
   const first = "00000000-0000-4000-8000-000000000071";
   const second = "00000000-0000-4000-8000-000000000072";
   for (const [localId, venueName] of [
@@ -514,8 +483,6 @@ it("keeps encounter photos and notes specific to the selected visit and opens ot
     });
     linkArtworkVisit("lilies", localId);
   }
-  editEncounter("lilies", first, { note: "First encounter thought" });
-  editEncounter("lilies", second, { note: "Second encounter thought" });
   addArtworkPhoto({
     localId: "visit-one-photo",
     savedLocalId: "lilies",
@@ -529,9 +496,7 @@ it("keeps encounter photos and notes specific to the selected visit and opens ot
       <SavedWorkScreen savedId="lilies" visitId={first} />
     </ConvexProvider>,
   );
-  expect(await screen.findByText("First encounter thought")).toBeOnTheScreen();
-  expect(screen.queryByText("Second encounter thought")).toBeNull();
-  expect(screen.getByRole("button", { name: /View Water Lilies at Orsay/ })).toBeOnTheScreen();
+  expect(await screen.findByRole("button", { name: /View Water Lilies at Orsay/ })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: /View Water Lilies at Met/ }));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/journal/[visitId]",
@@ -542,8 +507,7 @@ it("keeps encounter photos and notes specific to the selected visit and opens ot
       <SavedWorkScreen savedId="lilies" visitId={second} />
     </ConvexProvider>,
   );
-  expect(await screen.findByText("Second encounter thought")).toBeOnTheScreen();
-  expect(screen.queryByText("First encounter thought")).toBeNull();
+  expect(await screen.findByRole("button", { name: "Unlink from this visit" })).toBeOnTheScreen();
 });
 
 it("opens crop adjustment from the saved artwork while keeping its album photo available", async () => {

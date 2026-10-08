@@ -69,6 +69,7 @@ function PositionedToastLayer({
         <ToastPill
           key={toast.id}
           message={toast.message}
+          image={toast.image}
           actions={
             toast.action
               ? [

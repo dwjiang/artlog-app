@@ -1,9 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { Alert, type AlertButton } from "react-native";
 
+import type { CaptureCompletion } from "@/lib/capture/completion";
+import { CONTRIBUTION_MESSAGES } from "@/lib/label/contribute";
 import { formStateFromFlow } from "@/lib/label/fields";
 import { shareSavedLabel } from "@/lib/label/share-saved-label";
 import { reportError } from "@/lib/observability";
+import { dismissToast, useToast } from "@/lib/ui/toast";
 import { VisitInProgressError } from "@/lib/venue/use-venue";
 
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -24,6 +27,16 @@ jest.mock("./save", () => ({
   saveErrorMessage: () => "Couldn’t save. Try again.",
 }));
 jest.mock("@/lib/label/share-saved-label", () => ({ shareSavedLabel: jest.fn() }));
+const mockDismissAll = jest.fn();
+const mockNavigate = jest.fn();
+jest.mock("expo-router", () => ({ useRouter: () => ({ dismissAll: mockDismissAll, navigate: mockNavigate }) }));
+const mockMake = jest.fn();
+jest.mock("@/lib/journal/visitless-saves", () => ({ useMakeVisit: () => ({ make: mockMake }) }));
+const mockInVisit = jest.fn(() => false);
+jest.mock("@/db/repos/artwork-album", () => ({ isArtworkInVisit: () => mockInVisit() }));
+
+let toastHook: { result: { current: ReturnType<typeof useToast> } };
+const getToast = () => toastHook.result.current;
 
 const capture = {
   localId: "capture",
@@ -62,17 +75,66 @@ const saved = {
   synced: Promise.resolve(),
   completion: {
     savedId: "saved-1",
+    capture: { capturedAt: capture.capturedAt, venueId: capture.venueId, photoIds: [capture.localId] },
     title: "Water Lilies",
     previewPath: null,
   },
 };
 
-beforeEach(() => {
+afterEach(() => dismissToast());
+
+beforeEach(async () => {
   jest.clearAllMocks();
+  toastHook = await renderHook(useToast);
   jest.spyOn(console, "warn").mockImplementation(() => {});
 });
 
-it("ends the sharing state and offers a retry when the share attempt itself fails", async () => {
+describe("a completed save", () => {
+  const draft = { title: "Water Lilies", artist: "", date: "", medium: "", institution: "" };
+  async function saveWith(completion: Partial<CaptureCompletion>) {
+    jest.mocked(saveResult).mockResolvedValue({
+      ...saved,
+      completion: { ...saved.completion, ...completion },
+      contribution: undefined,
+    });
+    const hook = await renderHook(useSaveResult);
+    await act(() => hook.result.current.save({ capture, draft }));
+    return hook;
+  }
+
+  it("returns to the camera, where the toast shows the artwork and opens it", async () => {
+    await saveWith({ previewPath: "crops/c1.preview.jpg", visitOutcome: "joined" });
+    expect(mockDismissAll).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith("/(tabs)/(scan)/scan");
+    expect(getToast()).toMatchObject({
+      message: "Saved",
+      action: { label: "View" },
+      image: expect.stringMatching(/crops\/c1\.preview\.jpg$/),
+    });
+    getToast()?.action?.onPress();
+    expect(mockNavigate).toHaveBeenLastCalledWith({ pathname: "/saved/[savedId]", params: { savedId: "saved-1" } });
+  });
+
+  it("says when the save started a visit", async () => {
+    await saveWith({ visitOutcome: "started" });
+    expect(getToast()?.message).toBe("Saved · visit started");
+  });
+
+  it("offers to add a save that joined no visit to one", async () => {
+    await saveWith({});
+    expect(getToast()).toMatchObject({ message: "Saved", action: { label: "Add to visit" } });
+    getToast()?.action?.onPress();
+    expect(mockMake).toHaveBeenCalledWith(["saved-1"], capture.venueId, saved.completion.capture);
+  });
+
+  it("opens an artwork that was already in a visit even when this save joined none", async () => {
+    mockInVisit.mockReturnValueOnce(true);
+    await saveWith({});
+    expect(getToast()?.action?.label).toBe("View");
+  });
+});
+
+it("reports the shared index's answer in toasts, with a retry when the share attempt itself fails", async () => {
   jest.mocked(saveResult).mockImplementation(async () => ({
     ...saved,
     contribution: Promise.reject(new Error("database is locked")),
@@ -91,18 +153,19 @@ it("ends the sharing state and offers a retry when the share attempt itself fail
       },
     }),
   );
-  await waitFor(() => expect(hook.result.current.sharing).toBe(false));
   expect(hook.result.current.savedId).toBe("saved-1");
-  expect(hook.result.current.shareError).toBe("Couldn’t save to the shared index right now");
+  await waitFor(() =>
+    expect(getToast()).toMatchObject({
+      message: "Couldn’t save to the shared index right now. Your artwork is saved to your collection.",
+      action: { label: "Retry" },
+    }),
+  );
   expect(reportError).toHaveBeenCalledWith(expect.any(Error), "result.share");
   jest.mocked(shareSavedLabel).mockResolvedValue({ result: outcome });
-  await act(() => hook.result.current.retrySharing());
+  await act(() => getToast()?.action?.onPress());
   expect(shareSavedLabel).toHaveBeenCalledWith(contribution, "saved-1");
-  expect(hook.result.current).toMatchObject({
-    sharing: false,
-    shared: outcome,
-    shareError: undefined,
-  });
+  await waitFor(() => expect(getToast()?.message).toBe(CONTRIBUTION_MESSAGES.tentative));
+  expect(getToast()?.action).toBeUndefined();
 });
 
 it("reports a failed local save while leaving the draft available to retry", async () => {

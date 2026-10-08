@@ -4,7 +4,6 @@ import { db } from "@/db/client";
 import {
   artworkPhotos,
   artworkEncounters,
-  notes,
   pendingScans,
   savedWorks,
   type NewSavedWork,
@@ -142,9 +141,8 @@ export async function markSynced(rows: SyncAcknowledgement[], owner = getLocalOw
 
 export async function listUnsynced(owner = getLocalOwner()) {
   return db
-    .select({ work: savedWorks, note: notes.text })
+    .select()
     .from(savedWorks)
-    .leftJoin(notes, and(eq(notes.owner, savedWorks.owner), eq(notes.savedLocalId, savedWorks.localId)))
     .where(and(eq(savedWorks.owner, owner), isNull(savedWorks.syncedAt)))
     .orderBy(savedWorks.savedAt, savedWorks.localId)
     .limit(50);
@@ -177,7 +175,7 @@ export async function upsertFromRemote(rows: Doc<"collections">[], owner = getLo
             .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, row.localId)))
             .run();
         }
-        // Tombstones must survive even when a local edit is pending or a newer note arrived first.
+        // Tombstones must survive even when a local edit is pending.
         if (newlyDeleted) {
           tx.update(savedWorks)
             .set({
@@ -234,18 +232,6 @@ export async function upsertFromRemote(rows: Doc<"collections">[], owner = getLo
           })
           .run();
       }
-      tx.insert(notes)
-        .values({
-          owner,
-          savedLocalId: row.localId,
-          text: row.note ?? "",
-          updatedAt: row.updatedAt,
-        })
-        .onConflictDoUpdate({
-          target: [notes.owner, notes.savedLocalId],
-          set: { text: row.note ?? "", updatedAt: row.updatedAt },
-        })
-        .run();
     }
   });
   return displaced;

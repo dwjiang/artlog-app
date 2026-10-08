@@ -11,8 +11,8 @@ const save = () => ({
   localId: crypto.randomUUID(),
   snapshot: { title: "Water Lilies", artist: "Monet" },
   savedAt: 1,
-  note: "private",
 });
+const titled = (work: ReturnType<typeof save>, title: string) => ({ ...work, snapshot: { ...work.snapshot, title } });
 async function fixture() {
   const t = harness();
   const user = await seedDevice(t);
@@ -95,10 +95,10 @@ it("moves a visit's saves with it to another museum, even past a device that sti
   expect(moved.visits).toMatchObject([{ venueId, venueName: museum!.name }]);
   expect(moved.saves).toMatchObject([{ localId: work.localId, venueId, venueName: museum!.name }]);
   const stale = await sync(user, {
-    saves: [{ ...work, note: "edited before the move arrived" }],
+    saves: [titled(work, "Edited before the move arrived")],
     since: moved.checkpoint,
   });
-  expect(stale.saves).toMatchObject([{ venueId, note: "edited before the move arrived" }]);
+  expect(stale.saves).toMatchObject([{ venueId, snapshot: { title: "Edited before the move arrived" } }]);
   const late = { ...save(), visitLocalId: visit.localId, venueId: visit.venueId };
   expect((await sync(user, { saves: [late], since: stale.checkpoint })).saves).toMatchObject([
     { localId: late.localId, venueId },
@@ -163,7 +163,6 @@ it("requires verified Apple proof and resumes bounded claiming after interruptio
     _id: before.saves[0]._id,
     owner: { kind: "account", accountId },
     deletedAt: 2,
-    note: work.note,
     visitId: before.visits[0]._id,
   });
 });
@@ -183,8 +182,8 @@ it("converges two devices to one canonical journal and survives sign-out and res
   const imported = await sync(other);
   expect(imported.saves).toHaveLength(1);
   expect(imported.visits).toHaveLength(1);
-  await sync(other, { saves: [{ ...work, note: "second device" }] });
-  expect((await sync(user)).saves[0].note).toBe("second device");
+  await sync(other, { saves: [titled(work, "Second device")] });
+  expect((await sync(user)).saves[0].snapshot.title).toBe("Second device");
   const stale = (await user.as.query(api.accounts.me, {})).scope;
   await user.as.mutation(api.accounts.unlink, {});
   expect((await sync(user)).saves).toEqual([]);
@@ -193,7 +192,7 @@ it("converges two devices to one canonical journal and survives sign-out and res
   });
   await link();
   await claim();
-  expect((await sync(user)).saves[0].note).toBe("second device");
+  expect((await sync(user)).saves[0].snapshot.title).toBe("Second device");
   expect(await t.run((ctx) => ctx.db.query("collections").collect())).toHaveLength(1);
 });
 
@@ -203,15 +202,15 @@ it("rejects UUID collisions without overwriting either owner and never claims an
   await sync(user, { saves: [work] });
   await link();
   await claim();
-  await sync(other, { saves: [{ ...work, note: "other original" }] });
+  await sync(other, { saves: [titled(work, "Other original")] });
   await link(other);
   await expect(claim(other)).rejects.toMatchObject({
     data: { code: "ownership_collision" },
   });
   const rows = await t.run((ctx) => ctx.db.query("collections").collect());
-  const notes = rows.map((row) => row.note);
-  expect(notes).toHaveLength(2);
-  expect(notes).toEqual(expect.arrayContaining(["other original", "private"]));
+  const titles = rows.map((row) => row.snapshot.title);
+  expect(titles).toHaveLength(2);
+  expect(titles).toEqual(expect.arrayContaining(["Other original", "Water Lilies"]));
   await user.as.mutation(api.accounts.unlink, {});
   await link(user, "new-account");
   await claim(user);
@@ -227,11 +226,22 @@ it("keeps deletion terminal through stale pushes and preserves its empty visit",
   };
   await sync(user, { visits: [visit], saves: [work] });
   await sync(user, { saves: [{ ...work, deletedAt: 2 }] });
-  expect((await sync(user, { saves: [{ ...work, note: "stale" }] })).saves[0]).toMatchObject({
+  expect((await sync(user, { saves: [titled(work, "Stale")] })).saves[0]).toMatchObject({
     deletedAt: 2,
-    note: "private",
+    snapshot: { title: "Water Lilies" },
   });
   expect((await sync()).visits).toHaveLength(1);
+});
+
+it("accepts the note an older build still sends and stores none", async () => {
+  const { t, user, sync } = await fixture();
+  const work = { ...save(), note: "From before notes were removed" };
+  const pushed = await sync(user, { saves: [work] });
+  expect(pushed.saves[0]).not.toHaveProperty("note");
+  await sync(user, { saves: [{ ...titled(work, "Edited"), note: "Edited note" }] });
+  const [row] = await t.run((ctx) => ctx.db.query("collections").collect());
+  expect(row).toMatchObject({ snapshot: { title: "Edited" } });
+  expect(row).not.toHaveProperty("note");
 });
 
 it("pages by monotonic versions even when all timestamps are equal, with parents before saves", async () => {
@@ -266,13 +276,17 @@ it("pages by monotonic versions even when all timestamps are equal, with parents
 it("always delivers the first pending change so an oversized row cannot stall the pull", async () => {
   const { t, user, sync } = await fixture();
   const pushed = await sync(user, { saves: [save()] });
-  await t.run((ctx) => ctx.db.patch("collections", pushed.saves[0]._id, { note: "x".repeat(LIMITS.batchBytes) }));
+  await t.run((ctx) =>
+    ctx.db.patch("collections", pushed.saves[0]._id, {
+      snapshot: { title: "x".repeat(LIMITS.batchBytes), artist: "Monet" },
+    }),
+  );
   const page = await sync(user);
   expect(page.saves.map((row) => row._id)).toEqual([pushed.saves[0]._id]);
   expect(page).toMatchObject({ checkpoint: pushed.checkpoint, hasMore: false });
 });
 
-it("enforces record, byte, note, timestamp and authentication bounds", async () => {
+it("enforces record, byte, timestamp and authentication bounds", async () => {
   const { t, user, sync } = await fixture();
   await expect(
     t.mutation(api.sync.syncJournal, {
@@ -296,7 +310,7 @@ it("enforces record, byte, note, timestamp and authentication bounds", async () 
       data: { code: "invalid_sync" },
     });
   }
-  for (const input of [{ savedAt: Infinity }, { note: "x".repeat(20_001) }, { localId: "not-uuid" }]) {
+  for (const input of [{ savedAt: Infinity }, { localId: "not-uuid" }]) {
     await expect(sync(user, { saves: [{ ...save(), ...input }] })).rejects.toMatchObject({
       data: { code: "invalid_save" },
     });

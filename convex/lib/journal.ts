@@ -84,7 +84,7 @@ export async function upsertJournalSave(
   ctx: MutationCtx,
   owner: JournalOwner,
   deviceId: Id<"devices">,
-  input: JournalSave,
+  { note: _note, ...input }: JournalSave,
 ): Promise<Doc<"collections">> {
   validateSave(input);
   const existing = await findOwnedSave(ctx, owner, input.localId);
@@ -112,7 +112,6 @@ export async function upsertJournalSave(
   if (
     existing
     && JSON.stringify(existing.snapshot) === JSON.stringify(input.snapshot)
-    && existing.note === input.note
     && existing.deletedAt === input.deletedAt
   ) {
     return existing;
@@ -135,7 +134,6 @@ export async function upsertJournalSave(
   if (existing) {
     await ctx.db.patch("collections", id, {
       snapshot: input.snapshot,
-      note: input.note,
       deletedAt: input.deletedAt,
       ...stamps,
     });

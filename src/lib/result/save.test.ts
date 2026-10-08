@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { selectArtworkPhotos, selectArtworkEncounters, editArtworkPhoto } from "@/db/repos/artwork-album";
 import { getSavedWork } from "@/db/repos/saved-works";
 import { moveVisit, upsertVisit } from "@/db/repos/visits";
-import { artworkPhotos, artworkEncounters, notes, savedWorks, settings } from "@/db/schema";
+import { artworkPhotos, artworkEncounters, savedWorks, settings } from "@/db/schema";
 import { readPhotoDraft, writePhotoDraft, updatePhotoSession, isLabelCapture } from "@/lib/capture/photo-draft";
 import type { Quad } from "@/lib/capture/stages";
 import { contributeLabel } from "@/lib/label/contribute";
@@ -190,7 +190,7 @@ beforeAll(async () => {
 const STARTED_VISIT = "2b1c7e0a-0d3f-4c6e-9a1b-5d7e8f9a0b1c";
 
 beforeEach(() => {
-  for (const table of [artworkPhotos, artworkEncounters, notes, savedWorks, settings]) {
+  for (const table of [artworkPhotos, artworkEncounters, savedWorks, settings]) {
     db.delete(table).run();
   }
   jest.resetAllMocks();
@@ -226,11 +226,11 @@ it("saves an untouched confident card locally and passes the suggestion to the s
     view,
     draft: draftFromCandidate(lilies),
   });
-  expect(completion).toMatchObject({
-    title: "Water Lilies",
-    artist: "Claude Monet",
-    date: "1916",
-    medium: "Oil on canvas",
+  expect(completion).toEqual({
+    savedId: localId,
+    capture: { capturedAt: capture.capturedAt, venueId: capture.venueId, photoIds: [capture.localId] },
+    previewPath: "crops/c1.preview.jpg",
+    visitOutcome: "past",
   });
   const row = await getSavedWork(localId);
   expect(row).toMatchObject({
@@ -309,12 +309,7 @@ it("starts the museum visit for a venue-only capture, dated by the shutter, and 
     gallery: null,
   });
   expect(selectArtworkPhotos(localId).all()[0].visitLocalId).toBe(STARTED_VISIT);
-  expect(completion.visit).toMatchObject({
-    localId: STARTED_VISIT,
-    venueName: "Legion of Honor",
-    visitedOn: "1970-01-01",
-    outcome: "started",
-  });
+  expect(completion.visitOutcome).toBe("started");
   expect(mockMutation.mock.calls[0][1]).toMatchObject({
     scanId: SCAN_ID,
     objectId: bridge.objectId,
@@ -346,7 +341,7 @@ it("saves a venue-only capture with no visit but its museum after the person end
     venueId: "museum-met",
     venueName: "The Met",
   });
-  expect(completion.visit).toBeUndefined();
+  expect(completion.visitOutcome).toBeUndefined();
   expect(mockMutation).toHaveBeenCalledWith(
     "collections:saveToCollection",
     expect.objectContaining({
@@ -706,10 +701,11 @@ it("saves every new photo to the draft visit, preserving the capture date and ea
       }),
     ]),
   );
-  expect(next.completion).toMatchObject({
+  expect(next.completion).toEqual({
     savedId: first.localId,
+    capture: { capturedAt: 5678, venueId: "museum-other", photoIds: ["next-capture", "detail"] },
     previewPath: "next-crop.preview.jpg",
-    visit: { venueName: "Other museum", visitedOn: "1970-01-02", outcome: "past" },
+    visitOutcome: "past",
   });
 });
 
@@ -733,7 +729,7 @@ it("can explicitly save a scan without its originally selected visit", async () 
     venueId: null,
   });
   expect(selectArtworkPhotos(result.localId).all()[0].visitLocalId).toBeNull();
-  expect(result.completion.visit).toBeUndefined();
+  expect(result.completion.visitOutcome).toBeUndefined();
 });
 
 it("stops confirming a scan when saving a venue-only capture without its venue", async () => {

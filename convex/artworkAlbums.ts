@@ -49,7 +49,7 @@ export const sync = mutation({
         .query("artworkPhotos")
         .withIndex("by_owner_localId", (q) => q.eq("owner", owner).eq("localId", input.localId))
         .unique();
-      if (existing && (existing.capturedAt !== input.capturedAt || existing.visitLocalId !== input.visitLocalId)) {
+      if (existing && existing.capturedAt !== input.capturedAt) {
         throw new ConvexError({ code: "invalid_photo" });
       }
       if (existing?.deletedAt !== undefined) continue;
@@ -57,6 +57,7 @@ export const sync = mutation({
       if (
         existing
         && existing.saveId === save._id
+        && existing.visitLocalId === input.visitLocalId
         && existing.kind === input.kind
         && existing.caption === input.caption
         && existing.deletedAt === deletedAt
@@ -77,6 +78,8 @@ export const sync = mutation({
       }
       const fields = {
         ...input,
+        // The first visit assignment wins, including over stale offline edits that still carry no visit.
+        visitLocalId: existing?.visitLocalId ?? input.visitLocalId,
         caption: input.caption,
         deletedAt,
         owner,
@@ -96,7 +99,7 @@ export const sync = mutation({
         await ctx.db.insert("artworkPhotos", fields);
       }
     }
-    for (const input of args.encounters) {
+    for (const { note: _note, ...input } of args.encounters) {
       validateAlbumEncounter(input);
       const save = await findOwnedSave(ctx, owner, input.savedLocalId);
       const visit = await findOwnedVisit(ctx, owner, input.visitLocalId);
@@ -106,7 +109,7 @@ export const sync = mutation({
         .withIndex("by_save_visit", (q) => q.eq("saveId", save._id).eq("visitId", visit._id))
         .unique();
       const deletedAt = save.deletedAt ?? input.deletedAt;
-      if (existing && existing.note === input.note && existing.deletedAt === deletedAt) {
+      if (existing && existing.deletedAt === deletedAt) {
         continue;
       }
       if (
@@ -123,7 +126,6 @@ export const sync = mutation({
       }
       const fields = {
         ...input,
-        note: input.note,
         deletedAt,
         owner,
         saveId: save._id,
@@ -233,10 +235,6 @@ export const merge = mutation({
       ) {
         throw new ConvexError({ code: "album_full" });
       }
-      const note = [...new Set([target.note, source.note].filter((text): text is string => !!text))].join("\n\n");
-      if (note.length > LIMITS.note) {
-        throw new ConvexError({ code: "note_too_long" });
-      }
       for (const photo of sourcePhotos) {
         if (photo.deletedAt === undefined) {
           await invalidateAlbumPhoto(ctx, photo);
@@ -254,19 +252,12 @@ export const merge = mutation({
             .query("artworkEncounters")
             .withIndex("by_save_visit", (q) => q.eq("saveId", target._id).eq("visitId", row.visitId))
             .unique();
-          const encounterNote = [...new Set([prior?.note, row.note].filter((text): text is string => !!text))].join(
-            "\n\n",
-          );
-          if (encounterNote.length > LIMITS.note) {
-            throw new ConvexError({ code: "note_too_long" });
-          }
           const fields = {
             owner,
             saveId: target._id,
             savedLocalId: target.localId,
             visitId: row.visitId,
             visitLocalId: row.visitLocalId,
-            note: encounterNote || undefined,
             deletedAt: undefined,
             updatedAt: Date.now(),
             changeVersion: await nextChangeVersion(ctx, owner),
@@ -276,7 +267,6 @@ export const merge = mutation({
         }
       }
       await ctx.db.patch("collections", target._id, {
-        note: note || undefined,
         updatedAt: Date.now(),
         updatedBy: device._id,
         changeVersion: await nextChangeVersion(ctx, owner),

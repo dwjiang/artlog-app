@@ -10,6 +10,7 @@ import {
   planSaveVisit,
   venueContext,
   venueReducer,
+  visitReady,
   type CurrentVisit,
   type PoiOption,
   type VenueState,
@@ -726,5 +727,52 @@ describe("the visit a save links to", () => {
     expect(planSaveVisit(undefined, met, capture(fix.at), twoDaysIn)).toBe("past");
     expect(planSaveVisit(open, neue, capture(fix.at - 60_000), fix.at)).toBe("past");
     expect(planSaveVisit({ ...open, visitedOn: "1970-01-03" }, met, capture(fix.at), twoDaysIn)).toBe("past");
+  });
+});
+
+describe("where Start visit applies", () => {
+  const auto = reduce([
+    {
+      type: "resolved",
+      fix,
+      resolution: { kind: "auto", venue: candidate("Met", 40), options: [candidate("Met", 40)] },
+    },
+  ]);
+  const choose = reduce([
+    {
+      type: "resolved",
+      fix,
+      resolution: { kind: "choose", options: [candidate("Met", 40), candidate("Neue", 320)] },
+    },
+  ]);
+
+  it("is the resolved museum, or a choice while several nearby are undecided", () => {
+    expect(visitReady(auto, fix.at)).toEqual({ kind: "here", venue: expect.objectContaining({ name: "Met" }) });
+    expect(visitReady(choose, fix.at)).toEqual({ kind: "choose" });
+    expect(visitReady(initialVenueState, fix.at)).toBeUndefined();
+  });
+
+  it("does not apply while a visit is open, here or paused elsewhere", () => {
+    expect(
+      visitReady(venueReducer(auto, { type: "visitStarted", visit: visitAt("Met", fix.at) }), fix.at),
+    ).toBeUndefined();
+    expect(
+      visitReady(venueReducer(auto, { type: "visitStarted", visit: visitAt("Neue", fix.at) }), fix.at),
+    ).toBeUndefined();
+  });
+
+  it("skips a museum whose visit was ended by hand today, and spots turned down with “Not here”", () => {
+    const ended = reduce(
+      [
+        { type: "visitStarted", visit: visitAt("Met", fix.at) },
+        { type: "visitEnded", localId: "local-Met", at: fix.at },
+      ],
+      auto,
+    );
+    expect(visitReady(ended, fix.at + 60_000)).toBeUndefined();
+    expect(visitReady(ended, fix.at + DAY)).toEqual({ kind: "here", venue: expect.objectContaining({ name: "Met" }) });
+    const declined = venueReducer(choose, { type: "dismissed", at: fix.at });
+    expect(visitReady(declined, fix.at)).toBeUndefined();
+    expect(visitReady(declined, fix.at + NOT_HERE_MS + 1)).toEqual({ kind: "choose" });
   });
 });

@@ -593,7 +593,7 @@ it("names the museum on a wall artwork's page only, without severe words", async
   expect((await t.query(api.walls.getArtwork, { itemId: item.itemId }))?.artwork).not.toHaveProperty("institution");
 });
 
-it("keeps notes off public walls and gives an artwork page's note only to its owner", async () => {
+it("shows a note an older build sends to no one, its owner included", async () => {
   const t = harness();
   const owner = await wallFixture(t, "owner");
   const reader = await wallFixture(t, "reader");
@@ -601,10 +601,8 @@ it("keeps notes off public walls and gives an artwork page's note only to its ow
   const {
     items: [item],
   } = await owner.as.mutation(api.walls.setLayout, owner.input);
-  expect(await owner.as.query(api.walls.getArtwork, { itemId: item.itemId })).toMatchObject({
-    ownNote: "Bluer in person.",
-  });
   for (const shown of [
+    await owner.as.query(api.walls.getArtwork, { itemId: item.itemId }),
     await reader.as.query(api.walls.getArtwork, { itemId: item.itemId }),
     await t.query(api.walls.getArtwork, { itemId: item.itemId }),
     await t.query(api.walls.getPublic, { profileId: owner.profile.profileId }),

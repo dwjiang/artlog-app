@@ -23,19 +23,17 @@ import { nextWallLayout } from "@/lib/wall/wall-layout";
 import { LIMITS } from "@/shared/journal/limits";
 
 import { ArtworkAlbum } from "./artwork-album";
-import { ArtworkEncounterList, ArtworkVisitNote, useArtworkEncounters } from "./artwork-encounters";
+import { ArtworkEncounterList, useArtworkEncounters } from "./artwork-encounters";
 import { ArtworkEnrichment, ScanEnrichment } from "./artwork-enrichment";
 import { ArtworkQueryState } from "./artwork-query-state";
 import { GalleryButton } from "./gallery-button";
-import { NoteEditor } from "./note-editor";
 
 export type SavedWorkScreenProps = {
   savedId: string;
   visitId?: string;
   photoId?: string;
-  editNote?: boolean;
 };
-export function SavedWorkScreen({ savedId, visitId, photoId, editNote }: SavedWorkScreenProps) {
+export function SavedWorkScreen({ savedId, visitId, photoId }: SavedWorkScreenProps) {
   const owner = useLocalOwner();
   const [attempt, setAttempt] = useState(0);
   return (
@@ -45,7 +43,6 @@ export function SavedWorkScreen({ savedId, visitId, photoId, editNote }: SavedWo
       savedId={savedId}
       visitId={visitId}
       photoId={photoId}
-      editNote={editNote}
       onRetry={() => setAttempt((value) => value + 1)}
     />
   );
@@ -55,7 +52,6 @@ function SavedWorkQuery({
   savedId,
   visitId,
   photoId,
-  editNote,
   onRetry,
 }: SavedWorkScreenProps & { owner: string; onRetry: () => void }) {
   const { data, error, updatedAt } = useLiveQuery(selectSavedWork(savedId, owner), [savedId, owner]);
@@ -69,7 +65,6 @@ function SavedWorkQuery({
       work={work}
       visitId={visitId}
       photoId={photoId}
-      editNote={editNote}
     />
   ) : (
     <ArtworkQueryState item="Artwork" loading={!updatedAt} error={error} onRetry={onRetry} />
@@ -78,17 +73,7 @@ function SavedWorkQuery({
 function Divider() {
   return <View style={styles.divider} />;
 }
-function SavedArtwork({
-  work,
-  visitId,
-  photoId,
-  editNote,
-}: {
-  work: SavedWork;
-  visitId?: string;
-  photoId?: string;
-  editNote?: boolean;
-}) {
+function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: string; photoId?: string }) {
   const router = useRouter();
   const { scrollRef, headingRef, measureHeading, onScroll } = useScrollTitle(work.title);
   const wall = useCollectionWall([work]);
@@ -184,8 +169,6 @@ function SavedArtwork({
           visitId={currentEncounter?.visit.localId}
         />
         <Divider />
-        <NoteEditor savedLocalId={work.localId} initiallyEditing={editNote} />
-        {currentEncounter && <ArtworkVisitNote work={work} encounter={currentEncounter} />}
         {work.artworkId ? (
           <ArtworkEnrichment artworkId={work.artworkId} />
         ) : (

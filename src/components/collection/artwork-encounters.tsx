@@ -1,21 +1,20 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { Alert, StyleSheet, TextInput, View } from "react-native";
+import { useEffect, type ReactNode } from "react";
+import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { ListIcon, ListRow, ListSection } from "@/components/list-row";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
-import { editEncounter, selectArtworkEncounters, selectArtworkPhotos } from "@/db/repos/artwork-album";
+import { selectArtworkEncounters, selectArtworkPhotos, unlinkArtworkVisit } from "@/db/repos/artwork-album";
 import { listVisits } from "@/db/repos/visits";
 import type { SavedWork } from "@/db/schema";
 import { formatVisitDate } from "@/lib/journal/history";
 import { reportError } from "@/lib/observability";
-import { showErrorToast, showToast } from "@/lib/ui/toast";
+import { showErrorToast } from "@/lib/ui/toast";
 
 import { GalleryButton } from "./gallery-button";
-import { NoteHeading } from "./note-editor";
 
 export function useArtworkEncounters(work: SavedWork) {
   const encounters = useLiveQuery(selectArtworkEncounters(work.owner), [work.owner]);
@@ -39,7 +38,6 @@ export function useArtworkEncounters(work: SavedWork) {
         ? [
             {
               visit,
-              note: encounter.note,
               photoCount: photos.data.filter(
                 (photo) =>
                   photo.owner === work.owner
@@ -59,57 +57,15 @@ export function useArtworkEncounters(work: SavedWork) {
 
 type Encounter = ReturnType<typeof useArtworkEncounters>["encounters"][number];
 
-export function ArtworkVisitNote({ work, encounter }: { work: SavedWork; encounter: Encounter }) {
-  const [editing, setEditing] = useState(false);
-  const [note, setNote] = useState("");
-  function saveNote() {
-    try {
-      editEncounter(work.localId, encounter.visit.localId, { note }, work.owner);
-      setEditing(false);
-      showToast("Private note saved for this encounter.");
-    } catch (cause) {
-      reportError(cause, "collection.encounter.note.save");
-      showErrorToast("Couldn’t save your note.", saveNote);
-    }
-  }
+function SectionHeading({ title, children }: { title: string; children?: ReactNode }) {
+  const { fontScale } = useWindowDimensions();
+  const stacked = fontScale >= 1.5;
   return (
-    <View style={styles.context}>
-      <NoteHeading title="Note from this visit">
-        {!editing && (
-          <GalleryButton
-            label={encounter.note ? "Edit" : "Add"}
-            accessibilityLabel={encounter.note ? "Edit encounter note" : "Add an encounter note"}
-            onPress={() => {
-              setNote(encounter.note ?? "");
-              setEditing(true);
-            }}
-          />
-        )}
-      </NoteHeading>
-      {editing ? (
-        <>
-          <TextInput
-            accessibilityLabel="Private encounter note"
-            value={note}
-            onChangeText={setNote}
-            multiline
-            maxLength={2000}
-            placeholder="Add a note about this visit…"
-            placeholderTextColor={Gallery.muted}
-            style={styles.input}
-          />
-          <View style={styles.actions}>
-            <GalleryButton label="Save encounter note" onPress={saveNote} />
-            <GalleryButton label="Cancel" onPress={() => setEditing(false)} />
-          </View>
-        </>
-      ) : (
-        !!encounter.note && (
-          <Text selectable style={styles.note}>
-            {encounter.note}
-          </Text>
-        )
-      )}
+    <View style={[styles.heading, stacked && styles.stacked]}>
+      <Text accessibilityRole="header" style={[styles.title, stacked && { flex: 0 }]}>
+        {title}
+      </Text>
+      {children}
     </View>
   );
 }
@@ -132,7 +88,7 @@ export function ArtworkEncounterList({
   function unlink() {
     if (!current) return;
     try {
-      editEncounter(work.localId, current.visit.localId, { deletedAt: Date.now() }, work.owner);
+      unlinkArtworkVisit(work.localId, current.visit.localId, work.owner);
       router.replace({
         pathname: "/saved/[savedId]",
         params: { savedId: work.localId },
@@ -144,13 +100,13 @@ export function ArtworkEncounterList({
   }
   return (
     <View style={styles.context}>
-      <NoteHeading title="Visits">
+      <SectionHeading title="Visits">
         <GalleryButton
           label="Link visit"
           icon="plus"
           onPress={() => router.push({ pathname: "/link-artwork", params: { savedId: work.localId } })}
         />
-      </NoteHeading>
+      </SectionHeading>
       {encounters.length > 0 && (
         <ListSection outlined>
           {encounters.map(({ visit }, index) => (
@@ -204,25 +160,7 @@ export function ArtworkEncounterList({
 const styles = StyleSheet.create({
   context: { gap: 8 },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
-  note: { fontSize: 17, lineHeight: 25, color: Gallery.ink, marginLeft: 24 },
-  input: {
-    marginLeft: 24,
-    minHeight: 96,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Gallery.controlBorder,
-    color: Gallery.ink,
-    backgroundColor: Gallery.surface,
-    fontSize: 17,
-    textAlignVertical: "top",
-  },
-  actions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 8,
-    marginLeft: 24,
-  },
+  heading: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 },
+  stacked: { flexDirection: "column", alignItems: "stretch" },
+  title: { flex: 1, fontSize: 16, fontWeight: "600", lineHeight: 22, color: Gallery.ink },
 });

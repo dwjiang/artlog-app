@@ -12,6 +12,7 @@ import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { ThemedText as Text } from "@/components/themed-text";
 import { NowCard, useNowCardScroll } from "@/components/visits/now-card";
+import { VisitlessSavesCard } from "@/components/visits/visitless-saves-card";
 import { WrapUpPrompt } from "@/components/visits/wrap-up-prompt";
 import { Gallery, Spacing } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
@@ -177,6 +178,7 @@ export function HomeScreen() {
               </View>
             )}
             <NowCard onLayout={onCardLayout} />
+            <VisitlessSavesCard />
             {/* Each feed starts here; the suggestion strip below belongs to Friends. */}
             <View onLayout={room.onPinnedLayout} />
             {showStrip && <SuggestionStrip people={suggestions.people} {...suggestionActions} />}

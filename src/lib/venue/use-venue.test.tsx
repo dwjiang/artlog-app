@@ -668,6 +668,34 @@ describe("the visit a save links to", () => {
     expect(openVisits().map((visit) => visit.localId)).toEqual(["uuid-1"]);
   });
 
+  it("files saves sorted after the fact under the museum day's visit instead of opening one", async () => {
+    mockNearest.mockResolvedValue([metRow]);
+    await controller.resolve();
+    const first = await controller.visitForSave(metId, mockNow - 60_000, { past: true });
+    await expect(controller.visitForSave(metId, mockNow, { past: true })).resolves.toMatchObject({
+      localId: first.localId,
+    });
+    expect(mockVisits.get(first.localId)).toMatchObject({ startedAt: mockNow - 60_000, endedAt: mockNow });
+    expect(controller.getState().visit).toBeUndefined();
+    expect(mockActivateVisit).not.toHaveBeenCalled();
+    // An open visit at the museum takes them in.
+    const open = await controller.visitForSave(metId, mockNow + 60_000);
+    await expect(controller.visitForSave(metId, mockNow + 120_000, { past: true })).resolves.toMatchObject({
+      localId: open.localId,
+    });
+  });
+
+  it("files a save after the fact at its own museum while a visit is open at another", async () => {
+    mockNearest.mockResolvedValue([metRow]);
+    await controller.resolve();
+    await controller.visitForSave(metId, mockNow);
+    mockVenueName.mockResolvedValue("Neue Galerie");
+    const neue = await controller.visitForSave(neueId, mockNow + 60_000, { past: true });
+    expect(neue).toMatchObject({ venueId: "id-neue", venueName: "Neue Galerie" });
+    expect(mockVisits.get(neue.localId)).toMatchObject({ endedAt: mockNow + 60_000 });
+    expect(controller.getState().visit?.localId).toBe("uuid-1");
+  });
+
   it("starts the visit for a capture whose museum is no longer the resolved one, naming it from the table", async () => {
     mockNearest.mockResolvedValueOnce([metRow]).mockResolvedValueOnce([]);
     await controller.resolve();

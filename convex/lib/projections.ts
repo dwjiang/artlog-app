@@ -12,7 +12,7 @@ import {
   validateMedia,
 } from "../../shared/social/contracts";
 import { isSevere } from "../../shared/social/offensive-text";
-import type { Doc, Id } from "../_generated/dataModel";
+import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { fileStorage } from "./fileStorage";
 import { relationshipSnapshot } from "./friendships";
@@ -109,14 +109,6 @@ export function projectArtworkDetail(
 ): Infer<typeof artworkDetail> {
   const { institution } = save.snapshot;
   return institution && !isSevere(institution) ? { ...artwork, institution } : artwork;
-}
-/** Notes stay private: an artwork's page carries one only to its owner. */
-export function projectOwnNote(
-  save: Pick<Doc<"collections">, "note">,
-  ownerId: Id<"profiles">,
-  viewerId: Id<"profiles"> | undefined,
-): { ownNote?: string } {
-  return viewerId === ownerId && save.note?.trim() ? { ownNote: save.note } : {};
 }
 export function projectWallArtwork(
   item: Doc<"wallItems">,

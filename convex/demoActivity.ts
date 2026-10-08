@@ -82,6 +82,7 @@ const postActivity = v.object({
   audience,
   reflection: v.string(),
   artworks: v.array(
+    // Artworks no longer take notes; a note the bot still sends is ignored.
     v.object({ objectKey: v.string(), note: v.optional(v.string()), photoIds: v.array(v.id("files")) }),
   ),
 });
@@ -160,7 +161,7 @@ export const getContext = query({
     const posts = [];
     let scanned = 0;
     for await (const post of newest) {
-      // Read one candidate at a time, reserving room for its complete projection, including private save notes.
+      // Read one candidate at a time, reserving room for its complete projection.
       if (!(await readHeadroom(ctx))) break;
       const projected = await projectContextPost(ctx, post, usernames);
       if (projected) posts.push(projected);
@@ -324,12 +325,8 @@ export const publish = action({
       }
       const { receipt, titles } = await ctx.runMutation(internal.demoActivity.preparePost, activity);
       if (receipt) return receipt;
-      const [reflection, ...notes] = await flaggedUserTexts(
-        [activity.reflection, ...activity.artworks.map((artwork) => artwork.note ?? "")],
-        titles,
-      );
+      const [reflection] = await flaggedUserTexts([activity.reflection], titles);
       if (reflection) throw new ConvexError({ code: "reflection_not_allowed" });
-      if (notes.some(Boolean)) throw new ConvexError({ code: "note_not_allowed" });
       return ctx.runMutation(internal.demoActivity.insertPost, activity);
     }),
 });
@@ -381,7 +378,6 @@ export const insertPost = internalMutation({
           localId: crypto.randomUUID(),
           objectKey: artwork.objectKey,
           savedAt,
-          note: demoNote(artwork.note),
           photos: photos.map((photo, order) => ({
             localId: crypto.randomUUID(),
             storageId: photo.fileId,
@@ -435,12 +431,7 @@ async function readPostRequest(ctx: QueryCtx, post: PostActivity) {
     post.artworks.length === 0
     || post.artworks.length > MAX_POST_ARTWORKS
     || new Set(post.artworks.map((artwork) => artwork.objectKey)).size !== post.artworks.length
-    || post.artworks.some(
-      (artwork) =>
-        artwork.photoIds.length === 0
-        || artwork.photoIds.length > MAX_ARTWORK_PHOTOS
-        || (artwork.note?.length ?? 0) > LIMITS.note,
-    )
+    || post.artworks.some((artwork) => artwork.photoIds.length === 0 || artwork.photoIds.length > MAX_ARTWORK_PHOTOS)
     || new Set(photoIds).size !== photoIds.length
   ) {
     throw invalidActivity("artworks");
@@ -456,11 +447,9 @@ async function readPostRequest(ctx: QueryCtx, post: PostActivity) {
     for (const id of photoIds) photos.push(await requireDemoPhoto(ctx, id));
     artworks.push({ title: artwork.title, photos });
   }
-  await requireDemoMentions(ctx, [reflection, ...post.artworks.map((artwork) => artwork.note ?? "")]);
+  await requireDemoMentions(ctx, [reflection]);
   return { profile, venue, reflection, artworks };
 }
-
-const demoNote = (note: string | undefined) => note?.trim() || undefined;
 
 // Photo IDs are left out: a retry after the upload lease ran out sends the same post with new uploads.
 async function isSamePost(ctx: QueryCtx, existing: Doc<"sharedVisits">, authorId: Id<"profiles">, post: PostActivity) {
@@ -470,7 +459,7 @@ async function isSamePost(ctx: QueryCtx, existing: Doc<"sharedVisits">, authorId
   for (const item of await publicationItems(ctx, existing._id)) {
     const save = await ctx.db.get("collections", item.saveId);
     const object = save?.objectId ? await ctx.db.get("objects", save.objectId) : null;
-    artworks.push({ objectKey: object?.key, note: save?.note });
+    artworks.push({ objectKey: object?.key });
   }
   const stored = {
     authorId: existing.profileId,
@@ -488,7 +477,7 @@ async function isSamePost(ctx: QueryCtx, existing: Doc<"sharedVisits">, authorId
     endedAt: post.endedAt,
     audience: post.audience,
     reflection: post.reflection.trim(),
-    artworks: post.artworks.map((artwork) => ({ objectKey: artwork.objectKey, note: demoNote(artwork.note) })),
+    artworks: post.artworks.map((artwork) => ({ objectKey: artwork.objectKey })),
   };
   return JSON.stringify(stored) === JSON.stringify(submitted);
 }

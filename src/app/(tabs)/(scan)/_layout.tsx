@@ -17,7 +17,7 @@ export default function ScanLayout() {
       >
         <Stack.Screen name="scan" options={{ title: "Scan", headerShown: false }} />
       </Stack>
-      <VisitBand onCamera />
+      <VisitBand onCamera beforeVisit />
     </>
   );
 }

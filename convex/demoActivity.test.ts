@@ -262,7 +262,6 @@ describe("validation", () => {
       ["photo_unavailable", { artworks: [{ objectKey: "met:0", photoIds: [plainFile] }] }],
       ["photo_unavailable", { artworks: [{ objectKey: "met:0", photoIds: [attached] }] }],
       ["reflection_not_allowed", { reflection: "What a load of shit" }],
-      ["note_not_allowed", { artworks: [{ objectKey: "met:0", note: "What a load of shit", photoIds: [shared] }] }],
     ];
     for (const [code, overrides] of cases) {
       const activity = await postActivity(t, overrides);
@@ -419,9 +418,9 @@ describe("feed behavior", () => {
       endedAt: activity.endedAt,
       visibility: "public",
     });
-    expect(stored.saves.map((save) => [save.snapshot.title, save.note, save.gallery])).toEqual([
-      [TITLES[0], "Thicker paint than I expected.", "800"],
-      [TITLES[1], undefined, "801"],
+    expect(stored.saves.map((save) => [save.snapshot.title, save.gallery])).toEqual([
+      [TITLES[0], "800"],
+      [TITLES[1], "801"],
     ]);
     for (const save of stored.saves) {
       expect(save.savedAt).toBeGreaterThan(activity.startedAt);
@@ -450,7 +449,6 @@ describe("feed behavior", () => {
 
 describe("context", () => {
   it.each([
-    { content: "artwork notes", count: 60, artworkCount: 5, note: "界".repeat(LIMITS.note), reflection: "A visit." },
     { content: "reflections", count: 200, artworkCount: 1, note: "A work.", reflection: "界".repeat(LIMITS.note) },
   ])("returns complete newest posts within the read budget with long $content", async (input) => {
     const { t, bot } = await world(harness({ transactionLimits: true }));

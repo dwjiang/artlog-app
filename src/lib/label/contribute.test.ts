@@ -7,7 +7,13 @@ import { contributionPayload } from "@/shared/attestation/attested-payloads";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
-import { contributeLabel, contributionErrorMessage, uploadCrop } from "./contribute";
+import {
+  CONTRIBUTION_MESSAGES,
+  contributeLabel,
+  contributionErrorMessage,
+  contributionMessage,
+  uploadCrop,
+} from "./contribute";
 import { clearLabelDraft, loadLabelDraft } from "./draft";
 import { formStateFromFlow, setFieldValue, unlockField } from "./fields";
 
@@ -330,5 +336,16 @@ it("rejects label-only captures before their pixels or fingerprints leave the ph
     expect(mockAction).not.toHaveBeenCalled();
   } finally {
     clearPhotoDraft(capture.owner, capture.photoPath);
+  }
+});
+
+it("words every contribution outcome", () => {
+  const contributionId = "contrib-1" as Id<"contributions">;
+  expect(contributionMessage({ contributionId, status: "tentative" })).toBe(CONTRIBUTION_MESSAGES.tentative);
+  expect(contributionMessage({ contributionId, status: "rejected", reason: "duplicate" })).toBe(
+    CONTRIBUTION_MESSAGES.duplicate,
+  );
+  for (const reason of [undefined, "device_reverted", "object_reverted"] as const) {
+    expect(contributionMessage({ contributionId, status: "rejected", reason })).toBe(CONTRIBUTION_MESSAGES.rejected);
   }
 });

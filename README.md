@@ -215,8 +215,7 @@ GET/POST, with a 10 MiB limit; the client cannot attach arbitrary storage IDs.
 
 Public profiles expose selected identity, biography and display media while keeping
 account and device identifiers private. Artwork projections expose catalog metadata
-and eligible media. Artwork notes never leave their owner: an artwork's page returns its note only to
-the owner. Public media is
+and eligible media. Public media is
 an eligible catalog URL or a contextual derivative reference (`wallItem` or `sharedVisit`)
 with dimensions, source and rights metadata. Private storage IDs and owner-photo URLs are
 excluded. Missing, revoked or ineligible imagery renders a square placeholder.

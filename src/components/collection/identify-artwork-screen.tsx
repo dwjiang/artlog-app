@@ -100,9 +100,7 @@ function Editor({ work }: { work: SavedWork }) {
       });
     } catch (cause) {
       reportError(cause, "collection.artwork.merge");
-      setError(
-        "Could not merge these artworks. Check your connection. Albums over 100 photos or very long combined notes need editing first.",
-      );
+      setError("Could not merge these artworks. Check your connection. Albums over 100 photos need editing first.");
     } finally {
       setMergingInto(undefined);
     }
@@ -194,7 +192,7 @@ function Editor({ work }: { work: SavedWork }) {
                 onPress={() =>
                   Alert.alert(
                     "Combine these artworks?",
-                    `Move all photos, visit links, and private notes into “${target.title}”. The duplicate artwork and its shared placements will be removed.`,
+                    `Move all photos and visit links into “${target.title}”. The duplicate artwork and its shared placements will be removed.`,
                     [
                       { text: "Cancel", style: "cancel" },
                       {

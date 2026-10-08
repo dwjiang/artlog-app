@@ -24,18 +24,13 @@ it("restores journal sync when migration 0000 was applied before photoUpdatedAt 
   const owner = getLocalOwner();
   db.run(sql`INSERT INTO savedWorks (owner, localId, savedAt, title, artist, cropPath)
     VALUES (${owner}, 'work', 1, 'Test painting', 'Test artist', 'crop.jpg')`);
-  db.run(sql`INSERT INTO notes (owner, savedLocalId, text, updatedAt)
-    VALUES (${owner}, 'work', 'Test note', 2)`);
 
-  await expect(listUnsynced()).rejects.toThrow("no such column: savedWorks.photoUpdatedAt");
+  await expect(listUnsynced()).rejects.toThrow(/no such column: .*photoUpdatedAt/);
 
   ensureSavedWorkPhotoTimestamp();
 
   await expect(listUnsynced()).resolves.toMatchObject([
-    {
-      work: { localId: "work", title: "Test painting", cropPath: "crop.jpg", photoUpdatedAt: 0 },
-      note: "Test note",
-    },
+    { localId: "work", title: "Test painting", cropPath: "crop.jpg", photoUpdatedAt: 0 },
   ]);
   expect(db.all(sql`SELECT * FROM __drizzle_migrations`)).toEqual(migrations);
   expect(db.all(sql`PRAGMA foreign_key_check`)).toEqual([]);
@@ -48,7 +43,7 @@ it("preserves photo timestamps when the current schema is opened repeatedly", as
   ensureSavedWorkPhotoTimestamp();
   ensureSavedWorkPhotoTimestamp();
 
-  await expect(listUnsynced()).resolves.toMatchObject([{ work: { photoUpdatedAt: 123 } }]);
+  await expect(listUnsynced()).resolves.toMatchObject([{ photoUpdatedAt: 123 }]);
 });
 
 it("allows a fresh database to sync its empty collection", async () => {

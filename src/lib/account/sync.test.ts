@@ -1,7 +1,7 @@
 import { db } from "@/db/client";
 import * as saves from "@/db/repos/saved-works";
 import * as visits from "@/db/repos/visits";
-import { notes, pendingScans, savedWorks, visits as visitTable } from "@/db/schema";
+import { pendingScans, savedWorks, visits as visitTable } from "@/db/schema";
 
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { getLocalOwner } from "./owner-store";
@@ -57,7 +57,6 @@ const empty = {
   hasMore: false,
 };
 beforeEach(async () => {
-  await db.delete(notes);
   await db.delete(savedWorks);
   await db.delete(pendingScans);
   await db.delete(visitTable);

@@ -1,5 +1,5 @@
 import { db } from "@/db/client";
-import { notes, pendingScans, savedWorks, visits } from "@/db/schema";
+import { pendingScans, savedWorks, visits } from "@/db/schema";
 import { initializeOwner, switchOwner } from "@/lib/account/owner-store";
 
 import { createJournalRepository } from "./journal";
@@ -25,7 +25,6 @@ const visit = (i: number) => ({
   timeZone: "UTC",
 });
 beforeEach(async () => {
-  await db.delete(notes);
   await db.delete(savedWorks);
   await db.delete(pendingScans);
   await db.delete(visits);

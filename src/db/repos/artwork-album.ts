@@ -77,6 +77,19 @@ export function selectArtworkEncounters(owner = getLocalOwner()) {
     .from(artworkEncounters)
     .where(and(eq(artworkEncounters.owner, owner), isNull(artworkEncounters.deletedAt)));
 }
+export function isArtworkInVisit(savedLocalId: string, owner = getLocalOwner()) {
+  return !!db
+    .select({ visitLocalId: artworkEncounters.visitLocalId })
+    .from(artworkEncounters)
+    .where(
+      and(
+        eq(artworkEncounters.owner, owner),
+        eq(artworkEncounters.savedLocalId, savedLocalId),
+        isNull(artworkEncounters.deletedAt),
+      ),
+    )
+    .get();
+}
 export function linkArtworkVisit(savedLocalId: string, visitLocalId: string, owner = getLocalOwner()) {
   requireWork(savedLocalId, owner);
   requireVisit(visitLocalId, owner);
@@ -111,6 +124,30 @@ export function linkArtworksVisit(savedLocalIds: string[], visitLocalId: string,
       linkArtworkVisit(id, visitLocalId, owner);
     }
   });
+}
+/** Recovers a missed visit without moving photos that already belong to one. */
+export function recoverArtworkVisits(
+  encounters: { savedId: string; visitId: string; photoIds?: string[] }[],
+  owner = getLocalOwner(),
+) {
+  db.transaction((tx) => {
+    for (const { savedId, visitId, photoIds } of encounters) {
+      linkArtworkVisit(savedId, visitId, owner);
+      tx.update(artworkPhotos)
+        .set({ visitLocalId: visitId, syncedAt: null, revision: sql`${artworkPhotos.revision} + 1` })
+        .where(
+          and(
+            eq(artworkPhotos.owner, owner),
+            eq(artworkPhotos.savedLocalId, savedId),
+            isNull(artworkPhotos.visitLocalId),
+            isNull(artworkPhotos.deletedAt),
+            photoIds === undefined ? undefined : inArray(artworkPhotos.localId, photoIds),
+          ),
+        )
+        .run();
+    }
+  });
+  requestCollectionSync();
 }
 export function linkArtworkVisits(savedLocalId: string, visitLocalIds: string[], owner = getLocalOwner()) {
   db.transaction(() => {
@@ -178,17 +215,12 @@ export function editArtworkPhoto(
   });
   requestCollectionSync();
 }
-export function editEncounter(
-  savedLocalId: string,
-  visitLocalId: string,
-  patch: { note?: string; deletedAt?: number },
-  owner = getLocalOwner(),
-) {
+export function unlinkArtworkVisit(savedLocalId: string, visitLocalId: string, owner = getLocalOwner()) {
   requireWork(savedLocalId, owner);
   requireVisit(visitLocalId, owner);
   db.update(artworkEncounters)
     .set({
-      ...patch,
+      deletedAt: Date.now(),
       syncedAt: null,
       revision: sql`${artworkEncounters.revision} + 1`,
     })
@@ -233,7 +265,6 @@ export function encounterInput(row: typeof artworkEncounters.$inferSelect): Albu
   return {
     savedLocalId: row.savedLocalId,
     visitLocalId: row.visitLocalId,
-    note: row.note ?? undefined,
     deletedAt: row.deletedAt ?? undefined,
   };
 }
@@ -309,7 +340,6 @@ export function applyAlbum(photos: Doc<"artworkPhotos">[], encounters: Doc<"artw
       const fields = {
         savedLocalId: row.savedLocalId,
         visitLocalId: row.visitLocalId,
-        note: row.note ?? null,
         deletedAt: row.deletedAt ?? null,
         syncedAt: row.updatedAt,
       };

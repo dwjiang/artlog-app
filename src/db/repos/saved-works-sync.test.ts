@@ -1,9 +1,9 @@
 import { db } from "@/db/client";
-import { notes, savedWorks } from "@/db/schema";
+import { savedWorks } from "@/db/schema";
 
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import { getNote, setNote } from "./notes";
 import * as repo from "./saved-works";
+import { editSavedWork } from "./saved-works";
 
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
@@ -19,14 +19,12 @@ const remote: Doc<"collections"> = {
   updatedAt: 10,
   updatedBy: "sibling" as Id<"devices">,
   snapshot: { title: "Water Lilies", artist: "Monet", institution: "Museum" },
-  note: "Seen together",
 };
 beforeEach(async () => {
-  await db.delete(notes);
   await db.delete(savedWorks);
 });
 
-it("imports metadata and notes without a photo, then deduplicates a replay", async () => {
+it("imports metadata without a photo, then deduplicates a replay", async () => {
   await repo.upsertFromRemote([remote]);
   await repo.upsertFromRemote([remote]);
   expect(await repo.listSavedWorks()).toHaveLength(1);
@@ -38,7 +36,6 @@ it("imports metadata and notes without a photo, then deduplicates a replay", asy
     syncedAt: 10,
     syncedBy: "sibling",
   });
-  expect(await getNote("work")).toMatchObject({ text: "Seen together" });
   expect(await repo.listUnsynced()).toEqual([]);
 });
 
@@ -93,7 +90,7 @@ it("clears a date, medium, or institution removed on another device", async () =
   });
 });
 
-it("keeps an in-flight note edit dirty even if the old upload is acknowledged", async () => {
+it("keeps an in-flight edit dirty even if the old upload is acknowledged", async () => {
   await repo.insertSavedWork({
     localId: "work",
     title: "Painting",
@@ -101,21 +98,18 @@ it("keeps an in-flight note edit dirty even if the old upload is acknowledged", 
     savedAt: 1,
   });
   const [pending] = await repo.listUnsynced();
-  await setNote("work", "Newer note", 12);
+  editSavedWork("work", { title: "Newer title", artist: "Artist", date: null, medium: null });
   await repo.markSynced([
     {
       localId: "work",
-      revision: pending.work.revision,
+      revision: pending.revision,
       updatedAt: 20,
       updatedBy: deviceId,
     },
   ]);
   await repo.upsertFromRemote([{ ...remote, updatedBy: deviceId }]);
   expect(await repo.listUnsynced()).toMatchObject([
-    {
-      work: { localId: "work", syncedAt: null, revision: 1 },
-      note: "Newer note",
-    },
+    { localId: "work", title: "Newer title", syncedAt: null, revision: 1 },
   ]);
 });
 
@@ -123,11 +117,11 @@ it("queues deletion after sync and never resurrects a deleted row on remote repl
   await repo.upsertFromRemote([remote]);
   await repo.softDeleteSavedWork("work", 12);
   const [pending] = await repo.listUnsynced();
-  expect(pending.work.deletedAt).toBe(12);
+  expect(pending.deletedAt).toBe(12);
   await repo.markSynced([
     {
-      localId: pending.work.localId,
-      revision: pending.work.revision,
+      localId: pending.localId,
+      revision: pending.revision,
       updatedAt: 20,
       updatedBy: deviceId,
     },
@@ -136,21 +130,21 @@ it("queues deletion after sync and never resurrects a deleted row on remote repl
   expect(await repo.listSavedWorks()).toEqual([]);
 });
 
-it("applies a server deletion when uploading a stale local note edit", async () => {
+it("applies a server deletion when uploading a stale local edit", async () => {
   await repo.upsertFromRemote([remote]);
-  await setNote("work", "Offline note");
+  editSavedWork("work", { title: "Offline title", artist: "Monet", date: null, medium: null });
   const [pending] = await repo.listUnsynced();
   await repo.markSynced([
     {
-      localId: pending.work.localId,
-      revision: pending.work.revision,
+      localId: pending.localId,
+      revision: pending.revision,
       updatedAt: 20,
       updatedBy: deviceId,
       deletedAt: 15,
     },
   ]);
   expect(await repo.listSavedWorks()).toEqual([]);
-  expect(await repo.getSavedWork(pending.work.localId)).toMatchObject({
+  expect(await repo.getSavedWork(pending.localId)).toMatchObject({
     deletedAt: 15,
     syncedAt: 20,
   });
@@ -173,20 +167,13 @@ it("keeps one save when another device returns a copy of the same work", async (
   });
 });
 
-it("does not replace a newer note with an older device copy on a later page", async () => {
-  await repo.upsertFromRemote([{ ...remote, updatedAt: 30, note: "New note" }]);
-  await repo.upsertFromRemote([{ ...remote, updatedAt: 20, note: "Old note" }]);
-  const [saved] = await repo.listSavedWorks();
-  expect(await getNote(saved.localId)).toMatchObject({ text: "New note" });
-});
-
-it("applies remote deletion while a local note edit is pending", async () => {
+it("applies remote deletion while a local edit is pending", async () => {
   await repo.upsertFromRemote([remote]);
   const [saved] = await repo.listSavedWorks();
-  await setNote(saved.localId, "Offline edit");
+  editSavedWork(saved.localId, { title: "Offline edit", artist: "Monet", date: null, medium: null });
   await repo.upsertFromRemote([{ ...remote, updatedAt: 20, deletedAt: 20 }]);
   expect(await repo.listSavedWorks()).toEqual([]);
-  expect(await repo.listUnsynced()).toMatchObject([{ work: { deletedAt: 20 }, note: "Offline edit" }]);
+  expect(await repo.listUnsynced()).toMatchObject([{ deletedAt: 20, title: "Offline edit" }]);
 });
 
 it.each([
@@ -194,13 +181,15 @@ it.each([
   ["z", "a"],
 ])("merges simultaneous edits consistently in %s then %s order", async (first, second) => {
   for (const author of [first, second]) {
-    await repo.upsertFromRemote([{ ...remote, updatedBy: author as Id<"devices">, note: author }]);
+    await repo.upsertFromRemote([
+      { ...remote, updatedBy: author as Id<"devices">, snapshot: { ...remote.snapshot, title: author } },
+    ]);
   }
-  expect(await getNote(remote.localId)).toMatchObject({ text: "z" });
+  expect((await repo.getSavedWork(remote.localId))?.title).toBe("z");
 });
 
 it("does not move the confirmed version backward when an older upload response arrives", async () => {
-  await repo.upsertFromRemote([{ ...remote, updatedAt: 30, note: "Latest note" }]);
+  await repo.upsertFromRemote([{ ...remote, updatedAt: 30, snapshot: { ...remote.snapshot, title: "Latest title" } }]);
   await repo.markSynced([
     {
       localId: remote.localId,
@@ -209,14 +198,14 @@ it("does not move the confirmed version backward when an older upload response a
       updatedBy: deviceId,
     },
   ]);
-  await repo.upsertFromRemote([{ ...remote, updatedAt: 20, note: "Older note" }]);
-  expect(await getNote(remote.localId)).toMatchObject({ text: "Latest note" });
+  await repo.upsertFromRemote([{ ...remote, updatedAt: 20, snapshot: { ...remote.snapshot, title: "Older title" } }]);
+  expect((await repo.getSavedWork(remote.localId))?.title).toBe("Latest title");
   expect(await repo.getSavedWork(remote.localId)).toMatchObject({
     syncedAt: 30,
   });
 });
 
-it("accepts an image reference without replacing a newer local note or original photo", async () => {
+it("accepts an image reference without replacing a newer local edit or original photo", async () => {
   await repo.insertSavedWork({
     localId: remote.localId,
     title: "Painting",
@@ -224,20 +213,18 @@ it("accepts an image reference without replacing a newer local note or original 
     savedAt: 1,
     photoPath: "original.heic",
   });
-  await setNote(remote.localId, "Still uploading");
+  editSavedWork(remote.localId, { title: "Still uploading", artist: "", date: null, medium: null });
   const cropStorageId = "cloud-crop" as Id<"files">;
   await repo.upsertFromRemote([{ ...remote, cropStorageId }]);
   expect(await repo.getSavedWork(remote.localId)).toMatchObject({
+    title: "Still uploading",
     photoPath: "original.heic",
     cropStorageId,
     syncedAt: null,
   });
-  expect(await getNote(remote.localId)).toMatchObject({
-    text: "Still uploading",
-  });
 });
 
-it("downloads a newer remote crop independently of note stamps, reports the displaced file, and ignores older crop replays", async () => {
+it("downloads a newer remote crop independently of edit stamps, reports the displaced file, and ignores older crop replays", async () => {
   await repo.insertSavedWork({
     localId: "work",
     title: "Painting",
@@ -291,7 +278,7 @@ it("keeps a local crop awaiting upload when remote sync still contains the previ
   });
 });
 
-it("takes the server's museum for a save moved with its visit, even while a local note edit is pending", async () => {
+it("takes the server's museum for a save moved with its visit, even while a local edit is pending", async () => {
   await repo.insertSavedWork({
     localId: "work",
     title: "Water Lilies",
@@ -300,13 +287,13 @@ it("takes the server's museum for a save moved with its visit, even while a loca
     venueId: "old-museum" as Id<"museums">,
     venueName: "Old Museum",
   });
-  await setNote("work", "Pending here");
+  editSavedWork("work", { title: "Pending here", artist: "Monet", date: null, medium: null });
   const moved = { ...remote, venueId: "new-museum" as Id<"museums">, venueName: "New Museum", updatedAt: 1 };
   await repo.upsertFromRemote([moved]);
   expect(await repo.getSavedWork("work")).toMatchObject({
     venueId: "new-museum",
     venueName: "New Museum",
+    title: "Pending here",
     syncedAt: null,
   });
-  expect(await getNote("work")).toMatchObject({ text: "Pending here" });
 });

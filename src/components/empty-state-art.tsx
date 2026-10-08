@@ -28,12 +28,13 @@ export function EmptyPodium() {
   );
 }
 
-export function EmptyPaper({ kind }: { kind: "label" | "note" }) {
+/** A blank museum label. */
+export function EmptyPaper() {
   return (
     <View accessibilityElementsHidden style={styles.paperArea}>
-      <View style={[styles.paper, { transform: [{ rotate: kind === "label" ? "-5deg" : "4deg" }] }]}>
+      <View style={[styles.paper, { transform: [{ rotate: "-5deg" }] }]}>
         <Image
-          source={kind === "label" ? "sf:building.columns" : "sf:quote.opening"}
+          source="sf:building.columns"
           tintColor={Gallery.accent}
           accessible={false}
           style={{ width: 27, height: 27 }}

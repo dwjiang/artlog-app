@@ -38,6 +38,7 @@ import {
   planSaveVisit,
   venueContext,
   venueReducer,
+  visitReady,
   type CurrentVisit,
   type Fix,
   type MuseumDay,
@@ -48,6 +49,7 @@ import {
   type VenueOption,
   type VenuePick,
   type VenueState,
+  type VisitReady,
 } from "./venue-reducer";
 
 /** MapKit search radius when nothing seeded is within 400 m; a Balanced fix is good to about 100 m. */
@@ -58,6 +60,11 @@ export const SCAN_FIX_TIMEOUT_MS = 3000;
 type StartVisitOptions = {
   signal?: AbortSignal;
   replaceVisitLocalId?: string;
+};
+
+type SaveVisitOptions = StartVisitOptions & {
+  /** For saves filed after the fact: one that would start a visit joins or logs the museum day's visit instead. */
+  past?: boolean;
 };
 
 export type VenueController = {
@@ -96,7 +103,7 @@ export type VenueController = {
    * capture's day stretched to cover the shutter, or a new one dated by the capture. Throws `VisitInProgressError` when
    * the save would start a visit while another is open.
    */
-  visitForSave: (venueId: Id<"museums">, capturedAt: number) => Promise<CurrentVisit>;
+  visitForSave: (venueId: Id<"museums">, capturedAt: number, options?: SaveVisitOptions) => Promise<CurrentVisit>;
   /** Flushes persisted visit starts and ends without blocking local resolution. */
   syncRemoteVisit: () => Promise<void>;
   appStateChanged: (status: AppStateStatus) => void;
@@ -341,7 +348,7 @@ export function createVenueController(): VenueController {
   function visitForSave(
     venueId: Id<"museums">,
     capturedAt: number,
-    { signal, replaceVisitLocalId }: StartVisitOptions = {},
+    { signal, replaceVisitLocalId, past = false }: SaveVisitOptions = {},
   ): Promise<CurrentVisit> {
     const ownership = captureOwner();
     const { owner } = ownership;
@@ -359,7 +366,7 @@ export function createVenueController(): VenueController {
       checkOwner();
       const proposed = planSaveVisit(current, venueId, { ...day, at: capturedAt }, Date.now());
       const replacing = proposed === "endFirst" && current?.localId === replaceVisitLocalId;
-      const plan = replacing ? "start" : proposed;
+      const plan = replacing ? "start" : past && proposed !== "join" ? "past" : proposed;
       if (current && plan === "endFirst") throw new VisitInProgressError(current);
       if (current && plan === "join") {
         if (capturedAt >= current.startedAt) return current;
@@ -681,8 +688,12 @@ export function visitByDefault(venueId: Id<"museums">, at?: number): boolean {
   return venueController.visitByDefault(venueId, at);
 }
 
-export function visitForSave(venueId: Id<"museums">, capturedAt: number): Promise<CurrentVisit> {
-  return venueController.visitForSave(venueId, capturedAt);
+export function visitForSave(
+  venueId: Id<"museums">,
+  capturedAt: number,
+  options?: SaveVisitOptions,
+): Promise<CurrentVisit> {
+  return venueController.visitForSave(venueId, capturedAt, options);
 }
 
 /** The open visit's id right now, so a save can tell whether it started that visit or joined it. */
@@ -696,6 +707,8 @@ export type VenueView = {
   venue?: SeededOption;
   /** The open visit, at the resolved venue or paused while the phone is away from it. */
   visit?: CurrentVisit;
+  /** Where Start visit applies while no visit is open. */
+  ready?: VisitReady;
   visitId?: VenueContext["visitId"];
   options: VenueOption[];
   /** The last location fix, for searches that should look near the phone. */
@@ -718,6 +731,7 @@ export function useVenue(controller: VenueController = venueController): VenueVi
     status: snapshot.status,
     venue: snapshot.venue,
     visit: snapshot.visit,
+    ready: visitReady(snapshot),
     visitId: venueContext(snapshot).visitId,
     options: snapshot.options,
     fix: snapshot.fix,

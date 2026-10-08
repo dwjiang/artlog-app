@@ -1,9 +1,8 @@
 import { db } from "@/db/client";
-import { notes, pendingScans, savedWorks, settings, visits } from "@/db/schema";
+import { pendingScans, savedWorks, settings, visits } from "@/db/schema";
 import { anonymousOwner, initializeOwner, switchOwner } from "@/lib/account/owner-store";
 
 import { claimLocalJournal } from "./journal-claim";
-import { getNote, setNote } from "./notes";
 import * as saves from "./saved-works";
 import { getSetting, setSetting } from "./settings";
 import * as visitRepo from "./visits";
@@ -12,7 +11,6 @@ jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 beforeEach(async () => {
-  await db.delete(notes);
   await db.delete(savedWorks);
   await db.delete(pendingScans);
   await db.delete(visits);
@@ -20,7 +18,7 @@ beforeEach(async () => {
   initializeOwner("test-installation");
 });
 
-it("claims associations, notes, photos and tombstones atomically and safely repeats", async () => {
+it("claims associations, photos and tombstones atomically and safely repeats", async () => {
   const source = anonymousOwner();
   await visitRepo.upsertVisit({
     localId: "e7257140-7164-58eb-88ac-f010276ded02",
@@ -39,7 +37,6 @@ it("claims associations, notes, photos and tombstones atomically and safely repe
     photoPath: "photo.jpg",
     deletedAt: 2,
   });
-  await setNote("save", "My note");
   await claimLocalJournal(source, "account:a", "claim");
   await claimLocalJournal(source, "account:a", "claim");
   expect(await saves.getSavedWork("save")).toBeUndefined();
@@ -50,10 +47,6 @@ it("claims associations, notes, photos and tombstones atomically and safely repe
     venueId: "museum" as never,
     photoPath: "photo.jpg",
     deletedAt: 2,
-  });
-  expect(await getNote("save")).toMatchObject({
-    text: "My note",
-    owner: "account:a",
   });
   expect(await visitRepo.getVisit("e7257140-7164-58eb-88ac-f010276ded02")).toMatchObject({
     owner: "account:a",
@@ -130,11 +123,9 @@ it("carries the private wall to the account, replacing one an earlier claim left
 
 it("hides account rows and suspends edits on sign-out, restores them on sign-in, and never reassigns them", async () => {
   await saves.insertSavedWork({ localId: "save", title: "A", artist: "", savedAt: 1 }, "account:a");
-  switchOwner("account:a");
-  await setNote("save", "A note");
   switchOwner(anonymousOwner());
   expect(await saves.listUnsynced()).toEqual([]);
-  expect(await getNote("save")).toBeUndefined();
+  expect(await saves.getSavedWork("save")).toBeUndefined();
   await saves.insertSavedWork({
     localId: "save",
     title: "Anonymous",
@@ -145,7 +136,7 @@ it("hides account rows and suspends edits on sign-out, restores them on sign-in,
   switchOwner("account:b");
   expect((await saves.getSavedWork("save"))?.title).toBe("Anonymous");
   switchOwner("account:a");
-  expect((await getNote("save"))?.text).toBe("A note");
+  expect((await saves.getSavedWork("save"))?.title).toBe("A");
   expect(await saves.listUnsynced()).toHaveLength(1);
 });
 

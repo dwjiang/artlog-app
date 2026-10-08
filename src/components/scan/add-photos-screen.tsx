@@ -22,7 +22,6 @@ import { getVisit } from "@/db/repos/visits";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { removePhotoFile } from "@/lib/account/photo-transfer";
 import { checkAlbumPhoto } from "@/lib/capture/check-album-photo";
-import type { CaptureCompletion as Completion } from "@/lib/capture/completion";
 import { extractCaptureMeta } from "@/lib/capture/exif";
 import {
   clearPhotoDraft,
@@ -34,8 +33,10 @@ import {
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
 import { keepPhotos, shrinkLibraryPhoto } from "@/lib/files/kept-photos";
 import { captureFileUri, persistArtworkPhoto } from "@/lib/files/photos";
+import { SHARING_NOTICE } from "@/lib/label/contribute";
 import { reportError } from "@/lib/observability";
 import { useSaveResult } from "@/lib/result/use-save-result";
+import { showToast } from "@/lib/ui/toast";
 import { withEndVisitPrompt } from "@/lib/venue/end-visit-prompt";
 import { visitForSave } from "@/lib/venue/use-venue";
 import { venueNameById } from "@/lib/venue/venue-db";
@@ -43,10 +44,7 @@ import type { PhotoKind } from "@/shared/collection/album";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { CameraPermission } from "./camera-permission";
-import { CaptureArtworkMetadata } from "./capture-artwork-metadata";
-import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
-import { ContributionStatus, SHARING_NOTICE } from "./label/contribution-status";
 import { TapToFocusCamera } from "./tap-to-focus-camera";
 
 const MAX_CHECKS_PER_BATCH = 5;
@@ -78,7 +76,7 @@ function PhotoSession({
   owner: string;
 }) {
   const router = useRouter();
-  const { fontScale, height } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
   const [target, setTarget] = useState<Awaited<ReturnType<typeof getSavedWork>>>();
   useEffect(() => {
     let current = true;
@@ -98,9 +96,7 @@ function PhotoSession({
   }, [savedId, owner]);
   const input = readPhotoSession(owner, draftId).saveInput;
   const [photos, setPhotos] = useState(() => readPhotoDraft(owner, draftId));
-  const [albumCompletion, setCompletion] = useState<Completion>();
   const newArtwork = useSaveResult();
-  const completion = albumCompletion ?? newArtwork.completion;
   const [kind, setKind] = useState<PhotoKind>("detail");
   const [selected, setSelected] = useState<string | undefined>(
     () => readPhotoDraft(owner, draftId).find((photo) => photo.review)?.localId ?? "",
@@ -229,7 +225,7 @@ function PhotoSession({
     });
   }
   async function done() {
-    if (busyRef.current || completion) return;
+    if (busyRef.current || newArtwork.completion) return;
     if (photos.some((photo) => photo.review)) {
       setError("Review the unconfirmed photos before saving.");
       return;
@@ -244,8 +240,7 @@ function PhotoSession({
         const selected = await sessionVisit();
         if (!selected) return;
         const selectedVisitId = selected.id;
-        const visit = selectedVisitId ? await getVisit(selectedVisitId, owner) : undefined;
-        if (selectedVisitId && !visit) throw new Error("Visit unavailable");
+        if (selectedVisitId && !(await getVisit(selectedVisitId, owner))) throw new Error("Visit unavailable");
         if (!session.isOwnerCurrent()) return;
         saveArtworkSession(
           savedId,
@@ -260,24 +255,8 @@ function PhotoSession({
         );
         clearPhotoDraft(owner, draftId);
         void keepPhotos(photos);
-        setCompletion({
-          savedId,
-          title: target?.title || title || "Unidentified artwork",
-          artist: target?.artist,
-          date: target?.date,
-          medium: target?.medium,
-          previewPath: target?.cropPath ?? photos[0]?.path ?? null,
-          visit: visit
-            ? {
-                localId: visit.localId,
-                venueName: visit.venueName,
-                startedAt: visit.startedAt,
-                visitedOn: visit.visitedOn,
-                timeZone: visit.timeZone,
-                outcome: visit.endedAt === null && visit.startedAt !== null ? "joined" : "past",
-              }
-            : undefined,
-        });
+        showToast(photos.length === 1 ? "Photo added." : `${photos.length} photos added.`);
+        router.back();
       } else {
         const input = readPhotoSession(owner, draftId).saveInput;
         if (!input) throw new Error("Capture unavailable");
@@ -358,46 +337,6 @@ function PhotoSession({
       busyRef.current = false;
       setOperation(undefined);
     }
-  }
-  if (completion) {
-    const status = (
-      <ContributionStatus
-        sharing={newArtwork.sharing}
-        shared={newArtwork.shared}
-        shareError={newArtwork.shareError}
-        onShare={() => {
-          void newArtwork.retrySharing();
-        }}
-      />
-    );
-    return (
-      <CaptureCompletion
-        completion={completion}
-        sharedToIndex={newArtwork.shared?.status === "tentative"}
-        status={status}
-      >
-        <ScrollView
-          style={{ flex: 1, backgroundColor: Gallery.paper }}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={styles.page}
-        >
-          <SavedWorkImage
-            path={completion.previewPath}
-            title={completion.title}
-            contain
-            style={{ width: "100%", height: Math.min(360, height * 0.36) }}
-          />
-          <ThemedText type="title">{completion.title}</ThemedText>
-          <CaptureArtworkMetadata completion={completion} />
-          <GalleryButton
-            label="View artwork"
-            fullWidth
-            onPress={() => router.navigate({ pathname: "/saved/[savedId]", params: { savedId: completion.savedId } })}
-          />
-          {status}
-        </ScrollView>
-      </CaptureCompletion>
-    );
   }
   const photoCount = photos.length + (savedId ? 0 : 1);
   const artist = target?.artist || input?.draft.artist;

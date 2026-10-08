@@ -203,20 +203,6 @@ it("opens full photos from a public wall instead of reusing its cropped preview"
   expect(screen.getByRole("button", { name: "Show photo 2" })).toBeSelected();
 });
 
-it("shows the owner their own note under Your notes, with its tags linked", async () => {
-  mockQuery.mockImplementation((query, args) => ({
-    data:
-      args !== "skip" && getFunctionName(query) === "walls:getArtwork"
-        ? { ...artwork, profileId: "viewer", layout: { frame: "gilt" }, ownNote: "Back for the #Monet room" }
-        : undefined,
-    refresh: jest.fn(),
-  }));
-  await render(<ArtworkScreen kind="wall" itemId="wall-item" />);
-  expect(screen.getByRole("header", { name: "Your notes" })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("link", { name: "#Monet" }));
-  expect(mockPush).toHaveBeenCalledWith({ pathname: "/tag/[tag]", params: { tag: "monet" } });
-});
-
 it("sizes shared photos like a scan's picture and keeps the thumbnails just below them", async () => {
   artwork = {
     ...artwork,

@@ -57,6 +57,13 @@
       "when": 1790597204103,
       "tag": "0007_crop-source",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791457220396,
+      "tag": "0008_drop-artwork-notes",
+      "breakpoints": true
     }
   ]
 }
