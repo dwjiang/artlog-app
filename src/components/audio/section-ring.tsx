@@ -1,18 +1,11 @@
 import { Canvas, Path } from "@shopify/react-native-skia";
-import { useEffect } from "react";
-import {
-  cancelAnimation,
-  Easing,
-  type SharedValue,
-  useDerivedValue,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import { type SharedValue, useDerivedValue } from "react-native-reanimated";
 
 import { Gallery } from "@/constants/theme";
-import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { useSteadyValue } from "@/hooks/use-steady-value";
 import { guideParts, type GuideTimeline } from "@/lib/audio/guide-timeline";
 import { PLAYBACK_UPDATE_MS } from "@/lib/audio/narration";
+import { useGeneratedRange } from "@/lib/audio/use-generated-range";
 
 const STROKE = 2.5;
 const GAP = 3;
@@ -33,19 +26,14 @@ export function SectionRing({
   position: number;
   available: number;
 }) {
-  const reduced = useReducedMotion();
-  const played = useSharedValue(position);
-  // Positions arrive once per playback update; easing to each over that same interval keeps the ring sweeping steadily.
-  useEffect(() => {
-    played.set(withTiming(position, { duration: reduced ? 0 : PLAYBACK_UPDATE_MS, easing: Easing.linear }));
-    return () => cancelAnimation(played);
-  }, [played, position, reduced]);
+  const played = useSteadyValue(position, PLAYBACK_UPDATE_MS);
   const radius = (size - STROKE) / 2;
   const center = size / 2;
   // One clockwise turn from twelve o'clock; trimming it by length draws the arc between any two fractions.
   const circle = `M ${center} ${center - radius} A ${radius} ${radius} 0 1 1 ${center} ${center + radius} A ${radius} ${radius} 0 1 1 ${center} ${center - radius}`;
   const parts = guideParts(timeline, scale);
   const length = parts[parts.length - 1].end;
+  const generated = useGeneratedRange(available, length);
   const gap = parts.length > 1 ? GAP / (2 * Math.PI * radius) : 0;
   return (
     <Canvas style={{ width: size, height: size }}>
@@ -60,7 +48,7 @@ export function SectionRing({
               from={from}
               to={to}
               played={played}
-              available={available / length}
+              generated={generated}
               length={length}
             />
           )
@@ -75,24 +63,25 @@ function SectionArc({
   from,
   to,
   played,
-  available,
+  generated,
   length,
 }: {
   circle: string;
   from: number;
   to: number;
   played: SharedValue<number>;
-  available: number;
+  generated: SharedValue<number>;
   length: number;
 }) {
   const playedEnd = useDerivedValue(() => Math.min(to, Math.max(from, played.get() / length)));
+  const generatedEnd = useDerivedValue(() => Math.min(to, Math.max(from, generated.get())));
   const arc = (end: number | SharedValue<number>, color: string) => (
     <Path path={circle} start={from} end={end} color={color} style="stroke" strokeWidth={STROKE} />
   );
   return (
     <>
       {arc(to, TRACK)}
-      {available > 0 && arc(Math.min(to, Math.max(from, available)), Gallery.accentBorder)}
+      {arc(generatedEnd, Gallery.accentBorder)}
       {arc(playedEnd, Gallery.accent)}
     </>
   );
