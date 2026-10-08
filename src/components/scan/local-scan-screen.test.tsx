@@ -61,6 +61,7 @@ jest.mock("@/lib/venue/venue-db", () => ({
 // A save at the museum starts its visit; the controller is out of scope here, so the visit row is written directly.
 const mockVisitForSave = jest.fn();
 jest.mock("@/lib/venue/use-venue", () => ({
+  useVenue: () => ({ status: "resolved" }),
   visitByDefault: () => true,
   visitForSave: (...args: unknown[]) => mockVisitForSave(...args),
   openVisitLocalId: () => undefined,
@@ -196,6 +197,12 @@ async function complete(localId: string) {
   });
 }
 
+/** A save leaves the scan for the camera, where a toast confirms it. */
+async function expectReturnedToCamera() {
+  await waitFor(() => expect(mockDismissAll).toHaveBeenCalledTimes(1));
+  expect(mockNavigate).toHaveBeenLastCalledWith("/(tabs)/(scan)/scan");
+}
+
 it("shows cached recognition with inline background information, preserves it when reception returns, and saves normally", async () => {
   await enqueuePendingScan(row("offline-result", { status: "queued" }));
   await cacheOfflineResult("offline-result", confidentScan);
@@ -207,7 +214,7 @@ it("shows cached recognition with inline background information, preserves it wh
   await complete("offline-result");
   expect(mockReplace).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Save to collection" }));
-  expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
+  await expectReturnedToCamera();
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
     title: "Water Lilies",
     artist: "Claude Monet",
@@ -229,33 +236,21 @@ it("opens the server result once the queue identifies a capture that already sho
   });
 });
 
-it.each([false, true])(
-  "keeps the online result available after saving and closing confirmation (edited: %s)",
-  async (edited) => {
-    const localId = `saved-offline-online-${edited}`;
-    const alert = jest.spyOn(Alert, "alert");
-    await enqueuePendingScan(row(localId, { status: "queued" }));
-    await cacheOfflineResult(localId, confidentScan);
-    await render(<LocalScanScreen localId={localId} />);
-    if (edited) {
-      await fireEvent.press(screen.getByRole("button", { name: "Edit Details" }));
-      await fireEvent.changeText(screen.getByLabelText("Title"), "My saved title");
-    }
-    await fireEvent.press(await screen.findByRole("button", { name: "Save to collection" }));
-    await fireEvent.press(await screen.findByRole("button", { name: "Close confirmation" }));
-    await complete(localId);
-    expect(mockReplace).not.toHaveBeenCalled();
-    await fireEvent.press(screen.getByRole("button", { name: "View the online result" }));
-    expect(alert).not.toHaveBeenCalled();
-    expect(mockReplace).toHaveBeenCalledWith({
-      pathname: "/result/[scanId]",
-      params: { scanId: `scan-${localId}` },
-    });
-    expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
-      title: edited ? "My saved title" : "Water Lilies",
-    });
-  },
-);
+it.each([false, true])("saves a cached match and returns to the camera (edited: %s)", async (edited) => {
+  const localId = `saved-offline-${edited}`;
+  await enqueuePendingScan(row(localId, { status: "queued" }));
+  await cacheOfflineResult(localId, confidentScan);
+  await render(<LocalScanScreen localId={localId} />);
+  if (edited) {
+    await fireEvent.press(screen.getByRole("button", { name: "Edit Details" }));
+    await fireEvent.changeText(screen.getByLabelText("Title"), "My saved title");
+  }
+  await fireEvent.press(await screen.findByRole("button", { name: "Save to collection" }));
+  await expectReturnedToCamera();
+  expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
+    title: edited ? "My saved title" : "Water Lilies",
+  });
+});
 
 it("keeps every other painting available when switching cached matches", async () => {
   await enqueuePendingScan(row("offline-pick", { status: "queued" }));
@@ -384,8 +379,7 @@ it("saves a queued photo without asking for details", async () => {
   await enqueuePendingScan(row("photo-only", { status: "queued" }));
   await render(<LocalScanScreen localId="photo-only" />);
   await fireEvent.press(await screen.findByRole("button", { name: "Save photo for later" }));
-  expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
-  expect(screen.queryByLabelText("Title")).toBeNull();
+  await expectReturnedToCamera();
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
     title: "Unidentified artwork",
     photoPath: "photos/photo-only.jpg",
@@ -433,7 +427,7 @@ it("shows the queued capture as waiting for signal, sends the label offline and 
       name: /^Save (to collection|photo for later)$/,
     }),
   );
-  const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
+  await expectReturnedToCamera();
   const savedId = `saved-${mockUuid}`;
   expect(await getSavedWork(savedId)).toMatchObject({
     title: "Pond at dusk",
@@ -453,13 +447,6 @@ it("shows the queued capture as waiting for signal, sends the label offline and 
   );
   expect(mockMutation.mock.calls[0][1].scanId).toBeUndefined();
   expect(mockHaptic).toHaveBeenCalledWith("success");
-  expect(screen.queryByLabelText("Title")).toBeNull();
-  expect(screen.getByText("Pond at dusk")).toBeOnTheScreen();
-  await fireEvent.press(link);
-  expect(mockNavigate).toHaveBeenCalledWith({
-    pathname: "/saved/[savedId]",
-    params: { savedId },
-  });
   expect(mockReplace).not.toHaveBeenCalled();
 });
 

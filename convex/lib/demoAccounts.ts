@@ -75,7 +75,6 @@ export const demoSave = v.object({
   localId: v.string(),
   objectKey: v.string(),
   savedAt: v.number(),
-  note: v.optional(v.string()),
   photos: v.array(demoPhoto),
   // A crop of the first photo, as the scan flow stores it.
   crop: v.optional(v.object({ storageId: v.id("files"), width: v.number(), height: v.number() })),
@@ -118,7 +117,6 @@ export async function addDemoSave(
     },
     objectId: object._id,
     artworkId: artwork._id,
-    note: save.note,
   });
   await ctx.db.patch("collections", row._id, { confirmationRecorded: true });
   for (const photo of save.photos) {

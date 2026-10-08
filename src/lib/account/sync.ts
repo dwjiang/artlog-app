@@ -45,7 +45,7 @@ export async function syncJournal(deps: SyncDependencies, context: SyncContext, 
       if (!fits(input)) break;
       pushVisits.push(input);
     }
-    for (const { work, note } of pendingSaves) {
+    for (const work of pendingSaves) {
       // Parents go first: saves wait for a batch that carries every pending visit.
       if (pendingVisits.length > pushVisits.length) break;
       const input: JournalSave = {
@@ -64,7 +64,6 @@ export async function syncJournal(deps: SyncDependencies, context: SyncContext, 
         gallery: work.gallery ?? undefined,
         objectId: work.objectId ?? undefined,
         artworkId: work.artworkId ?? undefined,
-        note: note ?? undefined,
         deletedAt: work.deletedAt ?? undefined,
       };
       if (!fits(input)) break;
@@ -96,7 +95,7 @@ export async function syncJournal(deps: SyncDependencies, context: SyncContext, 
     await deps.markSynced(
       result.acceptedSaves.map((ack) => ({
         ...ack,
-        revision: pendingSaves.find(({ work }) => work.localId === ack.localId)!.work.revision,
+        revision: pendingSaves.find((work) => work.localId === ack.localId)!.revision,
       })),
       context.owner,
     );

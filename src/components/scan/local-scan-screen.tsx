@@ -18,7 +18,6 @@ import { reportError } from "@/lib/observability";
 import { retryPendingScan } from "@/lib/queue/queue";
 import { useSaveResult } from "@/lib/result/use-save-result";
 
-import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
 import { OfflineResultScreen } from "./offline-result-screen";
 import { CardHeader } from "./result/card-header";
@@ -159,66 +158,64 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
   }
 
   return (
-    <CaptureCompletion completion={completion} onViewResult={scanId ? openResult : undefined}>
-      <ThemedView style={styles.container}>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          automaticallyAdjustKeyboardInsets
-          keyboardDismissMode="interactive"
-          contentContainerStyle={styles.content}
-        >
-          {row && (
-            <CardHeader
-              cropUri={captureFileUri(scanPreviewPath(row.cropPath))}
-              kind={row.status === "failed" ? "failed" : "loading"}
-              onAdjustCrop={!saving && !savedId ? adjustCrop : undefined}
+    <ThemedView style={styles.container}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="interactive"
+        contentContainerStyle={styles.content}
+      >
+        {row && (
+          <CardHeader
+            cropUri={captureFileUri(scanPreviewPath(row.cropPath))}
+            kind={row.status === "failed" ? "failed" : "loading"}
+            onAdjustCrop={!saving && !savedId ? adjustCrop : undefined}
+          />
+        )}
+        {row && !savedId && <CaptureContextButton capture={row} disabled={saving} />}
+        {loadError ? (
+          <ThemedText themeColor="error" accessibilityRole="alert">
+            Couldn’t load this scan. Close this screen and reopen it to try again.
+          </ThemedText>
+        ) : !updatedAt ? (
+          <View style={styles.loading} accessibilityState={{ busy: true }}>
+            <LoadingRing color={Colors.light.accent} accessibilityLabel="Loading your scan…" />
+          </View>
+        ) : !row ? (
+          <View style={styles.section}>
+            <ThemedText type="subtitle">{MISSING_TITLE}</ThemedText>
+            <GalleryButton
+              label="Scan another artwork"
+              variant="filled"
+              fullWidth
+              onPress={() => {
+                router.dismissAll();
+                router.navigate("/(tabs)/(scan)/scan");
+              }}
             />
-          )}
-          {row && !savedId && <CaptureContextButton capture={row} disabled={saving} />}
-          {loadError ? (
-            <ThemedText themeColor="error" accessibilityRole="alert">
-              Couldn’t load this scan. Close this screen and reopen it to try again.
-            </ThemedText>
-          ) : !updatedAt ? (
-            <View style={styles.loading} accessibilityState={{ busy: true }}>
-              <LoadingRing color={Colors.light.accent} accessibilityLabel="Loading your scan…" />
-            </View>
-          ) : !row ? (
+          </View>
+        ) : scanId ? (
+          keepForm && (
             <View style={styles.section}>
-              <ThemedText type="subtitle">{MISSING_TITLE}</ThemedText>
-              <GalleryButton
-                label="Scan another artwork"
-                variant="filled"
-                fullWidth
-                onPress={() => {
-                  router.dismissAll();
-                  router.navigate("/(tabs)/(scan)/scan");
-                }}
-              />
+              <ThemedText type="subtitle">Your result is ready</ThemedText>
+              <GalleryButton label="View result" variant="filled" fullWidth disabled={saving} onPress={openResult} />
             </View>
-          ) : scanId ? (
-            keepForm && (
-              <View style={styles.section}>
-                <ThemedText type="subtitle">Your result is ready</ThemedText>
-                <GalleryButton label="View result" variant="filled" fullWidth disabled={saving} onPress={openResult} />
-              </View>
-            )
-          ) : row.status === "failed" ? (
-            <FailedCard error={row.lastError} onRetry={retry} retrying={retrying} />
-          ) : row.status === "identified" ? null : (
-            <WaitingForSignalCard status={row.status} onLabel={openLabel} />
-          )}
-          {retryError && (
-            <ThemedText themeColor="error" accessibilityRole="alert">
-              {retryError}
-            </ThemedText>
-          )}
-          {row && (pending || row.status === "failed" || keepForm) && (
-            <SaveAnywayForm {...saveProps} initiallyEditing={manual} />
-          )}
-        </ScrollView>
-      </ThemedView>
-    </CaptureCompletion>
+          )
+        ) : row.status === "failed" ? (
+          <FailedCard error={row.lastError} onRetry={retry} retrying={retrying} />
+        ) : row.status === "identified" ? null : (
+          <WaitingForSignalCard status={row.status} onLabel={openLabel} />
+        )}
+        {retryError && (
+          <ThemedText themeColor="error" accessibilityRole="alert">
+            {retryError}
+          </ThemedText>
+        )}
+        {row && (pending || row.status === "failed" || keepForm) && (
+          <SaveAnywayForm {...saveProps} initiallyEditing={manual} />
+        )}
+      </ScrollView>
+    </ThemedView>
   );
 }
 

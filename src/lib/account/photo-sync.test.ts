@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react-native";
 
 import { db } from "@/db/client";
 import * as repo from "@/db/repos/saved-works";
-import { notes, savedWorks } from "@/db/schema";
+import { savedWorks } from "@/db/schema";
 
 import { syncCollectionPhotos, type PhotoSyncDependencies } from "./photo-sync";
 
@@ -15,7 +15,6 @@ const download = jest.fn();
 const removeDownload = jest.fn();
 const cropStorageId = "cloud-crop" as string;
 beforeEach(async () => {
-  await db.delete(notes);
   await db.delete(savedWorks);
   jest.clearAllMocks();
   upload.mockReset();

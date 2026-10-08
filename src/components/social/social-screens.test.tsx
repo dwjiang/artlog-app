@@ -270,26 +270,6 @@ it("debounces people search for 300 ms and skips invalid searches", async () => 
   jest.useRealTimers();
 });
 
-it("shows the viewer their own note on their wall and visit artworks", async () => {
-  mockQuery.mockImplementation((query) => ({
-    data:
-      getFunctionName(query) === "walls:getArtwork"
-        ? {
-            ...visit.artworks.page[0],
-            layout: { x: 0.1, y: 0.1, width: 0.3, layer: 0, frame: "gilt" },
-            profileId: "owner",
-            ownNote: "My wall note",
-          }
-        : { ...visit.artworks.page[0], ownNote: "My visit note" },
-    refresh: mockRefresh,
-  }));
-  const view = await render(<ArtworkScreen kind="wall" itemId="wall-item" />);
-  expect(screen.getByText("My wall note")).toBeOnTheScreen();
-  await view.rerender(<ArtworkScreen kind="visit" itemId="visit-item" postId="post-a" />);
-  expect(screen.getByRole("header", { name: "Your notes" })).toBeOnTheScreen();
-  expect(screen.getByText("My visit note")).toBeOnTheScreen();
-});
-
 it("keeps artwork proportions, credentials, and the unavailable-image fallback on the wall row", async () => {
   const item = {
     ...visit.artworks.page[0],

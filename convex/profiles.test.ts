@@ -292,7 +292,7 @@ it("deletion revokes profile and publication access immediately", async () => {
   });
 });
 
-it("projects only permitted artwork fields, no notes on walls or shared cards, and a square placeholder", () => {
+it("projects only permitted artwork fields and a square placeholder", () => {
   const save = {
     snapshot: {
       title: "Work",
@@ -302,7 +302,6 @@ it("projects only permitted artwork fields, no notes on walls or shared cards, a
       institution: "Private context",
     },
     localId: "private-save",
-    note: "Private note",
     cropStorageId: "private-storage",
     scanId: "private-scan",
   } as never;
@@ -357,7 +356,6 @@ it("invalidates reverse save references and revisions while keeping the visit an
       localId,
       snapshot: { title: "Work", artist: "" },
       savedAt: 1,
-      note: "Note",
       updatedAt: 1,
       updatedBy: user.deviceId,
       changeVersion: 2,

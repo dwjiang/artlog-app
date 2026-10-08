@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import { StyleSheet, useWindowDimensions } from "react-native";
 import Animated, { Easing, FadeIn, FadeInDown, FadeOut, FadeOutDown, ReduceMotion } from "react-native-reanimated";
 
@@ -17,10 +18,12 @@ const fadeOut = FadeOut.duration(Motion.press).easing(easeOut).reduceMotion(Redu
 export function ToastPill({
   message,
   actions,
+  image,
   busy = false,
 }: {
   message: string;
   actions?: { label: string; onPress: () => void }[];
+  image?: string;
   busy?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
@@ -33,6 +36,7 @@ export function ToastPill({
       accessibilityLiveRegion="polite"
       accessibilityState={{ busy }}
     >
+      {image && !busy && <Image source={image} cachePolicy="memory" contentFit="cover" style={styles.image} />}
       {busy ? (
         <LoadingRing accessibilityLabel={message} color={Gallery.surface} />
       ) : (
@@ -72,6 +76,7 @@ const styles = StyleSheet.create({
   },
   stacked: { flexDirection: "column", alignItems: "stretch" },
   busy: { justifyContent: "center" },
+  image: { width: 32, height: 32, borderRadius: Radius.thumbnail },
   message: { flexShrink: 1, color: Gallery.surface },
   action: { minWidth: 44, minHeight: 44, justifyContent: "center" },
   actionLabel: {

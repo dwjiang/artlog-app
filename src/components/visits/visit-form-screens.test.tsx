@@ -1,20 +1,21 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 
-import { selectArtworkEncounters } from "@/db/repos/artwork-album";
+import { addArtworkPhoto, selectArtworkEncounters, selectVisitArtworkPhotos } from "@/db/repos/artwork-album";
 import { insertSavedWork } from "@/db/repos/saved-works";
-import { getVisit, listVisits } from "@/db/repos/visits";
+import { getVisit, listVisits, upsertVisit } from "@/db/repos/visits";
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { pickerDate } from "@/lib/journal/visit-date";
-import { dismissToast } from "@/lib/ui/toast";
+import { dismissToast, useToast } from "@/lib/ui/toast";
 
-import { VisitCreateScreen, VisitMuseumScreen } from "./visit-form-screens";
+import { AddToVisitScreen, VisitCreateScreen, VisitMuseumScreen } from "./visit-form-screens";
 
 const mockBack = jest.fn();
 const mockDismissTo = jest.fn();
 const mockSearchByName = jest.fn();
 const mockConfirmPlace = jest.fn();
 const mockMove = jest.fn();
+let mockFocused = true;
 const mockMovingVisit = {
   localId: "visit-1",
   owner: "device:test-installation",
@@ -24,6 +25,10 @@ const mockMovingVisit = {
   timeZone: "Asia/Tokyo",
 };
 let mockSavedId: string | undefined;
+let mockSavedIds: string | undefined;
+let mockCapturedAt: string | undefined;
+let mockPhotoIds: string | undefined;
+const mockVisitForSave = jest.fn();
 const mockVenue = {
   id: "museum",
   name: "Museum of Art",
@@ -58,6 +63,7 @@ jest.mock("../../../modules/poi-search/src", () => ({
 jest.mock("@/lib/venue/use-venue", () => ({
   useVenue: () => ({ fix: { lat: 37.77, lng: -122.42, at: 1 }, move: mockMove }),
   confirmPlace: (...args: unknown[]) => mockConfirmPlace(...args),
+  visitForSave: (...args: unknown[]) => mockVisitForSave(...args),
 }));
 jest.mock("@/lib/journal/use-visits", () => ({
   useVisits: () => ({ owner: mockMovingVisit.owner, visits: [mockMovingVisit], loading: false }),
@@ -74,7 +80,23 @@ jest.mock("expo-router", () => {
       dismissTo: (...args: unknown[]) => mockDismissTo(...args),
     },
     useFocusEffect: (effect: () => void) => jest.requireActual("react").useEffect(effect, []),
-    useLocalSearchParams: () => ({ savedId: mockSavedId, visitId: mockMovingVisit.localId }),
+    useNavigation: () => {
+      jest.requireActual("react").useEffect(
+        () => () => {
+          mockFocused = false;
+        },
+        [],
+      );
+      return { isFocused: () => mockFocused };
+    },
+    useRouter: () => ({ back: () => mockBack(), push: jest.fn() }),
+    useLocalSearchParams: () => ({
+      savedId: mockSavedId,
+      savedIds: mockSavedIds,
+      visitId: mockMovingVisit.localId,
+      capturedAt: mockCapturedAt,
+      photoIds: mockPhotoIds,
+    }),
     Stack: {
       Toolbar: Object.assign(View, {
         View,
@@ -90,6 +112,11 @@ jest.mock("expo-router", () => {
 beforeEach(() => {
   dismissToast();
   mockSavedId = undefined;
+  mockSavedIds = undefined;
+  mockCapturedAt = undefined;
+  mockPhotoIds = undefined;
+  mockFocused = true;
+  mockVisitForSave.mockReset();
   mockBack.mockClear();
   mockDismissTo.mockClear();
   mockSearchByName.mockReset().mockResolvedValue([]);
@@ -360,4 +387,122 @@ it.each(["cancel", "dismiss"])("%s ignores a pending Apple Maps choice after lea
   await act(async () => finish(mockIsland));
   expect(mockMove).not.toHaveBeenCalled();
   expect(mockBack).toHaveBeenCalledTimes(method === "cancel" ? 1 : 0);
+});
+
+it("files saves that named no museum under the chosen museum’s visit for their day", async () => {
+  mockSavedIds = "missed-a,missed-b";
+  await insertSavedWork({ localId: "missed-a", title: "Garden", artist: "Artist", savedAt: 2 });
+  await insertSavedWork({ localId: "missed-b", title: "Pond", artist: "Artist", savedAt: 1 });
+  const visit = {
+    localId: "00000000-0000-4000-8000-00000000b001",
+    venueId: "museum" as never,
+    venueName: "Museum of Art",
+    visitedOn: "2024-02-29",
+    timeZone: "America/New_York",
+    visibility: "private" as const,
+  };
+  mockVisitForSave.mockImplementation(async () => {
+    await upsertVisit(visit);
+    return { ...visit, startedAt: 1 };
+  });
+  await render(<AddToVisitScreen />);
+  await fireEvent.changeText(screen.getByLabelText("Search museums"), "museum");
+  await fireEvent.press(await screen.findByRole("button", { name: "Museum of Art, New York, United States" }));
+  await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
+  expect(mockVisitForSave.mock.calls).toEqual([
+    ["museum", 1, { past: true }],
+    ["museum", 2, { past: true }],
+  ]);
+  expect(
+    selectArtworkEncounters()
+      .all()
+      .filter((entry) => entry.visitLocalId === visit.localId)
+      .map((entry) => entry.savedLocalId)
+      .sort(),
+  ).toEqual(["missed-a", "missed-b"]);
+});
+
+it("keeps the rescan's date and photos through the museum chooser", async () => {
+  mockSavedIds = "rescanned";
+  mockCapturedAt = "2000";
+  mockPhotoIds = "new-photo";
+  await insertSavedWork({
+    localId: "rescanned",
+    title: "Garden",
+    artist: "Artist",
+    savedAt: 1000,
+    photoPath: "old.jpg",
+  });
+  addArtworkPhoto({ localId: "new-photo", savedLocalId: "rescanned", kind: "full", capturedAt: 2000, path: "new.jpg" });
+  const visit = {
+    localId: "00000000-0000-4000-8000-00000000b003",
+    venueId: "museum" as never,
+    venueName: "Museum of Art",
+    visitedOn: "1970-01-01",
+    timeZone: "UTC",
+    startedAt: 2000,
+  };
+  mockVisitForSave.mockImplementation(async () => {
+    await upsertVisit(visit);
+    return visit;
+  });
+  await render(<AddToVisitScreen />);
+  await fireEvent.changeText(screen.getByLabelText("Search museums"), "museum");
+  await fireEvent.press(await screen.findByRole("button", { name: "Museum of Art, New York, United States" }));
+  await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
+  expect(mockVisitForSave).toHaveBeenCalledWith("museum", 2000, { past: true });
+  expect(
+    selectVisitArtworkPhotos("rescanned", visit.localId)
+      .all()
+      .map((photo) => photo.localId),
+  ).toEqual(["new-photo"]);
+});
+
+describe("leaving the add-to-visit chooser", () => {
+  let sequence = 0;
+  const visit = {
+    localId: "00000000-0000-4000-8000-00000000b002",
+    venueId: "museum" as never,
+    venueName: "Museum of Art",
+    visitedOn: "2024-02-29",
+    timeZone: "America/New_York",
+    visibility: "private" as const,
+    startedAt: Date.parse("2024-02-29T16:00:00Z"),
+  };
+  async function choose() {
+    mockSavedIds = `leaving-${++sequence}`;
+    await insertSavedWork({ localId: mockSavedIds, title: "Garden", artist: "Artist", savedAt: visit.startedAt });
+    await upsertVisit(visit);
+    const rendered = await render(<AddToVisitScreen />);
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "museum");
+    await fireEvent.press(await screen.findByRole("button", { name: "Museum of Art, New York, United States" }));
+    return rendered;
+  }
+
+  it.each(["dismissed", "covered"])("does not pop the current screen when a %s chooser finishes", async (state) => {
+    let finish!: (value: typeof visit) => void;
+    mockVisitForSave.mockImplementationOnce(() => new Promise<typeof visit>((resolve) => (finish = resolve)));
+    const rendered = await choose();
+    if (state === "dismissed") await rendered.unmount();
+    else mockFocused = false;
+    await act(() => finish(visit));
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(selectArtworkEncounters().all()).toContainEqual(
+      expect.objectContaining({ savedLocalId: mockSavedIds, visitLocalId: visit.localId }),
+    );
+  });
+
+  it("allows a retained Retry to finish without navigating after the chooser closes", async () => {
+    mockVisitForSave.mockRejectedValueOnce(new Error("disk full")).mockResolvedValueOnce(visit);
+    const toast = await renderHook(useToast);
+    const rendered = await choose();
+    await waitFor(() => expect(toast.result.current?.action?.label).toBe("Retry"));
+    const retry = toast.result.current?.action?.onPress;
+    await rendered.unmount();
+    await act(() => retry?.());
+    expect(selectArtworkEncounters().all()).toContainEqual(
+      expect.objectContaining({ savedLocalId: mockSavedIds, visitLocalId: visit.localId }),
+    );
+    expect(mockBack).not.toHaveBeenCalled();
+  });
 });

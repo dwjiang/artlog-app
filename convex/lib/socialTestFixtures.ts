@@ -65,7 +65,6 @@ export async function socialVisit(
           artist: "Artist",
           institution: "Test Museum",
         },
-        note: "PRIVATE NOTE",
         updatedAt: 1,
         updatedBy: user.deviceId,
         changeVersion: i + 2,

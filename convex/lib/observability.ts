@@ -65,7 +65,6 @@ const expectedCodes = new Set([
   "invalid_object",
   "invalid_mention",
   "photo_unavailable",
-  "note_not_allowed",
   "bad_features",
   "bad_vector",
   "bad_lines",

@@ -675,7 +675,7 @@ export default defineSchema({
     .index("by_venue_history", ["venueId", "visitedOn"]),
 
   collections: defineTable({
-    ...journalSave.fields,
+    ...journalSave.omit("note").fields,
     owner: journalOwner,
     cropStorageId: v.optional(v.id("files")),
     cropPhotoLocalId: v.optional(v.string()),
@@ -711,7 +711,7 @@ export default defineSchema({
     .index("by_save_deletedAt", ["saveId", "deletedAt"])
     .index("by_owner_changeVersion", ["owner", "changeVersion"]),
   artworkEncounters: defineTable({
-    ...albumEncounter.fields,
+    ...albumEncounter.omit("note").fields,
     owner: journalOwner,
     saveId: v.id("collections"),
     visitId: v.id("visits"),

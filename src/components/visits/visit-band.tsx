@@ -13,7 +13,9 @@ import { useReduceTransparency } from "@/hooks/use-reduce-transparency";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitStart } from "@/lib/journal/history";
 import { useVisitWorks } from "@/lib/journal/use-visit-works";
+import { useStartVisit } from "@/lib/venue/use-start-visit";
 import { useVenue } from "@/lib/venue/use-venue";
+import type { CurrentVisit } from "@/lib/venue/venue-reducer";
 
 import { SafeAreaBand } from "../../../modules/safe-area-band/src";
 import { newestPhoto, VisitBackdrop } from "./visit-backdrop";
@@ -30,19 +32,18 @@ export const VisitBandLayout = createContext<{ windowTop: number; tabBarHidden: 
 /**
  * The open visit across the top of a tab, under the status bar. Render it after the tab's stack: it pushes the tab's
  * header and content down by its height. Tapping it opens the visit. `onCamera` leaves out the band's own Scan button
- * and lets the blurred camera show through the visit photo.
+ * and lets the blurred camera show through the visit photo. `beforeVisit` also shows it at a museum before the visit,
+ * with Start visit where End will be.
  */
-export function VisitBand({ onCamera = false }: { onCamera?: boolean }) {
+export function VisitBand({ onCamera = false, beforeVisit = false }: { onCamera?: boolean; beforeVisit?: boolean }) {
   const router = useRouter();
   const focused = useIsFocused();
   const { windowTop, tabBarHidden } = use(VisitBandLayout);
   const reduceTransparency = useReduceTransparency();
-  const { visit, venue } = useVenue();
+  const { visit, venue, ready } = useVenue();
   const { works, loading, error } = useVisitWorks(visit?.localId, useLocalOwner());
-  if (!visit || tabBarHidden) return null;
-  // Away from its museum the visit is paused, not over: only the person ends it.
-  const here = visit.venueId === venue?.venueId;
-  const count = loading || error ? undefined : `${works.length} ${works.length === 1 ? "artwork" : "artworks"}`;
+  const { starting, start, choose } = useStartVisit({ openCamera: !onCamera });
+  if (tabBarHidden || !(visit || (beforeVisit && ready))) return null;
   const backdrop = (
     <VisitBackdrop works={works} scrim={styles.scrim} watermark={styles.watermark} blurRadius={BLUR_RADIUS} />
   );
@@ -53,7 +54,7 @@ export function VisitBand({ onCamera = false }: { onCamera?: boolean }) {
         importantForAccessibility="no-hide-descendants"
         style={[StyleSheet.absoluteFill, styles.passThrough]}
       >
-        {reduceTransparency ? (
+        {reduceTransparency && visit ? (
           <View style={[StyleSheet.absoluteFill, styles.opaque]} />
         ) : onCamera && newestPhoto(works) ? (
           // The photo matches the band on the other tabs; the blend keeps a second painting from sitting over the camera.
@@ -66,55 +67,135 @@ export function VisitBand({ onCamera = false }: { onCamera?: boolean }) {
           backdrop
         )}
       </View>
-      <View style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={here ? `Visiting ${visit.venueName}` : `Visit open at ${visit.venueName}`}
-          accessibilityValue={{
-            text: [`since ${formatVisitStart(visit.startedAt, visit.timeZone)}`, count].filter(Boolean).join(", "),
-          }}
-          accessibilityHint="Opens the visit"
-          onPress={() => router.push({ pathname: "/journal/[visitId]", params: { visitId: visit.localId } })}
-          style={({ pressed }) => [styles.visit, pressed && styles.pressed]}
-        >
-          <Image source="sf:building.columns.fill" tintColor={ON_PHOTO} style={styles.icon} />
-          <Text numberOfLines={1} maxFontSizeMultiplier={MAX_TEXT_SCALE} style={styles.name}>
-            {visit.venueName}
-          </Text>
-          <Image source="sf:chevron.right" tintColor={ON_PHOTO} style={styles.chevron} />
-        </Pressable>
-        {!onCamera && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Scan"
-            accessibilityHint="Opens the camera"
-            onPress={() => router.navigate("/scan")}
-            style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-          >
-            <GlassSurface isInteractive style={[styles.glass, styles.circle]}>
-              <Image source="sf:camera.viewfinder" tintColor={ON_PHOTO} style={styles.icon} />
-            </GlassSurface>
-          </Pressable>
-        )}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="End visit"
-          accessibilityHint="Opens a review before saving and ending the visit"
-          onPress={() =>
-            router.push({ pathname: "/journal/[visitId]", params: { visitId: visit.localId, endVisit: "true" } })
-          }
-          style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-        >
-          <GlassSurface isInteractive style={[styles.glass, styles.pill]}>
-            <Text type="smallBold" maxFontSizeMultiplier={MAX_TEXT_SCALE} style={styles.end}>
-              End
-            </Text>
-          </GlassSurface>
-        </Pressable>
-      </View>
+      {visit ? (
+        <OpenVisitRow
+          visit={visit}
+          here={visit.venueId === venue?.venueId}
+          onCamera={onCamera}
+          count={loading || error ? undefined : `${works.length} ${works.length === 1 ? "artwork" : "artworks"}`}
+        />
+      ) : (
+        ready && (
+          <View style={styles.row}>
+            <BandButton
+              label={ready.kind === "here" ? ready.venue.name : "Which museum?"}
+              hint="Opens the museum chooser"
+              chevron="chevron.down"
+              onPress={() => router.push("/venue-picker")}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityHint={ready.kind === "here" ? undefined : "Opens the museum chooser"}
+              accessibilityState={{ disabled: starting, busy: starting }}
+              disabled={starting}
+              onPress={() => (ready.kind === "here" ? start(ready.venue.venueId) : choose())}
+              style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+            >
+              <View style={[styles.pill, styles.startPill]}>
+                <Text type="smallBold" maxFontSizeMultiplier={MAX_TEXT_SCALE} style={styles.start}>
+                  Start visit
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        )
+      )}
       {/* Light text on the band's photo; screens above the tabs keep their own status bar. */}
       {focused && <StatusBar style="light" />}
     </SafeAreaBand>
+  );
+}
+
+function OpenVisitRow({
+  visit,
+  here,
+  onCamera,
+  count,
+}: {
+  visit: CurrentVisit;
+  /** Away from its museum the visit is paused, not over: only the person ends it. */
+  here: boolean;
+  onCamera: boolean;
+  count?: string;
+}) {
+  const router = useRouter();
+  return (
+    <View style={styles.row}>
+      <BandButton
+        label={visit.venueName}
+        accessibilityLabel={here ? `Visiting ${visit.venueName}` : `Visit open at ${visit.venueName}`}
+        value={[`since ${formatVisitStart(visit.startedAt, visit.timeZone)}`, count].filter(Boolean).join(", ")}
+        hint="Opens the visit"
+        chevron="chevron.right"
+        onPress={() => router.push({ pathname: "/journal/[visitId]", params: { visitId: visit.localId } })}
+      />
+      {!onCamera && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Scan"
+          accessibilityHint="Opens the camera"
+          onPress={() => router.navigate("/scan")}
+          style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+        >
+          <GlassSurface isInteractive style={[styles.glass, styles.circle]}>
+            <Image source="sf:camera.viewfinder" tintColor={ON_PHOTO} style={styles.icon} />
+          </GlassSurface>
+        </Pressable>
+      )}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="End visit"
+        accessibilityHint="Opens a review before saving and ending the visit"
+        onPress={() =>
+          router.push({ pathname: "/journal/[visitId]", params: { visitId: visit.localId, endVisit: "true" } })
+        }
+        style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+      >
+        <GlassSurface isInteractive style={[styles.glass, styles.pill]}>
+          <Text type="smallBold" maxFontSizeMultiplier={MAX_TEXT_SCALE} style={styles.end}>
+            End
+          </Text>
+        </GlassSurface>
+      </Pressable>
+    </View>
+  );
+}
+
+/** The museum's name across the band; it opens the visit, or the chooser before one starts. */
+function BandButton({
+  label,
+  accessibilityLabel = label,
+  value,
+  hint,
+  chevron,
+  onPress,
+}: {
+  label: string;
+  accessibilityLabel?: string;
+  value?: string;
+  hint: string;
+  chevron: "chevron.right" | "chevron.down";
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityValue={value === undefined ? undefined : { text: value }}
+      accessibilityHint={hint}
+      onPress={onPress}
+      style={({ pressed }) => [styles.visit, pressed && styles.pressed]}
+    >
+      <Image source="sf:building.columns.fill" tintColor={ON_PHOTO} style={styles.icon} />
+      <Text numberOfLines={1} maxFontSizeMultiplier={MAX_TEXT_SCALE} style={styles.name}>
+        {label}
+      </Text>
+      <Image
+        source={`sf:${chevron}`}
+        tintColor={ON_PHOTO}
+        style={chevron === "chevron.down" ? styles.chevronDown : styles.chevron}
+      />
+    </Pressable>
   );
 }
 
@@ -147,6 +228,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   icon: { width: 18, height: 18 },
   chevron: { width: 9, height: 14 },
+  chevronDown: { width: 12, height: 12 },
   name: { flexShrink: 1, fontSize: 17, lineHeight: 22, fontWeight: "600", color: ON_PHOTO, ...OnPhoto.textShadow },
   // The touch target surrounds the smaller glass surface so clipping cannot trim its tappable margin.
   action: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
@@ -154,4 +236,7 @@ const styles = StyleSheet.create({
   circle: { width: BUTTON_SIZE, height: BUTTON_SIZE, alignItems: "center", justifyContent: "center" },
   pill: { minHeight: BUTTON_SIZE, justifyContent: "center", paddingHorizontal: Spacing.three },
   end: { color: ON_PHOTO, fontSize: 15, lineHeight: 20 },
+  // Opaque, unlike End's glass: the one action on the blue band before a visit.
+  startPill: { borderRadius: Radius.full, backgroundColor: Gallery.paper },
+  start: { color: Gallery.accent, fontSize: 15, lineHeight: 20 },
 });

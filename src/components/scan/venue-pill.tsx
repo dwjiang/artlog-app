@@ -24,13 +24,13 @@ export function venuePillLabel({ status, venue }: Pick<VenueView, "status" | "ve
 }
 
 /**
- * The camera's line about the museum scans match, until a visit is in progress there and the visit band names it.
- * Opens the museum chooser.
+ * The camera's line about the museum scans match, until the visit band names it: at a museum where a visit can start,
+ * or while one is in progress there. Opens the museum chooser.
  */
 export function VenuePill() {
   const router = useRouter();
   const view = useVenue();
-  if (activeVisit(view)) return null;
+  if (view.ready || activeVisit(view)) return null;
   const { status, venue } = view;
   const label = venuePillLabel({ status, venue });
   const locating = !venue && (status === "idle" || status === "locating");

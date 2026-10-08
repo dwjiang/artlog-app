@@ -72,7 +72,6 @@ const expectedMessages = new Set([
   "Wall account is not ready",
   "A wall update is in progress",
   "Refresh your wall first",
-  "Note is unavailable",
 ]);
 
 function errorCode(error: unknown): string | undefined {

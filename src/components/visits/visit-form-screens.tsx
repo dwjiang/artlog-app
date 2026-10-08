@@ -1,5 +1,5 @@
 import { randomUUID } from "expo-crypto";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Keyboard, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,6 +14,7 @@ import { upsertVisit } from "@/db/repos/visits";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { useVisits } from "@/lib/journal/use-visits";
 import { dateFromPicker, museumDayAtMost, validVisitDate, venueTimeZone } from "@/lib/journal/visit-date";
+import { useMakeVisit } from "@/lib/journal/visitless-saves";
 import { reportError } from "@/lib/observability";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
 import type { VenueRow } from "@/lib/venue/resolve";
@@ -196,6 +197,34 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
             {error}
           </Text>
         )}
+      </VisitFormPage>
+    </>
+  );
+}
+
+/** Picks the museum for saves that missed a visit, then files them under its visit for their day. */
+export function AddToVisitScreen() {
+  const { savedIds, capturedAt, photoIds } = useLocalSearchParams<{
+    savedIds?: string;
+    capturedAt?: string;
+    photoIds?: string;
+  }>();
+  const navigation = useNavigation();
+  const { busy, make } = useMakeVisit({
+    onAdded: () => {
+      if (navigation.isFocused()) router.back();
+    },
+  });
+  const ids = savedIds?.split(",").filter(Boolean) ?? [];
+  const capture =
+    capturedAt !== undefined && photoIds !== undefined && Number.isSafeInteger(Number(capturedAt))
+      ? { capturedAt: Number(capturedAt), photoIds: photoIds.split(",").filter(Boolean) }
+      : undefined;
+  return (
+    <>
+      <CancelToolbar disabled={busy} onPress={() => router.back()} />
+      <VisitFormPage>
+        <MuseumSearch disabled={busy} onChoose={(row) => make(ids, row.id, capture)} />
       </VisitFormPage>
     </>
   );

@@ -60,6 +60,12 @@ it("steps aside for the visit band while a visit is in progress at the resolved 
   expect(screen.queryByRole("button")).toBeNull();
 });
 
+it("steps aside for the visit band where a visit can start", async () => {
+  mockView = { ...view("resolved", legion), ready: { kind: "here", venue: legion } };
+  await render(<VenuePill />);
+  expect(screen.queryByRole("button")).toBeNull();
+});
+
 it("names the resolved museum when the open visit is paused at another one", async () => {
   mockView = view("resolved", { ...legion, venueId: "id-other" as never, name: "de Young Museum" }, visit);
   await render(<VenuePill />);

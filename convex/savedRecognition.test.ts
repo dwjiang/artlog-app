@@ -55,7 +55,7 @@ it("recognizes a saved miss from its uploaded data, and applies the chosen match
     candidates: [],
   });
   const cropStorageId = await t.run((ctx) => fileStorage.store(ctx, new Blob(["photo"])));
-  await t.run((ctx) => ctx.db.patch("collections", saved.collectionId, { cropStorageId, note: "My own note" }));
+  await t.run((ctx) => ctx.db.patch("collections", saved.collectionId, { cropStorageId }));
   const work = await t.run((ctx) =>
     seedArtworkWithObject(ctx, {
       descriptors: pair.ref,
@@ -76,7 +76,6 @@ it("recognizes a saved miss from its uploaded data, and applies the chosen match
   expect(applied).toMatchObject({
     objectId: work.objectId,
     cropStorageId,
-    note: "My own note",
     snapshot: { title: "Water Lilies", artist: "Claude Monet" },
   });
 });

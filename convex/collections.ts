@@ -45,10 +45,7 @@ export const saveToCollection = mutation({
     validateSave(args);
     const existing = await findOwnedSave(ctx, owner, args.localId);
     const { suggested, scope: _scope, scanId, ...row } = args;
-    const saved = await upsertJournalSave(ctx, owner, device._id, {
-      ...row,
-      note: existing?.note,
-    });
+    const saved = await upsertJournalSave(ctx, owner, device._id, row);
     const scan = args.scanId ? await ctx.db.get("scans", args.scanId) : null;
     if (args.scanId) {
       if (!scan || scan.deviceId !== device._id) {

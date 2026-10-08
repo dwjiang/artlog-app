@@ -24,7 +24,7 @@ jest.mock("@/lib/files/photos", () => ({
 jest.mock("@/db/repos/artwork-album", () => ({
   selectArtworkPhotos: () => "photos",
   selectArtworkEncounters: () => "encounters",
-  editEncounter: jest.fn(),
+  unlinkArtworkVisit: jest.fn(),
 }));
 jest.mock("@/db/repos/visits", () => ({ listVisits: () => "visits" }));
 jest.mock("drizzle-orm/expo-sqlite", () => ({

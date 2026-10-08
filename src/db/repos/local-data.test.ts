@@ -2,7 +2,6 @@ import { db } from "@/db/client";
 import {
   artworkEncounters,
   artworkPhotos,
-  notes,
   offlineScanResults,
   pendingScans,
   savedWorks,
@@ -17,16 +16,7 @@ jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
-const tables = [
-  visits,
-  savedWorks,
-  notes,
-  artworkPhotos,
-  artworkEncounters,
-  pendingScans,
-  offlineScanResults,
-  settings,
-];
+const tables = [visits, savedWorks, artworkPhotos, artworkEncounters, pendingScans, offlineScanResults, settings];
 
 function seed(owner: string) {
   const venueId = "venue" as never;
@@ -36,7 +26,6 @@ function seed(owner: string) {
   db.insert(savedWorks)
     .values({ owner, localId: "work", visitLocalId: "visit", savedAt: 1, title: "Work", artist: "Artist" })
     .run();
-  db.insert(notes).values({ owner, savedLocalId: "work", text: "Private", updatedAt: 1 }).run();
   db.insert(artworkPhotos).values({ owner, localId: "photo", savedLocalId: "work", kind: "full", capturedAt: 1 }).run();
   db.insert(artworkEncounters).values({ owner, savedLocalId: "work", visitLocalId: "visit" }).run();
   db.insert(pendingScans)

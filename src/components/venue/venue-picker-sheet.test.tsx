@@ -360,6 +360,18 @@ describe("choosing a museum", () => {
     expect(mockConfirm).not.toHaveBeenCalled();
   });
 
+  it("starts a visit from Start visit on the same map, without taking a swipe away as “Not here”", async () => {
+    mockParams = { mode: "start" };
+    const view = await render(<VenuePickerSheet />);
+    expect(screen.getByRole("radio", { name: seeded.name })).toBeChecked();
+    await view.unmount();
+    expect(mockDeclinePrompt).not.toHaveBeenCalled();
+    mockParams = { mode: "start" };
+    await render(<VenuePickerSheet />);
+    await fireEvent.press(screen.getByRole("button", { name: "Start visit" }));
+    expect(mockStartVisit).toHaveBeenCalledWith("id-met", expect.anything());
+  });
+
   it("declines nothing when the prompt closes after a choice, or a sheet opened by hand is swiped away", async () => {
     mockParams = { mode: "choose" };
     const prompt = await render(<VenuePickerSheet />);

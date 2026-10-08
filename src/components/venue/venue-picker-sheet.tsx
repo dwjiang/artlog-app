@@ -39,32 +39,43 @@ function optionNote(option: VenueOption, nearest: boolean): string | undefined {
 }
 
 /**
- * One sheet for the venue pill, the open visit's Change Museum and the location prompt. `mode=change` offers to keep the
- * open visit rather than leave the museum; a museum chosen from the prompt (`mode=choose`) starts a visit there, ending
- * one paused elsewhere.
+ * One sheet for the venue pill, the open visit's Change Museum, Start visit and the location prompt. `mode=change` offers
+ * to keep the open visit rather than leave the museum; a museum chosen from the prompt (`mode=choose`) or after Start
+ * visit (`mode=start`) starts a visit there, ending one paused elsewhere. Only the prompt takes a swipe away as "Not here".
  */
 export function VenuePickerSheet() {
   const router = useRouter();
   const view = useVenue();
-  const { mode } = useLocalSearchParams<{ mode?: "choose" | "change" }>();
+  const { mode } = useLocalSearchParams<{ mode?: "choose" | "start" | "change" }>();
   return (
     <ChooserSheet
       view={view}
+      starts={mode === "choose" || mode === "start"}
       prompted={mode === "choose"}
       keepVisit={mode === "change" && view.visit ? () => router.back() : undefined}
     />
   );
 }
 
-function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted: boolean; keepVisit?: () => void }) {
+function ChooserSheet({
+  view,
+  starts,
+  prompted,
+  keepVisit,
+}: {
+  view: VenueView;
+  starts: boolean;
+  prompted: boolean;
+  keepVisit?: () => void;
+}) {
   const { units, failed: unitsFailed } = useMeasurementUnits();
   const displayUnits = units ?? (unitsFailed ? "metric" : undefined);
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const sheetStyle = [styles.groupedContainer, useFittedFormSheetStyle()];
   const { status, options, error, confirm, dismiss, declinePrompt, resolve, fix, visit, startVisit } = view;
-  // The location prompt asks on a map with the nearest museum selected; the mode is fixed when the sheet opens.
-  const [picking, setPicking] = useState(() => prompted && view.options.length > 0);
+  // Starting a visit asks on a map with the nearest museum selected; the mode is fixed when the sheet opens.
+  const [picking, setPicking] = useState(() => starts && view.options.length > 0);
   const [selectedKey, setSelectedKey] = useState<string | undefined>(
     () => view.options[0] && venueOptionKey(view.options[0]),
   );
@@ -128,7 +139,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
       const venueId = await confirm(option, request.signal);
       if (request.signal.aborted) return;
       if (venueId) setSelectedKey(venueId);
-      if (prompted && venueId) {
+      if (starts && venueId) {
         starting = true;
         const started = await startVisit(venueId, {
           signal: request.signal,
@@ -177,7 +188,7 @@ function ChooserSheet({ view, prompted, keepVisit }: { view: VenueView; prompted
     ? "Search by museum or city, or keep your current visit."
     : "Search by museum or city. You can also keep scanning without a museum.";
   const nearbyEmpty = !searching && status !== "locating" && options.length === 0;
-  const endsVisit = prompted && visit ? `Your visit to ${visit.venueName} ends when a new one starts.` : undefined;
+  const endsVisit = starts && visit ? `Your visit to ${visit.venueName} ends when a new one starts.` : undefined;
   const leaveButton = (
     <GalleryButton
       label={keepVisit ? "Keep current visit" : "Continue without a museum"}

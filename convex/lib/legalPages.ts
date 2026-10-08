@@ -97,7 +97,7 @@ const privacy: LegalDocument = {
     {
       heading: "How long we keep information",
       paragraphs: [
-        "We keep your collection backup until you delete your data. Records of deleted artworks remain in the backup, including their artwork details, private notes and visit information, and continue to sync across your devices. Deleting your account also removes your profile and posts.",
+        "We keep your collection backup until you delete your data. Records of deleted artworks remain in the backup, including their artwork details and visit information, and continue to sync across your devices. Deleting your account also removes your profile and posts.",
         "Scan fingerprints are deleted after 180 days unless they’ve been added to the shared index, and notifications after 30 days. We keep scan results, reports, feedback and shared index contributions to run and improve Artlog. Sentry keeps crash reports for a limited time.",
       ],
     },

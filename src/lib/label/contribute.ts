@@ -73,6 +73,23 @@ export async function contributeLabel({ scanId, capture, state }: ContributeInpu
   }
 }
 
+// The notice above a save that also shares: wording changes need the operator's review.
+export const SHARING_NOTICE =
+  "Also saves the confirmed label, a numeric fingerprint of your photo and a small artwork crop to the shared index for other visitors. Your full photos stay private.";
+
+export const CONTRIBUTION_MESSAGES = {
+  tentative: "Saved to the shared index as a tentative match for other visitors at this museum.",
+  duplicate: "This work is already in the shared index.",
+  rejected: "This contribution couldn’t be accepted.",
+} as const;
+
+export function contributionMessage(result: ContributionOutcome): string {
+  if (result.status === "rejected") {
+    return CONTRIBUTION_MESSAGES[result.reason === "duplicate" ? "duplicate" : "rejected"];
+  }
+  return CONTRIBUTION_MESSAGES[result.status];
+}
+
 export function contributionErrorMessage(error: unknown): string {
   if (isNetworkError(error)) {
     return "No connection — it will be saved to the shared index when you’re back online";

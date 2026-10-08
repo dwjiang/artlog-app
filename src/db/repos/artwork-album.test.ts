@@ -8,7 +8,6 @@ import {
   saveArtworkSession,
   addArtworkPhoto,
   editArtworkPhoto,
-  editEncounter,
   linkArtworkVisit,
   linkArtworkVisits,
   linkArtworksVisit,
@@ -16,6 +15,7 @@ import {
   selectArtworkEncounters,
   selectArtworkPhotos,
   selectVisitArtworkPhotos,
+  unlinkArtworkVisit,
 } from "./artwork-album";
 import { createJournalRepository } from "./journal";
 import { insertSavedWork, softDeleteSavedWork, selectSavedWork } from "./saved-works";
@@ -112,10 +112,7 @@ it("rejects foreign artwork and visit identifiers", async () => {
 });
 
 it("unlinking preserves photographs and the visit record", async () => {
-  editEncounter("work", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342", {
-    note: "Came back",
-    deletedAt: 10,
-  });
+  unlinkArtworkVisit("work", "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342");
   expect(selectArtworkEncounters().all()).toHaveLength(1);
   expect(selectArtworkPhotos("work").all()).toHaveLength(3);
   expect(await createJournalRepository(owner).detail("ab7f8f54-0af5-4ac0-8839-bc5fc00e3342")).toMatchObject({
@@ -125,8 +122,8 @@ it("unlinking preserves photographs and the visit record", async () => {
   expect(
     selectArtworkEncounters()
       .all()
-      .find((row) => row.visitLocalId === "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342")?.note,
-  ).toBe("Came back");
+      .find((row) => row.visitLocalId === "ab7f8f54-0af5-4ac0-8839-bc5fc00e3342")?.deletedAt,
+  ).toBeNull();
 });
 
 it("deleting the artwork tombstones its album and retains visits", async () => {

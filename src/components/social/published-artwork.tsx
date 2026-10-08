@@ -6,20 +6,16 @@ import { ArtworkIdentity } from "@/components/artwork/artwork-identity";
 import { ArtworkStory } from "@/components/artwork/artwork-story";
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { PhotoGallery } from "@/components/artwork/photo-gallery";
-import { HighlightHeading } from "@/components/highlight-heading";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import type { SharedArtwork } from "@/lib/social/types";
 import { useArtworkResearch } from "@/lib/use-artwork-research";
-
-import { TaggedText } from "./tagged-text";
 
 /** Someone else's shared artwork, laid out like a scan's result card. */
 export function PublishedArtwork({
   artwork,
   photos,
   token,
-  ownNote,
   enrichment,
   headingRef,
   onHeadingLayout,
@@ -27,8 +23,6 @@ export function PublishedArtwork({
   artwork: SharedArtwork["artwork"];
   photos: SharedArtwork["artwork"]["media"][];
   token?: string | null;
-  /** The viewer's own private note; the server sends it only when the artwork is theirs. */
-  ownNote?: string;
   enrichment?: SharedArtwork["enrichment"];
   headingRef?: Ref<ComponentRef<typeof Text>>;
   onHeadingLayout?: () => void;
@@ -51,12 +45,6 @@ export function PublishedArtwork({
         headingRef={headingRef}
         onHeadingLayout={onHeadingLayout}
       />
-      {!!ownNote && (
-        <View style={styles.section}>
-          <HighlightHeading>Your notes</HighlightHeading>
-          <TaggedText selectable>{ownNote}</TaggedText>
-        </View>
-      )}
       {enrichment && <PublishedStory artwork={artwork} story={enrichment} />}
       {artwork.media.kind !== "placeholder" && artwork.media.credit && (
         <Text selectable variant="metadata" themeColor="textSecondary">
@@ -141,5 +129,4 @@ const styles = StyleSheet.create({
   },
   // The gallery pages span the screen and pad each photo back to the content edge.
   gallery: { marginHorizontal: -Spacing.content },
-  section: { gap: Spacing.two, paddingTop: Spacing.one },
 });

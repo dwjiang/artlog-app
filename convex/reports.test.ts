@@ -152,7 +152,6 @@ it("records operator decisions and permanently removes a publication without cha
     }),
   ).rejects.toMatchObject({ data: { code: "not_found" } });
   expect((await t.run((ctx) => ctx.db.get("visits", draft.visit._id)))?.reflection).toBe(draft.visit.reflection);
-  expect((await t.run((ctx) => ctx.db.get("collections", draft.saves[0].id)))?.note).toBe("PRIVATE NOTE");
   await expect(
     t.mutation(internal.review.decideReport, {
       ...decision,

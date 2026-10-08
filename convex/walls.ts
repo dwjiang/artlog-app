@@ -24,7 +24,7 @@ import {
   requireOwnedSave,
   requireProfile,
 } from "./lib/ownership";
-import { projectArtworkDetail, projectOwnNote } from "./lib/projections";
+import { projectArtworkDetail } from "./lib/projections";
 import { projectArtworkStory, publicArtworkStory } from "./lib/publicArtworkStory";
 import { requirePublicWallItem, requireSharedVisitItem } from "./lib/publicationAccess";
 import { activeWallItems, publicWallProjection } from "./lib/publicWall";
@@ -138,7 +138,6 @@ export const getArtwork = query({
       profileId: v.id("profiles"),
       photos: v.array(displayMedia),
       enrichment: v.optional(publicArtworkStory),
-      ownNote: v.optional(v.string()),
     }),
     v.null(),
   ),
@@ -201,7 +200,6 @@ export const getArtwork = query({
       profileId: current.profile._id,
       photos: photos.size > 0 ? [...photos.values()] : [current.projection.artwork.media],
       ...(enrichment ? { enrichment } : {}),
-      ...projectOwnNote(current.save, current.profile._id, viewer?._id),
     };
   },
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react-native";
 import * as ImagePicker from "expo-image-picker";
 import { AccessibilityInfo, Alert, AppState, type AlertButton } from "react-native";
 
@@ -7,11 +7,12 @@ import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { getPendingScan, enqueuePendingScan } from "@/db/repos/pending-scans";
 import { insertSavedWork, getSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
-import { artworkEncounters, artworkPhotos, notes, pendingScans, savedWorks, settings, visits } from "@/db/schema";
+import { artworkEncounters, artworkPhotos, pendingScans, savedWorks, settings, visits } from "@/db/schema";
 import { readPhotoSession, updatePhotoSession } from "@/lib/capture/photo-draft";
-import { contributeLabel } from "@/lib/label/contribute";
+import { CONTRIBUTION_MESSAGES, contributeLabel } from "@/lib/label/contribute";
 import { formStateFromFlow } from "@/lib/label/fields";
 import { draftFromCandidate } from "@/lib/result/snapshot";
+import { dismissToast, useToast } from "@/lib/ui/toast";
 import { VisitInProgressError } from "@/lib/venue/use-venue";
 
 import { AddPhotosScreen } from "./add-photos-screen";
@@ -39,6 +40,7 @@ jest.mock("expo-router", () => ({
     navigate: mockNavigate,
     dismissAll: mockDismissAll,
     dismissTo: mockDismissTo,
+    back: () => mockBack(),
   }),
   router: {
     push: (...args: unknown[]) => mockPush(...args),
@@ -60,6 +62,7 @@ jest.mock("@/lib/capture/check-album-photo", () => ({
   checkAlbumPhoto: jest.fn(),
 }));
 jest.mock("@/lib/label/contribute", () => ({
+  ...jest.requireActual<typeof import("@/lib/label/contribute")>("@/lib/label/contribute"),
   contributeLabel: jest.fn(),
   contributionErrorMessage: () => "Index save failed",
 }));
@@ -125,7 +128,12 @@ jest.mock("@/lib/convex-client", () => ({
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => "saved-new" }));
 
+let toastHook: { result: { current: ReturnType<typeof useToast> } };
+const getToast = () => toastHook.result.current;
+afterEach(() => dismissToast());
+
 beforeEach(async () => {
+  toastHook = await renderHook(useToast);
   jest.clearAllMocks();
   mockVisitForSave.mockImplementation(async (venueId: never, capturedAt: number) => {
     const visit = {
@@ -139,7 +147,7 @@ beforeEach(async () => {
     await upsertVisit(visit);
     return visit;
   });
-  for (const table of [artworkPhotos, artworkEncounters, notes, savedWorks, pendingScans, visits, settings]) {
+  for (const table of [artworkPhotos, artworkEncounters, savedWorks, pendingScans, visits, settings]) {
     db.delete(table).run();
   }
   AppState.currentState = "active";
@@ -224,11 +232,10 @@ it("retains an edited visit after leaving the session and saves only new photos 
       name: "Other museum · 2 Sep 2026 · Change",
     }),
   ).toBeOnTheScreen();
+  mockBack.mockClear();
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
-  expect(await screen.findByLabelText("Private note")).toBeOnTheScreen();
-  expect(screen.getByText("Added to a past visit")).toBeOnTheScreen();
-  expect(await screen.findByText(/^Other museum · .*2 Sep 2026$/)).toBeOnTheScreen();
-  expect(screen.getAllByLabelText("Your photo of Water Lilies")).toHaveLength(1);
+  await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
+  expect(getToast()?.message).toBe("Photo added.");
   expect(mockKeepPhotos).toHaveBeenCalledWith([expect.objectContaining({ path: "detail.jpg" })]);
   expect(selectArtworkPhotos("artwork").all()).toEqual(
     expect.arrayContaining([
@@ -242,11 +249,6 @@ it("retains an edited visit after leaving the session and saves only new photos 
       }),
     ]),
   );
-  await fireEvent.press(screen.getByRole("button", { name: "View artwork" }));
-  expect(mockNavigate).toHaveBeenCalledWith({
-    pathname: "/saved/[savedId]",
-    params: { savedId: "artwork" },
-  });
 });
 
 it("saves an unsaved artwork and every added photo directly from the session", async () => {
@@ -275,8 +277,8 @@ it("saves an unsaved artwork and every added photo directly from the session", a
   });
   await render(<AddPhotosScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Save 2 photos" }));
-  expect(await screen.findByText("My edited title")).toBeOnTheScreen();
-  expect(await screen.findByLabelText("Private note")).toBeOnTheScreen();
+  await waitFor(() => expect(mockDismissAll).toHaveBeenCalledTimes(1));
+  expect(mockNavigate).toHaveBeenCalledWith("/(tabs)/(scan)/scan");
   expect((await getSavedWork("saved-new"))?.title).toBe("My edited title");
   expect(
     selectArtworkPhotos("saved-new")
@@ -285,9 +287,6 @@ it("saves an unsaved artwork and every added photo directly from the session", a
   ).toEqual(["eaebe816-f46f-5312-a657-f92d1af2cb76", "eaebe816-f46f-5312-a657-f92d1af2cb76"]);
   expect(readPhotoSession(owner, capture.photoPath).photos).toEqual([]);
   expect(mockBack).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "Scan next artwork" }));
-  expect(mockDismissAll).toHaveBeenCalledTimes(1);
-  expect(mockNavigate).toHaveBeenCalledWith("/(tabs)/(scan)/scan");
 });
 
 it("names a chosen visit that has since been deleted instead of calling it the current visit", async () => {
@@ -349,7 +348,7 @@ it("reloads scan bytes from storage for automatic sharing and retries without sa
   expect(screen.getByText(/Also saves the confirmed label/)).toBeOnTheScreen();
   expect(screen.queryByText("Only you can see these photos.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
-  expect(await screen.findByText("Index save failed. Your artwork is saved to your collection.")).toBeOnTheScreen();
+  await waitFor(() => expect(getToast()?.message).toBe("Index save failed. Your artwork is saved to your collection."));
   expect(contributeLabel).toHaveBeenCalledWith(
     expect.objectContaining({
       capture: expect.objectContaining({ descriptors, keypoints }),
@@ -359,8 +358,8 @@ it("reloads scan bytes from storage for automatic sharing and retries without sa
     contributionId: "contribution-1" as never,
     status: "tentative",
   });
-  await fireEvent.press(screen.getByRole("button", { name: "Retry saving to the shared index" }));
-  expect(await screen.findByText("An artwork crop was saved to the shared index.")).toBeOnTheScreen();
+  await act(() => getToast()?.action?.onPress());
+  await waitFor(() => expect(getToast()?.message).toBe(CONTRIBUTION_MESSAGES.tentative));
   expect(selectArtworkPhotos("saved-new").all()).toHaveLength(1);
   // The capture was scanned at the Met with no visit yet: the save started one.
   expect(selectArtworkPhotos("saved-new").all()[0].visitLocalId).toBe("3c9d5f1e-7a2b-4c8d-9e0f-1a2b3c4d5e6f");
@@ -473,6 +472,6 @@ it("keeps unresolved photos in the draft until the owner explicitly confirms the
   expect(screen.getByRole("button", { name: "Save 1 photo" })).toBeDisabled();
   await fireEvent.press(screen.getByRole("button", { name: "Keep with this artwork" }));
   await fireEvent.press(screen.getByRole("button", { name: "Save 1 photo" }));
-  expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
+  await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
   expect(selectArtworkPhotos("artwork").all()).toHaveLength(2);
 });

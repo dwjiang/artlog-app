@@ -15,6 +15,7 @@ export const albumPhoto = v.object({
 export const albumEncounter = v.object({
   savedLocalId: v.string(),
   visitLocalId: v.string(),
+  // Never stored; see `journalSave.note`.
   note: v.optional(v.string()),
   deletedAt: v.optional(v.number()),
 });
@@ -38,7 +39,6 @@ export function validateAlbumEncounter(encounter: AlbumEncounter) {
   if (
     !isUuid(encounter.savedLocalId)
     || !isUuid(encounter.visitLocalId)
-    || (encounter.note?.length ?? 0) > LIMITS.note
     || (encounter.deletedAt !== undefined && !isTimestamp(encounter.deletedAt))
   ) {
     throw new ConvexError({ code: "invalid_encounter" });

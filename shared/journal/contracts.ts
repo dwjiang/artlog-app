@@ -39,6 +39,7 @@ export const journalSave = v.object({
   snapshot: journalSnapshot,
   objectId: v.optional(v.id("objects")),
   artworkId: v.optional(v.id("artworks")),
+  // Artworks no longer take notes. Builds from before still send one, which is accepted and never stored.
   note: v.optional(v.string()),
   deletedAt: v.optional(v.number()),
 });
@@ -83,7 +84,6 @@ export function validateSave(save: JournalSave): void {
     || !isTimestamp(save.savedAt)
     || !save.snapshot.title.trim()
     || Object.values(save.snapshot).some((s) => (s?.length ?? 0) > LIMITS.snapshot)
-    || (save.note?.length ?? 0) > LIMITS.note
     || (save.venueName?.length ?? 0) > LIMITS.snapshot
     || (save.gallery?.length ?? 0) > LIMITS.snapshot
     || (save.deletedAt !== undefined && !isTimestamp(save.deletedAt))

@@ -384,7 +384,6 @@ it("bounds maximum-size artwork responses with continuation pages and revision-b
           medium: "界".repeat(LIMITS.snapshot),
           institution: "界".repeat(LIMITS.snapshot),
         },
-        note: "界".repeat(LIMITS.note),
         venueName: "界".repeat(LIMITS.snapshot),
         gallery: "界".repeat(LIMITS.snapshot),
       }),
@@ -624,17 +623,4 @@ it("names the museum on a shared visit artwork's page but not on the post", asyn
   expect((await t.query(api.sharedVisits.getArtwork, { postId: postId!, itemId })).artwork.institution).toBe(
     "Test Museum",
   );
-});
-
-it("gives a shared visit artwork's note only to its owner", async () => {
-  const t = harness();
-  const a = await socialUser(t);
-  const b = await socialUser(t);
-  const draft = await socialVisit(t, a, 1);
-  const { postId } = await a.as.action(api.sharedVisits.publish, draft.selection);
-  const { itemId } = (await a.as.query(api.sharedVisits.get, { postId: postId! })).artworks.page[0];
-  const args = { postId: postId!, itemId };
-  expect(await a.as.query(api.sharedVisits.getArtwork, args)).toMatchObject({ ownNote: "PRIVATE NOTE" });
-  expect(await b.as.query(api.sharedVisits.getArtwork, args)).not.toHaveProperty("ownNote");
-  expect(await t.query(api.sharedVisits.getArtwork, args)).not.toHaveProperty("ownNote");
 });

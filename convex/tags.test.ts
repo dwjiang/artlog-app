@@ -311,7 +311,9 @@ it.each([
       if (saves > 1) {
         await t.run(async (ctx) => {
           for (const save of draft.saves) {
-            await ctx.db.patch("collections", save.id, { note: "画".repeat(20_000) });
+            await ctx.db.patch("collections", save.id, {
+              snapshot: { title: "画".repeat(10_000), artist: "画".repeat(10_000) },
+            });
           }
         });
       }

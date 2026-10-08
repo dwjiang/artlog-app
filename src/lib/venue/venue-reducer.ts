@@ -157,6 +157,16 @@ export function activeVisit(state: Pick<VenueState, "venue" | "visit">): Current
   return state.visit && state.visit.venueId === state.venue?.venueId ? state.visit : undefined;
 }
 
+/** Before any visit is open: the museum one would start at, or `choose` while several nearby are still undecided. */
+export type VisitReady = { kind: "here"; venue: SeededOption } | { kind: "choose" };
+export function visitReady(state: VenueState, now = Date.now()): VisitReady | undefined {
+  if (state.visit) return undefined;
+  if (state.venue) {
+    return endedToday(state, state.venue.venueId, now) ? undefined : { kind: "here", venue: state.venue };
+  }
+  return state.status === "choose" && promptAllowed(state, state.options, now) ? { kind: "choose" } : undefined;
+}
+
 /** What a scan sends: the resolved venue, plus the visit only when it is at that venue. */
 export function venueContext(state: VenueState): VenueContext {
   if (!state.venue) return {};

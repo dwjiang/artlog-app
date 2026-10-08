@@ -1,5 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import type { ReactNode } from "react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
 import type { PendingScan } from "@/db/schema";
 import { formStateFromValues, setFieldValue } from "@/lib/label/fields";
@@ -18,7 +17,11 @@ let mockLookups: unknown[] = [];
 const mockMutation = jest.fn();
 const mockDismissTo = jest.fn();
 jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable: !mockOffline }) }));
-jest.mock("expo-router", () => ({ useRouter: () => ({ dismissTo: mockDismissTo }) }));
+const mockDismissAll = jest.fn();
+const mockNavigate = jest.fn();
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ dismissTo: mockDismissTo, dismissAll: mockDismissAll, navigate: mockNavigate }),
+}));
 jest.mock("@/lib/convex-client", () => ({ convex: { mutation: (...args: unknown[]) => mockMutation(...args) } }));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("convex/react", () => ({
@@ -28,17 +31,12 @@ jest.mock("convex/react", () => ({
     return { matches: mockMatches };
   },
 }));
+jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 jest.mock("@/lib/result/save", () => ({ saveResult: jest.fn(), saveErrorMessage: () => "Couldn’t save. Try again." }));
 jest.mock("@/lib/label/share-saved-label", () => ({ shareSavedLabel: jest.fn() }));
 jest.mock("@/lib/venue/end-visit-prompt", () => ({
   withEndVisitPrompt: (save: (withoutVisit: boolean) => Promise<unknown>) => save(false),
-}));
-jest.mock("@/components/scan/capture-completion", () => ({
-  CaptureCompletion: ({ children, completion }: { children: ReactNode; completion?: { title: string } }) => {
-    const { Text } = jest.requireActual("react-native");
-    return completion ? <Text>Saved {completion.title}</Text> : children;
-  },
 }));
 
 const scanId = "scan-1" as Id<"scans">;
@@ -72,7 +70,7 @@ beforeEach(() => {
   jest.mocked(saveResult).mockResolvedValue({
     localId: "saved-1",
     synced: Promise.resolve(),
-    completion: { savedId: "saved-1", title: "Pond at dusk", previewPath: null },
+    completion: { savedId: "saved-1", previewPath: null, capture: { capturedAt: 1, photoIds: [] } },
   });
 });
 afterEach(() => jest.useRealTimers());
@@ -90,7 +88,7 @@ it.each(["manual", "label"] as const)("saves %s details privately while offline"
     },
     { withoutVisit: false },
   );
-  expect(await screen.findByText("Saved Pond at dusk")).toBeOnTheScreen();
+  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/(tabs)/(scan)/scan"));
   expect(mockMutation).not.toHaveBeenCalled();
 });
 
@@ -110,7 +108,7 @@ it("releases a pending confirmation when signal drops and ignores its late reply
   expect(screen.getByLabelText("Title")).toHaveProp("editable", true);
   await fireEvent.press(screen.getByRole("button", { name: "Save to collection" }));
   await act(() => finish());
-  expect(screen.getByText("Saved Pond at dusk")).toBeOnTheScreen();
+  expect(mockNavigate).toHaveBeenCalledWith("/(tabs)/(scan)/scan");
   expect(mockDismissTo).not.toHaveBeenCalled();
   expect(reportError).not.toHaveBeenCalled();
 });

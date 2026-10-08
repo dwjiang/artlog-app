@@ -2,7 +2,6 @@ import { db } from "@/db/client";
 import {
   artworkEncounters,
   artworkPhotos,
-  notes,
   offlineScanResults,
   pendingScans,
   savedWorks,
@@ -16,7 +15,6 @@ export function deleteAllLocalData(): void {
     for (const table of [
       offlineScanResults,
       pendingScans,
-      notes,
       artworkPhotos,
       artworkEncounters,
       savedWorks,

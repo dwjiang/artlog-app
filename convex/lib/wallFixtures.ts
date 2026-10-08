@@ -41,7 +41,6 @@ export async function wallFixture(t: Harness, sub = String(++readers)) {
         medium: "Oil",
       },
       savedAt: 1,
-      note: "Private journal note",
       updatedAt: 1,
       updatedBy: device.deviceId,
       changeVersion: 1,

@@ -85,23 +85,6 @@ export const savedWorks = sqliteTable(
   ],
 );
 
-export const notes = sqliteTable(
-  "notes",
-  {
-    owner: text().notNull(),
-    savedLocalId: text().notNull(),
-    text: text().notNull(),
-    updatedAt: integer().notNull(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.owner, table.savedLocalId] }),
-    foreignKey({
-      columns: [table.owner, table.savedLocalId],
-      foreignColumns: [savedWorks.owner, savedWorks.localId],
-    }).onUpdate("cascade"),
-  ],
-);
-
 export const artworkPhotos = sqliteTable(
   "artworkPhotos",
   {
@@ -136,7 +119,6 @@ export const artworkEncounters = sqliteTable(
     owner: text().notNull(),
     savedLocalId: text().notNull(),
     visitLocalId: text().notNull(),
-    note: text(),
     deletedAt: integer(),
     syncedAt: integer(),
     revision: integer().notNull().default(0),
@@ -230,7 +212,6 @@ export type SavedWork = typeof savedWorks.$inferSelect;
 export type NewSavedWork = Omit<typeof savedWorks.$inferInsert, "owner"> & {
   owner?: string;
 };
-export type Note = typeof notes.$inferSelect;
 export type PendingScan = typeof pendingScans.$inferSelect;
 export type NewPendingScan = Omit<typeof pendingScans.$inferInsert, "owner"> & {
   owner?: string;

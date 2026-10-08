@@ -14,6 +14,7 @@ import { useScreenActive } from "@/hooks/use-screen-active";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { isLabelCapture } from "@/lib/capture/photo-draft";
 import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
+import { SHARING_NOTICE } from "@/lib/label/contribute";
 import { canShareLabel, confirmedLabelForm } from "@/lib/label/fields";
 import { reportError } from "@/lib/observability";
 import { retryPendingScan } from "@/lib/queue/queue";
@@ -36,9 +37,7 @@ import { useScan } from "@/lib/result/use-scan";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { CaptureCompletion } from "./capture-completion";
 import { CaptureContextButton } from "./capture-context-button";
-import { ContributionStatus, SHARING_NOTICE } from "./label/contribution-status";
 import { LocalScanScreen } from "./local-scan-screen";
 import { CardHeader } from "./result/card-header";
 import { NotRightSheet } from "./result/not-right-sheet";
@@ -97,17 +96,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
   const [editingCrop, setEditingCrop] = useState(false);
   const [hasEdits, setHasEdits] = useState(false);
   const [sheet, setSheet] = useState<Sheet>({ open: false });
-  const {
-    saving,
-    savedId,
-    completion,
-    error: saveError,
-    save,
-    sharing,
-    shared,
-    shareError,
-    retrySharing,
-  } = useSaveResult();
+  const { saving, savedId, error: saveError, save } = useSaveResult();
   // Consume feedback before awaiting the network so revisiting a match cannot submit another resolution.
   const rejections = useRef(new Map<Id<"objects">, Rejection>());
   const rejection = useRef<Rejection>(undefined);
@@ -268,127 +257,112 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
     </ThemedText>
   );
   return (
-    <CaptureCompletion
-      completion={completion}
-      sharedToIndex={shared?.status === "tentative"}
-      status={
-        <ContributionStatus
-          sharing={sharing}
-          shared={shared}
-          shareError={shareError}
-          onShare={() => {
-            void retrySharing();
-          }}
-        />
-      }
-    >
-      <ThemedView style={styles.container}>
-        {view.editable ? (
-          <ResultCard
-            key={`${view.kind}:${view.primary?.objectId ?? "none"}:${confirmed?.confirmedAt ?? ""}`}
-            scanId={scanId}
-            view={view}
-            header={header}
-            context={photoError}
-            visit={capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} variant="row" />}
-            onRetryDocent={() => client.mutation(api.docent.retry, { scanId })}
-            onPick={pickRunnerUp}
-            onEdit={() => setHasEdits(true)}
-            onLabel={openLabel}
-            onEnterDetails={namedBy ? editConfirmed : enterDetails}
-            savePhotoOnly={
-              (view.kind === "unidentified" || view.kind === "soft") && !hasEdits && !selection.chosenObjectId
-            }
-            saveNotice={contribution && SHARING_NOTICE}
-            onSavePhoto={() => {
-              void save({ scanId, capture, draft: draftFromCandidate() });
-            }}
-            {...saveProps}
-          />
-        ) : (
-          <ScrollView
-            contentInsetAdjustmentBehavior="automatic"
-            automaticallyAdjustKeyboardInsets
-            keyboardDismissMode="interactive"
-            contentContainerStyle={styles.content}
-          >
-            {header}
-            {capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} />}
-            {photoError}
-            {view.kind === "loading" && (
-              <View style={styles.loading} accessibilityState={{ busy: true }}>
-                <LoadingRing color={Colors.light.accent} accessibilityLabel="Identifying…" />
-              </View>
-            )}
-            {view.kind === "unsupported" && <UnsupportedCard {...saveProps} />}
-            {view.kind === "failed" && (
-              <>
-                <FailedCard
-                  error={view.error}
-                  retrying={retrying}
-                  onRetry={
-                    capture
-                      ? () => {
-                          if (retrying) return;
-                          setRetrying(true);
-                          setRetryError(undefined);
-                          void markFailed(capture.localId, view.error ?? "Identification failed", scanId, owner)
-                            .then(() => retryPendingScan(capture.localId))
-                            .then(() =>
-                              router.replace({
-                                pathname: "/result/[scanId]",
-                                params: { scanId: `local-${capture.localId}` },
-                              }),
-                            )
-                            .catch((error: unknown) => {
-                              reportError(error, "queue.retry");
-                              setRetryError("Couldn’t retry. Your photo is still here.");
-                            })
-                            .finally(() => setRetrying(false));
-                        }
-                      : undefined
-                  }
-                />
-                {retryError && (
-                  <ThemedText themeColor="error" accessibilityRole="alert">
-                    {retryError}
-                  </ThemedText>
-                )}
-                {capture && <SaveAnywayForm {...saveProps} compact />}
-                <GalleryButton
-                  label="Scan another artwork"
-                  fullWidth
-                  onPress={() => {
-                    router.dismissAll();
-                    router.navigate("/(tabs)/(scan)/scan");
-                  }}
-                />
-              </>
-            )}
-          </ScrollView>
-        )}
-        <NotRightSheet
-          open={sheet.open}
-          notice={sheet.notice}
-          onDismiss={() => setSheet({ open: false })}
-          runnerUps={view.runnerUps}
+    <ThemedView style={styles.container}>
+      {view.editable ? (
+        <ResultCard
+          key={`${view.kind}:${view.primary?.objectId ?? "none"}:${confirmed?.confirmedAt ?? ""}`}
+          scanId={scanId}
+          view={view}
+          header={header}
+          context={photoError}
+          visit={capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} variant="row" />}
+          onRetryDocent={() => client.mutation(api.docent.retry, { scanId })}
           onPick={pickRunnerUp}
+          onEdit={() => setHasEdits(true)}
           onLabel={openLabel}
-          onManual={() => {
-            setSheet({ open: false });
-            enterDetails();
-          }}
-          onSavePhoto={
-            capture
-              ? () => {
-                  setSheet({ open: false });
-                  void save({ scanId, capture, draft: draftFromCandidate() });
-                }
-              : undefined
+          onEnterDetails={namedBy ? editConfirmed : enterDetails}
+          savePhotoOnly={
+            (view.kind === "unidentified" || view.kind === "soft") && !hasEdits && !selection.chosenObjectId
           }
+          saveNotice={contribution && SHARING_NOTICE}
+          onSavePhoto={() => {
+            void save({ scanId, capture, draft: draftFromCandidate() });
+          }}
+          {...saveProps}
         />
-      </ThemedView>
-    </CaptureCompletion>
+      ) : (
+        <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="interactive"
+          contentContainerStyle={styles.content}
+        >
+          {header}
+          {capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} />}
+          {photoError}
+          {view.kind === "loading" && (
+            <View style={styles.loading} accessibilityState={{ busy: true }}>
+              <LoadingRing color={Colors.light.accent} accessibilityLabel="Identifying…" />
+            </View>
+          )}
+          {view.kind === "unsupported" && <UnsupportedCard {...saveProps} />}
+          {view.kind === "failed" && (
+            <>
+              <FailedCard
+                error={view.error}
+                retrying={retrying}
+                onRetry={
+                  capture
+                    ? () => {
+                        if (retrying) return;
+                        setRetrying(true);
+                        setRetryError(undefined);
+                        void markFailed(capture.localId, view.error ?? "Identification failed", scanId, owner)
+                          .then(() => retryPendingScan(capture.localId))
+                          .then(() =>
+                            router.replace({
+                              pathname: "/result/[scanId]",
+                              params: { scanId: `local-${capture.localId}` },
+                            }),
+                          )
+                          .catch((error: unknown) => {
+                            reportError(error, "queue.retry");
+                            setRetryError("Couldn’t retry. Your photo is still here.");
+                          })
+                          .finally(() => setRetrying(false));
+                      }
+                    : undefined
+                }
+              />
+              {retryError && (
+                <ThemedText themeColor="error" accessibilityRole="alert">
+                  {retryError}
+                </ThemedText>
+              )}
+              {capture && <SaveAnywayForm {...saveProps} compact />}
+              <GalleryButton
+                label="Scan another artwork"
+                fullWidth
+                onPress={() => {
+                  router.dismissAll();
+                  router.navigate("/(tabs)/(scan)/scan");
+                }}
+              />
+            </>
+          )}
+        </ScrollView>
+      )}
+      <NotRightSheet
+        open={sheet.open}
+        notice={sheet.notice}
+        onDismiss={() => setSheet({ open: false })}
+        runnerUps={view.runnerUps}
+        onPick={pickRunnerUp}
+        onLabel={openLabel}
+        onManual={() => {
+          setSheet({ open: false });
+          enterDetails();
+        }}
+        onSavePhoto={
+          capture
+            ? () => {
+                setSheet({ open: false });
+                void save({ scanId, capture, draft: draftFromCandidate() });
+              }
+            : undefined
+        }
+      />
+    </ThemedView>
   );
 }
 

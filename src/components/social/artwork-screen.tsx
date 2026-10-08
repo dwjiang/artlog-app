@@ -77,7 +77,6 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
             photos={data.photos ?? []}
             token={session.token}
             enrichment={data.enrichment}
-            ownNote={data.ownNote}
             headingRef={headingRef}
             onHeadingLayout={measureHeading}
           />

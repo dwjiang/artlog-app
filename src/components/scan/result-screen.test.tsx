@@ -9,13 +9,13 @@ import { db } from "@/db/client";
 import { enqueuePendingScan, pendingScansQuery } from "@/db/repos/pending-scans";
 import { getSavedWork } from "@/db/repos/saved-works";
 import * as visits from "@/db/repos/visits";
-import { notes, savedWorks } from "@/db/schema";
+import { savedWorks } from "@/db/schema";
 import { updatePhotoSession } from "@/lib/capture/photo-draft";
+import { SHARING_NOTICE } from "@/lib/label/contribute";
 import { clearLabelDraft } from "@/lib/label/draft";
 import { resolveWithLabel } from "@/lib/result/feedback";
 
 import type { Id } from "../../../convex/_generated/dataModel";
-import { SHARING_NOTICE } from "./label/contribution-status";
 import { ResultScreen } from "./result-screen";
 import {
   bridge,
@@ -86,6 +86,7 @@ jest.mock("@/lib/attested-write", () => ({
 }));
 jest.mock("@/lib/queue/queue", () => ({ retryPendingScan: jest.fn() }));
 jest.mock("@/lib/label/contribute", () => ({
+  ...jest.requireActual<typeof import("@/lib/label/contribute")>("@/lib/label/contribute"),
   contributeLabel: jest.fn(),
   contributionErrorMessage: () => "Couldn’t save to the shared index right now",
 }));
@@ -140,6 +141,12 @@ jest.mock("convex/react", () => ({
   useConvexAuth: () => mockAuth,
 }));
 
+/** A save leaves the result for the camera, where a toast confirms it. */
+async function expectReturnedToCamera() {
+  await waitFor(() => expect(mockDismissAll).toHaveBeenCalledTimes(1));
+  expect(mockPush).toHaveBeenLastCalledWith("/(tabs)/(scan)/scan");
+}
+
 beforeAll(async () => {
   await visits.upsertVisit({
     visitedOn: "1970-01-01",
@@ -181,7 +188,6 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  db.delete(notes).run();
   db.delete(savedWorks).run();
   mockFocused = true;
   jest.resetAllMocks();
@@ -451,7 +457,7 @@ it.each([softScan, missScan, failedScan])(
     });
     expect(screen.queryByLabelText("Title")).toBeNull();
     await fireEvent.press(save);
-    expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
+    await expectReturnedToCamera();
     expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
       title: "Unidentified artwork",
       artist: "",
@@ -532,7 +538,7 @@ it("saves an untouched confident card locally, tells the server the suggestion w
     ),
   );
   expect(screen.queryByLabelText("Title")).toBeNull();
-  expect(await screen.findByLabelText("Private note")).toBeOnTheScreen();
+  await expectReturnedToCamera();
   await fireEvent.press(link);
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/saved/[savedId]",
@@ -555,7 +561,6 @@ it("removes match choices after saving a soft card", async () => {
   const savedId = `saved-${mockUuid}`;
   expect(screen.queryByText("Other possibilities")).toBeNull();
   expect(screen.queryByRole("button", { name: /^Haystacks, Claude Monet/ })).toBeNull();
-  expect(screen.getByText((await getSavedWork(savedId))!.title)).toBeOnTheScreen();
   await fireEvent.press(link);
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/saved/[savedId]",
@@ -602,7 +607,6 @@ it.each([confidentScan, softScan])("locks the draft and match choices while savi
   }
   await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   const savedTitle = scan.outcome === "confident" ? scan.best?.title : "Unidentified artwork";
-  expect(screen.getByText(savedTitle!)).toBeOnTheScreen();
   expect((await getSavedWork(`saved-${mockUuid}`))?.title).toBe(savedTitle);
   expect(mockSaveMutation).toHaveBeenCalledWith(
     "collections:saveToCollection",
@@ -950,7 +954,6 @@ it("saves edited tentative metadata without implying confirmation", async () => 
     "collections:saveToCollection",
     expect.objectContaining({ suggested: null }),
   );
-  expect(screen.getByText("My reading of the label")).toBeOnTheScreen();
 });
 
 it("opens editing from Scan options and finishes it with Done without losing the draft", async () => {
@@ -1035,7 +1038,7 @@ it("saves confirmed label details as the work and shares the label, as the notic
   await render(result());
   expect(await screen.findByText(SHARING_NOTICE)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Save to collection" }));
-  expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
+  await expectReturnedToCamera();
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
     title: "Water Lilies",
     artist: "Claude Monet",
@@ -1140,7 +1143,7 @@ it("names the catalogue work picked from the label as a match and saves it as th
     [{ pathname: "/label/[scanId]", params: { scanId: SCAN_ID } }],
   ]);
   await fireEvent.press(screen.getByRole("button", { name: "Save to collection" }));
-  expect(await screen.findByText("Saved to collection")).toBeOnTheScreen();
+  await expectReturnedToCamera();
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
     title: "Water Lilies",
     objectId: lilies.objectId,
