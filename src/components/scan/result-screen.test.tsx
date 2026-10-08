@@ -334,7 +334,7 @@ it("shows listen controls and the audio guide transcript inline once narration e
   });
   await render(result());
   expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
-  expect(await screen.findByRole("button", { name: "Listen to this work" })).toBeEnabled();
+  expect(await screen.findByRole("button", { name: "Play audio guide" })).toBeEnabled();
   expect(screen.getByRole("button", { name: "Add to queue" })).toBeEnabled();
   expect(await screen.findByText("Audio guide transcript")).toBeOnTheScreen();
   expect(screen.getByText("Monet grew these lilies in his garden at Giverny.")).toBeOnTheScreen();

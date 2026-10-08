@@ -72,7 +72,7 @@ it("shows a catalog work like a scan's result: picture, details, its story and t
     expect(screen.getAllByText(text).length).toBeGreaterThan(0);
   }
   expect(screen.getByText(told.docent[0].sentence)).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Listen to this work" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Play audio guide" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("link", { name: "Claude Monet" }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/artist/[artistId]", params: { artistId: "monet" } });
   expect(mockResearch).not.toHaveBeenCalled();
@@ -86,7 +86,7 @@ it("researches a work nobody has scanned once, showing loading lines until the r
   expect(mockResearch).toHaveBeenCalledWith({ artworkId });
   expect(screen.queryByText("Background information isn’t available for this work yet.")).toBeNull();
   // The audio guide waits for a play; only the written story is researched on open.
-  expect(screen.getByRole("button", { name: "Listen to this work" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Play audio guide" })).toBeOnTheScreen();
 
   // The run claims the work, then ends without finding sources.
   mockEnrichment = { ...(mockEnrichment as object), docentWriting: true, docentGeneration: 1 };

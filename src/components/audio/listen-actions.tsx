@@ -72,12 +72,12 @@ export function ListenActions({
   const actionLabel = preparing
     ? preparationLabel(audio.preparationStage)
     : same && audio.phase === "error"
-      ? "Retry narration"
+      ? "Retry audio guide"
       : same && audio.playing
         ? "Now playing"
         : resume
-          ? "Resume listening"
-          : "Listen to this work";
+          ? "Resume audio guide"
+          : "Play audio guide";
   const label = another ? (queued ? "Added to queue" : "Add to queue") : actionLabel;
   const inPlayer = audio.current?.work.artworkId === artworkId;
   const queuedHere = queued || inPlayer;
