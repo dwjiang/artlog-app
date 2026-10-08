@@ -18,6 +18,7 @@ import {
   docentUser,
   factSheetSchema,
   factSheetUser,
+  factsPerSource,
   parseDocent,
   parseFactSheet,
 } from "./lib/docentPrompts";
@@ -29,7 +30,7 @@ import { reportBackendError } from "./lib/observability";
 import { limitDevice } from "./lib/rateLimits";
 import { applyReferenceReview, referenceReviewInput, referenceReviewSchema } from "./lib/referenceReview";
 import { reserveSpend } from "./lib/spend";
-import { chatJson } from "./lib/tokenFactory";
+import { chatJson, type ChatJsonResponse } from "./lib/tokenFactory";
 import {
   docentSentence,
   factSheetEntry,
@@ -287,73 +288,99 @@ async function generate(
     if (sources.sources.length === 0) return sources.failures > 0 ? "sources_unavailable" : "no_sources";
   }
   const hasReferences = sources?.sources.some((source) => source.referenceUrl);
-  const reserved = cached ? 2 : hasReferences ? 6 : 4;
+  // A fact-sheet call per source, the docent and any reference review; chatJson may send each request twice.
+  const reserved = 2 * (sources ? sources.sources.length + (hasReferences ? 2 : 1) : 1);
   const day = await reserveSpend(ctx, "tokenFactory", reserved);
   let calls = 0;
+  // Counts every request sent, including those of a call that failed.
+  const counted = async <T>(request: Promise<ChatJsonResponse<T>>): Promise<T> => {
+    try {
+      const response = await request;
+      calls += response.calls;
+      return response.value;
+    } catch (error) {
+      if (error instanceof ConvexError && typeof error.data.calls === "number") calls += error.data.calls;
+      throw error;
+    }
+  };
   try {
     if (hasReferences) {
-      const result = await chatJson({
-        model: models.factSheet,
-        system: referenceReview.prompt,
-        user: JSON.stringify({ input: referenceReviewInput(sources!.sources, artwork) }),
-        schemaName: "referenceReview",
-        schema: referenceReviewSchema(sources!.sources),
-        maxTokens: 2048,
-        parse: (value) => {
-          try {
-            return applyReferenceReview(value, sources!.sources);
-          } catch {
-            return null;
-          }
-        },
-        timeoutMs: MODEL_TIMEOUT_MS,
-      });
-      calls += result.calls;
-      if (result.value.conflicts.length > 0) return { docentEn: [], researchConflicts: result.value.conflicts };
-      sources!.sources = result.value.sources;
+      const review = await counted(
+        chatJson({
+          model: models.factSheet,
+          system: referenceReview.prompt,
+          user: JSON.stringify({ input: referenceReviewInput(sources!.sources, artwork) }),
+          schemaName: "referenceReview",
+          schema: referenceReviewSchema(sources!.sources),
+          maxTokens: 2048,
+          parse: (value) => {
+            try {
+              return applyReferenceReview(value, sources!.sources);
+            } catch {
+              return null;
+            }
+          },
+          timeoutMs: MODEL_TIMEOUT_MS,
+        }),
+      );
+      if (review.conflicts.length > 0) return { docentEn: [], researchConflicts: review.conflicts };
+      sources!.sources = review.sources;
       if (sources!.sources.length === 0) return sources!.failures > 0 ? "sources_unavailable" : "no_sources";
     }
     let factSheet = cached;
     if (!factSheet) {
-      sources!.sources = trimSources(sources!.sources);
-      const sheet = await chatJson({
-        model: models.factSheet,
-        system: FACT_SHEET_PROMPT,
-        user: factSheetUser(sources!.sources, artwork),
-        schemaName: "factSheet",
-        schema: factSheetSchema(sources!.sources.length),
-        maxTokens: FACT_SHEET_MAX_TOKENS,
-        parse: parseFactSheet,
-        timeoutMs: MODEL_TIMEOUT_MS,
-      });
-      calls += sheet.calls;
-      factSheet = buildFactSheet(sheet.value, sources!.sources);
+      const read = trimSources(sources!.sources);
+      const maxFacts = factsPerSource(read);
+      const extracted = await Promise.allSettled(
+        read.map((source) =>
+          counted(
+            chatJson({
+              model: models.factSheet,
+              system: FACT_SHEET_PROMPT,
+              user: factSheetUser(source, artwork),
+              schemaName: "factSheet",
+              schema: factSheetSchema(maxFacts),
+              maxTokens: FACT_SHEET_MAX_TOKENS,
+              parse: parseFactSheet,
+              timeoutMs: MODEL_TIMEOUT_MS,
+            }),
+          ),
+        ),
+      );
+      // A source that runs out of tokens stalled on its required first fact and has nothing to give. Any
+      // other failure fails the run: a sheet missing that source would be cached, and a retry may succeed.
+      const failed = extracted.find(
+        (result) =>
+          result.status === "rejected"
+          && !(result.reason instanceof ConvexError && result.reason.data.reason === "truncated"),
+      );
+      if (failed?.status === "rejected") throw failed.reason;
+      factSheet = buildFactSheet(
+        extracted.map((result) => (result.status === "fulfilled" ? result.value : [])),
+        read,
+      );
     }
     if (factSheet.length === 0) return "no_facts";
-    const prose = await chatJson({
-      model: models.docent,
-      system: DOCENT_PROMPT,
-      user: docentUser(factSheet),
-      schemaName: "docent",
-      schema: DOCENT_SCHEMA,
-      maxTokens: DOCENT_MAX_TOKENS,
-      parse: parseDocent,
-      timeoutMs: MODEL_TIMEOUT_MS,
-    });
-    calls += prose.calls;
+    const prose = await counted(
+      chatJson({
+        model: models.docent,
+        system: DOCENT_PROMPT,
+        user: docentUser(factSheet),
+        schemaName: "docent",
+        schema: DOCENT_SCHEMA,
+        maxTokens: DOCENT_MAX_TOKENS,
+        parse: parseDocent,
+        timeoutMs: MODEL_TIMEOUT_MS,
+      }),
+    );
     const docentEn = validateDocent(
-      prose.value.map(({ sentence, fact_ids }) => ({
+      prose.map(({ sentence, fact_ids }) => ({
         sentence,
         factIds: fact_ids,
       })),
       new Set(factSheet.map((fact) => fact.id)),
     );
     return docentEn.length > 0 ? { ...(cached ? {} : { factSheet }), docentEn } : "prose_rejected";
-  } catch (error) {
-    if (error instanceof ConvexError && typeof error.data.calls === "number") {
-      calls += error.data.calls;
-    }
-    throw error;
   } finally {
     await ctx.runMutation(internal.spend.reconcile, {
       kind: "tokenFactory",

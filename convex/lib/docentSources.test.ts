@@ -104,6 +104,50 @@ it.each(["https://www.artic.edu/artworks/16568", "https://www.artic.edu/artworks
 
 const found = (url: string, content: string) => ({ url, title: "", content, score: 1, images: [] });
 
+it("accepts pages titled for the work that cite it, but not studies, other works or artist pages", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
+  const titled = (url: string, title: string, content: string) => ({ ...found(url, content), title });
+  const caption = "Claude Monet. Water Lilies, 1906. The Art Institute of Chicago, 1933.1157.";
+  const link = "[Water Lilies](/artworks/16568/water-lilies)";
+  const catalogue = "https://www.artic.edu/digital-publications/48/monet/418/cat-44-water-lilies-1906";
+  const video = "https://www.artic.edu/videos/21/claude-monets-water-lilies";
+  vi.mocked(searchWithCredit).mockResolvedValue({
+    images: [],
+    results: [
+      titled(catalogue, "Cat. 44 Water Lilies, 1906 | The Art Institute of Chicago", `${caption}\n\nAn obsession.`),
+      titled(
+        "https://www.artic.edu/digital-publications/48/monet/421/cat-47-water-lily-pond",
+        "Cat. 47 Water Lily Pond, 1917/19 | The Art Institute of Chicago",
+        caption,
+      ),
+      titled(
+        "https://www.artic.edu/digital-publications/48/monet/417/cat-43-study",
+        "Cat. 43 Study for “Water Lilies,” 1905 | The Art Institute of Chicago",
+        caption,
+      ),
+      titled(
+        "https://www.artic.edu/artworks/1/sketch",
+        "Oil Sketch for “Water Lilies” | The Art Institute of Chicago",
+        link,
+      ),
+      titled(
+        "https://www.artic.edu/artworks/16569/water-lilies",
+        "Water Lilies, 1907 | The Art Institute of Chicago",
+        `A different painting.\n\nRelated work: ${caption} ${link}`,
+      ),
+      titled("https://www.artic.edu/artists/35809/claude-monet", "Claude Monet | The Art Institute of Chicago", link),
+      titled(video, "Claude Monet's Water Lilies | Essentials Tour | The Art Institute of Chicago", link),
+    ],
+  });
+  const result = await gatherSources({} as ActionCtx, {
+    artwork: { title: "Water Lilies", artist: "Claude Monet" },
+    owner: { name: "Art Institute of Chicago", website: "https://www.artic.edu" },
+    pageUrl: "https://www.artic.edu/artworks/16568",
+    accession: "1933.1157",
+  });
+  expect(result.sources.map(({ url }) => url)).toEqual([catalogue, video]);
+});
+
 it("searches the verified owner's sites and accepts its artwork even outside the static domain list", async () => {
   vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
   const url = "https://collection.museum.example/work/1";
@@ -297,6 +341,7 @@ it.each([
     "/art/collection/search/437880",
   ],
   ["P4610", "28560", "https://www.artic.edu/artworks/28560/the-bedroom", "/artworks/28561/the-bedroom"],
+  ["P3634", "437881", "https://www.metmuseum.org/art/collection/search/437881", "/exhibitions/view?oid=437880"],
 ])("uses the collection page for the work's %s object id", async (property, objectId, page, otherPath) => {
   vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "qr_host_not_allowed" }));
   vi.mocked(getEntity).mockResolvedValue({
@@ -307,7 +352,10 @@ it.each([
     images: [],
     results: [
       found(page, "This painting."),
-      found(new URL(otherPath, page).href, "Another painting with the same title."),
+      {
+        ...found(new URL(otherPath, page).href, `Another painting. Related work: [Painting](${page}).`),
+        title: "Painting, 1907",
+      },
     ],
   });
   const result = await gatherSources({} as ActionCtx, wikidataWork("Q1"));

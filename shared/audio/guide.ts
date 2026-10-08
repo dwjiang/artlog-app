@@ -135,21 +135,26 @@ export function normalizePassage(text: string): string {
 }
 
 // A sentence is grounded only if the model can point at the evidence: its support span, or else every
-// clause of it, must appear verbatim in a fact it cites. Clauses may skip list items or join two
-// passages; paraphrase and invention have no such span.
+// clause of it, must appear verbatim in a fact it cites. Clauses may skip list items, asides such as a
+// catalogue's "(see cat. 45)", or join two passages; paraphrase and invention have no such span.
 export function unsupportedLines(lines: GuideLine[], facts: readonly { id: string; text: string }[]): GuideLine[] {
   const texts = new Map(facts.map((fact) => [fact.id, normalizePassage(fact.text)]));
   return lines.filter((line) => {
     const cited = line.fact_ids.map((id) => texts.get(id)).filter((text): text is string => text !== undefined);
     const span = normalizePassage(line.support);
     if (span.length >= 8 && cited.some((text) => text.includes(span))) return false;
+    // Numeric ranges stay whole so an abbreviated endpoint cannot disappear as a short clause.
     const clauses = line.support
-      .split(/[.…,;:]/)
+      .split(/[.…,;:()]|(?<!\d\s*)[—–]|[—–](?!\s*\d)/)
       .map(normalizePassage)
-      .filter((clause) => clause.length >= 4);
+      .filter((clause) => clause.length > 0);
     return (
       !clauses.some((clause) => clause.length >= 8)
-      || clauses.some((clause) => !cited.some((text) => text.includes(clause)))
+      || clauses.some((clause) => {
+        const escaped = clause.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const passage = new RegExp(`(?<![\\p{L}\\p{M}\\p{N}])${escaped}(?![\\p{L}\\p{M}\\p{N}])`, "u");
+        return !cited.some((text) => passage.test(text));
+      })
     );
   });
 }

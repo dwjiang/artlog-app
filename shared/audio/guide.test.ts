@@ -199,6 +199,78 @@ it("accepts a span verbatim whole or clause by clause, whatever the case, and re
   ).toHaveLength(3);
 });
 
+it("lets a span skip a catalogue aside in parentheses or between dashes, but not change the words around it", () => {
+  const facts = [
+    {
+      id: "f1",
+      text: "After a trip to Venice in late 1908 (see cat. 45)—one that allowed him to look at his paintings with 'a clearer eye'—Monet was ready.",
+    },
+  ];
+  const line = (support: string) => ({
+    sentence: "He went to Venice.",
+    fact_ids: ["f1"],
+    support,
+    section: "story" as const,
+  });
+  expect(
+    unsupportedLines(
+      [
+        line("After a trip to Venice in late 1908—one that allowed him to look at his paintings with 'a clearer eye'"),
+        line("After a trip to Venice in late 1908—Monet was ready."),
+      ],
+      facts,
+    ),
+  ).toEqual([]);
+  expect(unsupportedLines([line("After a trip to Rome in late 1908—Monet was ready.")], facts)).toHaveLength(1);
+});
+
+it.each(["(not)", "—not—", "–not–"])("rejects an invented short negation inside %s", (negation) => {
+  const facts = [{ id: "f1", text: "The canvas was painted by Monet." }];
+  const line = {
+    sentence: "It was not painted by Monet.",
+    fact_ids: ["f1"],
+    support: `The canvas was ${negation} painted by Monet.`,
+    section: "story" as const,
+  };
+  expect(unsupportedLines([line], facts)).toEqual([line]);
+});
+
+it.each(["notable", "cannot", "noté"])("does not ground an invented negation inside %s", (word) => {
+  const facts = [{ id: "f1", text: `The canvas was painted by Monet. The catalogue uses the word “${word}”.` }];
+  const lines = ["(not)", "—not—", "–not–"].map((negation) => ({
+    sentence: "It was not painted by Monet.",
+    fact_ids: ["f1"],
+    support: `The canvas was ${negation} painted by Monet.`,
+    section: "story" as const,
+  }));
+  expect(unsupportedLines(lines, facts)).toEqual(lines);
+});
+
+it("retains supported short fragments and ignores empty fragments", () => {
+  const facts = [{ id: "f1", text: "The canvas was not painted by Monet." }];
+  const line = {
+    sentence: "It was not painted by Monet.",
+    fact_ids: ["f1"],
+    support: "The canvas was (not)—painted by Monet.",
+    section: "story" as const,
+  };
+  expect(unsupportedLines([line], facts)).toEqual([]);
+});
+
+it.each(["–", "—", " – ", " — "])("checks both ends of a numeric range separated by %s", (dash) => {
+  const passage = `The artist worked on the painting in 1888${dash}89`;
+  const detail = "using visible strokes of oil paint";
+  const facts = [{ id: "f1", text: `${passage} (see cat. 45)—${detail}.` }];
+  const line = (support: string) => ({
+    sentence: "He worked on it from 1888 to 1889.",
+    fact_ids: ["f1"],
+    support,
+    section: "story" as const,
+  });
+  expect(unsupportedLines([line(`${passage}—${detail}`)], facts)).toEqual([]);
+  expect(unsupportedLines([line(`${passage.replace("89", "99")}—${detail}`)], facts)).toHaveLength(1);
+});
+
 it("reads the script only as hook, look, story and takeaway sections of cited sentences", () => {
   const line = { sentence: "Start with the lilies on the pond.", fact_ids: ["f1"], support: "water lilies" };
   const sections = { hook: [line], look: [], story: [], takeaway: [] };
