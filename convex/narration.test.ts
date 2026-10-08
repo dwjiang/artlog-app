@@ -129,10 +129,9 @@ function answerResearch(
   fetcher.mockImplementation(async (url, init) => {
     if (url.includes("tavily")) return jsonResponse({ results, usage: { credits: 1 } });
     if (!url.includes("tokenfactory")) return speech();
-    const { model, messages } = JSON.parse(String(init?.body));
+    const { model } = JSON.parse(String(init?.body));
     if (model === FACT_SHEET_MODEL) {
-      const [source] = JSON.parse(messages[1].content).input.sources;
-      return chat(researchFixture.map(({ text }) => ({ text, source: source.id })));
+      return chat(researchFixture.map(({ text }) => ({ text })));
     }
     if (model === DOCENT_MODEL) {
       return chat([

@@ -209,18 +209,14 @@ function tavily(response: unknown = searchResponse, status = 200) {
     url.href === TAVILY ? (status === 200 ? jsonResponse(response) : new Response("down", { status })) : undefined,
   );
 }
+// Each fact-sheet call reads one source; facts claimed for another page must fail the verbatim check.
 function models(sheet: MockFact[] = facts, sentences: unknown = prose) {
   routes.push((url, init) => {
     if (url.href !== TOKEN_FACTORY) return undefined;
     const body = JSON.parse(String(init?.body));
     if (body.model !== FACT_SHEET_MODEL) return completion(sentences);
-    const sources: { id: string; url: string }[] = JSON.parse(body.messages[1].content).input.sources;
-    return completion(
-      sheet.map(({ text, sourceUrl }) => ({
-        text,
-        source: sources.find((source) => source.url === sourceUrl)?.id ?? "s99",
-      })),
-    );
+    const { source } = JSON.parse(body.messages[1].content).input as { source: { url: string } };
+    return completion(sheet.filter(({ sourceUrl }) => sourceUrl === source.url).map(({ text }) => ({ text })));
   });
 }
 function everything() {
@@ -231,6 +227,10 @@ function everything() {
 }
 const calls = (prefix: string) => fetchMock.mock.calls.filter(([url]) => String(url).startsWith(prefix));
 const bodies = (prefix: string) => calls(prefix).map(([, init]) => JSON.parse(String(init?.body)));
+const modelCalls = (schemaName: string) =>
+  bodies(TOKEN_FACTORY).filter((body) => body.response_format.json_schema.name === schemaName);
+const factSheetSources = (): { url: string; label: string; score: number; text: string }[] =>
+  modelCalls("factSheet").map((body) => JSON.parse(body.messages[1].content).input.source);
 
 async function readArtwork(t: Harness, artworkId: Id<"artworks">) {
   return t.run(async (ctx) => {
@@ -352,7 +352,7 @@ describe("docent.ensure", () => {
     expect(stored?.docentUpdatedAt).toEqual(expect.any(Number));
     expect(stored?.enrichClaimedAt).toBeUndefined();
     expect(await spend()).toMatchObject({
-      tokenFactoryCalls: 2,
+      tokenFactoryCalls: 4,
       tavilyCredits: 2,
     });
 
@@ -367,25 +367,24 @@ describe("docent.ensure", () => {
     });
     expect(search.include_domains).toContain("metmuseum.org");
     expect(search.include_domains).not.toContain("pinterest.com");
-    const [sheet, docent] = bodies(TOKEN_FACTORY);
-    expect(sheet).toMatchObject({
-      model: FACT_SHEET_MODEL,
-      temperature: 0,
-      max_tokens: 6000,
-      chat_template_kwargs: { enable_thinking: false },
-    });
-    expect(JSON.parse(sheet.messages[1].content).input.target).toEqual({
-      title: "Wheat Field with Cypresses",
-      artist: "Vincent van Gogh",
-      date: "1889",
-      wikidataId: "Q18689458",
-    });
-    const input = JSON.parse(sheet.messages[1].content).input.sources as {
-      url: string;
-      label: string;
-      score: number;
-      text: string;
-    }[];
+    const sheets = modelCalls("factSheet");
+    const [docent] = modelCalls("docent");
+    for (const sheet of sheets) {
+      expect(sheet).toMatchObject({
+        temperature: 0,
+        max_tokens: 4000,
+        chat_template_kwargs: { enable_thinking: false },
+      });
+      // Two prose sources share the sheet, so each may give ten facts.
+      expect(sheet.response_format.json_schema.schema).toMatchObject({ minItems: 1, maxItems: 10 });
+      expect(JSON.parse(sheet.messages[1].content).input.target).toEqual({
+        title: "Wheat Field with Cypresses",
+        artist: "Vincent van Gogh",
+        date: "1889",
+        wikidataId: "Q18689458",
+      });
+    }
+    const input = factSheetSources();
     expect(input.map(({ url, label, score }) => ({ url, label, score }))).toEqual([
       { url: PAGE, label: "The Metropolitan Museum of Art", score: 1 },
       { url: SEARCH_HIT, label: "metmuseum.org", score: 1 },
@@ -538,10 +537,38 @@ describe("docent.ensure", () => {
     expect(stored?.factSheet).toBeUndefined();
     expect(stored?.enrichClaimedAt).toBeUndefined();
     expect(stored?.docentFailedAt).toEqual(expect.any(Number));
+    // Each source's fact-sheet call was sent and retried once.
+    expect(calls(TOKEN_FACTORY)).toHaveLength(6);
     expect(await spend()).toMatchObject({
-      tokenFactoryCalls: 2,
+      tokenFactoryCalls: 6,
       tavilyCredits: 2,
     });
+  });
+
+  const factSheetSource = (init?: RequestInit) =>
+    JSON.parse(JSON.parse(String(init?.body)).messages[1].content).input.source?.url;
+
+  it("keeps the other sources when one source's fact-sheet call stalls out of tokens", async () => {
+    const { artwork, ensure } = await fixture();
+    routes.push((url, init) =>
+      url.href === TOKEN_FACTORY && factSheetSource(init) === SEARCH_HIT ? completion([], "length") : undefined,
+    );
+    everything();
+    await ensure();
+    expect((await artwork())?.factSheet?.map(({ sourceUrl }) => sourceUrl)).toEqual([PAGE, WIKIDATA_PAGE]);
+  });
+
+  it("keeps the run retryable when one source's fact-sheet call fails", async () => {
+    const { artwork, ensure } = await fixture();
+    routes.push((url, init) =>
+      url.href === TOKEN_FACTORY && factSheetSource(init) === SEARCH_HIT
+        ? new Response("refused", { status: 400 })
+        : undefined,
+    );
+    everything();
+    await expect(ensure()).rejects.toMatchObject({ data: { code: "model_error", reason: "http_400" } });
+    expect(await artwork()).not.toHaveProperty("factSheet");
+    expect(await artwork()).toHaveProperty("docentFailedAt");
   });
 
   it("rewrites only the sentences when a current fact sheet exists", async () => {
@@ -884,7 +911,7 @@ it("shares a single research pass between independent docent and audio scripts",
   ]);
   expect((await artwork())?.docent).toEqual(researched?.docent);
   expect(calls(TAVILY)).toHaveLength(2);
-  expect(JSON.parse(bodies(TOKEN_FACTORY)[2].messages[1].content).research).toEqual(
+  expect(JSON.parse(modelCalls("audioGuide")[0].messages[1].content).research).toEqual(
     guideResearch(researched!.factSheet!),
   );
 });
@@ -929,7 +956,7 @@ it("includes museum essays linked to the exact artwork while excluding another v
     usage: { credits: 1 },
   });
   await ensure();
-  const { sources } = JSON.parse(bodies(TOKEN_FACTORY)[0].messages[1].content).input;
+  const sources = factSheetSources();
   expect(sources.map((source: { url: string }) => source.url)).toEqual([
     PAGE,
     "https://www.metmuseum.org/exhibitions/listings/2015/van-gogh",
@@ -962,8 +989,7 @@ it("sends markdown search pages as plain prose, so a fact copied from an essay s
     usage: { credits: 1 },
   });
   await ensure();
-  const sources: { url: string; text: string }[] = JSON.parse(bodies(TOKEN_FACTORY)[0].messages[1].content).input
-    .sources;
+  const sources = factSheetSources();
   expect(sources.find((source) => source.url === essay)?.text).toBe(
     "Cypresses\nLetters\n\nHe described the cypresses in Wheat Field with Cypresses as a splash of black. See the painting.",
   );
@@ -1004,12 +1030,7 @@ it.each([
       usage: { credits: 1 },
     });
     await ensure();
-    const sources: {
-      url: string;
-      label: string;
-      score: number;
-      text: string;
-    }[] = JSON.parse(bodies(TOKEN_FACTORY)[0].messages[1].content).input.sources;
+    const sources = factSheetSources();
     const owner = sources.filter((source) => source.url === PAGE);
     expect(owner).toEqual([
       expect.objectContaining({
@@ -1146,9 +1167,7 @@ it("turns an accepted direct reference into grounded narration research with its
       });
     }
     if (name === "factSheet") {
-      return completion([
-        { source: "s1", text: "The plump figure represents Carnival and the gaunt woman represents Lent." },
-      ]);
+      return completion([{ text: "The plump figure represents Carnival and the gaunt woman represents Lent." }]);
     }
     return completion([
       { sentence: "The plump figure represents Carnival, while the gaunt woman represents Lent.", fact_ids: ["f1"] },
@@ -1217,16 +1236,12 @@ it.each(["other", "same_artwork"])(
           })),
         });
       }
-      if (name === "factSheet") {
-        return completion([{ source: input.sources[0].id, text: relation === "other" ? article : referenceFact }]);
-      }
+      if (name === "factSheet") return completion([{ text: relation === "other" ? article : referenceFact }]);
       return completion([{ sentence: relation === "other" ? article : referenceFact, fact_ids: ["f1"] }]);
     });
     tavily({ results: [], images: [], usage: { credits: 1 } });
     await t.action(internal.docent.ensure, { artworkId, deviceId });
-    const sheet = bodies(TOKEN_FACTORY).find((body) => body.response_format.json_schema.name === "factSheet");
-    expect(sheet).toBeDefined();
-    const sources: { text: string; url: string }[] = JSON.parse(sheet.messages[1].content).input.sources;
+    const sources = factSheetSources();
     expect(sources.reduce((sum, source) => sum + source.text.length, 0)).toBe(
       relation === "other" ? article.length : 40_000,
     );

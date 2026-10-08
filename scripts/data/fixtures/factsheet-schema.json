@@ -6,12 +6,9 @@
     "properties": {
       "text": {
         "type": "string"
-      },
-      "source": {
-        "type": "string"
       }
     },
-    "required": ["text", "source"],
+    "required": ["text"],
     "additionalProperties": false
   }
 }

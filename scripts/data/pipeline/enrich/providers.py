@@ -12,6 +12,10 @@ class SpendCap(RuntimeError):
     pass
 
 
+class TruncatedResponse(ValueError):
+    pass
+
+
 @dataclass
 class Usage:
     token_factory_calls: int = 0
@@ -207,6 +211,8 @@ class Providers:
             self.model_responses += 1
             try:
                 choice = data["choices"][0]
+                if choice.get("finish_reason") == "length":
+                    raise TruncatedResponse("Model response ran out of tokens")
                 if choice.get("finish_reason") != "stop":
                     raise ValueError("Incomplete model response")
                 value = json.loads(choice["message"]["content"])
@@ -217,4 +223,6 @@ class Providers:
                 return value
             except (KeyError, IndexError, TypeError, ValueError) as error:
                 self.parse_failures += 1
+                if isinstance(error, TruncatedResponse):
+                    raise
                 raise ValueError("Invalid or truncated model JSON") from error

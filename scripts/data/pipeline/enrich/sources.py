@@ -110,9 +110,25 @@ def html_paragraphs(html: str) -> str:
     return "\n".join(line for line in (" ".join(part.split()) for part in text.split("\n")) if line)
 
 
+# A link or accession only shows that a page mentions the work; an editorial path, or a page title that
+# is the work's own title around at most a catalogue number, the artist's name, a date and the site's
+# name, shows the page is about it (convex/lib/docentSources.ts).
+def about_work(page_url: str, page_title: str, titles: list[str], artist: str) -> bool:
+    if re.search(EDITORIAL_PATH, urlsplit(page_url).path):
+        return True
+    name = identity_text(artist)
+
+    def core(value: str) -> str:
+        text = re.sub(r"^cats? \d+(?: \d+)? ", "", identity_text(value))
+        if name:
+            text = re.sub(rf"^{name}(?: s)? | by {name}$", "", text, count=1)
+        return re.sub(r" \d{4}(?: \d{2,4})?$", "", text)
+
+    named = {core(t) for t in titles} - {""}
+    return any(core(segment) in named for segment in re.split(r"\s+[|–—-]\s+", page_title))
+
+
 def links_to_artwork(text: str, page_url: str, anchors: set[str]) -> bool:
-    if not re.search(EDITORIAL_PATH, urlsplit(page_url).path):
-        return False
     for link in re.findall(r"\]\(([^\s)]+)\)", text):
         try:
             if source_identity(urljoin(page_url, link)) in anchors:
@@ -183,8 +199,6 @@ def identifies_owner_work(
     titles: list[str],
     owner_hosts: list[str],
 ) -> bool:
-    if not re.search(EDITORIAL_PATH, urlsplit(url).path):
-        return False
     if not accession or not any(host(url) == d or host(url).endswith("." + d) for d in owner_hosts):
         return False
     accession_pattern = re.compile(
@@ -555,13 +569,29 @@ class SourceGatherer:
                 identity = source_identity(url)
                 if identity == wikidata_page:
                     continue
+                collection = next(
+                    (p for p in COLLECTION_IDENTITIES.values() if re.fullmatch(p, identity)),
+                    None,
+                )
+                # Related links and captions cannot override another object ID in the same collection.
+                if (
+                    collection
+                    and identity not in anchors
+                    and any(re.fullmatch(collection, anchor) for anchor in anchors)
+                ):
+                    continue
                 plain = plain_markdown(content)
                 if (
                     (anchors or fallback)
                     and identity not in anchors
-                    and not links_to_artwork(content, url, anchors)
-                    and not identifies_owner_work(
-                        plain, url, artwork, context.get("accession"), titles, owner_hosts
+                    and not (
+                        about_work(url, result.get("title") or "", titles, artwork["artist"])
+                        and (
+                            links_to_artwork(content, url, anchors)
+                            or identifies_owner_work(
+                                plain, url, artwork, context.get("accession"), titles, owner_hosts
+                            )
+                        )
                     )
                 ):
                     continue

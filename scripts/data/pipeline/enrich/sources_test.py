@@ -7,6 +7,7 @@ from pipeline.enrich.providers import SpendCap
 from pipeline.enrich.references import review_references
 from pipeline.enrich.sources import (
     SourceGatherer,
+    about_work,
     links_to_artwork,
     source_identity,
     source_score,
@@ -524,6 +525,12 @@ def test_search_cannot_introduce_a_different_work_with_the_same_title():
             "https://www.artic.edu/artworks/28560/the-bedroom",
             "https://www.artic.edu/artworks/28561/the-bedroom",
         ),
+        (
+            "P3634",
+            "437881",
+            "https://www.metmuseum.org/art/collection/search/437881",
+            "https://www.metmuseum.org/exhibitions/view?oid=437880",
+        ),
     ],
 )
 def test_collection_ids_on_wikidata_identify_the_museum_page(prop, object_id, page, other):
@@ -544,7 +551,11 @@ def test_collection_ids_on_wikidata_identify_the_museum_page(prop, object_id, pa
             http,
             lambda _, domains: [
                 {"url": page, "content": "This painting."},
-                {"url": other, "content": "Another painting with the same title."},
+                {
+                    "url": other,
+                    "title": "The Bedroom, 1889",
+                    "content": f"Another painting. Related work: [The Bedroom]({page}).",
+                },
             ],
             extract=Mock(return_value=[]),
         ).gather(
@@ -698,11 +709,72 @@ def test_curatorial_links_identify_the_exact_work_across_museum_url_formats():
         "https://www.metmuseum.org/exhibitions/listings/2015/van-gogh",
         anchors,
     )
-    assert not links_to_artwork(
-        "[Roses](/art/collection/search/436534)",
+    # Another object's page that links to the work mentions it without being about it.
+    assert not about_work(
         "https://www.metmuseum.org/art/collection/search/436535",
-        anchors,
+        "Vincent van Gogh | Irises | The Met",
+        ["Roses"],
+        "Vincent van Gogh",
     )
+
+
+def test_pages_titled_for_the_work_that_cite_it_are_admitted_but_not_studies_or_artist_pages():
+    caption = "Claude Monet. Water Lilies, 1906. The Art Institute of Chicago, 1933.1157."
+    link = "[Water Lilies](/artworks/16568/water-lilies)"
+    catalogue = "https://www.artic.edu/digital-publications/48/monet/418/cat-44-water-lilies-1906"
+    video = "https://www.artic.edu/videos/21/claude-monets-water-lilies"
+    results = [
+        (
+            catalogue,
+            "Cat. 44 Water Lilies, 1906 | The Art Institute of Chicago",
+            caption + "\n\nAn obsession.",
+        ),
+        (
+            "https://www.artic.edu/digital-publications/48/monet/421/cat-47-water-lily-pond",
+            "Cat. 47 Water Lily Pond, 1917/19 | The Art Institute of Chicago",
+            caption,
+        ),
+        (
+            "https://www.artic.edu/digital-publications/48/monet/417/cat-43-study",
+            "Cat. 43 Study for “Water Lilies,” 1905 | The Art Institute of Chicago",
+            caption,
+        ),
+        (
+            "https://www.artic.edu/artworks/1/sketch",
+            "Oil Sketch for “Water Lilies” | Chicago",
+            link,
+        ),
+        (
+            "https://www.artic.edu/artworks/16569/water-lilies",
+            "Water Lilies, 1907 | The Art Institute of Chicago",
+            f"A different painting.\n\nRelated work: {caption} {link}",
+        ),
+        (
+            "https://www.artic.edu/artists/35809/claude-monet",
+            "Claude Monet | The Art Institute of Chicago",
+            link,
+        ),
+        (
+            video,
+            "Claude Monet's Water Lilies | Essentials Tour | The Art Institute of Chicago",
+            link,
+        ),
+    ]
+    search = Mock(return_value=[{"url": u, "title": t, "content": c} for u, t, c in results])
+    with PoliteClient(
+        user_agent="test",
+        robots=False,
+        transport=httpx.MockTransport(lambda _: httpx.Response(403)),
+    ) as http:
+        sources = SourceGatherer(http, search, extract=Mock(return_value=[])).gather(
+            {"title": "Water Lilies", "artist": "Claude Monet"},
+            {
+                "pageUrl": "https://www.artic.edu/artworks/16568",
+                "accession": "1933.1157",
+                "owner": {"name": "Art Institute of Chicago", "website": "https://www.artic.edu"},
+            },
+        )
+    assert [s["url"] for s in sources] == [catalogue, video]
 
 
 def test_trim_preserves_reference_marker_so_review_cannot_be_skipped():

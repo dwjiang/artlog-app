@@ -90,7 +90,7 @@ def test_malformed_or_truncated_output_is_rejected_without_retry(factory, value,
 
 def test_fact_schema_rejection_falls_back_and_validates(factory):
     requests = []
-    fact = {"text": "A sourced fact", "source": "s1"}
+    fact = {"text": "A sourced fact"}
 
     def respond(request):
         body = json.loads(request.content)
@@ -115,16 +115,77 @@ def test_fact_schema_rejection_falls_back_and_validates(factory):
     assert first == {
         "input": {
             "target": {"title": "Sunflowers", "artist": "Vincent van Gogh", "date": "1887"},
-            "sources": [{"id": "s1", **source}],
+            "source": source,
         }
     }
-    assert requests[0]["response_format"]["json_schema"]["schema"] == prompts.fact_sheet_schema(1)
+    assert requests[0]["response_format"]["json_schema"]["schema"] == prompts.fact_sheet_schema(20)
     # Without a grammar the fallback prompt has to carry the wrapped schema itself.
     assert requests[1]["response_format"] == {"type": "json_object"}
     assert "schema" in json.loads(requests[1]["messages"][1]["content"])
     assert result[0]["sourceUrl"] == source["url"]
     assert result[0]["sourceLabel"] == "Met" and result[0]["sourceScore"] == 1
     assert provider.schema_fallbacks == 1 and provider.usage.token_factory_calls == 2
+
+
+@pytest.mark.parametrize("fact_count,valid", [(0, False), (1, True), (8, True), (9, False)])
+def test_each_source_respects_fact_bounds_after_schema_fallback(factory, fact_count, valid):
+    def respond(request):
+        body = json.loads(request.content)
+        if body["response_format"]["type"] == "json_schema":
+            return httpx.Response(400, text="json_schema unsupported")
+        source = json.loads(body["messages"][1]["content"])["input"]["source"]
+        count = fact_count if source["label"] == "Source 2" else 1
+        return completion(
+            {"facts": [{"text": line} for line in source["text"].splitlines()[:count]]}
+        )
+
+    provider = factory(respond)
+    sources = [
+        {
+            "url": f"https://museum.example/{index}",
+            "label": f"Source {index}",
+            "score": 1,
+            "text": "\n".join(f"Source {index} fact {fact}." for fact in range(9)),
+        }
+        for index in range(1, 4)
+    ]
+    artwork = {"title": "Painting", "artist": "Artist"}
+    if valid:
+        result = factsheet.generate(provider, sources, artwork)
+        assert len(result) == fact_count + 2
+        assert {fact["sourceUrl"] for fact in result} == {source["url"] for source in sources}
+        assert provider.parse_failures == 0
+    else:
+        with pytest.raises(ValueError, match="1 to 8 facts"):
+            factsheet.generate(provider, sources, artwork)
+        assert provider.parse_failures == 1
+        assert provider.usage.token_factory_calls == 3
+
+
+def test_a_source_that_runs_out_of_tokens_is_dropped_and_the_others_kept(factory):
+    def respond(request):
+        source = json.loads(json.loads(request.content)["messages"][1]["content"])["input"][
+            "source"
+        ]
+        if source["label"] == "Stalled":
+            return completion([], "length")
+        return completion([{"text": source["text"]}])
+
+    provider = factory(respond)
+    sources = [
+        {"url": "https://metmuseum.org/art", "label": "Met", "score": 1, "text": "A sourced fact."},
+        {
+            "url": "https://stalled.example/",
+            "label": "Stalled",
+            "score": 1,
+            "text": "Nothing to copy.",
+        },
+    ]
+    result = factsheet.generate(
+        provider, sources, {"title": "Sunflowers", "artist": "Vincent van Gogh"}
+    )
+    assert [fact["text"] for fact in result] == ["A sourced fact."]
+    assert provider.usage.token_factory_calls == 2
 
 
 def test_paid_timeout_is_not_retried_or_refunded(factory):
@@ -187,25 +248,12 @@ def test_versioned_system_prompts_match_convex():
 
 @pytest.mark.parametrize(
     "schema,filename",
-    [(prompts.fact_sheet_schema(2), "factsheet"), (prompts.DOCENT_SCHEMA, "docent")],
+    [(prompts.fact_sheet_schema(8), "factsheet"), (prompts.DOCENT_SCHEMA, "docent")],
 )
 def test_schemas_match_the_evaluated_model_contract(schema, filename):
     retained = json.loads((REPO_ROOT / f"scripts/data/fixtures/{filename}-schema.json").read_text())
-    # The retained contract names no sources; the live schema lets a fact cite only those sent.
-    source = schema["items"]["properties"].get("source")
-    if source:
-        schema = {
-            **schema,
-            "items": {
-                **schema["items"],
-                "properties": {
-                    **schema["items"]["properties"],
-                    "source": {k: v for k, v in source.items() if k != "enum"},
-                },
-            },
-        }
-        assert source["enum"] == ["s1", "s2"]
-    assert schema == retained
+    # The retained contract leaves the cap open; the live schema sets it from the sources sent.
+    assert {k: v for k, v in schema.items() if k != "maxItems"} == retained
 
 
 def test_reference_extraction_reserves_two_credits_and_keeps_partial_success(factory):

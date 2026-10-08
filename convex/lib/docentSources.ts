@@ -168,10 +168,24 @@ function sourceIdentity(value: string): string {
 
 const EDITORIAL_PATH = /\/(?:essays?|perspectives|exhibitions|press|press-releases|stories|articles?|blogs?|read)\//;
 
+// A link to the work or its accession only shows that a page mentions it: artist pages, collection
+// lists and other works' catalogue entries do too. An editorial path, or a page title that is the
+// work's own title, shows the page is about it. Catalogue entries, collection pages and videos frame
+// that title with at most a catalogue number, the artist's name, a date and the site's name; a study
+// or sketch for the work only contains it.
+function aboutWork(pageUrl: string, pageTitle: string, titles: string[], artist: string): boolean {
+  if (EDITORIAL_PATH.test(new URL(pageUrl).pathname)) return true;
+  const name = identityText(artist);
+  const core = (value: string) => {
+    let text = identityText(value).replace(/^cats? \d+(?: \d+)? /, "");
+    if (name) text = text.replace(new RegExp(`^${name}(?: s)? | by ${name}$`), "");
+    return text.replace(/ \d{4}(?: \d{2,4})?$/, "");
+  };
+  const named = new Set(titles.map(core).filter(Boolean));
+  return pageTitle.split(/\s+[|–—-]\s+/).some((segment) => named.has(core(segment)));
+}
+
 function linksToArtwork(text: string, pageUrl: string, anchors: Set<string>): boolean {
-  if (!EDITORIAL_PATH.test(new URL(pageUrl).pathname)) {
-    return false;
-  }
   return [...text.matchAll(/\]\(([^\s)]+)\)/g)].some((match) => {
     try {
       return anchors.has(sourceIdentity(new URL(match[1], pageUrl).href));
@@ -212,12 +226,7 @@ function identifiesOwnerWork(
   titles: string[],
   hosts: string[],
 ): boolean {
-  if (
-    !input.accession
-    || hosts.length === 0
-    || !hostAllowed(new URL(url), hosts)
-    || !EDITORIAL_PATH.test(new URL(url).pathname)
-  ) {
+  if (!input.accession || hosts.length === 0 || !hostAllowed(new URL(url), hosts)) {
     return false;
   }
   const accession = new RegExp(
@@ -409,12 +418,20 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       if (score === null || !content) continue;
       const identity = sourceIdentity(result.url);
       if (identity === wikidataPage || readArticles.has(identity)) continue;
+      const collection = COLLECTIONS.find(({ identity: pattern }) => pattern.test(identity));
+      // Related-work links and captions cannot override a different object ID in the same collection.
+      if (collection && !anchors.has(identity) && [...anchors].some((anchor) => collection.identity.test(anchor))) {
+        continue;
+      }
       const plain = plainMarkdown(content);
       if (
         (anchors.size > 0 || fallback)
         && !anchors.has(identity)
-        && !linksToArtwork(content, result.url, anchors)
-        && !identifiesOwnerWork(plain, result.url, input, [...titles], ownerHosts)
+        && !(
+          aboutWork(result.url, result.title, [...titles], input.artwork.artist)
+          && (linksToArtwork(content, result.url, anchors)
+            || identifiesOwnerWork(plain, result.url, input, [...titles], ownerHosts))
+        )
       ) {
         continue;
       }
