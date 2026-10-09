@@ -1,11 +1,9 @@
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { use, useRef, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 
 import { WelcomePrompt } from "@/components/account/welcome-prompt";
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { EmptyCard } from "@/components/empty-state";
 import { FeedSkeleton } from "@/components/loading-skeleton";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
@@ -14,7 +12,7 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { NowCard, useNowCardScroll } from "@/components/visits/now-card";
 import { VisitlessSavesCard } from "@/components/visits/visitless-saves-card";
 import { WrapUpPrompt } from "@/components/visits/wrap-up-prompt";
-import { Gallery, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import type { SharedVisit } from "@/lib/social/types";
 import { UnseenNotificationCount } from "@/lib/social/unseen-notifications";
@@ -25,6 +23,7 @@ import { useSuggestions } from "@/lib/social/use-suggestions";
 import { useVenue } from "@/lib/venue/use-venue";
 
 import { api } from "../../../convex/_generated/api";
+import { AvatarStack } from "./avatar-stack";
 import { HomeToolbar, type Feed } from "./home-toolbar";
 import { SocialInvitation } from "./social-invitation";
 import { PageFooter, SocialGate } from "./social-state";
@@ -37,6 +36,7 @@ import { VisitSeparator } from "./visit-separator";
 const STRIP_FRIEND_LIMIT = 5;
 const feedPage = (result: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => result;
 const visitId = (visit: SharedVisit) => visit.postId;
+const INVITATION_FACES = (["vermeer", "sunflowers", "klee"] as const).map((avatar) => ({ profileId: avatar, avatar }));
 
 export function HomeScreen() {
   const [dismissedPrompt, setDismissedPrompt] = useState(false);
@@ -146,34 +146,13 @@ export function HomeScreen() {
         ListHeaderComponent={
           <>
             {guest && !dismissedPrompt && (
-              <View
-                style={{
-                  marginHorizontal: 20,
-                  marginBottom: 16,
-                  paddingLeft: 12,
-                  paddingVertical: 6,
-                  backgroundColor: Gallery.highlight,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <Image source="sf:person.2" tintColor={Gallery.accent} style={{ width: 22, height: 22 }} />
-                <Text
-                  style={{
-                    flex: 1,
-                    fontSize: 12,
-                    lineHeight: 18,
-                    color: Gallery.muted,
-                  }}
-                >
-                  Sign in to connect with friends.
-                </Text>
-                <GalleryButton label="Sign in" onPress={() => router.push(signInRoute("friends"))} />
-                <GalleryIconButton
-                  label="Dismiss sign-in invitation"
-                  icon="xmark"
-                  onPress={() => setDismissedPrompt(true)}
+              <View style={styles.invitation}>
+                <EmptyCard
+                  title="Add your friends."
+                  detail="Sign in to see the museum visits and artworks they share."
+                  visual={<AvatarStack people={INVITATION_FACES} size={40} />}
+                  action={{ label: "Sign in", onPress: () => router.push(signInRoute("friends")) }}
+                  secondaryAction={{ label: "Not now", onPress: () => setDismissedPrompt(true) }}
                 />
               </View>
             )}
@@ -256,6 +235,7 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   // Padding inside the header, not the content container, keeps measured offsets in content coordinates.
   header: { paddingTop: Spacing.two },
+  invitation: { paddingBottom: Spacing.three },
   emptyFeed: { paddingHorizontal: 20, paddingTop: 16, gap: 4 },
   emptyFeedAction: { paddingHorizontal: 20, paddingTop: 16 },
 });
