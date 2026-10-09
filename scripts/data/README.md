@@ -208,6 +208,26 @@ uv run python -m pipeline.dedupe --base "$IMPORTED" --features "$SCRATCH_DIR/fea
 uv run python -m pipeline.push --in "$SCRATCH_DIR/merged" --full --dry-run
 ```
 
+On-view feeds (`gardner`, `louvre`, `ng`, `reina`, `rijks`, `thyssen`, `vgm`, `wallace`) say which
+works a museum hangs now and in which room, without images. Fetch them with
+`pipeline.sources.fetch --ng --louvre …`, then list them in `--sources` above. Each row names one
+imported object, by owner and accession number or, where the museum publishes no numbers, by
+Wikidata item; it becomes that object's alias and joins its artwork, so the feed adds no artworks
+and its placement attaches to that object. Rows that name none or several are dropped. With no
+images to download, the index stage only records the drift check. Feeds that read website pages
+honour robots.txt; the Rijksmuseum and Thyssen fetches cache their pages under the dump directory
+and resume.
+
+An imported object keeps the owner it was imported with. When the owner map later resolves one it
+lacked, such as a museum department, `pipeline.reown` lists those objects from the Wikidata
+snapshot; pass its output to `build_metadata` as a last `--exclude-objects` and to `dedupe` as
+`--owner-corrections`, which packages them for the import to fill in:
+
+```sh
+uv run python -m pipeline.reown --dumps /path/to/dumps/wikidata --venues venue-keys.json \
+  --imported "$IMPORTED/objects.jsonl" --owner wikidata:Q19675 --out owner-corrections.jsonl
+```
+
 Repeat `--exclude-objects` and `--base` to stack a later batch on earlier ones. The
 package's `external-references.jsonl` names the imported rows it points at; the push
 checks they exist before writing. `--limit N` samples only the package's own survivors,

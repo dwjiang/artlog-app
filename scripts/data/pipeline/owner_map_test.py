@@ -1,6 +1,6 @@
 import pytest
 
-from .owner_map import AIC_KEY, MET_KEY, OwnerMap
+from .owner_map import AIC_KEY, LOUVRE_KEY, MET_KEY, OwnerMap
 
 
 class Writer:
@@ -22,6 +22,13 @@ def test_only_seeded_museums_map_and_unknown_owners_are_counted():
     assert owners.venue("Q999", owner=True) is None
     assert owners.venue("Q999") is None
     assert owners.unmapped == {"Q999": 1}
+
+
+def test_a_museum_department_maps_to_its_museum():
+    owners = OwnerMap({LOUVRE_KEY})
+    # Department of Paintings of the Louvre
+    assert owners.venue("Q3044768", owner=True) == LOUVRE_KEY
+    assert OwnerMap({MET_KEY}).venue("Q3044768", owner=True) is None
 
 
 def test_venue_export_is_paginated_cached_and_deployment_scoped(tmp_path):

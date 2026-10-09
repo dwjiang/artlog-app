@@ -66,6 +66,29 @@ def test_spaces_requests_to_one_host_by_the_configured_rate():
     assert clock.sleeps == pytest.approx([0.5, 0.5, 0.5])
 
 
+def test_form_posts_share_the_host_spacing_robots_and_session_cookie():
+    calls = []
+    clock = FakeClock()
+
+    def page(request):
+        calls.append(request)
+        if request.method == "POST":
+            return httpx.Response(302, headers={"Location": "/results"})
+        return httpx.Response(200, headers={"Set-Cookie": "session=1"})
+
+    c = client(
+        robots_then("User-agent: *\nDisallow: /private\n", page), clock=clock, per_host_rps=2.0
+    )
+    c.get("https://museum.example/search")
+    response = c.post("https://museum.example/search", data={"room": "Great Gallery"})
+    assert response.status_code == 302 and response.headers["Location"] == "/results"
+    assert calls[1].content == b"room=Great+Gallery"
+    assert calls[1].headers["Cookie"] == "session=1"
+    assert clock.sleeps == pytest.approx([0.5, 0.5])
+    with pytest.raises(RobotsDisallowed):
+        c.post("https://museum.example/private", data={})
+
+
 def test_other_hosts_are_not_delayed():
     clock = FakeClock()
     c = client(robots_then("User-agent: *\nAllow: /\n", lambda r: httpx.Response(200)), clock=clock)

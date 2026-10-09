@@ -40,6 +40,8 @@ class ObjectRecord(Record):
     imageRef: str | None = None
     pageUrl: str
     thumbnailUrl: str | None = None
+    # The imported object this record describes; dedupe makes the record its alias.
+    aliasOf: str | None = None
 
 
 class PlacementRecord(Record):

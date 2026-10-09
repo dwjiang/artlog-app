@@ -15,6 +15,22 @@ FNG_KEY = "wikidata:Q2983474"
 ATENEUM_KEY = "wikidata:Q754507"
 SINEBRYCHOFF_KEY = "wikidata:Q1393952"
 KIASMA_KEY = "wikidata:Q1633361"
+LOUVRE_KEY = "wikidata:Q19675"
+# Wikidata often names only the curatorial department that holds a work; it belongs to the museum.
+MUSEUM_DEPARTMENTS = dict.fromkeys(
+    (
+        "Q3044747",  # Greek, Etruscan and Roman Antiquities
+        "Q3044748",  # Islamic Arts
+        "Q3044749",  # Egyptian Antiquities
+        "Q3044751",  # Near Eastern Antiquities
+        "Q3044753",  # Prints and Drawings
+        "Q3044767",  # Decorative Arts
+        "Q3044768",  # Paintings
+        "Q3044772",  # Sculptures
+        "Q121354106",  # Byzantine and Eastern Christian Art
+    ),
+    LOUVRE_KEY,
+)
 
 
 class OwnerMap:
@@ -24,7 +40,7 @@ class OwnerMap:
 
     def venue(self, value: str | None, *, owner: bool = False) -> str | None:
         entity = qid(value)
-        key = f"wikidata:{entity}" if entity else None
+        key = MUSEUM_DEPARTMENTS.get(entity) or (f"wikidata:{entity}" if entity else None)
         if key in self.keys:
             return key
         if owner and entity:
