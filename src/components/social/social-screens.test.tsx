@@ -352,7 +352,7 @@ it("loads public visits for guests and opens their details without signing in", 
     params: { kind: "visit", postId: "post-a", itemId: "art-a" },
   });
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Dismiss sign-in invitation" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
   expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
 });
 
@@ -385,7 +385,7 @@ it.each([
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByRole("header", { name: gate })).toBeOnTheScreen();
   expect(screen.queryByText(visit.reflection)).toBeNull();
-  expect(screen.queryByRole("button", { name: "Dismiss sign-in invitation" }) !== null).toBe(status === "signed-out");
+  expect(screen.queryByRole("button", { name: "Not now" }) !== null).toBe(status === "signed-out");
   expect(
     mockPages.mock.calls
       .filter(([query]) => getFunctionName(query) === "sharedVisits:listFeed")
