@@ -6,6 +6,7 @@ import shutil
 import time
 import unicodedata
 from collections import defaultdict
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
@@ -80,9 +81,12 @@ def find_merges(
         survivor, duplicate = sorted((a, b), key=lambda key: (key not in fixed, priority(key)))
         parents[duplicate] = survivor
         sources[survivor].update(sources.pop(duplicate))
-        accessions[survivor].update(accessions.pop(duplicate))
+        accessions[survivor].update(accessions.pop(duplicate, set()))
         rules[duplicate] = rule
 
+    for row in objects:
+        if target := row.get("aliasOf"):
+            merge(target, row["key"], "feed")
     groups = defaultdict(list)
     for row in sorted(objects, key=lambda o: priority(o["key"])):
         if row.get("ownerKey") and (number := accession(row.get("accession"))):
@@ -176,6 +180,8 @@ def run(features: Path, metadata: Path, out: Path) -> dict:
     by_key = {row["key"]: row for row in objects}
     if len(works) != len(artworks) or len(by_key) != len(objects):
         raise ValueError("Duplicate metadata keys")
+    if any("aliasOf" in row for row in objects):
+        raise ValueError("Feed rows describe imported objects; dedupe them with --base")
     data = Features(features)
     if data.manifest.get("downloadInputsSha256") != task_fingerprint(
         iter_tasks(metadata / "objects.jsonl")
@@ -263,12 +269,19 @@ def run(features: Path, metadata: Path, out: Path) -> dict:
     return stats
 
 
-def run_delta(bases: list[Path], features: Path, metadata: Path, out: Path) -> dict:
+def run_delta(
+    bases: list[Path],
+    features: Path,
+    metadata: Path,
+    out: Path,
+    owner_corrections: Sequence[dict] = (),
+) -> dict:
     """Dedupes objects an imported package lacks against it and packages only those additions.
 
     Imported rows are never rewritten: a new object that duplicates an imported one becomes its alias, and its
     placement and views attach to the imported survivor. `external-references.jsonl` lists the imported rows the
-    additions point at, so an import can check they exist first.
+    additions point at, so an import can check they exist first. The one exception is `owner_corrections`
+    (from `pipeline.reown`): imported rows that only gain the owner they lacked, packaged for re-import.
     """
     started = time.monotonic()
     if out.resolve() in {
@@ -299,6 +312,15 @@ def run_delta(bases: list[Path], features: Path, metadata: Path, out: Path) -> d
         base_descriptors.update(
             row["objectKey"] for row in read_jsonl(base / "descriptor-index.jsonl")
         )
+    for row in owner_corrections:
+        imported = base_objects.get(row["key"])
+        if (
+            not imported
+            or imported.get("ownerKey")
+            or {**imported, "ownerKey": row["ownerKey"]} != row
+        ):
+            raise ValueError(f"Owner correction for {row['key']} must only fill a missing owner")
+        base_objects[row["key"]] = row
     frozen = {key: row.get("mergedIntoKey", key) for key, row in base_objects.items()}
 
     metadata_stats = json.loads((metadata / "stats.json").read_text())
@@ -321,6 +343,8 @@ def run_delta(bases: list[Path], features: Path, metadata: Path, out: Path) -> d
         raise ValueError("Feature download inputs do not match metadata; rebuild the features")
     if set(data.vectors) - by_key.keys():
         raise ValueError("Feature keys missing from metadata")
+    if any(row["aliasOf"] not in base_objects for row in objects if row.get("aliasOf")):
+        raise ValueError("A feed row names an object outside the imported packages")
 
     def artist_of(row):
         work = works.get(row["artworkKey"]) or base_works[row["artworkKey"]]
@@ -365,9 +389,10 @@ def run_delta(bases: list[Path], features: Path, metadata: Path, out: Path) -> d
         for row in artworks
         if row["key"] not in base_works
     ]
-    merged_objects = []
+    merged_objects = [dict(row) for row in owner_corrections]
     for row in sorted(objects, key=lambda row: priority(row["key"])):
         row = dict(row)
+        row.pop("aliasOf", None)
         # An imported artwork keeps its row, so its rights are the ones a thumbnail answers to.
         key = row["artworkKey"]
         if (base_works[key] if key in base_works else {"rightsStatus": rights[key]})[
@@ -399,7 +424,11 @@ def run_delta(bases: list[Path], features: Path, metadata: Path, out: Path) -> d
     referenced_objects = {target for key in by_key if (target := mapping[key]) in base_objects} | {
         key for key, *_ in merged_placements if key in base_objects
     }
-    referenced_works = {row["artworkKey"] for row in objects if row["artworkKey"] in base_works}
+    referenced_works = {
+        row["artworkKey"]
+        for row in (*objects, *owner_corrections)
+        if row["artworkKey"] in base_works
+    }
     external = [{"table": "objects", "key": key} for key in sorted(referenced_objects)] + [
         {"table": "artworks", "key": key, "rightsStatus": base_works[key]["rightsStatus"]}
         for key in sorted(referenced_works)
@@ -451,6 +480,7 @@ def run_delta(bases: list[Path], features: Path, metadata: Path, out: Path) -> d
             "aliasesOfImported": sum(mapping[key] in base_objects for key in by_key),
             "viewsOfImported": sum(row["objectKey"] in base_objects for row in vector_index),
             "placementsOnImported": sum(key in base_objects for key, *_ in merged_placements),
+            "ownerCorrections": len(owner_corrections),
             "externalObjects": len(referenced_objects),
             "externalArtworks": len(referenced_works),
         },
@@ -474,10 +504,23 @@ def main():
         action="append",
         help="imported merged package, repeatable; package only the additions to them",
     )
+    parser.add_argument(
+        "--owner-corrections",
+        type=Path,
+        help="pipeline.reown output: imported objects that gain their missing owner",
+    )
     args = parser.parse_args()
+    if args.owner_corrections and not args.base:
+        parser.error("--owner-corrections applies to imported packages; pass --base")
     setup_logging(get_settings())
     result = (
-        run_delta(args.base, args.features, args.metadata, args.out)
+        run_delta(
+            args.base,
+            args.features,
+            args.metadata,
+            args.out,
+            read_jsonl(args.owner_corrections) if args.owner_corrections else [],
+        )
         if args.base
         else run(args.features, args.metadata, args.out)
     )

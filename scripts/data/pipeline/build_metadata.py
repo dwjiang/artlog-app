@@ -13,7 +13,8 @@ from .multiplicity import apply_multiplicity
 from .normalize import RecordTriple, merge_records, qid
 from .owner_map import OwnerMap
 from .polite_http import PoliteClient
-from .sources import aic, cma, fng, met, wikidata_artworks
+from .sources import aic, cma, fng, met, onview, wikidata_artworks
+from .sources.feeds import FEEDS
 from .sources.fetch import write_json
 
 log = logging.getLogger(__name__)
@@ -35,8 +36,12 @@ def build(
     aic_snapshot: str = "live",
     retry_met_denied: bool = False,
     existing: frozenset[str] = frozenset(),
+    imported: onview.Imported | None = None,
 ) -> dict:
-    """With `existing` object keys, builds only the objects an earlier corpus lacks."""
+    """With `existing` object keys, builds only the objects an earlier corpus lacks. On-view feeds
+    describe the `imported` corpus's objects, so they need it."""
+    if imported is None and set(sources) & FEEDS.keys():
+        raise ValueError("On-view feeds annotate an imported corpus; pass its objects")
     counts = {source: Counter() for source in sources}
     source_rights = {source: Counter() for source in sources}
     coverage = {}
@@ -122,6 +127,12 @@ def build(
                             source,
                             aic.iter_records((json.loads(line) for line in body), current=False),
                         )
+            elif source in FEEDS:
+                coverage[source], rows = onview.read_snapshot(dumps / source)
+                yield from measured(
+                    source, onview.iter_records(source, FEEDS[source].OWNER_KEY, rows, imported)
+                )
+                counts[source]["unmatched"] = len(rows) - counts[source]["objects"]
             elif source in ("cma", "fng"):
                 if fixtures:
                     rows = _source_rows(
@@ -268,10 +279,11 @@ def main() -> None:
     if (
         not sources
         or len(set(sources)) != len(sources)
-        or set(sources) - {"met", "aic", "wikidata", "cma", "fng"}
+        or set(sources) - {"met", "aic", "wikidata", "cma", "fng", *FEEDS}
     ):
         parser.error(
-            "--sources must be a unique comma-separated selection of met,aic,wikidata,cma,fng"
+            "--sources must be a unique comma-separated selection of "
+            + ",".join(("met", "aic", "wikidata", "cma", "fng", *FEEDS))
         )
     settings = get_settings()
     setup_logging(settings)
@@ -287,6 +299,11 @@ def main() -> None:
         owners = OwnerMap.load(
             ConvexWriter(settings), settings.scratch_dir, deployment_url=settings.convex_url
         )
+    imported_objects = {
+        row["key"]: row
+        for path in args.exclude_objects
+        for row in map(json.loads, path.read_text().splitlines())
+    }
     result = build(
         sources,
         out=args.out or settings.scratch_dir / "metadata",
@@ -296,11 +313,8 @@ def main() -> None:
         fixtures=args.fixtures,
         aic_snapshot=args.aic_snapshot,
         retry_met_denied=args.retry_met_denied,
-        existing=frozenset(
-            json.loads(line)["key"]
-            for path in args.exclude_objects
-            for line in path.read_text().splitlines()
-        ),
+        existing=frozenset(imported_objects),
+        imported=onview.Imported(imported_objects.values()) if args.exclude_objects else None,
     )
     print(
         json.dumps(

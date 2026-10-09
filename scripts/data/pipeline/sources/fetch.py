@@ -278,10 +278,12 @@ def fetch_aic_live(client: PoliteClient, out: Path) -> dict:
 
 
 def main() -> None:
+    from .feeds import FEEDS
+
     parser = argparse.ArgumentParser(
         description="Fetch resumable corpus metadata; no image downloads"
     )
-    for source in ("met", "aic", "wikidata", "cma", "fng"):
+    for source in ("met", "aic", "wikidata", "cma", "fng", *FEEDS):
         parser.add_argument(f"--{source}", action="store_true")
     parser.add_argument(
         "--aic-live",
@@ -294,9 +296,13 @@ def main() -> None:
     setup_logging(settings)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     out = args.out or settings.scratch_dir / "dumps"
-    selected = [name for name in ("met", "aic", "wikidata", "cma", "fng") if getattr(args, name)]
+    selected = [
+        name for name in ("met", "aic", "wikidata", "cma", "fng", *FEEDS) if getattr(args, name)
+    ]
     if not selected:
-        parser.error("select --met, --aic, --wikidata, --cma, and/or --fng")
+        parser.error(
+            f"select sources among --met, --aic, --wikidata, --cma, --fng, --{', --'.join(FEEDS)}"
+        )
     if args.aic_live and not args.aic:
         parser.error("--aic-live requires --aic")
     # These are the institutions' published metadata endpoints, not website crawling.
@@ -323,6 +329,13 @@ def main() -> None:
             from .fng import fetch_fng
 
             fetch_fng(client, out / "fng")
+    for name, feed in FEEDS.items():
+        if getattr(args, name):
+            # Feeds that read a museum's website pages rather than a published API honour robots.txt.
+            with PoliteClient(
+                user_agent=settings.user_agent, robots=feed.ROBOTS, cache_max_bytes=0, timeout=120
+            ) as client:
+                feed.fetch(client, out / name)
     if args.wikidata:
         from .wikidata_artworks import fetch_artworks
 

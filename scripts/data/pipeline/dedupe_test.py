@@ -372,3 +372,107 @@ def test_an_addition_answers_to_its_imported_artworks_rights(merged_corpus, delt
     assert read_jsonl(out / "external-references.jsonl") == [
         {"table": "artworks", "key": "art:1", "rightsStatus": "unknown"}
     ]
+
+
+def test_feed_rows_cannot_alias_an_object_outside_the_imported_packages(delta_package):
+    with pytest.raises(ValueError, match="outside the imported packages"):
+        delta_package(
+            objects=[
+                {
+                    "key": "fng:2",
+                    "artworkKey": "fng:2",
+                    "source": "corpus",
+                    "sourceId": "2",
+                    "pageUrl": "https://fng.test/2",
+                    "aliasOf": "met:missing",
+                }
+            ],
+            placements=[],
+            axes={"fng:2": 2},
+        )
+
+
+def test_feed_rows_alias_the_object_they_name_and_owner_corrections_ride_along(
+    merged_corpus, delta_package
+):
+    from pipeline.push import Corpus
+
+    base = merged_corpus()
+    # Imported without an owner, as the Louvre's paintings were.
+    objects = read_jsonl(base / "objects.jsonl")
+    for row in objects:
+        if row["key"] == "met:2":
+            row.pop("ownerKey")
+            unowned = dict(row)
+    write_jsonl(base / "objects.jsonl", objects)
+    stats = json.loads((base / "stats.json").read_text())
+    stats["files"]["objects.jsonl"] = file_hash(base / "objects.jsonl")
+    write_json(base / "stats.json", stats)
+    corrected = {**unowned, "ownerKey": "museum:3"}
+    feed_row = {
+        "key": "louvre:9",
+        "artworkKey": "art:2",
+        "ownerKey": "museum:3",
+        "source": "corpus",
+        "sourceId": "9",
+        "pageUrl": "https://louvre.test/9",
+        "aliasOf": "met:2",
+    }
+    new_work = {
+        "key": "fng:7",
+        "title": "Dune",
+        "artist": "Cy Printer",
+        "rightsStatus": "public_domain",
+    }
+    new_object = {
+        "key": "fng:7",
+        "artworkKey": "fng:7",
+        "ownerKey": "museum:2",
+        "source": "corpus",
+        "sourceId": "7",
+        "imageRef": "https://fng.test/7.jpg",
+        "pageUrl": "https://fng.test/7",
+    }
+    placement = {
+        "objectKey": "louvre:9",
+        "venueKey": "museum:3",
+        "gallery": "Salle 711",
+        "onView": True,
+        "source": "feed",
+        "confidence": 0.9,
+    }
+
+    out, stats = delta_package(
+        artworks=[
+            {
+                "key": "art:2",
+                "title": "art:2",
+                "artist": "Unknown artist",
+                "rightsStatus": "unknown",
+            },
+            new_work,
+        ],
+        objects=[feed_row, new_object],
+        placements=[placement],
+        axes={"fng:7": 2},
+        base=base,
+        owner_corrections=[corrected],
+    )
+
+    assert [row["key"] for row in read_jsonl(out / "artworks.jsonl")] == ["fng:7"]
+    packaged = {row["key"]: row for row in read_jsonl(out / "objects.jsonl")}
+    assert packaged["met:2"] == corrected
+    assert packaged["louvre:9"] == {k: v for k, v in feed_row.items() if k != "aliasOf"} | {
+        "mergedIntoKey": "met:2"
+    }
+    assert read_jsonl(out / "merges.jsonl") == [
+        {"from": "louvre:9", "into": "met:2", "rule": "feed"}
+    ]
+    assert read_jsonl(out / "placements.jsonl") == [{**placement, "objectKey": "met:2"}]
+    assert {"table": "artworks", "key": "art:2", "rightsStatus": "public_domain"} in read_jsonl(
+        out / "external-references.jsonl"
+    )
+    assert stats["delta"]["ownerCorrections"] == 1
+    Corpus(out)
+    with pytest.raises(ValueError, match="only fill a missing owner"):
+        delta_package(base=base, owner_corrections=[{**corrected, "accession": "changed"}])

@@ -133,3 +133,64 @@ def test_museum_open_access_sources_build_with_their_buildings_as_venues(tmp_pat
         SINEBRYCHOFF_KEY,
         KIASMA_KEY,
     }
+
+
+def test_on_view_feeds_alias_imported_objects_and_report_rows_they_could_not_place(tmp_path):
+    from .sources import ng
+    from .sources.onview import Imported, write_snapshot
+
+    def row(number, *, on_view=True):
+        return {
+            "id": f"uid-{number}",
+            "accession": number,
+            "url": f"https://www.nationalgallery.org.uk/paintings/{number}",
+            "onView": on_view,
+            "gallery": "Room 34" if on_view else "Not on display",
+        }
+
+    write_snapshot(
+        tmp_path / "dumps" / "ng",
+        [row("NG1"), row("NG2", on_view=False), row("NG3")],
+        minimum_on_view=1,
+    )
+    imported = Imported(
+        {
+            "key": f"wikidata:Q{n}",
+            "artworkKey": f"wikidata:Q{n}",
+            "ownerKey": ng.OWNER_KEY,
+            "accession": f"NG{n}",
+        }
+        for n in (1, 2)
+    )
+    stats = build(
+        ["ng"],
+        out=tmp_path / "out",
+        dumps=tmp_path / "dumps",
+        owners=OwnerMap({ng.OWNER_KEY}),
+        user_agent="test",
+        imported=imported,
+    )
+    objects = [
+        json.loads(line) for line in (tmp_path / "out/objects.jsonl").read_text().splitlines()
+    ]
+    placements = [
+        json.loads(line) for line in (tmp_path / "out/placements.jsonl").read_text().splitlines()
+    ]
+    assert [(obj["key"], obj["aliasOf"], obj["artworkKey"]) for obj in objects] == [
+        ("ng:uid-NG1", "wikidata:Q1", "wikidata:Q1"),
+        ("ng:uid-NG2", "wikidata:Q2", "wikidata:Q2"),
+    ]
+    assert [(p["objectKey"], p.get("gallery"), p["onView"]) for p in placements] == [
+        ("ng:uid-NG1", "Room 34", True),
+        ("ng:uid-NG2", None, False),
+    ]
+    assert stats["sources"]["ng"]["unmatched"] == 1
+    assert stats["coverage"]["ng"]["onView"] == 2
+    with pytest.raises(ValueError, match="imported corpus"):
+        build(
+            ["ng"],
+            out=tmp_path / "out",
+            dumps=tmp_path / "dumps",
+            owners=OwnerMap({ng.OWNER_KEY}),
+            user_agent="test",
+        )

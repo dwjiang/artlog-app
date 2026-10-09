@@ -220,6 +220,15 @@ class PoliteClient:
             allowed_hosts=allowed_hosts,
         )
 
+    def post(self, url: str, *, data: Mapping[str, str]) -> httpx.Response:
+        """Submits a search form under the same host spacing and robots rules as `get`. The
+        response is returned as is, so a redirect's target is for the caller to `get`."""
+        if self.robots_enabled and not self.allowed(url):
+            raise RobotsDisallowed(url)
+        return self._send_with_retries(
+            self._http.build_request("POST", url, data=data), limiter=None
+        )
+
     def _get(
         self,
         url: str,
