@@ -8,6 +8,7 @@ import type { PendingScan } from "@/db/schema";
 import { formStateFromFlow, setFieldValue, unlockField } from "@/lib/label/fields";
 import { LabelFlowError, type LabelStage } from "@/lib/label/flow";
 import { reportError } from "@/lib/observability";
+import { playLightHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { LabelFlowDisplay } from "../../../convex/lib/validators";
@@ -62,7 +63,6 @@ const mockPersistLabel = jest.fn();
 const mockRun = jest.fn();
 const mockMutation = jest.fn();
 const mockRemove = jest.fn();
-const mockHaptic = jest.fn();
 const mockPermission = jest.fn();
 const mockPicker = jest.fn();
 
@@ -82,11 +82,7 @@ jest.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 jest.mock("expo-network", () => ({
   useNetworkState: () => ({ isInternetReachable: mockReachable }),
 }));
-jest.mock("expo-haptics", () => ({
-  selectionAsync: () => mockHaptic("selection"),
-  notificationAsync: (type: string) => mockHaptic(type),
-  NotificationFeedbackType: { Success: "success" },
-}));
+jest.mock("@/lib/ui/haptics");
 jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn() }));
 jest.mock("expo-image-picker", () => ({
   requestMediaLibraryPermissionsAsync: () => mockPermission(),
@@ -242,7 +238,6 @@ beforeEach(() => {
   mockPersistLabel.mockResolvedValue("labels/cap-1.jpg");
   mockRun.mockResolvedValue(verified);
   mockMutation.mockResolvedValue(null);
-  mockHaptic.mockResolvedValue(undefined);
   mockPermission.mockResolvedValue({
     granted: false,
     status: "denied",
@@ -331,7 +326,7 @@ it("reads a shot online, shows the stages, then locks the verified fields with t
   expect(screen.getByText("The date is outside the artist’s lifespan — please check")).toBeOnTheScreen();
   expect(screen.getByRole("link", { name: "Museum page" })).toBeOnTheScreen();
   expect(mockRemove).toHaveBeenCalledWith("file:///tmp/label.jpg");
-  expect(mockHaptic).toHaveBeenCalledWith("success");
+  expect(playSuccessHaptic).toHaveBeenCalledTimes(1);
 });
 
 it("confirms the read details and returns to the scan's result page, which now names the work", async () => {
@@ -680,6 +675,7 @@ it("locks the shutter and ignores QR callbacks while a native photo is being tak
   await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
   await act(async () => mockQr.onCode("https://museum.example/work"));
   expect(mockPhoto).toHaveBeenCalledTimes(1);
+  expect(playLightHaptic).toHaveBeenCalledTimes(1);
   expect(mockRun).not.toHaveBeenCalled();
   await act(async () => finish({ filePath: "/tmp/label.jpg" }));
   expect(mockRun).toHaveBeenCalledTimes(1);

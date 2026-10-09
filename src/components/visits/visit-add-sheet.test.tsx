@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 
+import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import type { VenueView } from "@/lib/venue/use-venue";
 
 import { VisitAddSheet } from "./visit-add-sheet";
@@ -13,6 +14,7 @@ let mockVisit: VenueView["visit"];
 jest.mock("expo-router", () => ({ router: { back: () => mockBack(), replace: (to: string) => mockReplace(to) } }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("@/lib/ui/toast", () => ({ showToast: (message: string) => mockToast(message) }));
+jest.mock("@/lib/ui/haptics");
 jest.mock("@/lib/settings/use-measurement-units", () => ({ useMeasurementUnits: () => ({ units: "metric" }) }));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -38,6 +40,7 @@ it("starts a visit at the museum the phone is at and closes", async () => {
   await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
   expect(mockStartVisit).toHaveBeenCalledWith("id-met");
   expect(mockToast).toHaveBeenCalledWith("Visit started.");
+  expect(playSuccessHaptic).toHaveBeenCalledTimes(1);
 });
 
 it("keeps the sheet open with a message when the visit cannot start", async () => {
@@ -45,6 +48,8 @@ it("keeps the sheet open with a message when the visit cannot start", async () =
   await render(<VisitAddSheet />);
   await fireEvent.press(screen.getByRole("button", { name: "Start a visit here" }));
   await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t start the visit. Try again."));
+  expect(playErrorHaptic).toHaveBeenCalledTimes(1);
+  expect(playSuccessHaptic).not.toHaveBeenCalled();
   expect(mockBack).not.toHaveBeenCalled();
 });
 

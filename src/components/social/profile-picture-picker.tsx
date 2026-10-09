@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { MotionPressable } from "@/components/motion-pressable";
+import { PopInBadge } from "@/components/pop-on-turn-on";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -186,11 +187,9 @@ function PickerSheet({
                       accessible={false}
                       style={{ width: tile - 8, height: tile - 8, borderRadius: (tile - 8) / 2 }}
                     />
-                    {selected && (
-                      <View style={styles.check}>
-                        <Image source="sf:checkmark" tintColor={Gallery.surface} style={styles.checkIcon} />
-                      </View>
-                    )}
+                    <PopInBadge on={selected} style={styles.check}>
+                      <Image source="sf:checkmark" tintColor={Gallery.surface} style={styles.checkIcon} />
+                    </PopInBadge>
                   </MotionPressable>
                 );
               })}

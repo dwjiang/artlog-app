@@ -45,6 +45,7 @@ jest.mock("react-native-reanimated", () => ({
   getUseOfValueInStyleWarning: () => "",
   useAnimatedRef: () => jest.requireActual("react").useRef(null),
   useAnimatedStyle: () => ({}),
+  LayoutAnimationConfig: ({ children }: { children: unknown }) => children,
 }));
 
 // expo-router/testing-library swaps in Reanimated's official mock, which needs Worklets' mock to load.
@@ -55,6 +56,7 @@ jest.mock("react-native-reanimated/mock", () => ({
   ...jest.requireActual("react-native-reanimated/mock"),
   createAnimatedComponent: (component: unknown) => component,
   cubicBezier: (...points: number[]) => points,
+  LayoutAnimationConfig: ({ children }: { children: unknown }) => children,
 }));
 
 // The keyboard accessory's native view config is missing under the test renderer; its children render in place.

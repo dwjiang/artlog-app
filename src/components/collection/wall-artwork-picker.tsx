@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChoiceMenu } from "@/components/choice-menu";
 import { LoadingRing } from "@/components/loading-ring";
 import { MotionPressable } from "@/components/motion-pressable";
+import { PopOnTurnOn } from "@/components/pop-on-turn-on";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, PinnedFooterBorder, Radius, Spacing } from "@/constants/theme";
@@ -192,11 +193,11 @@ export function WallArtworkPicker({
                     contain
                     style={styles.image}
                   />
-                  <View style={[styles.check, checked && styles.checkSelected]}>
+                  <PopOnTurnOn on={checked} style={[styles.check, checked && styles.checkSelected]}>
                     {checked && (
                       <Image source="sf:checkmark" style={{ width: 12, height: 12 }} tintColor={Gallery.paper} />
                     )}
-                  </View>
+                  </PopOnTurnOn>
                 </View>
                 <Text variant="secondary" numberOfLines={2} style={{ fontWeight: "600" }}>
                   {item.title}

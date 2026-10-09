@@ -9,6 +9,7 @@ import { GUIDE_SECTION_TITLES, guideProgress, sectionAt } from "@/lib/audio/guid
 import { canSeekTo } from "@/lib/audio/listening-controller";
 import { preparationLabel } from "@/lib/audio/narration-preparation";
 import { useListening } from "@/lib/audio/use-listening";
+import { playLightHaptic } from "@/lib/ui/haptics";
 
 import { ArtworkThumbnail } from "./artwork-thumbnail";
 import { AudioIconButton } from "./audio-icon";
@@ -56,9 +57,13 @@ function NarrationToggle({
       <AudioIconButton
         name={audio.phase === "error" ? "arrow.clockwise" : audio.playing ? "pause.fill" : "play.fill"}
         label={audio.phase === "error" ? "Retry narration" : audio.playing ? "Pause narration" : "Play narration"}
-        onPress={audio.controller.toggle}
+        onPress={() => {
+          playLightHaptic();
+          audio.controller.toggle();
+        }}
         color={Gallery.accent}
         size={16}
+        morphs
       />
     </View>
   );

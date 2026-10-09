@@ -345,7 +345,9 @@ it("reports an unavailable narration in a toast whose Retry replays the failed t
   const { controller, deps } = setup();
   deps.render.mockRejectedValueOnce(new ConvexError({ code: "narration_not_configured" }));
   await controller.play(track("a"));
-  expect(showErrorToast).toHaveBeenCalledWith("Narration is unavailable right now.", expect.any(Function));
+  expect(showErrorToast).toHaveBeenCalledWith("Narration is unavailable right now.", expect.any(Function), {
+    quiet: true,
+  });
   const retry = jest.mocked(showErrorToast).mock.calls[0][1]!;
   retry();
   await Promise.resolve();
@@ -675,7 +677,7 @@ it("offers Retry for a stalled playlist even when the native player stops emitti
     playing: false,
     renderId: "live-render",
   });
-  expect(showErrorToast).toHaveBeenCalledWith("Audio stopped responding.", expect.any(Function));
+  expect(showErrorToast).toHaveBeenCalledWith("Audio stopped responding.", expect.any(Function), { quiet: true });
   expect(controller.snapshot().queue).toEqual([track("b")]);
   expect(player.remove).toHaveBeenCalledTimes(1);
   expect(reportError).toHaveBeenCalledWith(expect.any(Error), "narration.playback");

@@ -53,8 +53,6 @@ const mockCaptureAutomatically = jest.fn();
 const mockImport = jest.fn();
 const mockClearMessage = jest.fn();
 const mockPush = jest.fn();
-const mockSelectionHaptic = jest.fn();
-const mockImpactHaptic = jest.fn();
 const mockObserve = jest.fn();
 const mockResolveVenue = jest.fn();
 const mockSetParams = jest.fn();
@@ -81,6 +79,15 @@ jest.mock("react-native-reanimated", () => {
     withTiming: (value: number) => value,
     cancelAnimation: jest.fn(),
     Easing: { linear: jest.fn() },
+    Keyframe: class {
+      duration() {
+        return this;
+      }
+      reduceMotion() {
+        return this;
+      }
+    },
+    ReduceMotion: { System: "system" },
   };
 });
 
@@ -115,11 +122,7 @@ jest.mock("expo-router/react-navigation", () => ({
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
-jest.mock("expo-haptics", () => ({
-  selectionAsync: () => mockSelectionHaptic(),
-  impactAsync: (style: string) => mockImpactHaptic(style),
-  ImpactFeedbackStyle: { Light: "light" },
-}));
+jest.mock("@/lib/ui/haptics");
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 60, bottom: 34 }),
 }));
@@ -238,8 +241,6 @@ beforeEach(() => {
   mockPhotoOutput.outputOrientation = undefined;
   mockDeviceOrientation = undefined;
   mockAccelerometer = true;
-  mockSelectionHaptic.mockResolvedValue(undefined);
-  mockImpactHaptic.mockResolvedValue(undefined);
   mockRequest.mockResolvedValue(true);
   mockImport.mockResolvedValue(undefined);
   mockObserve.mockReturnValue(undefined);

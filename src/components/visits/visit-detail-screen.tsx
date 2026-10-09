@@ -20,6 +20,7 @@ import { markVisitSeen } from "@/lib/journal/visit-seen";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
 import { saveVisitVisibility } from "@/lib/journal/visit-visibility";
 import { reportError } from "@/lib/observability";
+import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { retryAction, showErrorToast, showToast } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
 import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
@@ -253,6 +254,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
       if (!(await notes.current?.save()) || !session.isCurrent()) return;
       await end(visit.localId);
       if (!session.isCurrent()) return;
+      playSuccessHaptic();
       router.setParams({ endVisit: undefined });
       if (shared) {
         openSharing();
@@ -262,7 +264,10 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
       }
     } catch (cause) {
       reportError(cause, "visit.save");
-      if (session.isCurrent()) setSaveError("Couldn’t save visit. Try again.");
+      if (session.isCurrent()) {
+        playErrorHaptic();
+        setSaveError("Couldn’t save visit. Try again.");
+      }
     } finally {
       submitting.current = false;
       if (session.isOwnerCurrent()) setSaving(false);

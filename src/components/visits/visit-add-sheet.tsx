@@ -8,8 +8,9 @@ import { Gallery, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { reportError } from "@/lib/observability";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
-import { showToast } from "@/lib/ui/toast";
+import { playErrorHaptic } from "@/lib/ui/haptics";
 import { formatDistance } from "@/lib/venue/resolve";
+import { confirmVisitStarted } from "@/lib/venue/use-start-visit";
 import { useVenue } from "@/lib/venue/use-venue";
 
 /**
@@ -39,10 +40,11 @@ export function VisitAddSheet() {
     setError(undefined);
     try {
       await startVisit(here.venueId);
-      showToast("Visit started.");
+      confirmVisitStarted();
       router.back();
     } catch (cause) {
       reportError(cause, "visit.start");
+      playErrorHaptic();
       setError("Couldn’t start the visit. Try again.");
     } finally {
       setBusy(false);

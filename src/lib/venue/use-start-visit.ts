@@ -2,10 +2,16 @@ import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 
 import { reportError } from "@/lib/observability";
+import { playSuccessHaptic } from "@/lib/ui/haptics";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useVenue } from "./use-venue";
+
+export function confirmVisitStarted() {
+  playSuccessHaptic();
+  showToast("Visit started.");
+}
 
 /**
  * Start visit before anything is saved: opens today's visit at the museum, or the chooser while several nearby are
@@ -23,7 +29,7 @@ export function useStartVisit({ openCamera }: { openCamera: boolean }) {
     setStarting(true);
     try {
       await startVisit(venueId);
-      showToast("Visit started.");
+      confirmVisitStarted();
       if (openCamera) router.navigate("/scan");
     } catch (cause) {
       reportError(cause, "visit.start");

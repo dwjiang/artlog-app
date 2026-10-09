@@ -1,8 +1,10 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
+import { confidentScan, missScan, softScan } from "@/components/scan/result/__fixtures__/scan";
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
+import { playErrorHaptic, playLightHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 
 import type {
   CaptureDependencies,
@@ -27,7 +29,6 @@ const mockPush = jest.fn();
 const mockPipeline = jest.fn();
 const mockPermission = jest.fn();
 const mockPicker = jest.fn();
-const mockWarning = jest.fn();
 const mockVenueIdAt = jest.fn();
 const mockResolveVenue = jest.fn();
 const mockImageLoad = jest.fn();
@@ -48,10 +49,7 @@ jest.mock("@/lib/venue/use-venue", () => ({
 jest.mock("expo-network", () => ({
   useNetworkState: () => ({ isInternetReachable: mockReachable }),
 }));
-jest.mock("expo-haptics", () => ({
-  impactAsync: (...args: unknown[]) => mockWarning(...args),
-  ImpactFeedbackStyle: { Light: "light" },
-}));
+jest.mock("@/lib/ui/haptics");
 jest.mock("expo-image-picker", () => ({
   requestMediaLibraryPermissionsAsync: () => mockPermission(),
   launchImageLibraryAsync: (...args: unknown[]) => mockPicker(...args),
@@ -96,7 +94,6 @@ beforeEach(() => {
   jest.resetAllMocks();
   mockReachable = true;
   mockShrinkLibraryPhoto.mockImplementation(async (uri: string) => uri);
-  mockWarning.mockResolvedValue(undefined);
   mockPermission.mockResolvedValue({
     granted: false,
     status: "denied",
@@ -149,6 +146,25 @@ it.each([
   });
 });
 
+it.each([
+  [confidentScan, 1],
+  [softScan, 0],
+  [missScan, 0],
+])("confirms only a named match with a success haptic as its result opens", async (response, successes) => {
+  mockPipeline.mockImplementation(async (_input: CaptureInput, deps: CaptureDependencies) => {
+    await deps.onPrepared?.(painting);
+    return { kind: "sent", scanId: "scan-id", response, timings: { total: 12 } };
+  });
+  const hook = await renderHook(useCapture);
+  await act(async () => {
+    await hook.result.current.capture(async () => input);
+  });
+  expect(playSuccessHaptic).not.toHaveBeenCalled();
+  await act(() => hook.result.current.completeReveal(hook.result.current.presentation!.attempt));
+  expect(mockPush).toHaveBeenCalledTimes(1);
+  expect(playSuccessHaptic).toHaveBeenCalledTimes(successes);
+});
+
 it("shows retake guidance without navigating", async () => {
   mockPipeline.mockResolvedValue({
     kind: "retake",
@@ -162,6 +178,7 @@ it("shows retake guidance without navigating", async () => {
   });
   expect(hook.result.current.state.message).toBe("Hold steady");
   expect(hook.result.current.state.phase).toBe("retry");
+  expect(playErrorHaptic).toHaveBeenCalledTimes(1);
   expect(mockPush).not.toHaveBeenCalled();
   await act(() => hook.result.current.useCamera());
   expect(hook.result.current.state.message).toBeUndefined();
@@ -409,7 +426,7 @@ it("publishes the captured photo before venue lookup finishes", async () => {
   });
   expect(hook.result.current.presentation?.photoUri).toBe("file:///photo.jpg");
   expect(mockPipeline).not.toHaveBeenCalled();
-  expect(mockWarning).toHaveBeenCalledWith("light");
+  expect(playLightHaptic).toHaveBeenCalledTimes(1);
   await act(async () => {
     resolve({});
     await pending;
@@ -605,7 +622,7 @@ it("captures automatically with the detected corners and announces it", async ()
     source: "camera",
   });
   expect(announce).toHaveBeenCalledWith("Artwork captured automatically.");
-  expect(mockWarning).toHaveBeenCalledWith("light");
+  expect(playLightHaptic).toHaveBeenCalledTimes(1);
 });
 
 it("hands the turn of a photo taken with the phone turned to the crop and the reveal", async () => {
@@ -635,7 +652,7 @@ it("ignores the shutter while a capture is already running", async () => {
     await hook.result.current.captureManually(takePhoto);
   });
   expect(takePhoto).toHaveBeenCalledTimes(1);
-  expect(mockWarning).toHaveBeenCalledTimes(1);
+  expect(playLightHaptic).toHaveBeenCalledTimes(1);
   await act(async () => {
     complete({ kind: "queued", localId: "id", timings: { total: 1 } });
     await pending;
@@ -690,6 +707,8 @@ it("reports an unavailable visit before taking the photo instead of assigning th
   expect(takePhoto).not.toHaveBeenCalled();
   expect(mockPipeline).not.toHaveBeenCalled();
   expect(onVisitUnavailable).toHaveBeenCalledTimes(1);
+  expect(playLightHaptic).not.toHaveBeenCalled();
+  expect(playErrorHaptic).toHaveBeenCalledTimes(1);
   expect(hook.result.current.state.message).toContain("This visit is no longer available.");
   expect(hook.result.current.state.rearm).toBe("shutter");
 });

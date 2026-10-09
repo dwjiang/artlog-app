@@ -39,6 +39,7 @@ export function GalleryButton({
   iconOnly = false,
   cornerRadius = Radius.button,
   maskInReplay = false,
+  iconModifiers = [],
 }: {
   label: string;
   accessibilityLabel?: string;
@@ -61,6 +62,7 @@ export function GalleryButton({
   iconOnly?: boolean;
   cornerRadius?: number;
   maskInReplay?: boolean;
+  iconModifiers?: ComponentProps<typeof Icon>["modifiers"];
 }) {
   const { fontScale } = useWindowDimensions();
   const expand = fullWidth ?? fontScale >= 1.5;
@@ -139,7 +141,7 @@ export function GalleryButton({
               ]}
             >
               {icon && iconPosition === "leading" && (
-                <Icon name={icon} size={17} color={foreground} modifiers={[frame({ width: 24 })]} />
+                <Icon name={icon} size={17} color={foreground} modifiers={[frame({ width: 24 }), ...iconModifiers]} />
               )}
               {!iconOnly && (
                 <NativeText
@@ -156,7 +158,9 @@ export function GalleryButton({
                   {label}
                 </NativeText>
               )}
-              {icon && iconPosition === "trailing" && <Icon name={icon} size={17} color={foreground} />}
+              {icon && iconPosition === "trailing" && (
+                <Icon name={icon} size={17} color={foreground} modifiers={iconModifiers} />
+              )}
             </Row>
           </Button>
         </Host>

@@ -3,6 +3,7 @@ import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 
 import { switchOwner } from "@/lib/account/owner-store";
+import { playErrorHaptic, playMediumHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 
 import { friendshipActions } from "./presentation";
 import type { Relationship } from "./types";
@@ -16,6 +17,7 @@ const mockRefresh = jest.fn();
 const mockQueryArgs = jest.fn();
 const mockOfferNotifications = jest.fn();
 jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));
+jest.mock("@/lib/ui/haptics");
 jest.mock("@/lib/notifications/offer", () => ({ offerNotifications: () => mockOfferNotifications() }));
 jest.mock("convex/browser", () => ({
   ConvexHttpClient: function (_url: string, options: object) {
@@ -79,12 +81,21 @@ it("requests and cancels using the server revision and the captured account toke
   expect(mockOptions).toHaveBeenCalledWith(expect.objectContaining({ auth: "token-a" }));
   expect(friendshipActions(result.current.state!, "viewer")).toEqual(["cancel"]);
   expect(mockOfferNotifications).toHaveBeenCalledTimes(1);
+  expect(playSuccessHaptic).toHaveBeenCalledTimes(1);
+  expect(result.current.confirmations).toBe(1);
   await act(() => result.current.act("cancel"));
   expect(mockMutation.mock.calls[1][1].revision).toBe(1);
   expect(friendshipActions(result.current.state!, "viewer")).toEqual(["request"]);
+  // Withdrawing stays quiet and leaves no checkmark to bounce.
+  expect(playSuccessHaptic).toHaveBeenCalledTimes(1);
+  expect(result.current.confirmations).toBe(1);
 });
 
-it.each(["accept", "decline", "remove"] as const)("applies a confirmed %s transition", async (action) => {
+it.each([
+  ["accept", playSuccessHaptic],
+  ["decline", undefined],
+  ["remove", playMediumHaptic],
+] as const)("applies a confirmed %s transition", async (action, haptic) => {
   mockRelationship = relationship({
     state: action === "remove" ? "accepted" : "pending",
     requesterId: "other" as never,
@@ -96,6 +107,9 @@ it.each(["accept", "decline", "remove"] as const)("applies a confirmed %s transi
   await act(() => result.current.act(action));
   expect(result.current.state?.state).toBe(next);
   expect(mockMutation.mock.calls[0][1].revision).toBe(4);
+  for (const played of [playSuccessHaptic, playMediumHaptic]) {
+    expect(played).toHaveBeenCalledTimes(played === haptic ? 1 : 0);
+  }
 });
 
 it("prevents double submission while a friendship request is in flight", async () => {
@@ -132,6 +146,7 @@ it("refreshes conflicts without replaying the mutation", async () => {
   expect(mockMutation).toHaveBeenCalledTimes(1);
   expect(mockRefresh).toHaveBeenCalledTimes(1);
   expect(result.current.error).toContain("Review the updated options");
+  expect(playErrorHaptic).toHaveBeenCalledTimes(1);
 });
 
 it("ignores an old account’s mutation response and refuses actions while offline", async () => {

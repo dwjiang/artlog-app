@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-
 
 import type { ArtworkPhoto } from "@/db/schema";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
+import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import type { useVisitSharing } from "@/lib/visits/use-visit-sharing";
 
 import { VisitShareLayout } from "./visit-share-flow";
@@ -51,6 +52,7 @@ jest.mock("react-native-sortables", () => {
 jest.mock("@/db/repos/visits", () => ({
   patchVisit: (...args: unknown[]) => mockPatchVisit(...args),
 }));
+jest.mock("@/lib/ui/haptics");
 jest.mock("@/lib/ui/toast", () => ({
   showToast: (...args: unknown[]) => mockToast(...args),
 }));
@@ -521,9 +523,12 @@ it("posts with the chosen audience, restores the visit's visibility when posting
     ["visit", { visibility: "public" }, "account:a"],
   ]);
   expect(mockNavigate).not.toHaveBeenCalled();
+  expect(playErrorHaptic).toHaveBeenCalledTimes(1);
+  expect(playSuccessHaptic).not.toHaveBeenCalled();
   mockPatchVisit.mockClear();
   await fireEvent.press(screen.getByRole("button", { name: "Post" }));
   expect(mockPatchVisit.mock.calls).toEqual([["visit", { visibility: "friends" }, "account:a"]]);
+  expect(playSuccessHaptic).toHaveBeenCalledTimes(1);
   expect(mockToast).toHaveBeenCalledWith("Shared with friends.");
   expect(mockOfferNotifications).toHaveBeenCalledTimes(1);
   expect(mockDismissAll).toHaveBeenCalledTimes(1);
@@ -570,6 +575,7 @@ it("keeps the form when posting throws and lets the person cancel out", async ()
   await render(<VisitShareLayout />);
   await fireEvent.press(screen.getByRole("button", { name: "Post" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(/could not be posted/);
+  expect(playErrorHaptic).toHaveBeenCalledTimes(1);
   expect(mockNavigate).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
   expect(mockDismiss).toHaveBeenCalledTimes(1);
