@@ -177,7 +177,7 @@ def fill_cities(writer: ConvexWriter, regions: Mapping[str, Region], *, user_age
     return len(cities)
 
 
-def export_asset(writer: ConvexWriter, out: Path) -> VenueAsset:
+def export_asset(writer: ConvexWriter, out: Path, *, deployment_url: str) -> VenueAsset:
     # Read before paging: phones fetch every change after it, including any made during the export.
     change_version = writer.query("venueChanges:latestVersion")
     out.mkdir(parents=True, exist_ok=True)
@@ -192,7 +192,7 @@ def export_asset(writer: ConvexWriter, out: Path) -> VenueAsset:
               lat REAL NOT NULL, lng REAL NOT NULL, website TEXT, region TEXT NOT NULL, city TEXT, country TEXT, cityKey TEXT
             )""")
             db.execute(
-                "CREATE TABLE meta (changeVersion INTEGER NOT NULL, generatedAt TEXT NOT NULL)"
+                "CREATE TABLE meta (changeVersion INTEGER NOT NULL, generatedAt TEXT NOT NULL, deployment TEXT NOT NULL)"
             )
             row_count = 0
             for row in _exported_venues(writer):
@@ -215,7 +215,8 @@ def export_asset(writer: ConvexWriter, out: Path) -> VenueAsset:
             if not row_count:
                 raise RuntimeError("Refusing to export an empty venue table")
             db.execute(
-                "INSERT INTO meta VALUES (?, ?)", (change_version, datetime.now(UTC).isoformat())
+                "INSERT INTO meta VALUES (?, ?, ?)",
+                (change_version, datetime.now(UTC).isoformat(), deployment_url),
             )
             db.commit()
             db.execute("VACUUM")
@@ -310,7 +311,7 @@ def main() -> None:
         summary = {"city_venues": fill_cities(writer, regions, user_agent=settings.user_agent)}
     else:
         summary = {"seeded_venues": _census(parser, args, settings, regions, writer)}
-    asset = export_asset(writer, args.out)
+    asset = export_asset(writer, args.out, deployment_url=settings.convex_url)
     print(json.dumps({**asdict(asset), "path": str(asset.path), **summary}))
 
 
