@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { LoadingImage } from "@/components/loading-image";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, Radius, Spacing } from "@/constants/theme";
-import { exhibitionStatus, friendNames } from "@/lib/explore/exhibition-timing";
+import { exhibitionStatus, friendNames, isUpcoming } from "@/lib/explore/exhibition-timing";
 import type { Exhibition, ExploreMuseum } from "@/lib/explore/types";
 
 import { ExhibitionStatusLine } from "./exhibition-status";
+import { ExploreImage } from "./explore-image";
 import { openExhibition } from "./explore-routes";
 import { FriendStack } from "./friend-stack";
 import { ReminderButton, WantToSeeButton } from "./plan-buttons";
@@ -33,7 +33,7 @@ export function ExhibitionRow({
   accessory?: ReactNode;
 }) {
   const status = exhibitionStatus(exhibition, today);
-  const place = museum ? `, ${museum.shortName}` : "";
+  const place = museum ? `, ${museum.name}` : "";
   const friends = exhibition.friends.length > 0 ? `, ${friendNames(exhibition.friends)} want to see it` : "";
   return (
     <View style={styles.row}>
@@ -43,22 +43,18 @@ export function ExhibitionRow({
         onPress={() => openExhibition(exhibition.id)}
         style={styles.content}
       >
-        <LoadingImage
-          uri={exhibition.image.uri}
-          label={exhibition.image.label}
-          style={[styles.thumbnail, { width: thumbnail, height: thumbnail }]}
-        />
+        <ExploreImage image={exhibition.image} style={[styles.thumbnail, { width: thumbnail, height: thumbnail }]} />
         <View style={[styles.text, separator && styles.separator]}>
           <Text style={styles.title} numberOfLines={1}>
             {exhibition.title}
           </Text>
-          <ExhibitionStatusLine status={status} detail={museum?.shortName} />
+          <ExhibitionStatusLine status={status} detail={museum?.name} />
           <FriendStack friends={exhibition.friends} />
         </View>
       </MotionPressable>
       <View style={[styles.accessory, separator && styles.separator]}>
         {accessory
-          ?? (exhibition.startsOn > today ? (
+          ?? (isUpcoming(exhibition, today) ? (
             <ReminderButton exhibition={exhibition} />
           ) : (
             <WantToSeeButton exhibition={exhibition} />

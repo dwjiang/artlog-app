@@ -15,13 +15,16 @@ import {
 import { museumById, useExplore } from "@/lib/explore/use-explore";
 
 import { ExhibitionRow } from "./exhibition-row";
+import { ExploreState } from "./explore-state";
 import { listStyles } from "./list-styles";
 
 /** Every show for one timing, opened from the Explore row's See all with that row's choice. */
 export function ExhibitionListScreen() {
   const params = useLocalSearchParams<{ timing?: string }>();
   const [timing, setTiming] = useState<ExhibitionTiming>(isTiming(params.timing) ? params.timing : "ending");
-  const data = useExplore();
+  const explore = useExplore();
+  const { data } = explore;
+  if (!data) return <ExploreState view={explore} />;
   const shows = exhibitionsByTiming(data.exhibitions, timing, data.today);
   return (
     <FlatList

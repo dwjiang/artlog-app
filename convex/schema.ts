@@ -20,6 +20,8 @@ import {
   mention,
 } from "../shared/social/contracts";
 import { leaderboardMetric, leaderboardVisibility } from "../shared/social/leaderboard";
+import { exhibitionSource } from "./lib/exhibitionSourceValidators";
+import { exhibition } from "./lib/exhibitionValidators";
 import { museumPackage, packageFields } from "./lib/museumDownloadValidators";
 import {
   accountProvider,
@@ -352,6 +354,13 @@ export default defineSchema({
   })
     .index("by_key", ["key"])
     .index("by_lat", ["lat"]),
+
+  exhibitionSources: defineTable(exhibitionSource).index("by_museumId", ["museumId"]),
+
+  exhibitions: defineTable(exhibition)
+    .index("by_museum_title", ["museumId", "titleKey"])
+    .index("by_museum_finalEndAt", ["museumId", "finalEndAt"])
+    .index("by_region_finalEndAt", ["region", "finalEndAt"]),
 
   // A museum's Commons photo for the Now card, looked up the first time someone sees the museum there.
   // `checkedAt` stays unset while a lookup is pending; a checked row without `file` means no usable photo.

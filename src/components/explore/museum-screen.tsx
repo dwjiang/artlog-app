@@ -1,22 +1,23 @@
-import { Image } from "expo-image";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
+import { Gallery, Spacing, Typography } from "@/constants/theme";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { museumExhibitions } from "@/lib/explore/museum-summary";
-import { museumById, useExplore } from "@/lib/explore/use-explore";
+import { museumById, useMuseum } from "@/lib/explore/use-explore";
 
 import { openDirections } from "./detail-parts";
 import { ExhibitionRow } from "./exhibition-row";
+import { ExploreState } from "./explore-state";
 
 export function MuseumScreen({ museumId }: { museumId: string }) {
-  const data = useExplore();
-  const { width } = useWindowDimensions();
-  const museum = museumById(data, museumId);
+  const explore = useMuseum(museumId);
+  const { data } = explore;
+  const museum = data && museumById(data, museumId);
   const { scrollRef, headingRef, measureHeading, onScroll } = useScrollTitle(museum?.name ?? "");
+  if (!data) return <ExploreState view={explore} />;
   if (!museum) {
     return (
       <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
@@ -26,10 +27,9 @@ export function MuseumScreen({ museumId }: { museumId: string }) {
   }
   const shows = museumExhibitions(data, museum);
   const facts = [
-    { label: "Today", value: museum.hoursToday.replace(/^Open until/, "Until").replace(/^Closed today$/, "Closed") },
-    { label: "Distance", value: `${museum.distanceMiles} mi` },
-    ...(museum.admission ? [{ label: "Admission", value: museum.admission }] : []),
-  ];
+    { label: "City", value: museum.city },
+    { label: "Distance", value: museum.distance },
+  ].filter((fact): fact is { label: string; value: string } => Boolean(fact.value));
   return (
     <ScrollView
       ref={scrollRef}
@@ -40,31 +40,25 @@ export function MuseumScreen({ museumId }: { museumId: string }) {
       onScroll={onScroll}
       scrollEventThrottle={16}
     >
-      {museum.photo && (
-        <Image
-          source={museum.photo}
-          contentFit="cover"
-          accessible={false}
-          style={[styles.photo, { width: width - Spacing.content * 2 }]}
-        />
-      )}
       <View style={styles.details}>
         <Text variant="display" accessibilityRole="header" ref={headingRef} onLayout={measureHeading} selectable>
           {museum.name}
         </Text>
-        <View style={styles.facts}>
-          {facts.map((fact, index) => (
-            <View
-              key={fact.label}
-              accessible
-              accessibilityLabel={`${fact.label}, ${fact.value}`}
-              style={[styles.fact, index === 0 ? styles.firstFact : styles.factDivider]}
-            >
-              <Text style={styles.factLabel}>{fact.label}</Text>
-              <Text style={styles.factValue}>{fact.value}</Text>
-            </View>
-          ))}
-        </View>
+        {facts.length > 0 && (
+          <View style={styles.facts}>
+            {facts.map((fact, index) => (
+              <View
+                key={fact.label}
+                accessible
+                accessibilityLabel={`${fact.label}, ${fact.value}`}
+                style={[styles.fact, index === 0 ? styles.firstFact : styles.factDivider]}
+              >
+                <Text style={styles.factLabel}>{fact.label}</Text>
+                <Text style={styles.factValue}>{fact.value}</Text>
+              </View>
+            ))}
+          </View>
+        )}
         <GalleryButton
           label="Directions"
           icon="arrow.triangle.turn.up.right.diamond"
@@ -97,7 +91,6 @@ export function MuseumScreen({ museumId }: { museumId: string }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
   content: { paddingTop: Spacing.two, paddingBottom: Spacing.five },
-  photo: { height: 210, marginHorizontal: Spacing.content, borderRadius: Radius.card },
   details: { paddingHorizontal: Spacing.content, paddingTop: Spacing.three, gap: Spacing.three },
   facts: {
     flexDirection: "row",

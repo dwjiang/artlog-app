@@ -1,6 +1,8 @@
 import { Image } from "expo-image";
+import { openBrowserAsync } from "expo-web-browser";
 import { Linking, StyleSheet, View, useWindowDimensions } from "react-native";
 
+import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import type { ExhibitionStatus } from "@/lib/explore/exhibition-timing";
@@ -10,6 +12,10 @@ import { reportError } from "@/lib/observability";
 export function openDirections(museum: ExploreMuseum) {
   const url = `https://maps.apple.com/?daddr=${museum.lat},${museum.lng}&q=${encodeURIComponent(museum.name)}`;
   Linking.openURL(url).catch((error: unknown) => reportError(error, "explore.directions", { level: "warning" }));
+}
+
+export function openExhibitionPage(url: string) {
+  openBrowserAsync(url).catch((error: unknown) => reportError(error, "explore.exhibition_page", { level: "warning" }));
 }
 
 const CHIPS = {
@@ -34,19 +40,37 @@ export function StatusChip({ status }: { status: ExhibitionStatus }) {
   );
 }
 
-/** One fact about a visit, such as the dates or today's hours, behind its symbol. */
-export function FactRow({ icon, children, last = false }: { icon: string; children: string; last?: boolean }) {
+/** One fact about a visit, such as the dates, behind its symbol. With `onPress` it is a link. */
+export function FactRow({
+  icon,
+  children,
+  last = false,
+  onPress,
+}: {
+  icon: string;
+  children: string;
+  last?: boolean;
+  onPress?: () => void;
+}) {
   const { fontScale } = useWindowDimensions();
-  return (
-    <View style={[styles.fact, !last && styles.separator]}>
+  const style = [styles.fact, !last && styles.separator];
+  const content = (
+    <>
       <Image
         source={`sf:${icon}`}
         tintColor={Gallery.muted}
         accessible={false}
         style={{ width: 20 * fontScale, height: 20 * fontScale }}
       />
-      <Text style={styles.factText}>{children}</Text>
-    </View>
+      <Text style={[styles.factText, onPress && styles.link]}>{children}</Text>
+    </>
+  );
+  return onPress ? (
+    <MotionPressable accessibilityRole="link" onPress={onPress} style={style}>
+      {content}
+    </MotionPressable>
+  ) : (
+    <View style={style}>{content}</View>
   );
 }
 
@@ -64,4 +88,5 @@ const styles = StyleSheet.create({
   fact: { flexDirection: "row", alignItems: "center", gap: Spacing.compact, paddingVertical: Spacing.compact },
   separator: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
   factText: { ...Typography.body, color: Gallery.ink, flex: 1 },
+  link: { color: Gallery.accent },
 });

@@ -3,16 +3,20 @@ import { FlatList } from "react-native";
 import { EmptyState } from "@/components/empty-state";
 import { savedExhibitions } from "@/lib/explore/lists";
 import { usePlans } from "@/lib/explore/plans";
-import { museumById, useExplore } from "@/lib/explore/use-explore";
+import { museumById, useExhibitions } from "@/lib/explore/use-explore";
 
 import { ExhibitionRow } from "./exhibition-row";
+import { ExploreState } from "./explore-state";
 import { listStyles } from "./list-styles";
 import { WantToSeeButton } from "./plan-buttons";
 
 /** Saved shows in closing order, so the last chance comes first. */
 export function WantToSeeScreen() {
-  const data = useExplore();
-  const saved = savedExhibitions(data, usePlans().wantToSee);
+  const plans = usePlans();
+  const explore = useExhibitions([...plans.wantToSee]);
+  const { data } = explore;
+  if (!data) return <ExploreState view={explore} />;
+  const saved = savedExhibitions(data, plans.wantToSee);
   return (
     <FlatList
       style={listStyles.root}

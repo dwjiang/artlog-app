@@ -1,13 +1,13 @@
 import { StyleSheet, View } from "react-native";
 
-import { LoadingImage } from "@/components/loading-image";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, Spacing } from "@/constants/theme";
-import { exhibitionStatus, friendNames } from "@/lib/explore/exhibition-timing";
+import { exhibitionStatus, friendNames, isUpcoming } from "@/lib/explore/exhibition-timing";
 import type { Exhibition, ExploreMuseum } from "@/lib/explore/types";
 
 import { ExhibitionStatusLine } from "./exhibition-status";
+import { ExploreImage } from "./explore-image";
 import { openExhibition } from "./explore-routes";
 import { FriendStack } from "./friend-stack";
 import { ReminderButton } from "./plan-buttons";
@@ -34,7 +34,7 @@ export function ExhibitionCard({
         onPress={() => openExhibition(exhibition.id)}
         style={styles.content}
       >
-        <LoadingImage uri={exhibition.image.uri} label={exhibition.image.label} style={styles.image} />
+        <ExploreImage image={exhibition.image} style={styles.image} />
         <View style={styles.text}>
           <Text style={styles.title} numberOfLines={2}>
             {exhibition.title}
@@ -48,7 +48,7 @@ export function ExhibitionCard({
         </View>
         <FriendStack friends={exhibition.friends} size={20} avatars={2} />
       </MotionPressable>
-      {exhibition.startsOn > today && <ReminderButton exhibition={exhibition} overlay />}
+      {isUpcoming(exhibition, today) && <ReminderButton exhibition={exhibition} overlay />}
     </View>
   );
 }

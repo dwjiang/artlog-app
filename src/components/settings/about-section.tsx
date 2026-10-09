@@ -119,16 +119,6 @@ export function AboutSection() {
           </MotionPressable>
         ))}
       </View>
-      <ThemedText
-        type="small"
-        themeColor="textSecondary"
-        onPress={() => {
-          void open("https://commons.wikimedia.org/wiki/File:Art_Institute_of_Chicago_from_across_Michigan_Avenue.jpg");
-        }}
-        accessibilityRole="link"
-      >
-        Art Institute of Chicago photograph: Beyond My Ken, 2011 · CC BY-SA 4.0. Displayed cropped.
-      </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
         Space Grotesk by Florian Karsten. Copyright 2020 The Space Grotesk Project Authors. Licensed under the SIL Open
         Font License, Version 1.1.

@@ -3,22 +3,14 @@ import { museumExhibitions, museumSummary } from "./museum-summary";
 import type { Exhibition, ExploreData, ExploreFriend, ExploreMuseum } from "./types";
 
 const friend = (name: string): ExploreFriend => ({ profileId: name, name, avatar: "klee" });
-const museum = (id: string, distanceMiles: number): ExploreMuseum => ({
-  id,
-  name: id,
-  shortName: id,
-  lat: 0,
-  lng: 0,
-  distanceMiles,
-  hoursToday: "Open until 5 PM",
-});
+const museum = (id: string, distanceM?: number): ExploreMuseum => ({ id, name: id, lat: 0, lng: 0, distanceM });
 const show = (id: string, startsOn: string, endsOn: string, friends: string[] = [], museumId = "near"): Exhibition => ({
   id,
   title: id,
   museumId,
   startsOn,
   endsOn,
-  image: { uri: `https://example.com/${id}.jpg`, label: id },
+  sourceUrl: `https://example.com/${id}`,
   friends: friends.map(friend),
 });
 
@@ -26,7 +18,7 @@ const data: ExploreData = {
   city: { id: "chicago", name: "Chicago" },
   cities: [{ id: "chicago", name: "Chicago" }],
   today: "2026-10-04",
-  museums: [museum("far", 7.8), museum("near", 0.6), museum("empty", 3)],
+  museums: [museum("far", 12_500), museum("near", 950), museum("empty", 4800)],
   exhibitions: [
     show("closed", "2026-06-01", "2026-10-03", ["Maya", "Sam", "Jonah"]),
     show("two-later", "2026-09-12", "2027-01-18", ["Maya", "Sam"]),
@@ -42,8 +34,10 @@ it("ranks friends' picks by how many friends want to see them, skipping closed s
   expect(ids(friendPicks(data))).toEqual(["four", "two-sooner", "two-later"]);
 });
 
-it("orders museums nearest first", () => {
+it("orders museums nearest first, or by name without a location", () => {
   expect(nearbyMuseums(data).map((place) => place.id)).toEqual(["near", "empty", "far"]);
+  const unplaced = { ...data, museums: [museum("Wrightwood"), museum("Art Institute"), museum("MCA")] };
+  expect(nearbyMuseums(unplaced).map((place) => place.id)).toEqual(["Art Institute", "MCA", "Wrightwood"]);
 });
 
 it("lists saved shows that are still on or ahead, closing soonest first", () => {
@@ -55,11 +49,11 @@ it("lists saved shows that are still on or ahead, closing soonest first", () => 
 });
 
 it("lists a museum's running shows by closing date, then its upcoming ones", () => {
-  expect(ids(museumExhibitions(data, museum("near", 0.6)))).toEqual(["four", "none", "two-later", "upcoming"]);
+  expect(ids(museumExhibitions(data, museum("near")))).toEqual(["four", "none", "two-later", "upcoming"]);
 });
 
 it("counts a museum's shows and the ones ending soon", () => {
-  expect(museumSummary(data, museum("near", 0.6))).toEqual({ count: "4 exhibitions", ending: "1 ending soon" });
-  expect(museumSummary(data, museum("far", 7.8))).toEqual({ count: "1 exhibition", ending: undefined });
-  expect(museumSummary(data, museum("empty", 3))).toEqual({ count: "No exhibitions listed", ending: undefined });
+  expect(museumSummary(data, museum("near"))).toEqual({ count: "4 exhibitions", ending: "1 ending soon" });
+  expect(museumSummary(data, museum("far"))).toEqual({ count: "1 exhibition", ending: undefined });
+  expect(museumSummary(data, museum("empty"))).toEqual({ count: "No exhibitions listed", ending: undefined });
 });

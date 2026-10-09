@@ -6,10 +6,11 @@ import { reportError } from "@/lib/observability";
 
 import { api } from "../../../convex/_generated/api";
 import type { PublicProfile } from "./types";
-import { useCursorPages, useSocialQuery } from "./use-social-query";
+import { useBatchedSocialQuery, useCursorPages, useSocialQuery } from "./use-social-query";
 
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 let mockResults: Record<string, unknown>;
+let mockBatchResults: unknown[] | undefined;
 let mockRequests: Record<string, { query: unknown; args: { cursor?: string | null } }>;
 const mockHttpQuery = jest.fn();
 const mockClient = jest.fn();
@@ -25,7 +26,10 @@ jest.mock("convex/react", () => ({
   useQueries: (requests: typeof mockRequests) => {
     mockRequests = requests;
     return Object.fromEntries(
-      Object.entries(requests).map(([key, request]) => [key, mockResults[request.args.cursor ?? "first"]]),
+      Object.entries(requests).map(([key, request], index) => [
+        key,
+        mockBatchResults ? mockBatchResults[index] : mockResults[request.args.cursor ?? "first"],
+      ]),
     );
   },
 }));
@@ -39,7 +43,44 @@ const page = (name: string, cursor: string | null, isDone = false) => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockResults = {};
+  mockBatchResults = undefined;
   mockRequests = {};
+});
+
+it("waits for every batch, retains null results, and clears old batches when the selection changes", async () => {
+  mockBatchResults = [null, undefined];
+  const args = [{ profileId: "alex" as never }, { profileId: "bea" as never }];
+  const view = await renderHook(
+    ({ selected }: { selected: typeof args }) => useBatchedSocialQuery(api.profiles.getPublic, selected, "account-a"),
+    { initialProps: { selected: args } },
+  );
+  expect(view.result.current.loading).toBe(true);
+  expect(view.result.current.data).toBeUndefined();
+  mockBatchResults = [null, { name: "Bea" }];
+  await view.rerender({ selected: args });
+  expect(view.result.current.data).toEqual([null, { name: "Bea" }]);
+  mockBatchResults = [undefined];
+  await view.rerender({ selected: [{ profileId: "cleo" as never }] });
+  expect(view.result.current.data).toBeUndefined();
+  await view.rerender({ selected: [] });
+  expect(view.result.current.data).toEqual([]);
+  expect(view.result.current.loading).toBe(false);
+});
+
+it("retries each failed batch and restores live results after the retry", async () => {
+  const failure = new Error("Batch failed");
+  mockBatchResults = [{ name: "Alex" }, failure];
+  mockHttpQuery.mockResolvedValue(undefined);
+  const args = [{ profileId: "alex" as never }, { profileId: "bea" as never }];
+  const view = await renderHook(() => useBatchedSocialQuery(api.profiles.getPublic, args, "account-a"));
+  expect(view.result.current.error).toBe(failure);
+  expect(view.result.current.data).toBeUndefined();
+  await act(() => view.result.current.refresh());
+  expect(mockHttpQuery.mock.calls.map((call) => call[1])).toEqual(args);
+  mockBatchResults = [{ name: "Alex" }, { name: "Bea" }];
+  await view.rerender(undefined);
+  expect(view.result.current.error).toBeUndefined();
+  expect(view.result.current.data).toEqual(mockBatchResults);
 });
 
 it("gates requests and clears content when the account changes or becomes unavailable", async () => {

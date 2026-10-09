@@ -34,14 +34,26 @@ export function shortDate(date: string): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(date));
 }
 
+export function isUpcoming(exhibition: Exhibition, today: string): boolean {
+  return exhibition.startsOn !== undefined && exhibition.startsOn > today;
+}
+
 export function isRunning(exhibition: Exhibition, today: string): boolean {
-  return exhibition.startsOn <= today && today <= exhibition.endsOn;
+  return !isUpcoming(exhibition, today) && today <= exhibition.endsOn;
+}
+
+/** "Oct 1 – Dec 11, 2026", or "Through Dec 11, 2026" for a show listed only with its closing date. */
+export function exhibitionDates(exhibition: Exhibition): string {
+  const year = exhibition.endsOn.slice(0, 4);
+  return exhibition.startsOn
+    ? `${shortDate(exhibition.startsOn)} – ${shortDate(exhibition.endsOn)}, ${year}`
+    : `Through ${shortDate(exhibition.endsOn)}, ${year}`;
 }
 
 export function exhibitionStatus(exhibition: Exhibition, today: string): ExhibitionStatus {
-  const untilOpening = days(today, exhibition.startsOn);
-  if (untilOpening > 0) {
-    return { tone: "accent", label: untilOpening === 1 ? "Opens tomorrow" : `Opens ${shortDate(exhibition.startsOn)}` };
+  const { startsOn } = exhibition;
+  if (startsOn && startsOn > today) {
+    return { tone: "accent", label: days(today, startsOn) === 1 ? "Opens tomorrow" : `Opens ${shortDate(startsOn)}` };
   }
   const left = days(today, exhibition.endsOn);
   if (left <= WINDOW_DAYS) {
@@ -55,21 +67,24 @@ export function exhibitionStatus(exhibition: Exhibition, today: string): Exhibit
             : `Ends in ${Math.floor(left / 7)} weeks`;
     return { tone: "warning", label };
   }
-  if (-untilOpening <= JUST_OPENED_DAYS) return { tone: "muted", label: "Just opened" };
+  if (startsOn && days(startsOn, today) <= JUST_OPENED_DAYS) return { tone: "muted", label: "Just opened" };
   return { tone: "muted", label: `Until ${shortDate(exhibition.endsOn)}` };
 }
 
 export function exhibitionsByTiming(exhibitions: Exhibition[], timing: ExhibitionTiming, today: string): Exhibition[] {
   if (timing === "upcoming") {
-    return exhibitions.filter((exhibition) => exhibition.startsOn > today).sort(byStart);
+    return exhibitions.filter((exhibition) => isUpcoming(exhibition, today)).sort(byStart);
   }
   const running = exhibitions.filter((exhibition) => isRunning(exhibition, today));
   return timing === "ending"
     ? running.filter((exhibition) => days(today, exhibition.endsOn) <= WINDOW_DAYS).sort(byEnd)
-    : running.filter((exhibition) => days(exhibition.startsOn, today) <= WINDOW_DAYS).sort((a, b) => byStart(b, a));
+    : running
+        .filter((exhibition) => exhibition.startsOn && days(exhibition.startsOn, today) <= WINDOW_DAYS)
+        .sort((a, b) => byStart(b, a));
 }
 
-const byStart = (a: Exhibition, b: Exhibition) => a.startsOn.localeCompare(b.startsOn);
+// Only lists of shows with opening dates sort by them.
+const byStart = (a: Exhibition, b: Exhibition) => a.startsOn!.localeCompare(b.startsOn!);
 const byEnd = (a: Exhibition, b: Exhibition) => a.endsOn.localeCompare(b.endsOn);
 
 /** "Maya", "Maya and Sam", "Maya, Priya and Sam", then "Maya, Jonah and 2 others". */
