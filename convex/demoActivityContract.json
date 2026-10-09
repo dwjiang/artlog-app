@@ -1,0 +1,903 @@
+{
+  "functions": [
+    {
+      "args": {
+        "type": "object",
+        "value": {
+          "since": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          }
+        }
+      },
+      "functionType": "Query",
+      "identifier": "demoActivity.js:getContext",
+      "returns": {
+        "type": "object",
+        "value": {
+          "characters": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "object",
+                "value": {
+                  "avatar": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "bio": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "friends": {
+                    "fieldType": {
+                      "type": "array",
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "optional": false
+                  },
+                  "name": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "username": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  }
+                }
+              }
+            },
+            "optional": false
+          },
+          "posts": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "object",
+                "value": {
+                  "artworks": {
+                    "fieldType": {
+                      "type": "array",
+                      "value": {
+                        "type": "object",
+                        "value": {
+                          "artist": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "objectKey": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "title": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          }
+                        }
+                      }
+                    },
+                    "optional": false
+                  },
+                  "audience": {
+                    "fieldType": {
+                      "type": "union",
+                      "value": [
+                        {
+                          "type": "literal",
+                          "value": "public"
+                        },
+                        {
+                          "type": "literal",
+                          "value": "friends"
+                        }
+                      ]
+                    },
+                    "optional": false
+                  },
+                  "author": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "comments": {
+                    "fieldType": {
+                      "type": "array",
+                      "value": {
+                        "type": "object",
+                        "value": {
+                          "author": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "body": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "createdAt": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": false
+                          },
+                          "submissionId": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          }
+                        }
+                      }
+                    },
+                    "optional": false
+                  },
+                  "likes": {
+                    "fieldType": {
+                      "type": "array",
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "optional": false
+                  },
+                  "postId": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "publishedAt": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": false
+                  },
+                  "reflection": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "venue": {
+                    "fieldType": {
+                      "type": "object",
+                      "value": {
+                        "key": {
+                          "fieldType": {
+                            "type": "string"
+                          },
+                          "optional": false
+                        },
+                        "name": {
+                          "fieldType": {
+                            "type": "string"
+                          },
+                          "optional": false
+                        }
+                      }
+                    },
+                    "optional": false
+                  },
+                  "visitedOn": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  }
+                }
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "visibility": {
+        "kind": "public"
+      }
+    },
+    {
+      "args": {
+        "type": "object",
+        "value": {
+          "author": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          }
+        }
+      },
+      "functionType": "Query",
+      "identifier": "demoActivity.js:getWallContext",
+      "returns": {
+        "type": "object",
+        "value": {
+          "catalog": {
+            "fieldType": {
+              "type": "object",
+              "value": {
+                "colors": {
+                  "fieldType": {
+                    "type": "array",
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "optional": false
+                },
+                "frames": {
+                  "fieldType": {
+                    "type": "array",
+                    "value": {
+                      "type": "object",
+                      "value": {
+                        "border": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": false
+                        },
+                        "value": {
+                          "fieldType": {
+                            "type": "string"
+                          },
+                          "optional": false
+                        }
+                      }
+                    }
+                  },
+                  "optional": false
+                },
+                "maxItems": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                },
+                "patterns": {
+                  "fieldType": {
+                    "type": "array",
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "optional": false
+                }
+              }
+            },
+            "optional": false
+          },
+          "color": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "geometry": {
+            "fieldType": {
+              "type": "object",
+              "value": {
+                "fullFrameWidth": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                },
+                "labelGap": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                },
+                "sideGap": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                },
+                "wallWidth": {
+                  "fieldType": {
+                    "type": "number"
+                  },
+                  "optional": false
+                }
+              }
+            },
+            "optional": false
+          },
+          "items": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "object",
+                "value": {
+                  "artist": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "aspectRatio": {
+                    "fieldType": {
+                      "type": "number"
+                    },
+                    "optional": false
+                  },
+                  "key": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "layout": {
+                    "fieldType": {
+                      "type": "object",
+                      "value": {
+                        "frame": {
+                          "fieldType": {
+                            "type": "string"
+                          },
+                          "optional": false
+                        },
+                        "layer": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": false
+                        },
+                        "width": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": false
+                        },
+                        "x": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": false
+                        },
+                        "y": {
+                          "fieldType": {
+                            "type": "number"
+                          },
+                          "optional": false
+                        }
+                      }
+                    },
+                    "optional": true
+                  },
+                  "title": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  }
+                }
+              }
+            },
+            "optional": false
+          },
+          "pattern": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "revision": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          }
+        }
+      },
+      "visibility": {
+        "kind": "public"
+      }
+    },
+    {
+      "args": {
+        "type": "object",
+        "value": {
+          "limit": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": true
+          },
+          "venueKey": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          }
+        }
+      },
+      "functionType": "Query",
+      "identifier": "demoActivity.js:listVenueArtworks",
+      "returns": {
+        "type": "object",
+        "value": {
+          "artworks": {
+            "fieldType": {
+              "type": "array",
+              "value": {
+                "type": "object",
+                "value": {
+                  "artist": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "date": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "gallery": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "medium": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "objectKey": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  "thumbnailUrl": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": true
+                  },
+                  "title": {
+                    "fieldType": {
+                      "type": "string"
+                    },
+                    "optional": false
+                  }
+                }
+              }
+            },
+            "optional": false
+          },
+          "venue": {
+            "fieldType": {
+              "type": "object",
+              "value": {
+                "city": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": true
+                },
+                "country": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": true
+                },
+                "key": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                "name": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                "timeZone": {
+                  "fieldType": {
+                    "type": "string"
+                  },
+                  "optional": false
+                }
+              }
+            },
+            "optional": false
+          }
+        }
+      },
+      "visibility": {
+        "kind": "public"
+      }
+    },
+    {
+      "args": {
+        "type": "object",
+        "value": {
+          "activity": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "object",
+                  "value": {
+                    "artworks": {
+                      "fieldType": {
+                        "type": "array",
+                        "value": {
+                          "type": "object",
+                          "value": {
+                            "objectKey": {
+                              "fieldType": {
+                                "type": "string"
+                              },
+                              "optional": false
+                            },
+                            "photoIds": {
+                              "fieldType": {
+                                "type": "array",
+                                "value": {
+                                  "tableName": "files",
+                                  "type": "id"
+                                }
+                              },
+                              "optional": false
+                            }
+                          }
+                        }
+                      },
+                      "optional": false
+                    },
+                    "audience": {
+                      "fieldType": {
+                        "type": "union",
+                        "value": [
+                          {
+                            "type": "literal",
+                            "value": "public"
+                          },
+                          {
+                            "type": "literal",
+                            "value": "friends"
+                          }
+                        ]
+                      },
+                      "optional": false
+                    },
+                    "author": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    },
+                    "companions": {
+                      "fieldType": {
+                        "type": "array",
+                        "value": {
+                          "type": "string"
+                        }
+                      },
+                      "optional": false
+                    },
+                    "endedAt": {
+                      "fieldType": {
+                        "type": "number"
+                      },
+                      "optional": false
+                    },
+                    "kind": {
+                      "fieldType": {
+                        "type": "literal",
+                        "value": "post"
+                      },
+                      "optional": false
+                    },
+                    "reflection": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    },
+                    "startedAt": {
+                      "fieldType": {
+                        "type": "number"
+                      },
+                      "optional": false
+                    },
+                    "submissionId": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    },
+                    "venueKey": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    },
+                    "wall": {
+                      "fieldType": {
+                        "type": "object",
+                        "value": {
+                          "color": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "items": {
+                            "fieldType": {
+                              "type": "array",
+                              "value": {
+                                "type": "object",
+                                "value": {
+                                  "key": {
+                                    "fieldType": {
+                                      "type": "string"
+                                    },
+                                    "optional": false
+                                  },
+                                  "layout": {
+                                    "fieldType": {
+                                      "type": "object",
+                                      "value": {
+                                        "frame": {
+                                          "fieldType": {
+                                            "type": "string"
+                                          },
+                                          "optional": false
+                                        },
+                                        "layer": {
+                                          "fieldType": {
+                                            "type": "number"
+                                          },
+                                          "optional": false
+                                        },
+                                        "width": {
+                                          "fieldType": {
+                                            "type": "number"
+                                          },
+                                          "optional": false
+                                        },
+                                        "x": {
+                                          "fieldType": {
+                                            "type": "number"
+                                          },
+                                          "optional": false
+                                        },
+                                        "y": {
+                                          "fieldType": {
+                                            "type": "number"
+                                          },
+                                          "optional": false
+                                        }
+                                      }
+                                    },
+                                    "optional": false
+                                  }
+                                }
+                              }
+                            },
+                            "optional": false
+                          },
+                          "pattern": {
+                            "fieldType": {
+                              "type": "string"
+                            },
+                            "optional": false
+                          },
+                          "revision": {
+                            "fieldType": {
+                              "type": "number"
+                            },
+                            "optional": false
+                          }
+                        }
+                      },
+                      "optional": true
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "author": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    },
+                    "body": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    },
+                    "kind": {
+                      "fieldType": {
+                        "type": "literal",
+                        "value": "comment"
+                      },
+                      "optional": false
+                    },
+                    "postId": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    },
+                    "submissionId": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "value": {
+                    "author": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    },
+                    "kind": {
+                      "fieldType": {
+                        "type": "literal",
+                        "value": "like"
+                      },
+                      "optional": false
+                    },
+                    "postId": {
+                      "fieldType": {
+                        "type": "string"
+                      },
+                      "optional": false
+                    }
+                  }
+                }
+              ]
+            },
+            "optional": false
+          }
+        }
+      },
+      "functionType": "Action",
+      "identifier": "demoActivity.js:publish",
+      "returns": {
+        "type": "object",
+        "value": {
+          "commentId": {
+            "fieldType": {
+              "tableName": "visitComments",
+              "type": "id"
+            },
+            "optional": true
+          },
+          "postId": {
+            "fieldType": {
+              "type": "string"
+            },
+            "optional": false
+          },
+          "status": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "created"
+                },
+                {
+                  "type": "literal",
+                  "value": "unchanged"
+                }
+              ]
+            },
+            "optional": false
+          },
+          "wallStatus": {
+            "fieldType": {
+              "type": "union",
+              "value": [
+                {
+                  "type": "literal",
+                  "value": "updated"
+                },
+                {
+                  "type": "literal",
+                  "value": "unchanged"
+                },
+                {
+                  "type": "literal",
+                  "value": "stale"
+                },
+                {
+                  "type": "literal",
+                  "value": "unavailable"
+                }
+              ]
+            },
+            "optional": true
+          }
+        }
+      },
+      "visibility": {
+        "kind": "public"
+      }
+    },
+    {
+      "args": {
+        "type": "object",
+        "value": {
+          "jpeg": {
+            "fieldType": {
+              "type": "bytes"
+            },
+            "optional": false
+          }
+        }
+      },
+      "functionType": "Action",
+      "identifier": "demoActivityPhotos.js:uploadPhoto",
+      "returns": {
+        "type": "object",
+        "value": {
+          "height": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          },
+          "photoId": {
+            "fieldType": {
+              "tableName": "files",
+              "type": "id"
+            },
+            "optional": false
+          },
+          "width": {
+            "fieldType": {
+              "type": "number"
+            },
+            "optional": false
+          }
+        }
+      },
+      "visibility": {
+        "kind": "public"
+      }
+    }
+  ]
+}

@@ -152,7 +152,7 @@ export async function addDemoSave(
   return { row, photoLocalIds: save.photos.map((photo) => photo.localId) };
 }
 
-/** Shares a demo visit with every save on it, in order, as the share flow publishes a visit. Never names companions. */
+/** Shares a demo visit with every save on it, in order, as the share flow publishes a visit. Uses the normal companion and mention projections. */
 export async function insertDemoPost(
   ctx: MutationCtx,
   post: {
@@ -161,6 +161,7 @@ export async function insertDemoPost(
     saves: Awaited<ReturnType<typeof addDemoSave>>[];
     postId: string;
     publishedAt: number;
+    companionSelections?: Doc<"sharedVisits">["companionSelections"];
   },
 ) {
   const { visit } = post;
@@ -177,6 +178,7 @@ export async function insertDemoPost(
     audience: visit.visibility,
     reflection,
     ...(mentions.length > 0 ? { mentions } : {}),
+    ...(post.companionSelections?.length ? { companionSelections: post.companionSelections } : {}),
     publishedAt: post.publishedAt,
     updatedAt: post.publishedAt,
     publicationRevision: 1,

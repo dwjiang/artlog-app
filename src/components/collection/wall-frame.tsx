@@ -6,7 +6,12 @@ import { StyleSheet, View } from "react-native";
 import { reportError } from "@/lib/observability";
 import { framePatches } from "@/lib/wall/frame-patches";
 import { wallFrameAssets } from "@/lib/wall/wall-frame-assets";
-import { wallFrameInset, WALL_FRAMES as wallFrames, type WallFrame as Frame } from "@/shared/wall/frames";
+import {
+  FULL_FRAME_WIDTH,
+  wallFrameInset,
+  WALL_FRAMES as wallFrames,
+  type WallFrame as Frame,
+} from "@/shared/wall/frames";
 
 // The height comes from the artwork's proportions rather than a layout pass, so a resized frame never draws its
 // texture at the previous height.
@@ -24,7 +29,7 @@ export function WallFrame({
   const finish = wallFrames.find((item) => item.value === frame)!;
   const { sculpted } = wallFrameAssets[frame];
   const inset = wallFrameInset(frame, width);
-  const scale = Math.min(1, width / 166);
+  const scale = Math.min(1, width / FULL_FRAME_WIDTH);
   return (
     <View
       style={{
@@ -56,7 +61,7 @@ export function WallFrame({
 
 function FrameTexture({ frame, width, height, inset }: { frame: Frame; width: number; height: number; inset: number }) {
   const asset = wallFrameAssets[frame];
-  const scale = Math.min(1, width / 166);
+  const scale = Math.min(1, width / FULL_FRAME_WIDTH);
   const shadowPadding = asset.sculpted ? 12 * scale : 0;
   const onError = useCallback(() => {
     reportError(new Error("Bundled frame texture could not load"), "wall.frame.load", { data: { frame } });
