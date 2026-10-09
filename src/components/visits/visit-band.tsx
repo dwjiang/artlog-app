@@ -13,6 +13,7 @@ import { useReduceTransparency } from "@/hooks/use-reduce-transparency";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitStart } from "@/lib/journal/history";
 import { useVisitWorks } from "@/lib/journal/use-visit-works";
+import { useCurrentMuseumPhoto } from "@/lib/venue/use-museum-photo";
 import { useStartVisit } from "@/lib/venue/use-start-visit";
 import { useVenue } from "@/lib/venue/use-venue";
 import type { CurrentVisit } from "@/lib/venue/venue-reducer";
@@ -43,9 +44,16 @@ export function VisitBand({ onCamera = false, beforeVisit = false }: { onCamera?
   const { visit, venue, ready } = useVenue();
   const { works, loading, error } = useVisitWorks(visit?.localId, useLocalOwner());
   const { starting, start, choose } = useStartVisit({ openCamera: !onCamera });
+  const museumPhoto = useCurrentMuseumPhoto();
   if (tabBarHidden || !(visit || (beforeVisit && ready))) return null;
   const backdrop = (
-    <VisitBackdrop works={works} scrim={styles.scrim} watermark={styles.watermark} blurRadius={BLUR_RADIUS} />
+    <VisitBackdrop
+      works={works}
+      museumPhoto={museumPhoto}
+      scrim={styles.scrim}
+      watermark={styles.watermark}
+      blurRadius={BLUR_RADIUS}
+    />
   );
   return (
     <SafeAreaBand style={[styles.band, { paddingTop: windowTop }]}>
@@ -56,8 +64,8 @@ export function VisitBand({ onCamera = false, beforeVisit = false }: { onCamera?
       >
         {reduceTransparency && visit ? (
           <View style={[StyleSheet.absoluteFill, styles.opaque]} />
-        ) : onCamera && newestPhoto(works) ? (
-          // The photo matches the band on the other tabs; the blend keeps a second painting from sitting over the camera.
+        ) : onCamera && (newestPhoto(works) || museumPhoto) ? (
+          // The photo matches the band on the other tabs; the blend keeps a second picture from sitting over the camera.
           <>
             <BlurView tint="systemUltraThinMaterialDark" intensity={CAMERA_BLUR} style={StyleSheet.absoluteFill} />
             <View style={[StyleSheet.absoluteFill, styles.blend]}>{backdrop}</View>
