@@ -1,10 +1,10 @@
-import { exhibitionStatus, exhibitionsByTiming, friendNames } from "./exhibition-timing";
+import { exhibitionDates, exhibitionStatus, exhibitionsByTiming, friendNames } from "./exhibition-timing";
 import type { Exhibition, ExploreFriend } from "./types";
 
 const TODAY = "2026-10-04";
 
-function show(id: string, startsOn: string, endsOn: string): Exhibition {
-  return { id, title: id, museumId: "aic", startsOn, endsOn, image: { uri: "", label: id }, friends: [] };
+function show(id: string, startsOn: string | undefined, endsOn: string): Exhibition {
+  return { id, title: id, museumId: "aic", startsOn, endsOn, sourceUrl: "https://museum.example/show", friends: [] };
 }
 
 describe("exhibition status", () => {
@@ -45,6 +45,21 @@ describe("exhibition status", () => {
   it("prefers the countdown for a short show that opened recently", () => {
     expect(exhibitionStatus(show("a", "2026-10-01", "2026-10-10"), TODAY).label).toBe("Ends in 6 days");
   });
+
+  it("treats a show listed only with its closing date as on view", () => {
+    expect(exhibitionStatus(show("a", undefined, "2027-01-18"), TODAY)).toEqual({
+      tone: "muted",
+      label: "Until Jan 18",
+    });
+    expect(exhibitionStatus(show("a", undefined, "2026-10-12"), TODAY).label).toBe("Ends in 8 days");
+  });
+});
+
+describe("exhibition dates", () => {
+  it("spans the viewing period, or gives only the closing date the museum lists", () => {
+    expect(exhibitionDates(show("a", "2026-09-22", "2026-11-20"))).toBe("Sep 22 – Nov 20, 2026");
+    expect(exhibitionDates(show("a", undefined, "2027-01-18"))).toBe("Through Jan 18, 2027");
+  });
 });
 
 describe("exhibitions by timing", () => {
@@ -56,12 +71,23 @@ describe("exhibitions by timing", () => {
   const longRunning = show("long-running", "2026-03-01", "2027-03-01");
   const opensLater = show("opens-later", "2026-10-24", "2027-02-07");
   const opensFirst = show("opens-first", "2026-10-17", "2027-02-28");
-  const all = [closed, endingLater, endingFirst, openedEarlier, openedLater, longRunning, opensLater, opensFirst];
+  const closingOnly = show("closing-only", undefined, "2026-10-20");
+  const all = [
+    closed,
+    endingLater,
+    endingFirst,
+    openedEarlier,
+    openedLater,
+    longRunning,
+    opensLater,
+    opensFirst,
+    closingOnly,
+  ];
   const ids = (timing: Parameters<typeof exhibitionsByTiming>[1]) =>
     exhibitionsByTiming(all, timing, TODAY).map((exhibition) => exhibition.id);
 
   it("lists shows closing within 30 days, soonest first", () => {
-    expect(ids("ending")).toEqual(["ending-first", "ending-later"]);
+    expect(ids("ending")).toEqual(["ending-first", "ending-later", "closing-only"]);
   });
 
   it("lists shows that opened within 30 days, newest first", () => {

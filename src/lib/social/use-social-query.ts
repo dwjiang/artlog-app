@@ -11,45 +11,53 @@ import { useEffect, useMemo, useState } from "react";
 import { reportError } from "@/lib/observability";
 
 import { readCursorPages, type CursorPage } from "./cursor-pages";
-import { useQueryRefresh } from "./use-query-refresh";
+import { useQueryBatchRefresh, useQueryRefresh } from "./use-query-refresh";
 
 type Query = FunctionReference<"query", "public">;
 
 export function useSocialQuery<Q extends Query>(query: Q, args: FunctionArgs<Q> | "skip", scope: string) {
-  const retry = useQueryRefresh(query, args, scope);
+  const result = useBatchedSocialQuery(query, args === "skip" ? [] : [args], scope);
+  return { ...result, data: result.data?.[0] };
+}
+
+/** Keeps a set of bounded reads subscribed and retries them as one screen's result. */
+export function useBatchedSocialQuery<Q extends Query>(query: Q, args: FunctionArgs<Q>[], scope: string) {
+  const retry = useQueryBatchRefresh(query, args, scope);
   const name = getFunctionName(query);
   const serialized = JSON.stringify(args);
   const key = `${scope}:${name}:${serialized}`;
-  const enabled = args !== "skip" && !retry.refreshing;
+  const enabled = args.length > 0 && !retry.refreshing;
   const requests = useMemo(
     () =>
       enabled
-        ? {
-            [key]: {
-              query: makeFunctionReference<"query">(name),
-              args: JSON.parse(serialized),
-            },
-          }
+        ? Object.fromEntries(
+            (JSON.parse(serialized) as FunctionArgs<Q>[]).map((batch, index) => [
+              `${key}:${index}`,
+              { query: makeFunctionReference<"query">(name), args: batch },
+            ]),
+          )
         : {},
     [enabled, key, name, serialized],
   );
   const results = useQueries(requests);
   // A delivered live result outranks a stale refresh failure; `null` is a valid result, so `??` cannot decide this.
-  const live: FunctionReturnType<Q> | Error | undefined = results[key];
-  const result = enabled ? (live !== undefined ? live : retry.error) : undefined;
+  const live: (FunctionReturnType<Q> | Error | undefined)[] = args.map((_, index) => results[`${key}:${index}`]);
+  const failure = live.find((result): result is Error => result instanceof Error);
+  const complete = live.every((result) => result !== undefined);
+  const result = enabled ? (failure ?? (complete ? (live as FunctionReturnType<Q>[]) : retry.error)) : undefined;
   useEffect(() => {
     if (result instanceof Error) reportError(result, `social.query.${name}`);
   }, [result, name]);
-  const data = result instanceof Error ? undefined : result;
+  const data = args.length === 0 ? [] : result instanceof Error ? undefined : result;
   // A refresh drops the live subscription, so the last result stays on screen until the new subscription answers.
-  const [held, setHeld] = useState<{ key: string; data: FunctionReturnType<Q> }>();
-  const stale = held !== undefined && (held.key !== key || args === "skip" || result !== undefined);
+  const [held, setHeld] = useState<{ key: string; data: FunctionReturnType<Q>[] }>();
+  const stale = held !== undefined && (held.key !== key || args.length === 0 || result !== undefined);
   if (stale) setHeld(undefined);
   const holding = held && !stale ? held : undefined;
   return {
     data: holding ? holding.data : data,
     error: result instanceof Error ? result : undefined,
-    loading: args !== "skip" && (retry.refreshing || result === undefined),
+    loading: args.length > 0 && (retry.refreshing || result === undefined),
     refreshing: retry.refreshing || holding !== undefined,
     refresh: () => {
       if (!retry.refreshing && data !== undefined) setHeld({ key, data });

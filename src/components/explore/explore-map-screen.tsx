@@ -11,6 +11,7 @@ import { nearbyMuseums } from "@/lib/explore/lists";
 import type { ExploreMuseum } from "@/lib/explore/types";
 import { useExplore } from "@/lib/explore/use-explore";
 
+import { ExploreState } from "./explore-state";
 import { MuseumRow } from "./museum-list-screen";
 
 // At zoom 11 the full map height spans about this many degrees of latitude (measured on an iPhone 17 Pro); each zoom
@@ -39,10 +40,12 @@ function cameraBetweenBarAndPanel(museums: ExploreMuseum[]) {
 }
 
 export function ExploreMapScreen() {
-  const data = useExplore();
+  const explore = useExplore();
   const { bottom } = useSafeAreaInsets();
   const [selected, setSelected] = useState<string>();
   const list = useRef<ScrollView>(null);
+  const { data } = explore;
+  if (!data) return <ExploreState view={explore} />;
   const nearby = nearbyMuseums(data);
   // A tapped pin's museum leads the list; Expo Maps reports marker taps from iOS 18.
   const museums = [...nearby].sort((a, b) => Number(b.id === selected) - Number(a.id === selected));
@@ -58,7 +61,7 @@ export function ExploreMapScreen() {
           cameraPosition={camera}
           markers={nearby.map((museum) => ({
             id: museum.id,
-            title: museum.shortName,
+            title: museum.name,
             systemImage: "building.columns",
             tintColor: museum.id === selected ? Gallery.accent : Gallery.ink,
             coordinates: { latitude: museum.lat, longitude: museum.lng },

@@ -12,6 +12,14 @@ export function useQueryRefresh<Q extends FunctionReference<"query", "public">>(
   args: FunctionArgs<Q> | "skip",
   scope: string,
 ) {
+  return useQueryBatchRefresh(query, args === "skip" ? [] : [args], scope);
+}
+
+export function useQueryBatchRefresh<Q extends FunctionReference<"query", "public">>(
+  query: Q,
+  args: FunctionArgs<Q>[],
+  scope: string,
+) {
   const token = useAuthToken();
   const key = `${scope}:${getFunctionName(query)}:${JSON.stringify(args)}`;
   const [state, setState] = useState<{
@@ -34,7 +42,7 @@ export function useQueryRefresh<Q extends FunctionReference<"query", "public">>(
   );
 
   async function refresh() {
-    if (args === "skip" || request.current) return;
+    if (args.length === 0 || request.current) return;
     const session = captureOwner();
     const controller = new AbortController();
     request.current = controller;
@@ -47,7 +55,7 @@ export function useQueryRefresh<Q extends FunctionReference<"query", "public">>(
     });
     let error: Error | undefined;
     try {
-      await client.query(query, args);
+      await Promise.all(args.map((batch) => client.query(query, batch)));
     } catch (cause) {
       if (session.isCurrent() && !controller.signal.aborted) {
         reportError(cause, `social.query.${getFunctionName(query)}`);

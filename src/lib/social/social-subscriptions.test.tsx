@@ -7,6 +7,7 @@ import { useCursorPages, useSocialQuery } from "./use-social-query";
 
 jest.mock("./use-query-refresh", () => ({
   useQueryRefresh: () => ({ refreshing: false, refresh: jest.fn() }),
+  useQueryBatchRefresh: () => ({ refreshing: false, refresh: jest.fn() }),
 }));
 const client = {
   watchQuery: () => ({

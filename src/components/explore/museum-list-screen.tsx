@@ -9,11 +9,14 @@ import type { ExploreData, ExploreMuseum } from "@/lib/explore/types";
 import { useExplore } from "@/lib/explore/use-explore";
 
 import { openMuseum } from "./explore-routes";
+import { ExploreState } from "./explore-state";
 import { listStyles } from "./list-styles";
 import { MuseumPhoto, MuseumSummaryLine } from "./museum-tile";
 
 export function MuseumListScreen() {
-  const data = useExplore();
+  const explore = useExplore();
+  const { data } = explore;
+  if (!data) return <ExploreState view={explore} />;
   const museums = nearbyMuseums(data);
   return (
     <FlatList
@@ -39,11 +42,12 @@ export function MuseumRow({
   selected?: boolean;
 }) {
   const summary = museumSummary(data, museum);
+  const line = museumLine(museum);
   return (
     <MotionPressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      accessibilityLabel={[museum.name, museumLine(museum), summary.count, summary.ending].filter(Boolean).join(", ")}
+      accessibilityLabel={[museum.name, line, summary.count, summary.ending].filter(Boolean).join(", ")}
       onPress={() => openMuseum(museum.id)}
       style={[styles.row, selected && styles.selected]}
     >
@@ -52,7 +56,7 @@ export function MuseumRow({
         <Text style={styles.name} numberOfLines={2}>
           {museum.name}
         </Text>
-        <Text style={styles.line}>{museumLine(museum)}</Text>
+        {line !== "" && <Text style={styles.line}>{line}</Text>}
         <MuseumSummaryLine data={data} museum={museum} />
       </View>
     </MotionPressable>

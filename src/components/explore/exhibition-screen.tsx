@@ -8,25 +8,28 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
-import { exhibitionStatus, friendNames, shortDate } from "@/lib/explore/exhibition-timing";
+import { exhibitionDates, exhibitionStatus, friendNames, isUpcoming } from "@/lib/explore/exhibition-timing";
 import { toggleReminder, toggleWantToSee, usePlans } from "@/lib/explore/plans";
-import { exhibitionById, museumById, useExplore } from "@/lib/explore/use-explore";
+import { exhibitionById, museumById, useExhibitions } from "@/lib/explore/use-explore";
 
-import { FactRow, openDirections, StatusChip } from "./detail-parts";
+import { FactRow, openDirections, openExhibitionPage, StatusChip } from "./detail-parts";
 import { openMuseum } from "./explore-routes";
+import { ExploreState } from "./explore-state";
 import { FriendStack } from "./friend-stack";
 
 // The filled button's own height, so an outlined neighbor lines up with it.
 const BUTTON_HEIGHT = 52;
 
 export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
-  const data = useExplore();
+  const explore = useExhibitions([exhibitionId]);
   const plans = usePlans();
   const { width } = useWindowDimensions();
   const [aspect, setAspect] = useState(1);
-  const exhibition = exhibitionById(data, exhibitionId);
-  const museum = exhibition && museumById(data, exhibition.museumId);
+  const { data } = explore;
+  const exhibition = data && exhibitionById(data, exhibitionId);
+  const museum = data && exhibition && museumById(data, exhibition.museumId);
   const { scrollRef, headingRef, measureHeading, onScroll } = useScrollTitle(exhibition?.title ?? "");
+  if (!data) return <ExploreState view={explore} />;
   if (!exhibition) {
     return (
       <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
@@ -38,7 +41,7 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
   const saved = plans.wantToSee.has(exhibition.id);
   const reminded = plans.reminders.has(exhibition.id);
   const imageWidth = width - Spacing.content * 2;
-  const year = exhibition.endsOn.slice(0, 4);
+  const host = new URL(exhibition.sourceUrl).hostname.replace(/^www\./, "");
   return (
     <ScrollView
       ref={scrollRef}
@@ -49,13 +52,15 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
       onScroll={onScroll}
       scrollEventThrottle={16}
     >
-      <LoadingImage
-        uri={exhibition.image.uri}
-        label={exhibition.image.label}
-        contentFit="contain"
-        onLoad={({ source }) => setAspect(source.width / source.height)}
-        style={{ width: imageWidth, height: imageWidth / aspect, marginHorizontal: Spacing.content }}
-      />
+      {exhibition.image && (
+        <LoadingImage
+          uri={exhibition.image.uri}
+          label={exhibition.image.label}
+          contentFit="contain"
+          onLoad={({ source }) => setAspect(source.width / source.height)}
+          style={{ width: imageWidth, height: imageWidth / aspect, marginHorizontal: Spacing.content }}
+        />
+      )}
       <View style={styles.details}>
         <View style={styles.heading}>
           <StatusChip status={status} />
@@ -86,7 +91,7 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
             />
           </View>
           <View style={styles.action}>
-            {exhibition.startsOn > data.today ? (
+            {isUpcoming(exhibition, data.today) ? (
               <GalleryButton
                 label={reminded ? "Reminder on" : "Remind me"}
                 accessibilityLabel={reminded ? "Turn off the opening-day reminder" : "Remind me when it opens"}
@@ -121,13 +126,10 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
           </View>
         )}
         <View>
-          <FactRow icon="calendar">{`${shortDate(exhibition.startsOn)} – ${shortDate(exhibition.endsOn)}, ${year}`}</FactRow>
-          {museum && <FactRow icon="clock">{museum.hoursToday}</FactRow>}
-          {museum?.admission && (
-            <FactRow icon="ticket" last>
-              {museum.admission === "Free" ? "Free admission" : `Admission ${museum.admission}`}
-            </FactRow>
-          )}
+          <FactRow icon="calendar">{exhibitionDates(exhibition)}</FactRow>
+          <FactRow icon="safari" last onPress={() => openExhibitionPage(exhibition.sourceUrl)}>
+            {`Details on ${host}`}
+          </FactRow>
         </View>
       </View>
     </ScrollView>

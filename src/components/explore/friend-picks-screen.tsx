@@ -4,10 +4,13 @@ import { friendPicks } from "@/lib/explore/lists";
 import { museumById, useExplore } from "@/lib/explore/use-explore";
 
 import { ExhibitionRow } from "./exhibition-row";
+import { ExploreState } from "./explore-state";
 import { listStyles } from "./list-styles";
 
 export function FriendPicksScreen() {
-  const data = useExplore();
+  const explore = useExplore();
+  const { data } = explore;
+  if (!data) return <ExploreState view={explore} />;
   const picks = friendPicks(data);
   return (
     <FlatList

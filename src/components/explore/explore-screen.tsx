@@ -11,11 +11,12 @@ import {
   type ExhibitionTiming,
 } from "@/lib/explore/exhibition-timing";
 import { friendPicks, nearbyMuseums } from "@/lib/explore/lists";
-import { museumById, useExplore } from "@/lib/explore/use-explore";
+import { chooseCity, museumById, useExplore } from "@/lib/explore/use-explore";
 
 import { ExhibitionCard } from "./exhibition-card";
 import { ExhibitionRow } from "./exhibition-row";
 import { ExploreSectionHeading } from "./explore-section";
+import { ExploreState } from "./explore-state";
 import { MuseumTile } from "./museum-tile";
 import { TimingMenuHeading } from "./timing-menu";
 
@@ -23,9 +24,11 @@ const FRIEND_PICKS_SHOWN = 3;
 
 export function ExploreScreen() {
   const router = useRouter();
-  const [cityId, setCityId] = useState<string>();
-  const data = useExplore(cityId);
+  const explore = useExplore();
   const [timing, setTiming] = useState<ExhibitionTiming>("ending");
+  const { data } = explore;
+  if (!data) return <ExploreState view={explore} />;
+  const museums = nearbyMuseums(data);
   const shows = exhibitionsByTiming(data.exhibitions, timing, data.today);
   const picks = friendPicks(data).slice(0, FRIEND_PICKS_SHOWN);
   return (
@@ -34,7 +37,7 @@ export function ExploreScreen() {
         <Stack.Toolbar.Menu accessibilityLabel={`City, ${data.city.name}`} tintColor={Gallery.ink}>
           <Stack.Toolbar.Label>{data.city.name}</Stack.Toolbar.Label>
           {data.cities.map((city) => (
-            <Stack.Toolbar.MenuAction key={city.id} isOn={city.id === data.city.id} onPress={() => setCityId(city.id)}>
+            <Stack.Toolbar.MenuAction key={city.id} isOn={city.id === data.city.id} onPress={() => chooseCity(city.id)}>
               {city.name}
             </Stack.Toolbar.MenuAction>
           ))}
@@ -96,9 +99,12 @@ export function ExploreScreen() {
           </View>
         )}
         <View style={styles.section}>
-          <ExploreSectionHeading title="Museums near you" onSeeAll={() => router.push("/museums")} />
+          <ExploreSectionHeading
+            title={museums[0]?.distanceM === undefined ? "Museums" : "Museums near you"}
+            onSeeAll={() => router.push("/museums")}
+          />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-            {nearbyMuseums(data).map((museum) => (
+            {museums.map((museum) => (
               <MuseumTile key={museum.id} data={data} museum={museum} />
             ))}
           </ScrollView>

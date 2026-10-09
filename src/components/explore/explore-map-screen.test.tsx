@@ -7,6 +7,18 @@ jest.mock("expo-router", () => ({
   Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
   router: { push: jest.fn() },
 }));
+jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable: true }) }));
+jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({}) }));
+jest.mock("@/lib/settings/use-measurement-units", () => ({
+  useMeasurementUnits: () => ({ units: "imperial", failed: false }),
+}));
+jest.mock("@/lib/social/use-social-query", () => ({
+  useSocialQuery: (query: unknown) => {
+    const { getFunctionName } = jest.requireActual("convex/server");
+    const { bayArea, regions } = jest.requireActual("./__fixtures__/catalog");
+    return { data: getFunctionName(query) === "exhibitions:regions" ? regions : bayArea, refresh: jest.fn() };
+  },
+}));
 
 jest.mock("expo-maps", () => {
   const { Pressable, View } = jest.requireActual("react-native");
@@ -43,12 +55,16 @@ it("reveals the selected museum at the top of the panel on every pin tap", async
   await render(<ExploreMapScreen />);
   expect(scrollTo).not.toHaveBeenCalled();
 
-  for (const name of ["Smart Museum", "Wrightwood 659", "Wrightwood 659"]) {
+  for (const name of [
+    "Oakland Museum of California",
+    "San Francisco Museum of Modern Art",
+    "San Francisco Museum of Modern Art",
+  ]) {
     scrollTo.mockClear();
     await fireEvent.press(screen.getByRole("button", { name: `${name} pin` }));
 
     const selected = screen.getByRole("button", { name: new RegExp(`^${name}`), selected: true });
-    expect(screen.getAllByRole("button", { name: / mi · / })[0]).toBe(selected);
+    expect(screen.getAllByRole("button", { name: / exhibitions?(,|$)/ })[0]).toBe(selected);
     expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false });
   }
 });

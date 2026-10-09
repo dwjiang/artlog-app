@@ -54,17 +54,17 @@ const paths = [
   "/explore-map",
 ];
 
-const SampleScreen = () => <Text>Sample Explore content</Text>;
+const ExploreContent = () => <Text>Explore content</Text>;
 const routes = {
   _layout: { default: RootLayout, unstable_settings },
   "(tabs)/index": () => <Text>Home</Text>,
-  exhibitions: SampleScreen,
-  "exhibition/[exhibitionId]": SampleScreen,
-  "museum/[museumId]": SampleScreen,
-  museums: SampleScreen,
-  "friends-want-to-see": SampleScreen,
-  "want-to-see": SampleScreen,
-  "explore-map": SampleScreen,
+  exhibitions: ExploreContent,
+  "exhibition/[exhibitionId]": ExploreContent,
+  "museum/[museumId]": ExploreContent,
+  museums: ExploreContent,
+  "friends-want-to-see": ExploreContent,
+  "want-to-see": ExploreContent,
+  "explore-map": ExploreContent,
 };
 
 beforeEach(() => {
@@ -94,7 +94,7 @@ it.each(paths)("redirects the release deep link %s to Home", async (path) => {
 
   expect(navigation.getPathname()).toBe("/");
   expect(screen.getByText("Home")).toBeOnTheScreen();
-  expect(screen.queryByText("Sample Explore content")).toBeNull();
+  expect(screen.queryByText("Explore content")).toBeNull();
 });
 
 it.each(paths)("keeps the development deep link %s available", async (path) => {
@@ -103,5 +103,5 @@ it.each(paths)("keeps the development deep link %s available", async (path) => {
   await navigation;
 
   expect(navigation.getPathname()).toBe(path);
-  expect(screen.getByText("Sample Explore content")).toBeOnTheScreen();
+  expect(screen.getByText("Explore content")).toBeOnTheScreen();
 });
