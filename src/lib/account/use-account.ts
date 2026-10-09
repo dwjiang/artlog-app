@@ -10,6 +10,7 @@ import { signPayload } from "@/lib/attested-write";
 import { convex } from "@/lib/convex-client";
 import { resumeDeviceIdentity, signInAnonymously, suspendDeviceIdentity } from "@/lib/device-identity";
 import { addBreadcrumb, reportError } from "@/lib/observability";
+import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { useDeviceReady } from "@/lib/use-device-ready";
 import { socialErrorMessage } from "@/shared/social/errors";
 
@@ -51,9 +52,13 @@ export function useAccount() {
     addBreadcrumb(`${name}.start`);
     try {
       pauseCollectionSync();
-      if ((await operation()) !== false) addBreadcrumb(`${name}.success`);
+      if ((await operation()) !== false) {
+        addBreadcrumb(`${name}.success`);
+        if (name === "auth.apple_sign_in" || name === "auth.google_sign_in") playSuccessHaptic();
+      }
     } catch (cause) {
       if (!(cause && typeof cause === "object" && "code" in cause && cause.code === "ERR_REQUEST_CANCELED")) {
+        playErrorHaptic();
         reportError(cause, name);
         setError(socialErrorMessage(cause) ?? "Couldn’t update your account. Check your connection and try again.");
       }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { isOffline } from "@/lib/network-state";
 
+import { playSuccessHaptic } from "./haptics";
 import { showErrorToast } from "./toast";
 
 /**
@@ -37,6 +38,7 @@ export function useSheetSubmit<T>(
         return;
       }
       await run(input);
+      playSuccessHaptic();
       if (mounted.current) router.back();
     } catch (cause) {
       onError(cause, retry);

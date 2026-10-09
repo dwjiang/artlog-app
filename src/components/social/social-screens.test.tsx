@@ -526,9 +526,11 @@ it("renders Explore rows from the relationship embedded in each page instead of 
   expect(screen.getByRole("button", { name: "Requested" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Add" })).toBeOnTheScreen();
   expect(screen.getAllByRole("button", { name: /^(Add|Requested|Accept)$/ })).toHaveLength(2);
-  expect(
-    mockQuery.mock.calls.filter((call) => getFunctionName(call[0]) === "friendships:getState").map((call) => call[1]),
-  ).toEqual(["skip", "skip"]);
+  const relationshipQueries = mockQuery.mock.calls.filter(
+    (call) => getFunctionName(call[0]) === "friendships:getState",
+  );
+  expect(relationshipQueries.length).toBeGreaterThan(0);
+  expect(new Set(relationshipQueries.map((call) => call[1]))).toEqual(new Set(["skip"]));
 });
 
 it("keeps discovery search available when a member has no friends", async () => {

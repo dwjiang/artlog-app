@@ -129,7 +129,7 @@ function DocentFailed({ onRetry }: { onRetry?: () => Promise<void> }) {
   useEffect(() => {
     if (!active || announced.current) return;
     announced.current = true;
-    showErrorToast(DOCENT_FAILED, onRetry && (() => void retry()));
+    showErrorToast(DOCENT_FAILED, onRetry && (() => void retry()), { quiet: true });
   });
 
   return (

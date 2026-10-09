@@ -14,6 +14,7 @@ import { updatePhotoSession } from "@/lib/capture/photo-draft";
 import { SHARING_NOTICE } from "@/lib/label/contribute";
 import { clearLabelDraft } from "@/lib/label/draft";
 import { resolveWithLabel } from "@/lib/result/feedback";
+import { playSuccessHaptic } from "@/lib/ui/haptics";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { ResultScreen } from "./result-screen";
@@ -61,7 +62,6 @@ const mockReplace = jest.fn();
 const mockDismissAll = jest.fn();
 const mockSign = jest.fn();
 const mockSaveMutation = jest.fn();
-const mockHaptic = jest.fn();
 const mockAuth = { isAuthenticated: true };
 let mockUuid = 0;
 let mockFocused = true;
@@ -131,10 +131,7 @@ jest.mock("expo-router", () => {
     Stack: { Toolbar: Object.assign(View, { Button: Action, Menu: View, MenuAction: Action }) },
   };
 });
-jest.mock("expo-haptics", () => ({
-  notificationAsync: (type: string) => mockHaptic(type),
-  NotificationFeedbackType: { Success: "success" },
-}));
+jest.mock("@/lib/ui/haptics");
 jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn() }));
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
@@ -215,7 +212,6 @@ beforeEach(async () => {
     updatedAt: 20,
     updatedBy: "device",
   });
-  mockHaptic.mockResolvedValue(undefined);
   results.clear();
   listeners.clear();
   results.set("devices:me", {
@@ -512,7 +508,7 @@ it("saves an untouched confident card locally, tells the server the suggestion w
   );
   const link = await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   const savedId = `saved-${mockUuid}`;
-  expect(mockHaptic).toHaveBeenCalledWith("success");
+  expect(playSuccessHaptic).toHaveBeenCalledTimes(1);
   expect(await getSavedWork(savedId)).toMatchObject({
     title: "Water Lilies",
     artist: "Claude Monet",

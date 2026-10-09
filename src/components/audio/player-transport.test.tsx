@@ -4,12 +4,15 @@ import { AccessibilityInfo } from "react-native";
 import { guideTimeline } from "@/lib/audio/guide-timeline";
 import { audioTime } from "@/lib/audio/narration";
 import type { NarrationPreparationStage } from "@/lib/audio/narration-preparation";
+import { playLightHaptic, playSelectionHaptic } from "@/lib/ui/haptics";
 
 import type { GuideSentence } from "../../../convex/lib/validators";
 import { PlayerTransport } from "./player-transport";
 
 const mockSeek = jest.fn();
 const mockToggle = jest.fn();
+const mockSetRate = jest.fn();
+jest.mock("@/lib/ui/haptics");
 const mockAudio = {
   position: 12,
   duration: 120,
@@ -24,7 +27,7 @@ jest.mock("@/lib/audio/use-listening", () => ({
     ...mockAudio,
     playing: true,
     rate: 1,
-    controller: { seek: mockSeek, toggle: mockToggle },
+    controller: { seek: mockSeek, toggle: mockToggle, setRate: mockSetRate },
   }),
 }));
 // Four equally long sentences, one per section, so each section takes a quarter of the guide.
@@ -93,6 +96,33 @@ it("previews the drag position and seeks once to the final released value", asyn
   await fireEvent(slider, "slidingComplete", 48);
   expect(mockSeek).toHaveBeenCalledTimes(1);
   expect(mockSeek).toHaveBeenCalledWith(48);
+});
+
+it("ticks each time a drag carries the position into another section, and only while dragging", async () => {
+  mockAudio.sentences = guide;
+  await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  const slider = screen.getByRole("adjustable", { name: "Narration position" });
+  await fireEvent(slider, "slidingStart", 12);
+  await fireEvent(slider, "valueChange", 20);
+  expect(playSelectionHaptic).not.toHaveBeenCalled();
+  await fireEvent(slider, "valueChange", 45);
+  await fireEvent(slider, "valueChange", 50);
+  expect(playSelectionHaptic).toHaveBeenCalledTimes(1);
+  await fireEvent(slider, "valueChange", 100);
+  expect(playSelectionHaptic).toHaveBeenCalledTimes(2);
+  await fireEvent(slider, "slidingComplete", 100);
+  await fireEvent(slider, "valueChange", 10);
+  expect(playSelectionHaptic).toHaveBeenCalledTimes(2);
+});
+
+it("taps as play toggles and ticks as the speed steps", async () => {
+  await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Pause narration" }));
+  expect(mockToggle).toHaveBeenCalledTimes(1);
+  expect(playLightHaptic).toHaveBeenCalledTimes(1);
+  await fireEvent.press(screen.getByRole("button", { name: "Playback speed, 1 times" }));
+  expect(mockSetRate).toHaveBeenCalledWith(1.25);
+  expect(playSelectionHaptic).toHaveBeenCalledTimes(1);
 });
 
 it("seeks when accessibility changes the value without a touch gesture", async () => {

@@ -17,9 +17,10 @@ import { museumDay } from "@/lib/journal/visit-date";
 import { reportError } from "@/lib/observability";
 import type { MeasurementUnits } from "@/lib/settings/measurement-units";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
-import { showToast } from "@/lib/ui/toast";
+import { playErrorHaptic } from "@/lib/ui/haptics";
 import { type VenueRow, formatDistance } from "@/lib/venue/resolve";
 import { searchVenues } from "@/lib/venue/search-venues";
+import { confirmVisitStarted } from "@/lib/venue/use-start-visit";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
 import { venueLocation } from "@/lib/venue/venue-location";
 import { venueOptionKey, type VenueOption } from "@/lib/venue/venue-reducer";
@@ -146,13 +147,14 @@ function ChooserSheet({
           replaceVisitLocalId: visit?.localId,
         });
         if (request.signal.aborted) return;
-        if (started.localId !== visit?.localId) showToast("Visit started.");
+        if (started.localId !== visit?.localId) confirmVisitStarted();
       }
       answered.current = true;
       router.back();
     } catch (cause) {
       if (!request.signal.aborted) reportError(cause, starting ? "visit.start" : "venue.confirm");
       if (!request.signal.aborted) {
+        playErrorHaptic();
         setFailure(
           starting
             ? "Couldn’t start the visit. Try again."

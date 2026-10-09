@@ -3,6 +3,7 @@ import type { FunctionReference } from "convex/server";
 import { ActionSheetIOS } from "react-native";
 
 import type { SocialSession } from "@/lib/social/use-social-session";
+import { playErrorHaptic, playLightHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { dismissToast, showErrorToast, useToast } from "@/lib/ui/toast";
 import { MAX_COMMENT_LENGTH } from "@/shared/social/visit-reactions";
 
@@ -50,11 +51,7 @@ jest.mock("@/lib/social/use-social-query", () => ({
   }),
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => "request-uuid" }));
-const mockImpact = jest.fn(async (_style: string) => {});
-jest.mock("expo-haptics", () => ({
-  impactAsync: (style: string) => mockImpact(style),
-  ImpactFeedbackStyle: { Light: "light", Medium: "medium" },
-}));
+jest.mock("@/lib/ui/haptics");
 const mockCopy = jest.fn();
 jest.mock("expo-clipboard", () => ({ setStringAsync: (text: string) => mockCopy(text) }));
 const mockBlock = jest.fn();
@@ -104,7 +101,7 @@ it("shows an unlike at once, silently, and submits only one while it is pending"
     screen.getByRole("button", { name: "Like visit", selected: false, busy: true, value: { text: "12 likes" } }),
   ).toBeDisabled();
   expect(screen.getByText("12 people like this")).toBeOnTheScreen();
-  expect(mockImpact).not.toHaveBeenCalled();
+  expect(playLightHaptic).not.toHaveBeenCalled();
   await act(() => resolve());
 });
 
@@ -123,8 +120,7 @@ it("fills the heart with one light haptic as soon as a visit is liked", async ()
     screen.getByRole("button", { name: "Unlike visit", selected: true, value: { text: "13 likes" } }),
   ).toBeDisabled();
   expect(screen.getByText("Liked by you and 12 others")).toBeOnTheScreen();
-  expect(mockImpact).toHaveBeenCalledTimes(1);
-  expect(mockImpact).toHaveBeenCalledWith("light");
+  expect(playLightHaptic).toHaveBeenCalledTimes(1);
   await act(() => resolve());
   // The mocked summary never receives the saved like, so the heart falls back to the server's state.
   expect(screen.getByRole("button", { name: "Like visit", selected: false })).toBeEnabled();
@@ -188,9 +184,21 @@ it("preserves a failed comment draft and reuses its request ID on retry", async 
   await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
   expect(screen.getByLabelText("Add a comment")).toHaveTextContent("A familiar favorite.");
   expect(screen.getByText("Couldn’t post your comment. Your text is still here.")).toBeOnTheScreen();
+  expect(playErrorHaptic).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
   expect(mockMutate.mock.calls[0]).toEqual(mockMutate.mock.calls[1]);
   expect(screen.getByLabelText("Add a comment")).toHaveTextContent("");
+});
+
+it("confirms a posted comment once the thread shows it", async () => {
+  mockComments = [comment("mine", "A familiar favorite.", { profileId: "me", name: "Me" })];
+  mockMutate.mockResolvedValueOnce("mine");
+  await render(<VisitReactions visit={visit} openComments />);
+  await fireEvent.changeText(screen.getByLabelText("Add a comment"), "A familiar favorite.");
+  expect(playSuccessHaptic).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Post comment" }));
+  expect(playSuccessHaptic).toHaveBeenCalledTimes(1);
+  expect(playErrorHaptic).not.toHaveBeenCalled();
 });
 
 it("opens the likes list from the compact summary and dismisses it", async () => {
@@ -279,8 +287,7 @@ it("shows a comment heart at once while its write is in flight", async () => {
     value: { text: "3 likes" },
   });
   expect(pending).toBeDisabled();
-  expect(mockImpact).toHaveBeenCalledTimes(1);
-  expect(mockImpact).toHaveBeenCalledWith("light");
+  expect(playLightHaptic).toHaveBeenCalledTimes(1);
   await act(() => resolve());
   // The mocked list never receives the saved like, so the heart falls back to the server's state.
   expect(

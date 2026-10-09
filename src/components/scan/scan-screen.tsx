@@ -4,6 +4,7 @@ import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } f
 import { useIsFocused, type ParamListBase } from "expo-router/react-navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppState, StyleSheet, View } from "react-native";
+import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePhotoOutput } from "react-native-vision-camera";
 
@@ -27,6 +28,18 @@ import { OverlayCaption } from "./overlay-caption";
 import { QueueBadge } from "./queue-badge";
 import { TapToFocusCamera } from "./tap-to-focus-camera";
 import { VenuePill } from "./venue-pill";
+
+// A failed capture's caption shakes once as it appears, in the frame its error haptic plays.
+const FAILURE_SHAKE = new Keyframe({
+  0: { transform: [{ translateX: 0 }] },
+  20: { transform: [{ translateX: -8 }] },
+  40: { transform: [{ translateX: 7 }] },
+  60: { transform: [{ translateX: -5 }] },
+  80: { transform: [{ translateX: 3 }] },
+  100: { transform: [{ translateX: 0 }] },
+})
+  .duration(360)
+  .reduceMotion(ReduceMotion.System);
 
 export function ScanScreen() {
   const listening = useHasListeningTrack();
@@ -169,9 +182,9 @@ export function ScanScreen() {
           >
             <DevTimings timings={busy ? undefined : capture.timings} detection={detecting ? detectionLog : undefined} />
             {message ? (
-              <View accessible accessibilityRole="alert">
+              <Animated.View entering={FAILURE_SHAKE} accessible accessibilityRole="alert">
                 <OverlayCaption hint={retryHint}>{message}</OverlayCaption>
-              </View>
+              </Animated.View>
             ) : (
               <CaptureFeedback controller={capture.controller} detecting={detecting} busy={busy} />
             )}

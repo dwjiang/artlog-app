@@ -4,6 +4,7 @@ import { captureOwner } from "@/lib/account/owner-store";
 import { convexErrorCode } from "@/lib/network-error";
 import { offerNotifications } from "@/lib/notifications/offer";
 import { reportError } from "@/lib/observability";
+import { playErrorHaptic, playMediumHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { showToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
 
@@ -23,6 +24,8 @@ export function useFriendship(profileId: Id<"profiles">, session: SocialSession,
   const query = source ? { ...source, error: undefined } : own;
   const [confirmed, setConfirmed] = useState<Relationship>();
   const [pending, setPending] = useState<FriendshipAction>();
+  // Requests and accepts confirmed here; each one bounces the checkmark it puts on screen.
+  const [confirmations, setConfirmations] = useState(0);
   const [error, setError] = useState<string>();
   const request = useRef<AbortController | null>(null);
   useEffect(
@@ -56,12 +59,18 @@ export function useFriendship(profileId: Id<"profiles">, session: SocialSession,
       );
       if (current()) {
         setConfirmed(result);
+        if (action === "request" || action === "accept") {
+          playSuccessHaptic();
+          setConfirmations((count) => count + 1);
+        }
+        if (action === "remove") playMediumHaptic();
         if (action === "accept") showToast("You’re now friends.");
         if (action === "request") offerNotifications();
         return true;
       }
     } catch (cause) {
       if (!current()) return;
+      playErrorHaptic();
       reportError(cause, `friendship.${action}`);
       if (convexErrorCode(cause) === "conflict" || convexErrorCode(cause) === "invalid_relationship") {
         setConfirmed(undefined);
@@ -81,6 +90,7 @@ export function useFriendship(profileId: Id<"profiles">, session: SocialSession,
   return {
     state,
     pending,
+    confirmations,
     error: error ?? (query.error ? (socialErrorMessage(query.error) ?? "Couldn’t load this friendship.") : undefined),
     act,
     refresh: () => {

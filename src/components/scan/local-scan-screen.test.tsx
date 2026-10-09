@@ -9,6 +9,7 @@ import { upsertVisit } from "@/db/repos/visits";
 import type { NewPendingScan } from "@/db/schema";
 import { FAILED_TITLE } from "@/lib/result/failure-copy";
 import * as resultSave from "@/lib/result/save";
+import { playSuccessHaptic } from "@/lib/ui/haptics";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { LocalScanScreen, MISSING_TITLE } from "./local-scan-screen";
@@ -43,7 +44,6 @@ const mockNavigate = jest.fn();
 const mockDismissAll = jest.fn();
 const mockRetry = jest.fn();
 const mockMutation = jest.fn();
-const mockHaptic = jest.fn();
 let mockUuid = 0;
 let mockFocused = true;
 const databaseListeners = new Set<Parameters<typeof SQLite.addDatabaseChangeListener>[0]>();
@@ -118,10 +118,7 @@ jest.mock("expo-router", () => {
     Stack: { Toolbar: Object.assign(View, { Button: Action, Menu: View, MenuAction: Action }) },
   };
 });
-jest.mock("expo-haptics", () => ({
-  notificationAsync: (type: string) => mockHaptic(type),
-  NotificationFeedbackType: { Success: "success" },
-}));
+jest.mock("@/lib/ui/haptics");
 
 function row(localId: string, fields: Partial<NewPendingScan>): NewPendingScan {
   return {
@@ -179,7 +176,6 @@ beforeEach(() => {
     updatedAt: 20,
     updatedBy: "device",
   });
-  mockHaptic.mockResolvedValue(undefined);
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -446,7 +442,7 @@ it("shows the queued capture as waiting for signal, sends the label offline and 
     ),
   );
   expect(mockMutation.mock.calls[0][1].scanId).toBeUndefined();
-  expect(mockHaptic).toHaveBeenCalledWith("success");
+  expect(playSuccessHaptic).toHaveBeenCalledTimes(1);
   expect(mockReplace).not.toHaveBeenCalled();
 });
 

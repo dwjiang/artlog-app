@@ -33,6 +33,7 @@ import { useVisits } from "@/lib/journal/use-visits";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
 import { offerNotifications } from "@/lib/notifications/offer";
 import { reportError } from "@/lib/observability";
+import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { showToast } from "@/lib/ui/toast";
 import { arrangeShareGrid, sharedOrder } from "@/lib/visits/share-order";
 import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
@@ -261,6 +262,7 @@ export function VisitShareScreen() {
       return false;
     });
     if (posted) {
+      playSuccessHaptic();
       // Home opens on the feed the post belongs to; feeds order posts by visit date, not by when they were posted.
       showToast(POSTED[audience]);
       router.dismissAll();
@@ -269,6 +271,8 @@ export function VisitShareScreen() {
         params: { feed: audience === "public" ? "global" : "friends", posted: String(Date.now()) },
       });
       if (audience !== "private") offerNotifications();
+    } else {
+      playErrorHaptic();
     }
     submitting.current = false;
     setPosting(false);

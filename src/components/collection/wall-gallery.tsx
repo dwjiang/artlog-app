@@ -1,4 +1,3 @@
-import * as Haptics from "expo-haptics";
 import { useEffect } from "react";
 import { PixelRatio, Pressable, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, type NativeGesture } from "react-native-gesture-handler";
@@ -15,6 +14,7 @@ import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { playLightHaptic, playSelectionHaptic } from "@/lib/ui/haptics";
 import {
   constrainWallPiece,
   dropWallPiece,
@@ -53,10 +53,6 @@ function samePlacement(a: Placement, b: Placement) {
 function snap(points: number) {
   "worklet";
   return Math.round(points * PIXEL) / PIXEL;
-}
-
-function tick() {
-  void Haptics.selectionAsync().catch(() => {});
 }
 
 export function WallGallery({
@@ -107,7 +103,7 @@ export function WallGallery({
       const next = dropWallPiece(pieces, current.id, current, width);
       const before = arrangement.get();
       if (Object.keys(next).some((id) => id !== current.id && !(before[id] && samePlacement(before[id], next[id])))) {
-        scheduleOnRN(tick);
+        scheduleOnRN(playSelectionHaptic);
       }
       arrangement.set(next);
     }
@@ -261,6 +257,7 @@ function Hanging({
     .onStart(() => {
       dragging.set(true);
       lift.set(withSpring(1, SPRING));
+      scheduleOnRN(playLightHaptic);
       scheduleOnRN(onSelect, piece);
     })
     .onUpdate((event) => {
@@ -271,6 +268,7 @@ function Hanging({
       const next = dropWallPiece(pieces, piece.localId, follow(event), width);
       glide(next[piece.localId] ?? layout, { x: event.velocityX / width, y: event.velocityY / width });
       arrangement.set(next);
+      scheduleOnRN(playLightHaptic);
       scheduleOnRN(onArrange, next);
     })
     .onFinalize((_event, success) => {

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
+import { PopInBadge } from "@/components/pop-on-turn-on";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius } from "@/constants/theme";
 
@@ -23,11 +24,9 @@ export function ShareTileImage({
     <View style={[styles.stage, { width: size, height: size }]}>
       {children}
       <View pointerEvents="none" style={[styles.edge, selected ? styles.edgeOn : styles.veil]} />
-      {selected && (
-        <View pointerEvents="none" style={styles.badge}>
-          {badge}
-        </View>
-      )}
+      <PopInBadge on={selected} style={styles.badge}>
+        {badge}
+      </PopInBadge>
     </View>
   );
 }

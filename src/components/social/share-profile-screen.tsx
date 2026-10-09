@@ -175,7 +175,9 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
             onError={() => {
               setQrReady(false);
               reportError(new Error("Profile QR code could not load"), "profile.qr");
-              showErrorToast("Couldn’t load your QR code.", () => setQrAttempt((attempt) => attempt + 1));
+              showErrorToast("Couldn’t load your QR code.", () => setQrAttempt((attempt) => attempt + 1), {
+                quiet: true,
+              });
             }}
           />
           {/* A logo, not reading text, so it keeps one size on screen and in the shared image. */}

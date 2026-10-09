@@ -17,6 +17,7 @@ import { audioTime } from "@/lib/audio/narration";
 import { preparationLabel } from "@/lib/audio/narration-preparation";
 import { useGeneratedRange } from "@/lib/audio/use-generated-range";
 import { useListening } from "@/lib/audio/use-listening";
+import { playLightHaptic, playSelectionHaptic } from "@/lib/ui/haptics";
 
 import type { GuideSection } from "../../../convex/lib/validators";
 import { SystemVolumeSlider } from "../../../modules/system-volume/src";
@@ -27,6 +28,8 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
   const audio = useListening();
   const [scrubbing, setScrubbing] = useState(false);
   const dragging = useRef(false);
+  // The section under the thumb while dragging; crossing into another one ticks.
+  const scrubbedSection = useRef<GuideSection | undefined>(undefined);
   const [draft, setDraft] = useState(audio.position);
   const [draftScale, setDraftScale] = useState(0);
   const ready = audio.phase === "ready";
@@ -102,13 +105,22 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           style={styles.slider}
           onSlidingStart={(value) => {
             dragging.current = true;
+            scrubbedSection.current = timeline && sectionAt(timeline, value);
             setDraft(value);
             setDraftScale(scale);
             setScrubbing(true);
           }}
           onValueChange={(value) => {
             setDraft(value);
-            if (!dragging.current) void audio.controller.seek(value);
+            if (!dragging.current) {
+              void audio.controller.seek(value);
+              return;
+            }
+            const next = timeline && sectionAt(timeline, value);
+            if (next !== scrubbedSection.current) {
+              scrubbedSection.current = next;
+              playSelectionHaptic();
+            }
           }}
           onSlidingComplete={(value) => {
             dragging.current = false;
@@ -142,7 +154,10 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           }
           accessibilityState={{ busy: preparing, disabled: preparing }}
           disabled={preparing}
-          onPress={audio.controller.toggle}
+          onPress={() => {
+            playLightHaptic();
+            audio.controller.toggle();
+          }}
           style={styles.play}
         >
           {preparing ? (
@@ -152,6 +167,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
               name={audio.phase === "error" ? "arrow.clockwise" : audio.playing ? "pause.fill" : "play.fill"}
               size={32}
               color={Gallery.surface}
+              morphs
             />
           )}
         </MotionPressable>
@@ -178,6 +194,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           accessibilityLabel={`Playback speed, ${audio.rate} times`}
           onPress={() => {
             const rates = [1, 1.25, 1.5, 2];
+            playSelectionHaptic();
             audio.controller.setRate(rates[(rates.indexOf(audio.rate) + 1) % rates.length]);
           }}
         >
