@@ -1,8 +1,10 @@
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react-native";
+import { openBrowserAsync } from "expo-web-browser";
 import type { PropsWithChildren } from "react";
 import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent } from "react-native";
 
 import { showErrorToast, showToast } from "@/lib/ui/toast";
+import type { MuseumPhoto } from "@/lib/venue/use-museum-photo";
 import type { VenueView } from "@/lib/venue/use-venue";
 
 import { NowCard, NowCardScrolledAway, useNowCardScroll } from "./now-card";
@@ -15,11 +17,14 @@ let mockVenue: VenueView["venue"];
 let mockReady: VenueView["ready"];
 let mockOptions: VenueView["options"] = [];
 let mockWorks: { localId: string; cropPath: string | null; title: string }[] = [];
+let mockMuseumPhoto: MuseumPhoto | undefined;
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush, navigate: mockNavigate }) }));
 jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
 jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => "device:test" }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("@/lib/ui/toast", () => ({ showToast: jest.fn(), showErrorToast: jest.fn() }));
+jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn() }));
+jest.mock("@/lib/venue/use-museum-photo", () => ({ useCurrentMuseumPhoto: () => mockMuseumPhoto }));
 jest.mock("@/lib/venue/use-venue", () => ({
   useVenue: () => ({
     visit: mockVisit,
@@ -58,6 +63,7 @@ beforeEach(() => {
   mockReady = { kind: "here", venue: met };
   mockOptions = [met];
   mockVisit = undefined;
+  mockMuseumPhoto = undefined;
   mockStartVisit.mockResolvedValue({ ...visit, startedAt: Date.now() });
 });
 afterEach(() => jest.restoreAllMocks());
@@ -65,7 +71,7 @@ afterEach(() => jest.restoreAllMocks());
 it("starts today’s visit at the museum the phone is at, then opens the camera", async () => {
   await render(<NowCard />);
   expect(screen.getByRole("header", { name: "Now" })).toBeOnTheScreen();
-  expect(screen.getByText("You’re here")).toBeOnTheScreen();
+  expect(screen.getByText("Are you here?")).toBeOnTheScreen();
   expect(screen.getByText("The Metropolitan Museum of Art")).toBeOnTheScreen();
   expect(screen.getByText("Don’t miss at id-met")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Start visit" }));
@@ -101,17 +107,19 @@ it("stays off Home when no visit can start here and none is open", async () => {
   expect(screen.queryByRole("header", { name: "Now" })).toBeNull();
 });
 
-it("shows the visit in progress with its start and count under the name, and opens it or its end review", async () => {
+it("shows the visit in progress with its start and count, and opens it, the camera or its end review", async () => {
   mockVisit = visit;
   mockReady = undefined;
   await render(<NowCard />);
-  expect(screen.queryByText("You’re here")).toBeNull();
+  expect(screen.queryByText("Are you here?")).toBeNull();
   expect(screen.getByText("Since 1:42 PM · 2 artworks")).toBeOnTheScreen();
   expect(screen.getByText("Don’t miss at id-met")).toBeOnTheScreen();
   const card = screen.getByRole("button", { name: "Visiting The Metropolitan Museum of Art" });
   expect(card).toHaveAccessibilityValue({ text: "Since 1:42 PM · 2 artworks" });
   await fireEvent.press(card);
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/journal/[visitId]", params: { visitId: "visit-1" } });
+  await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
+  expect(mockNavigate).toHaveBeenCalledWith("/scan");
   await fireEvent.press(screen.getByRole("button", { name: "End visit" }));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/journal/[visitId]",
@@ -135,6 +143,42 @@ it("keeps a visit paused elsewhere on the card as open rather than in progress",
   expect(screen.getByRole("button", { name: "Visit open at The Metropolitan Museum of Art" })).toBeOnTheScreen();
   expect(screen.queryByText("Neue Galerie")).toBeNull();
   expect(screen.queryByText(/Don’t miss/)).toBeNull();
+});
+
+describe("the museum's photo", () => {
+  const photo = {
+    imageUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/The_Met.jpg?width=1280",
+    pageUrl: "https://commons.wikimedia.org/wiki/File:The_Met.jpg",
+    author: "Hugo Schneider",
+    license: "CC BY-SA 2.0",
+  };
+  beforeEach(() => {
+    mockMuseumPhoto = photo;
+  });
+
+  it("credits its author and license before the visit, and the credit opens its Commons page", async () => {
+    await render(<NowCard />);
+    await fireEvent.press(screen.getByRole("link", { name: "Photo: Hugo Schneider · CC BY-SA 2.0" }));
+    expect(openBrowserAsync).toHaveBeenCalledWith(photo.pageUrl);
+  });
+
+  it("stays credited during the visit until a saved artwork's photo takes over", async () => {
+    mockVisit = visit;
+    mockReady = undefined;
+    mockWorks = [];
+    const view = await render(<NowCard />);
+    expect(screen.getByRole("link", { name: "Photo: Hugo Schneider · CC BY-SA 2.0" })).toBeOnTheScreen();
+    mockWorks = [{ localId: "a", cropPath: "a.jpg", title: "Water Lilies" }];
+    await view.rerender(<NowCard />);
+    expect(screen.queryByRole("link", { name: /^Photo:/ })).toBeNull();
+  });
+
+  it("shows no credit for a photo whose license asks for none", async () => {
+    mockMuseumPhoto = { ...photo, author: undefined, license: undefined };
+    await render(<NowCard />);
+    expect(screen.getByText("Are you here?")).toBeOnTheScreen();
+    expect(screen.queryByRole("link", { name: /^Photo:/ })).toBeNull();
+  });
 });
 
 it("tells the tab layout when the card scrolls under the navigation bar and back, and resets when Home goes", async () => {

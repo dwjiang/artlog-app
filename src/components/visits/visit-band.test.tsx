@@ -22,6 +22,7 @@ jest.mock("@/lib/ui/toast", () => ({ showToast: jest.fn(), showErrorToast: jest.
 jest.mock("@/lib/venue/use-venue", () => ({
   useVenue: () => ({ visit: mockVisit, venue: mockVenue, ready: mockReady, startVisit: mockStartVisit }),
 }));
+jest.mock("@/lib/venue/use-museum-photo", () => ({ useCurrentMuseumPhoto: () => undefined }));
 jest.mock("@/lib/journal/use-visit-works", () => ({
   useVisitWorks: (visitLocalId?: string) => ({ works: visitLocalId ? mockWorks : [], loading: mockLoading }),
 }));

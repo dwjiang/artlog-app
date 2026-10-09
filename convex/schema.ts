@@ -353,6 +353,18 @@ export default defineSchema({
     .index("by_key", ["key"])
     .index("by_lat", ["lat"]),
 
+  // A museum's Commons photo for the Now card, looked up the first time someone sees the museum there.
+  // `checkedAt` stays unset while a lookup is pending; a checked row without `file` means no usable photo.
+  museumPhotos: defineTable({
+    venueId: v.id("museums"),
+    requestedAt: v.number(),
+    checkedAt: v.optional(v.number()),
+    file: v.optional(v.string()),
+    // The credit shown with the photo; unset when its license asks for none.
+    author: v.optional(v.string()),
+    license: v.optional(v.string()),
+  }).index("by_venue", ["venueId"]),
+
   // The rebuild's best catalogue guesses per museum for Home's "Don't miss"; recent saves are added when read.
   museumPicks: defineTable({
     venueId: v.id("museums"),

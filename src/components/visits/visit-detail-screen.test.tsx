@@ -84,6 +84,7 @@ jest.mock("@/lib/venue/use-venue", () => ({
     visit: mockOpenVisit ? { ...mockVisit, ...mockOpenVisit } : undefined,
   }),
 }));
+jest.mock("@/lib/venue/use-museum-photo", () => ({ useCurrentMuseumPhoto: () => undefined }));
 jest.mock("@/lib/journal/use-visit-works", () => ({
   useVisitWorks: () => ({ works: mockVisit.works, loading: false }),
 }));

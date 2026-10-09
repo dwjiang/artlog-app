@@ -1,20 +1,25 @@
 import { useRouter } from "expo-router";
+import { openBrowserAsync } from "expo-web-browser";
 import { createContext, use, useEffect, type ReactNode } from "react";
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from "react-native";
+import { Pressable, StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
 import Animated, { Easing, FadeIn, LayoutAnimationConfig, ReduceMotion } from "react-native-reanimated";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { GlassSurface } from "@/components/glass-surface";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Motion, OnPhoto, Radius, Spacing } from "@/constants/theme";
+import { Colors, Gallery, Motion, OnPhoto, Radius, Spacing } from "@/constants/theme";
 import { useScrolledUnderBar } from "@/hooks/use-scrolled-under-bar";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitStart } from "@/lib/journal/history";
 import { useVisitWorks } from "@/lib/journal/use-visit-works";
+import { reportError } from "@/lib/observability";
+import { showErrorToast } from "@/lib/ui/toast";
+import { useCurrentMuseumPhoto, type MuseumPhoto } from "@/lib/venue/use-museum-photo";
 import { useStartVisit } from "@/lib/venue/use-start-visit";
 import { useVenue } from "@/lib/venue/use-venue";
 
 import { DontMiss } from "./dont-miss";
-import { VisitBackdrop } from "./visit-backdrop";
+import { newestPhoto, VisitBackdrop } from "./visit-backdrop";
 
 // Starting or ending a visit fades the card's new face in; a fade, so it stays with Reduce Motion on.
 const SWAP = FadeIn.duration(Motion.state)
@@ -49,8 +54,12 @@ export function NowCard({ onLayout }: { onLayout?: (event: LayoutChangeEvent) =>
   const { venue, visit, ready, options } = useVenue();
   const { works, loading, error } = useVisitWorks(visit?.localId, owner);
   const { starting, start, choose } = useStartVisit({ openCamera: true });
+  const museumPhoto = useCurrentMuseumPhoto();
+  const stacked = useWindowDimensions().fontScale >= 1.5;
   if (!visit && !ready) return null;
   const here = !!visit && visit.venueId === venue?.venueId;
+  // A saved artwork's photo takes over from the museum's.
+  const shownMuseumPhoto = newestPhoto(works) ? undefined : museumPhoto;
   const count = loading || error || works.length === 0 ? undefined : works.length;
   let card: ReactNode;
   if (visit) {
@@ -70,32 +79,45 @@ export function NowCard({ onLayout }: { onLayout?: (event: LayoutChangeEvent) =>
           onPress={() => router.push({ pathname: "/journal/[visitId]", params: { visitId: visit.localId } })}
           style={({ pressed }) => [StyleSheet.absoluteFill, pressed && styles.pressed]}
         >
-          <VisitBackdrop works={works} scrim={styles.scrim} watermark={styles.watermark} />
+          <VisitBackdrop
+            works={works}
+            museumPhoto={museumPhoto}
+            scrim={shownMuseumPhoto ? styles.museumScrim : styles.scrim}
+            watermark={styles.watermark}
+          />
         </Pressable>
-        {/* Taps on the text fall through to the card behind it; only the button takes its own. */}
-        <View style={[styles.content, styles.inVisit]}>
-          <TopLine>{here ? undefined : "Visit open"}</TopLine>
+        {/* Taps on the text fall through to the card behind it; only the buttons take their own. */}
+        <View style={styles.content}>
+          <TopLine photo={shownMuseumPhoto}>{here ? undefined : "Visit open"}</TopLine>
           <View style={styles.boxNone}>
             <Name>{visit.venueName}</Name>
-            <View style={styles.captionRow}>
-              <Text style={[styles.caption, styles.passThrough]}>{caption}</Text>
-              {/* Centred on the caption without adding to its height, so the caption stays under the name. */}
-              <View style={styles.end}>
+            <Text style={[styles.caption, styles.passThrough]}>{caption}</Text>
+            {/* Scan takes Start visit's place; End visit, used once per visit, stays quieter on glass. */}
+            <View style={[styles.action, styles.actions, stacked && styles.stacked]}>
+              <View style={!stacked && styles.scan}>
                 <GalleryButton
-                  label="End"
-                  accessibilityLabel="End visit"
+                  label="Scan artwork"
+                  icon="camera.viewfinder"
                   variant="filled"
                   inverse
+                  fullWidth
                   size="compact"
                   cornerRadius={Radius.full}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/journal/[visitId]",
-                      params: { visitId: visit.localId, endVisit: "true" },
-                    })
-                  }
+                  onPress={() => router.navigate("/scan")}
                 />
               </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityHint="Opens a review before saving and ending the visit"
+                onPress={() =>
+                  router.push({ pathname: "/journal/[visitId]", params: { visitId: visit.localId, endVisit: "true" } })
+                }
+                style={({ pressed }) => pressed && styles.pressed}
+              >
+                <GlassSurface isInteractive style={styles.end}>
+                  <Text style={styles.endLabel}>End visit</Text>
+                </GlassSurface>
+              </Pressable>
             </View>
           </View>
         </View>
@@ -104,8 +126,9 @@ export function NowCard({ onLayout }: { onLayout?: (event: LayoutChangeEvent) =>
   } else if (ready?.kind === "here") {
     card = (
       <ReadyCard
-        top="You’re here"
+        top="Are you here?"
         name={ready.venue.name}
+        photo={museumPhoto}
         action={
           <GalleryButton
             label="Start visit"
@@ -164,12 +187,27 @@ export function NowCard({ onLayout }: { onLayout?: (event: LayoutChangeEvent) =>
   );
 }
 
-function ReadyCard({ top, name, action }: { top: string; name: string; action: ReactNode }) {
+function ReadyCard({
+  top,
+  name,
+  photo,
+  action,
+}: {
+  top: string;
+  name: string;
+  photo?: MuseumPhoto;
+  action: ReactNode;
+}) {
   return (
     <>
-      <VisitBackdrop works={[]} scrim={styles.scrim} watermark={styles.watermark} />
+      <VisitBackdrop
+        works={[]}
+        museumPhoto={photo}
+        scrim={photo ? styles.museumScrim : styles.scrim}
+        watermark={styles.watermark}
+      />
       <View style={styles.content}>
-        <TopLine>{top}</TopLine>
+        <TopLine photo={photo}>{top}</TopLine>
         <View style={styles.boxNone}>
           <Name>{name}</Name>
           <View style={styles.action}>{action}</View>
@@ -179,9 +217,40 @@ function ReadyCard({ top, name, action }: { top: string; name: string; action: R
   );
 }
 
-/** A plain line of status over the card, in place of a chip. */
-function TopLine({ children }: { children?: string }) {
-  return <View style={styles.passThrough}>{children && <Text style={styles.top}>{children}</Text>}</View>;
+/** A plain line of status over the card, in place of a chip, and the credit for the museum's photo across from it. */
+function TopLine({ photo, children }: { photo?: MuseumPhoto; children?: string }) {
+  const credit = [photo?.author, photo?.license].filter(Boolean).join(" · ");
+  return (
+    <View style={styles.topLine}>
+      {children && <Text style={[styles.top, styles.passThrough]}>{children}</Text>}
+      {photo && credit !== "" && <PhotoCredit credit={credit} pageUrl={photo.pageUrl} />}
+    </View>
+  );
+}
+
+function PhotoCredit({ credit, pageUrl }: { credit: string; pageUrl: string }) {
+  async function open() {
+    try {
+      await openBrowserAsync(pageUrl);
+    } catch (cause) {
+      reportError(cause, "venue.photo.open-credit", { level: "warning" });
+      showErrorToast("Couldn’t open the page.", () => void open());
+    }
+  }
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`Photo: ${credit}`}
+      accessibilityHint="Opens the photo’s page on Wikimedia Commons"
+      hitSlop={CREDIT_HIT_SLOP}
+      onPress={() => void open()}
+      style={({ pressed }) => [styles.credit, pressed && styles.pressed]}
+    >
+      <Text numberOfLines={1} style={styles.creditText}>
+        {credit}
+      </Text>
+    </Pressable>
+  );
 }
 
 function Name({ children }: { children: string }) {
@@ -192,8 +261,8 @@ function Name({ children }: { children: string }) {
   );
 }
 
-// End's 44-point target reaches this far above and below the 21-point caption line it is centred on.
-const END_OVERHANG = (44 - 21) / 2;
+// Grows the 11-point credit's touch target to 44 points tall.
+const CREDIT_HIT_SLOP = { top: 14, bottom: 14, left: 8, right: 8 };
 
 const styles = StyleSheet.create({
   section: { paddingHorizontal: Spacing.content, paddingBottom: Spacing.two },
@@ -208,6 +277,11 @@ const styles = StyleSheet.create({
   },
   card: { borderRadius: Radius.card, overflow: "hidden", backgroundColor: Gallery.ink },
   scrim: OnPhoto.scrim,
+  // Building photos often have a bright sky, so the status line and credit get a fade of their own along the top.
+  museumScrim: {
+    experimental_backgroundImage:
+      "linear-gradient(180deg, rgba(10, 14, 20, 0.45) 0%, rgba(10, 14, 20, 0) 30%, rgba(10, 14, 20, 0.78) 100%)",
+  },
   watermark: { right: -18, top: Spacing.compact, width: 170, height: 170 },
   pressed: { opacity: 0.85 },
   passThrough: { pointerEvents: "none" },
@@ -220,18 +294,36 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     pointerEvents: "box-none",
   },
-  // Leaves End's pill as far from the card's bottom edge as the card's side padding.
-  inVisit: { paddingBottom: Spacing.three + END_OVERHANG },
-  top: { fontSize: 15, lineHeight: 20, fontWeight: "600", color: "rgba(255, 255, 255, 0.86)", ...OnPhoto.textShadow },
+  topLine: { flexDirection: "row", alignItems: "flex-start", gap: Spacing.two, pointerEvents: "box-none" },
+  top: {
+    flexShrink: 0,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.86)",
+    ...OnPhoto.textShadow,
+  },
+  credit: { flexShrink: 1, marginLeft: "auto", paddingTop: 2 },
+  creditText: { fontSize: 11, lineHeight: 16, color: "rgba(255, 255, 255, 0.8)", ...OnPhoto.textShadow },
   name: { color: Gallery.paper, fontSize: 24, lineHeight: 30, ...OnPhoto.textShadow },
   action: { marginTop: Spacing.compact },
-  captionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.compact,
+  caption: {
     marginTop: Spacing.half,
-    pointerEvents: "box-none",
+    fontSize: 14,
+    lineHeight: 21,
+    color: "rgba(255, 255, 255, 0.85)",
+    ...OnPhoto.textShadow,
   },
-  caption: { flex: 1, fontSize: 14, lineHeight: 21, color: "rgba(255, 255, 255, 0.85)", ...OnPhoto.textShadow },
-  end: { marginVertical: -END_OVERHANG },
+  actions: { flexDirection: "row", gap: Spacing.two, pointerEvents: "box-none" },
+  stacked: { flexDirection: "column" },
+  scan: { flex: 1 },
+  // As tall as Scan artwork's filled pill beside it.
+  end: {
+    minHeight: 48,
+    justifyContent: "center",
+    paddingHorizontal: Spacing.content,
+    borderRadius: Radius.full,
+    overflow: "hidden",
+  },
+  endLabel: { fontSize: 16, lineHeight: 21, fontWeight: "600", color: Colors.light.overlayText, textAlign: "center" },
 });
