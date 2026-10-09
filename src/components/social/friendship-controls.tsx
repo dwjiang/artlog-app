@@ -1,5 +1,5 @@
 import { Host, Icon, Row, Text as NativeText } from "@expo/ui";
-import { Menu, Button, Spacer } from "@expo/ui/swift-ui";
+import { Menu, Button, Spacer, useNativeState } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel,
   accessibilityValue,
@@ -8,9 +8,10 @@ import {
   disabled,
   frame,
   shapes,
+  symbolEffect,
 } from "@expo/ui/swift-ui/modifiers";
 import { router } from "expo-router";
-import type { ReactElement, ReactNode } from "react";
+import { useEffect, type ComponentProps, type ReactElement, type ReactNode } from "react";
 import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -19,6 +20,7 @@ import { ButtonGhost, LoadingSkeleton } from "@/components/loading-skeleton";
 import { NativeLoadingRing } from "@/components/native-loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { friendshipActions } from "@/lib/social/presentation";
 import type { FriendshipAction, PublicProfile } from "@/lib/social/types";
@@ -26,6 +28,20 @@ import { useFriendship, type RelationshipSource } from "@/lib/social/use-friends
 import type { SocialSession } from "@/lib/social/use-social-session";
 
 import { socialStyles } from "./social-styles";
+
+/**
+ * Modifiers that bounce the checkmark a confirmed request or accept puts on screen. The trigger moves a frame after
+ * `confirmations` rises, once that newly shown checkmark is mounted and has a value to change from.
+ */
+function useCheckmarkBounce(confirmations: number): ComponentProps<typeof Icon>["modifiers"] {
+  const reduced = useReducedMotion();
+  const trigger = useNativeState(0);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => trigger.set(confirmations));
+    return () => cancelAnimationFrame(frame);
+  }, [trigger, confirmations]);
+  return reduced ? [] : [symbolEffect({ effect: "bounce" }, { value: trigger })];
+}
 
 const labels: Record<FriendshipAction, string> = {
   request: "Add Friend",
@@ -98,7 +114,8 @@ function CompactFriendshipAction({
   fullWidth: boolean;
   declinable: boolean;
 }) {
-  const { state, pending, error, act, refresh } = useFriendship(profileId, session, relationship);
+  const { state, pending, confirmations, error, act, refresh } = useFriendship(profileId, session, relationship);
+  const bounce = useCheckmarkBounce(confirmations);
   const busy = pending !== undefined;
   const action =
     state?.state === "pending" ? (state.requesterId === session.profileId ? "cancel" : "accept") : "request";
@@ -117,6 +134,7 @@ function CompactFriendshipAction({
             variant={action === "accept" ? "filled" : "outlined"}
             label={action === "accept" ? "Accept" : action === "cancel" ? "Requested" : "Add"}
             icon={action === "cancel" ? "checkmark" : undefined}
+            iconModifiers={bounce}
             fullWidth={fullWidth || undefined}
             busy={pending === action}
             disabled={busy || !state || state.blocked}
@@ -167,7 +185,15 @@ export function ProfileActionRow({
   );
 }
 
-function FriendsMenu({ removing, onRemove }: { removing: boolean; onRemove: () => void }) {
+function FriendsMenu({
+  removing,
+  onRemove,
+  checkmark,
+}: {
+  removing: boolean;
+  onRemove: () => void;
+  checkmark: ComponentProps<typeof Icon>["modifiers"];
+}) {
   return (
     <Host
       matchContents={{ vertical: true }}
@@ -190,7 +216,7 @@ function FriendsMenu({ removing, onRemove }: { removing: boolean; onRemove: () =
             <Spacer modifiers={[frame({ width: 32 })]} />
             <Row spacing={6} alignment="center" modifiers={[frame({ maxWidth: Infinity })]}>
               {removing && <NativeLoadingRing label="Removing friend" color={Gallery.ink} />}
-              {!removing && <Icon name="checkmark" size={17} color={Gallery.ink} />}
+              {!removing && <Icon name="checkmark" size={17} color={Gallery.ink} modifiers={checkmark} />}
               {!removing && <NativeText textStyle={{ color: Gallery.ink, fontSize: 17 }}>Friends</NativeText>}
             </Row>
             <Icon name="chevron.down" size={12} color={Gallery.ink} modifiers={[frame({ width: 32 })]} />
@@ -215,7 +241,8 @@ export function FriendshipControls({
   /** Replaces the friendship actions while the viewer blocks this profile. */
   onUnblock: () => void;
 }) {
-  const { state, pending, error, act, refresh } = useFriendship(profileId, session);
+  const { state, pending, confirmations, error, act, refresh } = useFriendship(profileId, session);
+  const bounce = useCheckmarkBounce(confirmations);
   if (profileId === session.profileId) return null;
   const busy = pending !== undefined;
   const ready = session.status === "ready";
@@ -226,6 +253,7 @@ export function FriendshipControls({
         key={action}
         label={labels[action]}
         icon={action === "cancel" ? "checkmark" : undefined}
+        iconModifiers={bounce}
         fullWidth
         minHeight={44}
         busy={pending === action}
@@ -276,6 +304,7 @@ export function FriendshipControls({
             ? [
                 <FriendsMenu
                   key="friends"
+                  checkmark={bounce}
                   removing={pending === "remove"}
                   onRemove={() => {
                     if (!busy) {

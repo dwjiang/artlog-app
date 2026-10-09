@@ -2,18 +2,30 @@ import { Image, type ImageSource } from "expo-image";
 import { type ColorValue, type StyleProp, type ViewStyle } from "react-native";
 
 import { MotionPressable } from "@/components/motion-pressable";
-import { Gallery } from "@/constants/theme";
+import { Gallery, Motion } from "@/constants/theme";
+
+// Play, pause and retry morph into each other the way the system players' glyphs do.
+const REPLACE = { effect: "sf:replace", duration: Motion.state } as const;
 
 export function AudioIcon({
   name,
   size = 22,
   color = Gallery.ink,
+  morphs = false,
 }: {
   name: string;
   size?: number;
   color?: ColorValue;
+  morphs?: boolean;
 }) {
-  return <Image source={`sf:${name}` as ImageSource} style={{ width: size, height: size, color }} accessible={false} />;
+  return (
+    <Image
+      source={`sf:${name}` as ImageSource}
+      style={{ width: size, height: size, color }}
+      transition={morphs ? REPLACE : undefined}
+      accessible={false}
+    />
+  );
 }
 export function AudioIconButton({
   name,
@@ -23,6 +35,7 @@ export function AudioIconButton({
   color,
   disabled,
   style,
+  morphs,
 }: {
   name: string;
   label: string;
@@ -31,6 +44,7 @@ export function AudioIconButton({
   color?: ColorValue;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  morphs?: boolean;
 }) {
   return (
     <MotionPressable
@@ -50,7 +64,7 @@ export function AudioIconButton({
         style,
       ]}
     >
-      <AudioIcon name={name} size={size} color={color} />
+      <AudioIcon name={name} size={size} color={color} morphs={morphs} />
     </MotionPressable>
   );
 }

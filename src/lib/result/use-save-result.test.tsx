@@ -18,10 +18,7 @@ jest.mock("@/lib/observability", () => ({
   addBreadcrumb: jest.fn(),
 }));
 
-jest.mock("expo-haptics", () => ({
-  notificationAsync: async () => {},
-  NotificationFeedbackType: { Success: "success" },
-}));
+jest.mock("@/lib/ui/haptics");
 jest.mock("./save", () => ({
   saveResult: jest.fn(),
   saveErrorMessage: () => "Couldn’t save. Try again.",

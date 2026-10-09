@@ -17,7 +17,7 @@ let mockPending: string | undefined;
 jest.mock("@/lib/social/use-friendship", () => ({
   useFriendship: (...args: unknown[]) => {
     mockUseFriendship(...args);
-    return { act: mockAct, state: mockState, pending: mockPending };
+    return { act: mockAct, state: mockState, pending: mockPending, confirmations: 0 };
   },
 }));
 const guest: SocialSession = {
@@ -180,7 +180,7 @@ it("labels your own and a known friend’s rows without a relationship query and
   );
   expect(screen.getByText("You")).toBeOnTheScreen();
   expect(screen.getByText("Friends")).toBeOnTheScreen();
-  expect(mockUseFriendship).toHaveBeenCalledTimes(1);
+  expect(new Set(mockUseFriendship.mock.calls.map(([profileId]) => profileId))).toEqual(new Set(["stranger"]));
   expect(mockUseFriendship).toHaveBeenCalledWith("stranger", ready, undefined);
   await fireEvent.press(screen.getByRole("button", { name: "Add" }));
   expect(mockAct).toHaveBeenCalledWith("request");

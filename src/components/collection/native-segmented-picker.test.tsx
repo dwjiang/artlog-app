@@ -1,6 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
+import { playSelectionHaptic } from "@/lib/ui/haptics";
+
 import { NativeSegmentedPicker } from "./native-segmented-picker";
+
+jest.mock("@/lib/ui/haptics");
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
 it("keeps icon options labeled and exposes the selected visit view", async () => {
   const onChange = jest.fn();
@@ -44,4 +52,24 @@ it("preserves selection and blocks changes while disabled", async () => {
   ).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Visits", disabled: true }));
   expect(onChange).not.toHaveBeenCalled();
+});
+
+it("ticks only when a tap moves the selection to another segment", async () => {
+  const onChange = jest.fn();
+  await render(
+    <NativeSegmentedPicker
+      label="Collection view"
+      value="wall"
+      options={[
+        { value: "wall", label: "Wall" },
+        { value: "visits", label: "Visits" },
+      ]}
+      onChange={onChange}
+    />,
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Wall", selected: true }));
+  expect(playSelectionHaptic).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Visits", selected: false }));
+  expect(playSelectionHaptic).toHaveBeenCalledTimes(1);
+  expect(onChange).toHaveBeenLastCalledWith("visits");
 });

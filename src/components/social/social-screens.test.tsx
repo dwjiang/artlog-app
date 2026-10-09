@@ -352,7 +352,7 @@ it("loads public visits for guests and opens their details without signing in", 
     params: { kind: "visit", postId: "post-a", itemId: "art-a" },
   });
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Dismiss sign-in invitation" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
   expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
 });
 
@@ -385,7 +385,7 @@ it.each([
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByRole("header", { name: gate })).toBeOnTheScreen();
   expect(screen.queryByText(visit.reflection)).toBeNull();
-  expect(screen.queryByRole("button", { name: "Dismiss sign-in invitation" }) !== null).toBe(status === "signed-out");
+  expect(screen.queryByRole("button", { name: "Not now" }) !== null).toBe(status === "signed-out");
   expect(
     mockPages.mock.calls
       .filter(([query]) => getFunctionName(query) === "sharedVisits:listFeed")
@@ -526,9 +526,11 @@ it("renders Explore rows from the relationship embedded in each page instead of 
   expect(screen.getByRole("button", { name: "Requested" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Add" })).toBeOnTheScreen();
   expect(screen.getAllByRole("button", { name: /^(Add|Requested|Accept)$/ })).toHaveLength(2);
-  expect(
-    mockQuery.mock.calls.filter((call) => getFunctionName(call[0]) === "friendships:getState").map((call) => call[1]),
-  ).toEqual(["skip", "skip"]);
+  const relationshipQueries = mockQuery.mock.calls.filter(
+    (call) => getFunctionName(call[0]) === "friendships:getState",
+  );
+  expect(relationshipQueries.length).toBeGreaterThan(0);
+  expect(new Set(relationshipQueries.map((call) => call[1]))).toEqual(new Set(["skip"]));
 });
 
 it("keeps discovery search available when a member has no friends", async () => {

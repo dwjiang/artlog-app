@@ -74,24 +74,35 @@ export function EmptyActions({ action, secondaryAction }: { action?: EmptyAction
   );
 }
 
-/** An empty state set as a gray card in the page gutter, for a section that sits under other content. */
+/**
+ * An empty state set as a gray card in the page gutter, for a section that sits under other content. `visual` trails
+ * the text, or follows it at large text sizes.
+ */
 export function EmptyCard({
   title,
   detail,
+  visual,
   action,
   secondaryAction,
 }: {
   title: string;
   detail?: string;
+  visual?: ReactNode;
   action?: EmptyAction;
   secondaryAction?: EmptyAction;
 }) {
+  const { fontScale } = useWindowDimensions();
   return (
     <View style={styles.card}>
-      <Text accessibilityRole="header" style={styles.cardTitle}>
-        {title}
-      </Text>
-      {detail && <Text style={styles.cardDetail}>{detail}</Text>}
+      <View style={[styles.cardHeading, fontScale > 1.3 && styles.cardHeadingStacked]}>
+        <View style={styles.cardCopy}>
+          <Text accessibilityRole="header" style={styles.cardTitle}>
+            {title}
+          </Text>
+          {detail && <Text style={styles.cardDetail}>{detail}</Text>}
+        </View>
+        {visual}
+      </View>
       {(action || secondaryAction) && (
         <View style={styles.cardActions}>
           {action && (
@@ -169,6 +180,9 @@ const styles = StyleSheet.create({
     backgroundColor: Gallery.fill,
     borderRadius: Radius.card,
   },
+  cardHeading: { flexDirection: "row", alignItems: "flex-start", gap: Spacing.compact },
+  cardHeadingStacked: { flexDirection: "column" },
+  cardCopy: { flexGrow: 1, flexShrink: 1, gap: Spacing.one },
   cardTitle: { fontSize: 17, lineHeight: 22, fontWeight: "600", color: Gallery.ink },
   cardDetail: { fontSize: 14, lineHeight: 21, color: Gallery.muted },
   cardActions: {

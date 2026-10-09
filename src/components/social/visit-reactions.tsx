@@ -12,11 +12,12 @@ import { withPendingLike } from "@/lib/social/presentation";
 import type { SharedVisit } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession, type SocialSession } from "@/lib/social/use-social-session";
+import { playLightHaptic } from "@/lib/ui/haptics";
 import { showErrorToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
-import { LikeHeart, playLikeHaptic } from "./like-heart";
+import { LikeHeart } from "./like-heart";
 import { ReactionIcon } from "./reaction-icon";
 import { profileHref, TaggedText, TextLink } from "./tagged-text";
 import { VisitReactionsSheet } from "./visit-reactions-sheet";
@@ -60,7 +61,7 @@ function LiveReactions({
     const liked = !summary.data.liked;
     pending.current = true;
     setLikeTarget(liked);
-    if (liked) playLikeHaptic();
+    if (liked) playLightHaptic();
     try {
       await setLike({ postId: visit.postId, liked });
     } catch (cause) {

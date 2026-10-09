@@ -4,6 +4,7 @@ import { type AccessibilityRole, Pressable, StyleSheet, View } from "react-nativ
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { LoadingRing } from "@/components/loading-ring";
+import { PopOnTurnOn } from "@/components/pop-on-turn-on";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, SettingsOutline, Spacing, Typography } from "@/constants/theme";
 import { highlightMatch } from "@/lib/ui/highlight-match";
@@ -145,20 +146,22 @@ function RowAccessory({ kind, selected }: { kind?: Accessory; selected: boolean 
     return <Image source="sf:chevron.right" tintColor={Gallery.muted} style={styles.chevron} accessible={false} />;
   }
   if (kind === "check") {
-    return selected ? (
-      <Image source="sf:checkmark" tintColor={Gallery.accent} style={styles.check} accessible={false} />
-    ) : (
-      <View style={styles.check} />
+    return (
+      <PopOnTurnOn on={selected} style={styles.check}>
+        {selected && <Image source="sf:checkmark" tintColor={Gallery.accent} style={styles.check} accessible={false} />}
+      </PopOnTurnOn>
     );
   }
   if (kind === "toggle") {
     return (
-      <Image
-        source={selected ? "sf:checkmark.circle.fill" : "sf:circle"}
-        tintColor={selected ? Gallery.accent : Gallery.controlBorder}
-        style={styles.toggle}
-        accessible={false}
-      />
+      <PopOnTurnOn on={selected}>
+        <Image
+          source={selected ? "sf:checkmark.circle.fill" : "sf:circle"}
+          tintColor={selected ? Gallery.accent : Gallery.controlBorder}
+          style={styles.toggle}
+          accessible={false}
+        />
+      </PopOnTurnOn>
     );
   }
   return null;

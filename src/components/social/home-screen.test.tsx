@@ -224,18 +224,25 @@ it("clears both feeds when the account changes and gates Friends for guests", as
 it("keeps the guest header consistent across feeds, including after dismissing the invitation", async () => {
   mockSession = { ...mockSession, key: "guest", status: "signed-out", token: null, profileId: undefined };
   await renderHome();
-  expect(screen.getByText("Sign in to connect with friends.")).toBeOnTheScreen();
+  expect(screen.getByText("Add your friends.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
-  expect(screen.getByText("Sign in to connect with friends.")).toBeOnTheScreen();
+  expect(screen.getByText("Add your friends.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Leaderboards" })).toBeOnTheScreen();
   expect(within(screen.getByRole("button", { name: "Find Friends" })).queryByText(/\d/)).toBeNull();
   expect(within(screen.getByRole("button", { name: "Notifications" })).queryByText(/\d/)).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Dismiss sign-in invitation" }));
-  expect(screen.queryByText("Sign in to connect with friends.")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
+  expect(screen.queryByText("Add your friends.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Global" }));
-  expect(screen.queryByText("Sign in to connect with friends.")).toBeNull();
+  expect(screen.queryByText("Add your friends.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
-  expect(screen.queryByText("Sign in to connect with friends.")).toBeNull();
+  expect(screen.queryByText("Add your friends.")).toBeNull();
+});
+
+it("sends guests from the invitation to sign in for friends", async () => {
+  mockSession = { ...mockSession, key: "guest", status: "signed-out", token: null, profileId: undefined };
+  await renderHome();
+  await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/sign-in", params: { context: "friends" } });
 });
 
 it("opens the requested feed after posting and still lets the user switch feeds", async () => {

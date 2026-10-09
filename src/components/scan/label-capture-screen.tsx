@@ -1,5 +1,4 @@
 import * as Sentry from "@sentry/react-native";
-import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useNetworkState } from "expo-network";
 import { useRouter } from "expo-router";
@@ -32,6 +31,7 @@ import { isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
 import { discardPendingLabel, flushQueue, retryPendingLabel } from "@/lib/queue/queue";
 import { useScan } from "@/lib/result/use-scan";
+import { playLightHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { ConfirmedFields, LabelFieldName, LabelFlowDisplay } from "../../../convex/lib/validators";
@@ -53,8 +53,8 @@ export type LabelCaptureScreenProps = {
 type Phase =
   | { kind: "capture"; restore?: boolean }
   | { kind: "running"; stage: LabelStage; qr: boolean }
-  /** `confirmed` reopens details the owner already confirmed from this reading. */
-  | { kind: "review"; flow: LabelFlowDisplay; confirmed?: ConfirmedFields }
+  /** `confirmed` reopens details the owner already confirmed from this reading; `fresh` marks one just read. */
+  | { kind: "review"; flow: LabelFlowDisplay; confirmed?: ConfirmedFields; fresh?: boolean }
   | { kind: "queued" }
   | { kind: "error"; message: string };
 
@@ -94,6 +94,11 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
     phase.kind === "review" ? phase.flow : undefined,
     phase.kind === "review" ? phase.confirmed : undefined,
   );
+  // A label just read confirms once its form replaces the loading skeleton.
+  const readFormShown = phase.kind === "review" && !!phase.fresh && !!form;
+  useEffect(() => {
+    if (readFormShown) playSuccessHaptic();
+  }, [readFormShown]);
   const pendingLabel = !!(capture?.labelPhotoPath || capture?.qrUrl);
   const offline = isOffline(network);
   const storeOnly = !remoteScanId || offline;
@@ -162,8 +167,7 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
         }
       });
       if (!mounted.current) return;
-      setPhase({ kind: "review", flow });
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setPhase({ kind: "review", flow, fresh: true });
     } catch (error) {
       reportError(error, "label.verify");
       console.warn("Label flow failed", error);
@@ -230,8 +234,9 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
 
   function takePhoto() {
     if (!active || !cameraReady || busy) return;
-    void Haptics.selectionAsync().catch(() => {});
     void handleLabel(async () => {
+      // Inside the in-flight guard, so a double tap buzzes once, like the artwork shutter.
+      playLightHaptic();
       const { filePath } = await photoOutput.capturePhotoToFile({}, {});
       return { photoUri: `file://${filePath}` };
     }, "Couldn’t take the photo. Try again.");

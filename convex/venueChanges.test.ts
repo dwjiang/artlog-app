@@ -22,6 +22,35 @@ const met = {
 const moma = { ...met, key: "wikidata:Q188740", wikidataId: "Q188740", name: "Museum of Modern Art" };
 
 describe("venue changes", () => {
+  it("bootstraps venues created before the change log", async () => {
+    const t = harness();
+    const id = await t.run((ctx) => seedMuseum(ctx));
+    expect(await t.query(api.venueChanges.snapshot, { cursor: null })).toEqual({
+      venues: [expect.objectContaining({ id })],
+      checkpoint: 0,
+      cursor: null,
+    });
+  });
+
+  it("pages a full snapshot and retains a checkpoint for changes made during the download", async () => {
+    const t = harness();
+    await t.run(async (ctx) => {
+      for (let i = 0; i < CHANGES_PAGE_SIZE + 1; i++) await seedMuseum(ctx, { key: `museum:${i}` });
+    });
+    const first = await t.query(api.venueChanges.snapshot, { cursor: null });
+    expect(first.venues).toHaveLength(CHANGES_PAGE_SIZE);
+    expect(first.cursor).not.toBeNull();
+    expect(first.checkpoint).toBe(0);
+    await t.mutation(internal.ingest.upsertMuseums, { rows: [{ ...met, key: first.venues[0].key }] });
+    const second = await t.query(api.venueChanges.snapshot, { cursor: first.cursor });
+    expect(second.venues).toHaveLength(1);
+    expect(second.cursor).toBeNull();
+    expect(new Set([...first.venues, ...second.venues].map((venue) => venue.id)).size).toBe(CHANGES_PAGE_SIZE + 1);
+    expect((await t.query(api.venueChanges.list, { since: first.checkpoint })).venues).toEqual([
+      expect.objectContaining({ id: first.venues[0].id, name: met.name }),
+    ]);
+  });
+
   it("returns nothing for a table that is current, and keeps venues from before the log out of it", async () => {
     const t = harness();
     await t.run((ctx) => seedMuseum(ctx));

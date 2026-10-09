@@ -1,9 +1,13 @@
 import { act, renderHook } from "@testing-library/react-native";
 
+import { playErrorHaptic } from "./haptics";
 import { dismissToast, showErrorToast, showToast, useLiftToasts, useToast, useToastLift } from "./toast";
+
+jest.mock("./haptics");
 
 beforeEach(() => {
   jest.useFakeTimers();
+  jest.clearAllMocks();
   dismissToast();
 });
 afterEach(() => {
@@ -92,4 +96,14 @@ it("offers Retry on a failure toast only when the operation can run again", asyn
   expect(retry).toHaveBeenCalledTimes(1);
   await act(() => showErrorToast("Couldn’t finish. Try again."));
   expect(result.current?.action).toBeUndefined();
+});
+
+it("buzzes for a failure the user just caused but not for a quiet one or a confirmation", async () => {
+  await renderHook(useToast);
+  await act(() => showToast("Saved."));
+  expect(playErrorHaptic).not.toHaveBeenCalled();
+  await act(() => showErrorToast("Couldn’t share this artwork."));
+  expect(playErrorHaptic).toHaveBeenCalledTimes(1);
+  await act(() => showErrorToast("Couldn’t load background information.", undefined, { quiet: true }));
+  expect(playErrorHaptic).toHaveBeenCalledTimes(1);
 });

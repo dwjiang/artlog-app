@@ -2,6 +2,7 @@ import tzLookup from "@photostructure/tz-lookup";
 import { mergedStream, stream } from "convex-helpers/server/stream";
 import { ConvexError, type Infer, v } from "convex/values";
 
+import { APPROVED_DEMO_USERNAMES, isApprovedDemo, WEEKLY_LIMITS, weekStart, WEEK_MS } from "../shared/demo-policy";
 import { calendarDate, isUuid, LIMITS } from "../shared/journal/limits";
 import { extractMentions } from "../shared/social/mentions";
 import { MAX_COMMENT_LENGTH } from "../shared/social/visit-reactions";
@@ -11,7 +12,6 @@ import { action, query, type MutationCtx, type QueryCtx } from "./_generated/ser
 import { internalMutation } from "./functions";
 import {
   addDemoSave,
-  demoAccountRange,
   demoPerson,
   demoProfile,
   insertDemoPost,
@@ -22,6 +22,7 @@ import {
 } from "./lib/demoAccounts";
 import { requireDemoBot } from "./lib/demoBot";
 import { requireDemoPhoto } from "./lib/demoPhotos";
+import { applyDemoWall, demoWallContext, demoWallPlan, demoWallStatus, readDemoWall } from "./lib/demoWalls";
 import { acceptedRelationships } from "./lib/friendships";
 import { upsertJournalVisit } from "./lib/journal";
 import { resolveMentions } from "./lib/mentions";
@@ -31,6 +32,7 @@ import { readObjectDetails } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { limitKey, type RateLimitName } from "./lib/rateLimits";
 import { publicationItems, publicationRecordTitles, readHeadroom } from "./lib/sharedPublications";
+import { selectCompanions } from "./lib/visitCompanions";
 import { insertVisitComment, insertVisitLike } from "./lib/visitReactions";
 import schema from "./schema";
 
@@ -39,7 +41,6 @@ import schema from "./schema";
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const CONTEXT_WINDOW_MS = 30 * DAY_MS;
-const MAX_CHARACTERS = 200;
 const MAX_CONTEXT_POSTS = 100;
 // Withdrawn and private posts are skipped, so the merged feed stops after twice the page.
 const CONTEXT_POST_SCAN = 2 * MAX_CONTEXT_POSTS;
@@ -81,10 +82,9 @@ const postActivity = v.object({
   endedAt: v.number(),
   audience,
   reflection: v.string(),
-  artworks: v.array(
-    // Artworks no longer take notes; a note the bot still sends is ignored.
-    v.object({ objectKey: v.string(), note: v.optional(v.string()), photoIds: v.array(v.id("files")) }),
-  ),
+  companions: v.array(v.string()),
+  wall: v.optional(demoWallPlan),
+  artworks: v.array(v.object({ objectKey: v.string(), photoIds: v.array(v.id("files")) })),
 });
 const commentActivity = v.object({
   kind: v.literal("comment"),
@@ -98,6 +98,7 @@ const receipt = v.object({
   status: v.union(v.literal("created"), v.literal("unchanged")),
   postId: v.string(),
   commentId: v.optional(v.id("visitComments")),
+  wallStatus: v.optional(demoWallStatus),
 });
 const prepared = v.object({ receipt: v.optional(receipt), titles: v.array(v.string()) });
 type PostActivity = Infer<typeof postActivity>;
@@ -105,6 +106,15 @@ type CommentActivity = Infer<typeof commentActivity>;
 type Receipt = Infer<typeof receipt>;
 
 const invalidActivity = (field: string) => new ConvexError({ code: "invalid_activity", field });
+
+export const getWallContext = query({
+  args: { author: v.string() },
+  returns: demoWallContext,
+  handler: async (ctx, { author }) => {
+    await requireDemoBot(ctx);
+    return readDemoWall(ctx, await approvedProfile(ctx, author));
+  },
+});
 
 export const getContext = query({
   args: { since: v.number() },
@@ -124,12 +134,12 @@ export const getContext = query({
     await requireDemoBot(ctx);
     if (!(since >= Date.now() - CONTEXT_WINDOW_MS)) throw invalidActivity("since");
     const people: Doc<"profiles">[] = [];
-    for (const account of await demoAccountRange(ctx).take(MAX_CHARACTERS)) {
+    for (const username of APPROVED_DEMO_USERNAMES) {
       const profile = await ctx.db
         .query("profiles")
-        .withIndex("by_accountId", (q) => q.eq("accountId", account._id))
+        .withIndex("by_username", (q) => q.eq("username", username))
         .unique();
-      if (profile?.active && !profile.removal) people.push(profile);
+      if (profile && (await demoPerson(ctx, profile._id))) people.push(profile);
     }
     const usernames = new Map(people.map((profile) => [profile._id, profile.username]));
     const characters = [];
@@ -337,6 +347,8 @@ export const preparePost = internalMutation({
   args: postActivity.fields,
   returns: prepared,
   handler: async (ctx, post) => {
+    const duplicate = await readReceipt(ctx, post);
+    if (duplicate) return { receipt: duplicate, titles: [] };
     const request = await readPostRequest(ctx, post);
     if (request.receipt) return { receipt: request.receipt, titles: [] };
     await limitDemoActivity(ctx, "publishVisit", request.profile.accountId);
@@ -347,7 +359,10 @@ export const insertPost = internalMutation({
   args: postActivity.fields,
   returns: receipt,
   handler: async (ctx, post) => {
+    const duplicate = await readReceipt(ctx, post);
+    if (duplicate) return duplicate;
     const request = await readPostRequest(ctx, post);
+    await requireWeeklyRoom(ctx, "post");
     if (request.receipt) return request.receipt;
     const { profile, venue, reflection, artworks } = request;
     const owner = { kind: "account" as const, accountId: profile.accountId };
@@ -395,14 +410,30 @@ export const insertPost = internalMutation({
       saves,
       postId: post.submissionId,
       publishedAt: Date.now(),
+      companionSelections: request.companionSelections,
     });
-    return { status: "created" as const, postId: post.submissionId };
+    const wallStatus = post.wall
+      ? await applyDemoWall(
+          ctx,
+          profile,
+          post.wall,
+          post.audience === "public"
+            ? saves.map((save, index) => ({
+                objectKey: post.artworks[index].objectKey,
+                saveLocalId: save.row.localId,
+                photoLocalId: save.photoLocalIds[0],
+              }))
+            : [],
+        )
+      : undefined;
+    await storeReceipt(ctx, post, { postId: post.submissionId, ...(wallStatus ? { wallStatus } : {}) });
+    return { status: "created" as const, postId: post.submissionId, ...(wallStatus ? { wallStatus } : {}) };
   },
 });
 
 async function readPostRequest(ctx: QueryCtx, post: PostActivity) {
   if (!isUuid(post.submissionId)) throw invalidActivity("submissionId");
-  const profile = await demoProfile(ctx, post.author);
+  const profile = await approvedProfile(ctx, post.author);
   const existing = await ctx.db
     .query("sharedVisits")
     .withIndex("by_postId", (q) => q.eq("postId", post.submissionId))
@@ -448,7 +479,18 @@ async function readPostRequest(ctx: QueryCtx, post: PostActivity) {
     artworks.push({ title: artwork.title, photos });
   }
   await requireDemoMentions(ctx, [reflection]);
-  return { profile, venue, reflection, artworks };
+  if (
+    post.companions.length > 2
+    || new Set(post.companions).size !== post.companions.length
+    || post.companions.includes(post.author)
+  ) {
+    throw invalidActivity("companions");
+  }
+  const companionIds = [];
+  for (const username of post.companions) companionIds.push((await approvedProfile(ctx, username))._id);
+  const companionSelections = await selectCompanions(ctx, profile._id, companionIds);
+  if (companionSelections.length !== companionIds.length) throw invalidActivity("companions");
+  return { profile, venue, reflection, artworks, companionSelections };
 }
 
 // Photo IDs are left out: a retry after the upload lease ran out sends the same post with new uploads.
@@ -469,6 +511,13 @@ async function isSamePost(ctx: QueryCtx, existing: Doc<"sharedVisits">, authorId
     audience: existing.audience,
     reflection: existing.reflection,
     artworks,
+    companions: (
+      await Promise.all(
+        (existing.companionSelections ?? []).map((selection) => ctx.db.get("profiles", selection.profileId)),
+      )
+    )
+      .map((person) => person?.username)
+      .sort((a, b) => (a ?? "").localeCompare(b ?? "")),
   };
   const submitted = {
     authorId,
@@ -478,6 +527,7 @@ async function isSamePost(ctx: QueryCtx, existing: Doc<"sharedVisits">, authorId
     audience: post.audience,
     reflection: post.reflection.trim(),
     artworks: post.artworks.map((artwork) => ({ objectKey: artwork.objectKey })),
+    companions: [...post.companions].sort(),
   };
   return JSON.stringify(stored) === JSON.stringify(submitted);
 }
@@ -486,6 +536,8 @@ export const prepareComment = internalMutation({
   args: commentActivity.fields,
   returns: prepared,
   handler: async (ctx, comment) => {
+    const duplicate = await readReceipt(ctx, comment);
+    if (duplicate) return { receipt: duplicate, titles: [] };
     const request = await readCommentRequest(ctx, comment);
     if (request.receipt) return { receipt: request.receipt, titles: [] };
     await limitDemoActivity(ctx, "commentVisit", request.profile.accountId);
@@ -496,7 +548,10 @@ export const insertComment = internalMutation({
   args: commentActivity.fields,
   returns: receipt,
   handler: async (ctx, comment) => {
+    const duplicate = await readReceipt(ctx, comment);
+    if (duplicate) return duplicate;
     const request = await readCommentRequest(ctx, comment);
+    await requireWeeklyRoom(ctx, "comment");
     if (request.receipt) return request.receipt;
     const { profile, publication, body } = request;
     const commentId = await insertVisitComment(ctx, {
@@ -506,6 +561,7 @@ export const insertComment = internalMutation({
       requestId: comment.submissionId,
       mentions: await resolveMentions(ctx, body, profile._id),
     });
+    await storeReceipt(ctx, comment, { postId: publication.postId, commentId });
     return { status: "created" as const, postId: publication.postId, commentId };
   },
 });
@@ -533,14 +589,18 @@ export const like = internalMutation({
   args: likeActivity.fields,
   returns: receipt,
   handler: async (ctx, activity) => {
+    const duplicate = await readReceipt(ctx, activity);
+    if (duplicate) return duplicate;
     const { profile, publication } = await demoPost(ctx, activity.author, activity.postId);
     const existing = await ctx.db
       .query("visitLikes")
       .withIndex("by_publication_profile", (q) => q.eq("publicationId", publication._id).eq("profileId", profile._id))
       .unique();
     if (existing) return { status: "unchanged" as const, postId: publication.postId };
+    await requireWeeklyRoom(ctx, "like");
     await limitDemoActivity(ctx, "likeVisit", profile.accountId);
     await insertVisitLike(ctx, publication._id, profile._id);
+    await storeReceipt(ctx, activity, { postId: publication.postId });
     return { status: "created" as const, postId: publication.postId };
   },
 });
@@ -556,8 +616,11 @@ export const registerPhoto = internalMutation({
 
 /** A post a demo account may react to: a demo account's, and readable by the reacting one. */
 async function demoPost(ctx: QueryCtx, username: string, postId: string) {
+  await approvedProfile(ctx, username);
   const { profile, publication, author } = await readableBy(ctx, username, postId);
-  if (!(await demoPerson(ctx, author._id))) throw new ConvexError({ code: "not_found", username, postId });
+  if (!isApprovedDemo(author.username) || !(await demoPerson(ctx, author._id))) {
+    throw new ConvexError({ code: "not_found", username, postId });
+  }
   return { profile, publication };
 }
 
@@ -568,7 +631,7 @@ async function requireDemoMentions(ctx: QueryCtx, texts: string[]) {
       .query("profiles")
       .withIndex("by_username", (q) => q.eq("username", username))
       .unique();
-    if (!profile || !(await demoPerson(ctx, profile._id))) {
+    if (!profile || !isApprovedDemo(username) || !(await demoPerson(ctx, profile._id))) {
       throw new ConvexError({ code: "invalid_mention", username });
     }
   }
@@ -577,4 +640,84 @@ async function requireDemoMentions(ctx: QueryCtx, texts: string[]) {
 async function limitDemoActivity(ctx: MutationCtx, name: RateLimitName, accountId: Id<"accounts">) {
   await limitKey(ctx, name, accountId);
   await limitKey(ctx, "demoActivity", ALL_DEMO_ACCOUNTS);
+}
+
+async function approvedProfile(ctx: QueryCtx, username: string) {
+  if (!isApprovedDemo(username)) throw new ConvexError({ code: "not_found", username });
+  return demoProfile(ctx, username);
+}
+
+type Activity = PostActivity | CommentActivity | Infer<typeof likeActivity>;
+function requestKey(activity: Activity) {
+  return activity.kind === "like" ? JSON.stringify(["like", activity.author, activity.postId]) : activity.submissionId;
+}
+function requestPayload(activity: Activity) {
+  if (activity.kind === "like") return JSON.stringify([activity.kind, activity.author, activity.postId]);
+  if (activity.kind === "comment") {
+    return JSON.stringify([activity.kind, activity.author, activity.postId, activity.body.trim()]);
+  }
+  return JSON.stringify([
+    activity.kind,
+    activity.author,
+    activity.venueKey,
+    activity.startedAt,
+    activity.endedAt,
+    activity.audience,
+    activity.reflection.trim(),
+    [...activity.companions].sort(),
+    activity.artworks.map((artwork) => artwork.objectKey),
+    activity.wall
+      ? [
+          activity.wall.revision,
+          activity.wall.color.toUpperCase(),
+          activity.wall.pattern,
+          [...activity.wall.items]
+            .sort((a, b) => a.key.localeCompare(b.key))
+            .map(({ key, layout }) => [key, layout.x, layout.y, layout.width, layout.layer, layout.frame]),
+        ]
+      : null,
+  ]);
+}
+async function fingerprint(activity: Activity) {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(requestPayload(activity)));
+  return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+async function readReceipt(ctx: QueryCtx, activity: Activity): Promise<Receipt | null> {
+  await approvedProfile(ctx, activity.author);
+  const row = await ctx.db
+    .query("demoActivityReceipts")
+    .withIndex("by_requestId", (q) => q.eq("requestId", requestKey(activity)))
+    .unique();
+  if (!row) return null;
+  if (row.fingerprint !== (await fingerprint(activity))) throw new ConvexError({ code: "conflict" });
+  return {
+    status: "unchanged",
+    postId: row.postId,
+    ...(row.commentId ? { commentId: row.commentId } : {}),
+    ...(row.wallStatus ? { wallStatus: row.wallStatus } : {}),
+  };
+}
+async function requireWeeklyRoom(ctx: QueryCtx, kind: Activity["kind"]) {
+  const start = weekStart(Date.now());
+  const rows = await ctx.db
+    .query("demoActivityReceipts")
+    .withIndex("by_week_kind", (q) => q.eq("weekStart", start).eq("kind", kind))
+    .take(WEEKLY_LIMITS[kind]);
+  if (rows.length >= WEEKLY_LIMITS[kind]) {
+    throw new ConvexError({ code: "rate_limited", retryAfter: start + WEEK_MS - Date.now() });
+  }
+}
+async function storeReceipt(
+  ctx: MutationCtx,
+  activity: Activity,
+  result: { postId: string; commentId?: Id<"visitComments">; wallStatus?: Infer<typeof demoWallStatus> },
+) {
+  await ctx.db.insert("demoActivityReceipts", {
+    requestId: requestKey(activity),
+    kind: activity.kind,
+    weekStart: weekStart(Date.now()),
+    publishedAt: Date.now(),
+    fingerprint: await fingerprint(activity),
+    ...result,
+  });
 }

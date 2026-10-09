@@ -18,6 +18,16 @@ export const HStack = View;
 export const ZStack = View;
 export const Spacer = View;
 export const Rectangle = View;
+export const RoundedRectangle = View;
+export function Namespace({ children }: { children: ReactNode }) {
+  return children;
+}
+export function Background({ children }: { children: ReactNode }) {
+  return <View>{children}</View>;
+}
+Background.Content = function BackgroundContent({ children }: { children: ReactNode }) {
+  return children;
+};
 export function ProgressView() {
   return <ActivityIndicator accessibilityRole="progressbar" />;
 }

@@ -1,4 +1,3 @@
-import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
@@ -9,6 +8,7 @@ import { useMakeVisit } from "@/lib/journal/visitless-saves";
 import { contributionErrorMessage, contributionMessage, type ContributeInput } from "@/lib/label/contribute";
 import { shareSavedLabel, type ContributionAttempt } from "@/lib/label/share-saved-label";
 import { reportError, addBreadcrumb } from "@/lib/observability";
+import { playSuccessHaptic } from "@/lib/ui/haptics";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
 import { withEndVisitPrompt } from "@/lib/venue/end-visit-prompt";
 
@@ -73,7 +73,9 @@ export function useSaveResult() {
     } finally {
       sharingNow.current = false;
     }
-    if (error) showErrorToast(`${error}. Your artwork is saved to your collection.`, () => void retrySharing());
+    if (error) {
+      showErrorToast(`${error}. Your artwork is saved to your collection.`, () => void retrySharing(), { quiet: true });
+    }
   }
 
   async function retrySharing() {
@@ -102,7 +104,7 @@ export function useSaveResult() {
         retry.current = { input: input.contribution, savedLocalId: localId };
         void trackContribution(contribution);
       }
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      playSuccessHaptic();
     } catch (cause) {
       reportError(cause, "result.save");
       console.warn("Could not save the work", cause);

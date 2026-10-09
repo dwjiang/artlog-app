@@ -82,6 +82,22 @@ export default defineSchema({
     deleteAttempts: v.number(),
   }).index("by_expiresAt", ["expiresAt"]),
 
+  // Durable bot receipts: immutable requests survive edits, companion revocation and lost responses.
+  demoActivityReceipts: defineTable({
+    requestId: v.string(),
+    kind: v.union(v.literal("post"), v.literal("comment"), v.literal("like")),
+    weekStart: v.number(),
+    fingerprint: v.string(),
+    wallStatus: v.optional(
+      v.union(v.literal("updated"), v.literal("unchanged"), v.literal("stale"), v.literal("unavailable")),
+    ),
+    postId: v.string(),
+    commentId: v.optional(v.id("visitComments")),
+    publishedAt: v.number(),
+  })
+    .index("by_requestId", ["requestId"])
+    .index("by_week_kind", ["weekStart", "kind"]),
+
   // Photos the demo bot uploaded for a post it has yet to publish, with the size its re-encode produced.
   demoPhotos: defineTable({
     fileId: v.id("files"),

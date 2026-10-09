@@ -324,9 +324,14 @@ export class ListeningController {
     const generation = ++this.generation;
     this.release();
     this.update({ phase: "error", preparationStage: undefined, playing: false });
-    showErrorToast(message, () => {
-      if (generation === this.generation && this.state.current) void this.play(this.state.current);
-    });
+    // Narration fails long after a tap, during queue advances or playback stalls, so it never buzzes.
+    showErrorToast(
+      message,
+      () => {
+        if (generation === this.generation && this.state.current) void this.play(this.state.current);
+      },
+      { quiet: true },
+    );
   }
   toggle = () => {
     if (!this.state.current) return;

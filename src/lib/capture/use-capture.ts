@@ -1,5 +1,4 @@
 import { useAction } from "convex/react";
-import * as Haptics from "expo-haptics";
 import type { ImageRef } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { useNetworkState } from "expo-network";
@@ -13,6 +12,8 @@ import { removeCameraTempFile } from "@/lib/files/camera-temp";
 import { shrinkLibraryPhoto } from "@/lib/files/kept-photos";
 import { isOffline } from "@/lib/network-state";
 import { reportError, addBreadcrumb } from "@/lib/observability";
+import { toResultViewState } from "@/lib/result/state";
+import { playErrorHaptic, playLightHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { resolveVenueForScan } from "@/lib/venue/use-venue";
 import { venueIdAt } from "@/lib/venue/venue-db";
 import { resolveScanVisit } from "@/lib/venue/visit-sync";
@@ -99,6 +100,10 @@ export function useCapture({
       return;
     }
     pendingResult.current = undefined;
+    // Only a named match confirms; a soft or missing one opens the result without a buzz.
+    if (pending.result.kind === "sent" && toResultViewState(pending.result.response).kind === "confident") {
+      playSuccessHaptic();
+    }
     navigation.current.push({
       pathname: "/result/[scanId]",
       params: {
@@ -248,6 +253,7 @@ export function useCapture({
             source: "library",
           });
         }
+        playErrorHaptic();
         controller.fail(attempt, result.message);
       } else {
         pendingResult.current = { attempt, result };
@@ -261,6 +267,7 @@ export function useCapture({
         setPresentation((value) =>
           value?.source === "library" ? { attempt, photoUri: value.photoUri, source: "library" } : undefined,
         );
+        playErrorHaptic();
         controller.fail(
           attempt,
           error instanceof Error ? error.message : "Could not capture the painting. Reframe and try again.",
@@ -275,9 +282,10 @@ export function useCapture({
 
   async function captureFromCamera(attempt: CaptureAttempt | undefined, takePhoto: () => Promise<UprightPhoto>) {
     if (!attempt) return;
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     return capture(
       async () => {
+        // Runs after the chosen visit is checked, so a shutter that takes no photo doesn't buzz.
+        playLightHaptic();
         const capturedAt = Date.now();
         const { filePath, turns } = await takePhoto();
         return {

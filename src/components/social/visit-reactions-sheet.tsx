@@ -3,7 +3,6 @@ import { useAction, useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { setStringAsync } from "expo-clipboard";
 import { randomUUID } from "expo-crypto";
-import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { Fragment, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import {
@@ -16,6 +15,7 @@ import {
   View,
   type ScrollViewProps,
 } from "react-native";
+import Animated, { Easing, Keyframe, ReduceMotion } from "react-native-reanimated";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
@@ -33,13 +33,14 @@ import type { PublicProfile } from "@/lib/social/types";
 import { useBlock } from "@/lib/social/use-block";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import type { SocialSession } from "@/lib/social/use-social-session";
+import { playErrorHaptic, playLightHaptic, playMediumHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
 import { extractHashtags } from "@/shared/social/hashtags";
 import { MAX_COMMENT_LENGTH } from "@/shared/social/visit-reactions";
 
 import { api } from "../../../convex/_generated/api";
-import { LikeHeart, playLikeHaptic } from "./like-heart";
+import { LikeHeart } from "./like-heart";
 import { ProfileAvatar } from "./profile-avatar";
 import { ProfileRow } from "./profile-row";
 import { useRichTextInput } from "./rich-text-input";
@@ -54,6 +55,14 @@ const commentId = (value: Comment) => value.commentId;
 const likesPage = (value: FunctionReturnType<typeof api.visitReactions.listLikes>) => value;
 const profileId = (value: PublicProfile) => value.profileId;
 type CommentAction = { name: string; label: string; destructive?: boolean; run: () => void };
+// A fade rather than motion, so it plays with Reduce Motion on too.
+const REVEAL_HIGHLIGHT = new Keyframe({
+  0: { opacity: 1 },
+  50: { opacity: 1 },
+  100: { opacity: 0, easing: Easing.out(Easing.quad) },
+})
+  .duration(1200)
+  .reduceMotion(ReduceMotion.Never);
 
 export function VisitReactionsSheet({
   kind,
@@ -219,12 +228,16 @@ function Comments({
   }, [posted, postedVisible, canLoadMore, loadMore]);
   // The live list usually delivers a new comment before its mutation returns, so the reveal waits for both.
   const [reveals, setReveals] = useState(0);
+  const [revealed, setRevealed] = useState<string>();
   if (postedVisible) {
     setPosted(undefined);
+    setRevealed(posted);
     setReveals((count) => count + 1);
   }
   useEffect(() => {
-    if (reveals > 0) list.current?.scrollToEnd({ animated: true });
+    if (reveals === 0) return;
+    list.current?.scrollToEnd({ animated: true });
+    playSuccessHaptic();
   }, [reveals]);
   const send = async () => {
     const body = draft.trim();
@@ -246,6 +259,7 @@ function Comments({
       request.current = null;
       setPosted(id);
     } catch (cause) {
+      playErrorHaptic();
       setError(socialErrorMessage(cause) ?? "Couldn’t post your comment. Your text is still here.");
     } finally {
       pending.current = false;
@@ -285,7 +299,7 @@ function Comments({
     if (session.status !== "ready" || likeRequests.current.has(item.commentId)) return;
     likeRequests.current.set(item.commentId, !item.liked);
     setLikeTargets(new Map(likeRequests.current));
-    if (!item.liked) playLikeHaptic();
+    if (!item.liked) playLightHaptic();
     try {
       await setCommentLike({ postId: visit.postId, commentId: item.commentId, liked: !item.liked });
     } catch (cause) {
@@ -336,7 +350,7 @@ function Comments({
   ];
   const showActions = (item: Comment) => {
     const actions = actionsFor(item);
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    playMediumHaptic();
     setMenuFor(item.commentId);
     ActionSheetIOS.showActionSheetWithOptions(
       {
@@ -401,6 +415,14 @@ function Comments({
                 deleting === item.commentId && { opacity: 0.5 },
               ]}
             >
+              {revealed === item.commentId && (
+                <Animated.View
+                  key={reveals}
+                  pointerEvents="none"
+                  entering={REVEAL_HIGHLIGHT}
+                  style={[StyleSheet.absoluteFill, styles.revealed]}
+                />
+              )}
               <MotionPressable
                 accessibilityLabel={`${item.author.name}${item.isAuthor ? ", author" : ""}, ${time}: ${item.body}`}
                 accessibilityState={{ busy: deleting === item.commentId }}
@@ -633,6 +655,7 @@ const styles = StyleSheet.create({
   // These lists ignore contentContainerStyle inside the native sheet's RN host, so each row carries the inset.
   person: { marginHorizontal: 20 },
   comment: { flexDirection: "row", alignItems: "flex-start", paddingLeft: 20, paddingRight: 8 },
+  revealed: { backgroundColor: Gallery.highlight },
   commentContent: { flex: 1, flexDirection: "row", gap: 10, paddingVertical: 8 },
   byline: {
     flexDirection: "row",

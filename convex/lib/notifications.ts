@@ -1,8 +1,10 @@
 import type { Triggers } from "convex-helpers/server/triggers";
 
+import { isApprovedDemo } from "../../shared/demo-policy";
 import { internal } from "../_generated/api";
 import type { DataModel, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import { demoPerson } from "./demoAccounts";
 import { mentionRecipients, postMentionRecipients } from "./mentions";
 import { NOTIFICATION_RETENTION_MS } from "./retentionPolicy";
 import type { NotificationEvent } from "./validators";
@@ -17,6 +19,10 @@ async function notify(
   event: NotificationEvent,
 ) {
   if (actorId === recipientId) return;
+  if (await demoPerson(ctx, actorId)) {
+    const recipient = await demoPerson(ctx, recipientId);
+    if (!recipient || !isApprovedDemo(recipient.username)) return;
+  }
   // Mention notices are worked out again on every write to a post, so the row may already exist; keep the first one.
   const existing = await ctx.db
     .query("notifications")

@@ -2,11 +2,12 @@ import { useRouter } from "expo-router";
 import { openBrowserAsync } from "expo-web-browser";
 import { createContext, use, useEffect, type ReactNode } from "react";
 import { Pressable, StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
+import Animated, { Easing, FadeIn, LayoutAnimationConfig, ReduceMotion } from "react-native-reanimated";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GlassSurface } from "@/components/glass-surface";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Colors, Gallery, OnPhoto, Radius, Spacing } from "@/constants/theme";
+import { Colors, Gallery, Motion, OnPhoto, Radius, Spacing } from "@/constants/theme";
 import { useScrolledUnderBar } from "@/hooks/use-scrolled-under-bar";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitStart } from "@/lib/journal/history";
@@ -19,6 +20,11 @@ import { useVenue } from "@/lib/venue/use-venue";
 
 import { DontMiss } from "./dont-miss";
 import { newestPhoto, VisitBackdrop } from "./visit-backdrop";
+
+// Starting or ending a visit fades the card's new face in; a fade, so it stays with Reduce Motion on.
+const SWAP = FadeIn.duration(Motion.state)
+  .easing(Easing.bezier(...Motion.easeOut))
+  .reduceMotion(ReduceMotion.Never);
 
 /** Set by Home's layout, which shows the visit band once the Now card has scrolled under the navigation bar. */
 export const NowCardScrolledAway = createContext<((away: boolean) => void) | undefined>(undefined);
@@ -165,7 +171,14 @@ export function NowCard({ onLayout }: { onLayout?: (event: LayoutChangeEvent) =>
           Now
         </Text>
         <View style={styles.shadow}>
-          <View style={styles.card}>{card}</View>
+          <View style={styles.card}>
+            {/* Home opening on either face shows it at once. */}
+            <LayoutAnimationConfig skipEntering>
+              <Animated.View key={visit?.localId ?? "ready"} entering={SWAP}>
+                {card}
+              </Animated.View>
+            </LayoutAnimationConfig>
+          </View>
         </View>
       </View>
       {/* Suggestions only fit where the phone is; a visit left open elsewhere gets none. */}

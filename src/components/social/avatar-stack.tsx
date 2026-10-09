@@ -5,7 +5,8 @@ import type { PublicProfile } from "@/lib/social/types";
 
 import { ProfileAvatar } from "./profile-avatar";
 
-type Person = Pick<PublicProfile, "profileId" | "name" | "photoUrl" | "avatar">;
+// Any string key, so preset paintings can stand in for people.
+type Person = { profileId: string } & Partial<Pick<PublicProfile, "name" | "photoUrl" | "avatar">>;
 
 /** Overlapping avatars, each ringed in paper so the overlap reads. */
 export function AvatarStack({ people, size }: { people: readonly Person[]; size: number }) {

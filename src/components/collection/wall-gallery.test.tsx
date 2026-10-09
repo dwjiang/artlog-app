@@ -4,6 +4,7 @@ import { PixelRatio, StyleSheet } from "react-native";
 import { State, type PanGesture } from "react-native-gesture-handler";
 import { fireGestureHandler, getByGestureTestId } from "react-native-gesture-handler/jest-utils";
 
+import { playLightHaptic } from "@/lib/ui/haptics";
 import { wallPieceBounds, type WallArrangement, type WallPiece } from "@/lib/wall/wall-layout";
 
 import { WallGallery } from "./wall-gallery";
@@ -38,10 +39,14 @@ jest.mock("react-native-worklets", () => ({
   scheduleOnRN: (fn: (...args: unknown[]) => void, ...args: unknown[]) => fn(...args),
   scheduleOnUI: (fn: (...args: unknown[]) => void, ...args: unknown[]) => fn(...args),
 }));
-jest.mock("expo-haptics", () => ({ selectionAsync: jest.fn(async () => {}) }));
+jest.mock("@/lib/ui/haptics");
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///${path}`,
 }));
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
 const piece: WallPiece = {
   localId: "art",
@@ -251,6 +256,8 @@ it("selects and moves an artwork in one drag, committing the final finger positi
     ]),
   );
   expect(onSelect).toHaveBeenCalledWith(piece);
+  // One tap as the artwork lifts and one as it lands.
+  expect(playLightHaptic).toHaveBeenCalledTimes(2);
   expect(onArrange).toHaveBeenCalledTimes(1);
   expect(onArrange.mock.calls[0][0].art).toMatchObject({ x: 0.2, width: 0.4 });
   expect(onArrange.mock.calls[0][0].art.y).toBeCloseTo(0.3);
@@ -278,6 +285,7 @@ it("discards a cancelled move and permits a subsequent drag", async () => {
     ]),
   );
   expect(onArrange).not.toHaveBeenCalled();
+  expect(playLightHaptic).toHaveBeenCalledTimes(1);
   await act(() =>
     fireGestureHandler<PanGesture>(pan, [
       { state: State.BEGAN },

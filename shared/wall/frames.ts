@@ -13,9 +13,11 @@ export const WALL_FRAMES = [
 ] as const;
 
 export type WallFrame = (typeof WALL_FRAMES)[number]["value"];
+// Frames reach their full border width on artworks this many points wide and scale down below it.
+export const FULL_FRAME_WIDTH = 166;
 
 export function wallFrameInset(frame: WallFrame, width: number) {
   "worklet";
   const finish = WALL_FRAMES.find((item) => item.value === frame)!;
-  return Math.min(finish.width, (finish.width * width) / 166);
+  return Math.min(finish.width, (finish.width * width) / FULL_FRAME_WIDTH);
 }
