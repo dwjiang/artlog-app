@@ -1,5 +1,6 @@
 import { DEFAULT_WALL_FRAME } from "@/shared/wall/defaults";
 import { wallFrameInset } from "@/shared/wall/frames";
+import { REFERENCE_WALL_WIDTH, WALL_LABEL_GAP, WALL_SIDE_GAP } from "@/shared/wall/spacing";
 
 import type { LayoutInput, OwnerWall } from "./wall-transport";
 
@@ -36,7 +37,7 @@ export function wallPieceBounds(piece: WallPiece, wallWidth: number) {
   return { x, y, width, height: (width - inset * 2) / wallAspect(piece) + inset * 2 };
 }
 
-export function wallBottom(pieces: WallPiece[], wallWidth = 390): number {
+export function wallBottom(pieces: WallPiece[], wallWidth = REFERENCE_WALL_WIDTH): number {
   return Math.max(
     0,
     ...pieces.map((piece) => {
@@ -58,19 +59,18 @@ export function constrainLayout(layout: WallLayout, patch: Partial<WallLayout>):
   };
 }
 
-const SIDE_GAP = 0.025;
-// Each artwork's label hangs below it.
-const LABEL_GAP = 0.16;
-
 type WallBounds = ReturnType<typeof wallPieceBounds>;
 
 function wallSeparation(bounds: WallBounds, other: WallBounds) {
   "worklet";
   return {
-    x: Math.max(0, Math.min(bounds.x + bounds.width + SIDE_GAP - other.x, other.x + other.width + SIDE_GAP - bounds.x)),
+    x: Math.max(
+      0,
+      Math.min(bounds.x + bounds.width + WALL_SIDE_GAP - other.x, other.x + other.width + WALL_SIDE_GAP - bounds.x),
+    ),
     y: Math.max(
       0,
-      Math.min(bounds.y + bounds.height + LABEL_GAP - other.y, other.y + other.height + LABEL_GAP - bounds.y),
+      Math.min(bounds.y + bounds.height + WALL_LABEL_GAP - other.y, other.y + other.height + WALL_LABEL_GAP - bounds.y),
     ),
   };
 }
@@ -137,10 +137,10 @@ function clearWallLayout(piece: WallPiece, settled: WallBounds[], unsettled: Wal
   for (const other of settled) {
     if (!wallClash(start, other)) continue;
     for (const candidate of [
-      { x: other.x - SIDE_GAP - start.width, y: start.y },
-      { x: other.x + other.width + SIDE_GAP, y: start.y },
-      { x: start.x, y: other.y - LABEL_GAP - start.height },
-      { x: start.x, y: other.y + other.height + LABEL_GAP },
+      { x: other.x - WALL_SIDE_GAP - start.width, y: start.y },
+      { x: other.x + other.width + WALL_SIDE_GAP, y: start.y },
+      { x: start.x, y: other.y - WALL_LABEL_GAP - start.height },
+      { x: start.x, y: other.y + other.height + WALL_LABEL_GAP },
     ]) {
       const layout = constrainLayout(piece.layout, candidate);
       const bounds = { ...start, x: layout.x, y: layout.y };
@@ -162,7 +162,7 @@ function clearWallLayout(piece: WallPiece, settled: WallBounds[], unsettled: Wal
     const bounds = { ...start, y };
     const blockers = settled.filter((other) => wallClash(bounds, other));
     if (blockers.length === 0) return constrainLayout(piece.layout, { y });
-    y = Math.max(...blockers.map((other) => other.y + other.height + LABEL_GAP));
+    y = Math.max(...blockers.map((other) => other.y + other.height + WALL_LABEL_GAP));
   }
 }
 
@@ -276,7 +276,7 @@ export function resizeWallLayout(
   };
 }
 
-export function nextWallLayout(pieces: WallPiece[], wallWidth = 390): WallLayout {
+export function nextWallLayout(pieces: WallPiece[], wallWidth = REFERENCE_WALL_WIDTH): WallLayout {
   const index = pieces.length;
   const placements = [
     { x: 0.05, width: 0.52 },
@@ -290,11 +290,11 @@ export function nextWallLayout(pieces: WallPiece[], wallWidth = 390): WallLayout
   const placement = placements[index % placements.length];
   const neighbors = pieces.filter(
     ({ layout }) =>
-      placement.x < layout.x + layout.width + SIDE_GAP && placement.x + placement.width + SIDE_GAP > layout.x,
+      placement.x < layout.x + layout.width + WALL_SIDE_GAP && placement.x + placement.width + WALL_SIDE_GAP > layout.x,
   );
   return {
     ...placement,
-    y: neighbors.length > 0 ? wallBottom(neighbors, wallWidth) + LABEL_GAP : index % 2 ? 0.12 : 0.06,
+    y: neighbors.length > 0 ? wallBottom(neighbors, wallWidth) + WALL_LABEL_GAP : index % 2 ? 0.12 : 0.06,
     layer: index,
     frame: DEFAULT_WALL_FRAME,
   };

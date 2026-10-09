@@ -1,6 +1,7 @@
 import type { FunctionArgs } from "convex/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { APPROVED_DEMO_USERNAMES, weekStart, WEEK_MS } from "../shared/demo-policy";
 import { calendarDate, LIMITS } from "../shared/journal/limits";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -49,7 +50,7 @@ async function world(t = harness()) {
     });
     return { met, aic };
   });
-  for (const username of ["alice", "bob", "cara"]) {
+  for (const username of ["mayachen", "leahgoldberg", "alexrivera"]) {
     await t.mutation(internal.demoSeed.seedPerson, {
       username,
       name: username.charAt(0).toUpperCase() + username.slice(1),
@@ -61,7 +62,7 @@ async function world(t = harness()) {
     });
   }
   await t.mutation(internal.demoSeed.seedSocial, {
-    friendships: [{ from: "alice", to: "bob", state: "accepted", at: Date.now() - DAY }],
+    friendships: [{ from: "mayachen", to: "leahgoldberg", state: "accepted", at: Date.now() - DAY }],
     likes: [],
     comments: [],
   });
@@ -87,14 +88,15 @@ async function postActivity(t: Harness, overrides: Partial<PostActivity> = {}): 
   return {
     kind: "post",
     submissionId: crypto.randomUUID(),
-    author: "alice",
+    author: "mayachen",
     venueKey: MET,
     startedAt: now - 3 * HOUR,
     endedAt: now - HOUR,
     audience: "public",
+    companions: [],
     reflection: "  The cypresses look like they are still moving.  ",
     artworks: [
-      { objectKey: "met:0", note: "Thicker paint than I expected.", photoIds: [first] },
+      { objectKey: "met:0", photoIds: [first] },
       { objectKey: "met:1", photoIds: [second] },
     ],
     ...overrides,
@@ -104,7 +106,7 @@ async function postActivity(t: Harness, overrides: Partial<PostActivity> = {}): 
 const comment = (postId: string, overrides: Partial<Extract<Activity, { kind: "comment" }>> = {}) => ({
   kind: "comment" as const,
   submissionId: crypto.randomUUID(),
-  author: "bob",
+  author: "leahgoldberg",
   postId,
   body: "Going back for this one.",
   ...overrides,
@@ -172,16 +174,19 @@ describe("demo-only rules", () => {
     const realPost = await viewer.as.action(api.sharedVisits.publish, realVisit.selection);
     const friendsOnly = await postActivity(t, { audience: "friends" });
     await bot.action(api.demoActivity.publish, { activity: friendsOnly });
-    const open = await postActivity(t, { author: "bob" });
+    const open = await postActivity(t, { author: "leahgoldberg" });
     await bot.action(api.demoActivity.publish, { activity: open });
 
     const rejected = [
       { activity: await postActivity(t, { author: "u_viewer" }), code: "not_found" },
-      { activity: { kind: "like" as const, author: "bob", postId: realPost.postId! }, code: "not_found" },
+      { activity: { kind: "like" as const, author: "leahgoldberg", postId: realPost.postId! }, code: "not_found" },
       { activity: comment(realPost.postId!), code: "not_found" },
       // Cara is not Alice's friend, so the friends-only post is not hers to read.
-      { activity: { kind: "like" as const, author: "cara", postId: friendsOnly.submissionId }, code: "not_found" },
-      { activity: comment(friendsOnly.submissionId, { author: "cara" }), code: "not_found" },
+      {
+        activity: { kind: "like" as const, author: "alexrivera", postId: friendsOnly.submissionId },
+        code: "not_found",
+      },
+      { activity: comment(friendsOnly.submissionId, { author: "alexrivera" }), code: "not_found" },
       { activity: comment(open.submissionId, { body: "@u_viewer look at this" }), code: "invalid_mention" },
       { activity: await postActivity(t, { reflection: "With @nobody_here today" }), code: "invalid_mention" },
     ];
@@ -190,10 +195,10 @@ describe("demo-only rules", () => {
     }
 
     await bot.action(api.demoActivity.publish, {
-      activity: { kind: "like", author: "bob", postId: friendsOnly.submissionId },
+      activity: { kind: "like", author: "leahgoldberg", postId: friendsOnly.submissionId },
     });
     await bot.action(api.demoActivity.publish, {
-      activity: comment(open.submissionId, { author: "alice", body: "Same room as @cara last week" }),
+      activity: comment(open.submissionId, { author: "mayachen", body: "Same room as @alexrivera last week" }),
     });
     const notified = await t.run(async (ctx) =>
       Promise.all(
@@ -206,9 +211,9 @@ describe("demo-only rules", () => {
     // The seeded friendship's own notice aside, every recipient is a demo account.
     const fromActivity = notified.filter((row) => row.kind !== "friendAccepted");
     expect(fromActivity.sort((a, b) => a.kind.localeCompare(b.kind))).toEqual([
-      { kind: "commentMention", to: "cara" },
-      { kind: "visitComment", to: "bob" },
-      { kind: "visitLike", to: "alice" },
+      { kind: "commentMention", to: "alexrivera" },
+      { kind: "visitComment", to: "leahgoldberg" },
+      { kind: "visitLike", to: "mayachen" },
     ]);
   });
 });
@@ -315,7 +320,7 @@ describe("duplicate submissions", () => {
     });
     for (const changed of [
       { ...activity, reflection: "Something else entirely." },
-      { ...activity, author: "bob" },
+      { ...activity, author: "leahgoldberg" },
       { ...activity, audience: "friends" as const },
       { ...activity, artworks: activity.artworks.slice(0, 1) },
     ]) {
@@ -352,13 +357,13 @@ describe("duplicate submissions", () => {
     expect(await bot.action(api.demoActivity.publish, { activity })).toEqual({ ...created, status: "unchanged" });
     for (const changed of [
       { ...activity, body: "Something else." },
-      { ...activity, author: "cara" },
+      { ...activity, author: "alexrivera" },
     ]) {
       await expect(bot.action(api.demoActivity.publish, { activity: changed })).rejects.toMatchObject({
         data: { code: "conflict" },
       });
     }
-    const like = { kind: "like" as const, author: "cara", postId: post.submissionId };
+    const like = { kind: "like" as const, author: "alexrivera", postId: post.submissionId };
     expect(await bot.action(api.demoActivity.publish, { activity: like })).toEqual({
       status: "created",
       postId: post.submissionId,
@@ -386,7 +391,7 @@ describe("feed behavior", () => {
     expect(feed.page).toHaveLength(1);
     expect(feed.page[0]).toMatchObject({
       postId: activity.submissionId,
-      author: { username: "alice" },
+      author: { username: "mayachen" },
       venue: { name: "Metropolitan Museum of Art" },
       reflection: "The cypresses look like they are still moving.",
     });
@@ -433,7 +438,7 @@ describe("feed behavior", () => {
     expect(stored.pendingUploads).toBe(0);
 
     const leaderboard = await t.query(api.leaderboards.list, { metric: "artworks", audience: "global" });
-    expect(leaderboard.rows.map((row) => [row.profile.username, row.score])).toContainEqual(["alice", 2]);
+    expect(leaderboard.rows.map((row) => [row.profile.username, row.score])).toContainEqual(["mayachen", 2]);
   });
 
   it("keeps friends-only posts off the public feed", async () => {
@@ -460,11 +465,17 @@ describe("context", () => {
       const activity: PostActivity = {
         ...template,
         submissionId: crypto.randomUUID(),
-        author: ["alice", "bob", "cara"][index % 3],
+        author: ["mayachen", "leahgoldberg", "alexrivera"][index % 3],
         reflection: input.reflection,
-        artworks: photoIds.map((photoId, i) => ({ objectKey: `met:${i}`, note: input.note, photoIds: [photoId] })),
+        artworks: photoIds.map((photoId, i) => ({ objectKey: `met:${i}`, photoIds: [photoId] })),
       };
       await bot.mutation(internal.demoActivity.insertPost, activity);
+      // This read-budget fixture represents historic seeded demo posts, independent of bot quota accounting.
+      await t.run(async (ctx) => {
+        for (const row of await ctx.db.query("demoActivityReceipts").collect()) {
+          await ctx.db.delete("demoActivityReceipts", row._id);
+        }
+      });
       await t.run(async (ctx) => {
         const post = (await ctx.db
           .query("sharedVisits")
@@ -476,7 +487,7 @@ describe("context", () => {
     }
 
     const context = await bot.query(api.demoActivity.getContext, { since: now - DAY });
-    expect(context.characters.map((person) => person.username)).toEqual(["alice", "bob", "cara"]);
+    expect(context.characters.map((person) => person.username)).toEqual(["alexrivera", "leahgoldberg", "mayachen"]);
     expect(context.posts.length).toBeGreaterThan(0);
     expect(context.posts.length).toBeLessThan(100);
     expect(context.posts.map((post) => post.postId)).toEqual(postIds.slice(0, context.posts.length));
@@ -489,7 +500,7 @@ describe("context", () => {
   it("lists demo characters and their recent posts with only demo reactions", async () => {
     const { t, bot } = await world();
     const viewer = await socialUser(t, "viewer");
-    const older = await postActivity(t, { author: "bob" });
+    const older = await postActivity(t, { author: "leahgoldberg" });
     await bot.action(api.demoActivity.publish, { activity: older });
     await t.run(async (ctx) => {
       const post = (await ctx.db.query("sharedVisits").first())!;
@@ -497,13 +508,13 @@ describe("context", () => {
     });
     const since = Date.now() - DAY;
     const newer = await postActivity(t, { audience: "friends", startedAt: Date.now() - 2 * HOUR });
-    const newest = await postActivity(t, { author: "cara" });
+    const newest = await postActivity(t, { author: "alexrivera" });
     await bot.action(api.demoActivity.publish, { activity: newer });
     await bot.action(api.demoActivity.publish, { activity: newest });
-    const reply = comment(newest.submissionId, { author: "alice" });
+    const reply = comment(newest.submissionId, { author: "mayachen" });
     await bot.action(api.demoActivity.publish, { activity: reply });
     await bot.action(api.demoActivity.publish, {
-      activity: { kind: "like", author: "bob", postId: newest.submissionId },
+      activity: { kind: "like", author: "leahgoldberg", postId: newest.submissionId },
     });
     await viewer.as.mutation(api.visitReactions.setLike, { postId: newest.submissionId, liked: true });
     await viewer.as.action(api.visitReactions.addComment, {
@@ -513,14 +524,34 @@ describe("context", () => {
     });
 
     const context = await bot.query(api.demoActivity.getContext, { since });
-    expect(context.characters).toEqual([
-      { username: "alice", name: "Alice", bio: "Here for the Dutch rooms.", avatar: "vermeer", friends: ["bob"] },
-      { username: "bob", name: "Bob", bio: "Here for the Dutch rooms.", avatar: "vermeer", friends: ["alice"] },
-      { username: "cara", name: "Cara", bio: "Here for the Dutch rooms.", avatar: "vermeer", friends: [] },
-    ]);
+    expect(context.characters).toEqual(
+      expect.arrayContaining([
+        {
+          username: "mayachen",
+          name: "Mayachen",
+          bio: "Here for the Dutch rooms.",
+          avatar: "vermeer",
+          friends: ["leahgoldberg"],
+        },
+        {
+          username: "leahgoldberg",
+          name: "Leahgoldberg",
+          bio: "Here for the Dutch rooms.",
+          avatar: "vermeer",
+          friends: ["mayachen"],
+        },
+        {
+          username: "alexrivera",
+          name: "Alexrivera",
+          bio: "Here for the Dutch rooms.",
+          avatar: "vermeer",
+          friends: [],
+        },
+      ]),
+    );
     expect(context.posts.map((post) => [post.author, post.audience])).toEqual([
-      ["cara", "public"],
-      ["alice", "friends"],
+      ["alexrivera", "public"],
+      ["mayachen", "friends"],
     ]);
     expect(context.posts[0]).toMatchObject({
       postId: newest.submissionId,
@@ -530,8 +561,8 @@ describe("context", () => {
         { objectKey: "met:0", title: TITLES[0], artist: "Old Master" },
         { objectKey: "met:1", title: TITLES[1], artist: "Old Master" },
       ],
-      likes: ["bob"],
-      comments: [{ submissionId: reply.submissionId, author: "alice", body: reply.body }],
+      likes: ["leahgoldberg"],
+      comments: [{ submissionId: reply.submissionId, author: "mayachen", body: reply.body }],
     });
   });
 
@@ -609,5 +640,263 @@ describe("context", () => {
     await expect(bot.query(api.demoActivity.listVenueArtworks, { venueKey: "wikidata:Q0" })).rejects.toMatchObject({
       data: { code: "invalid_venue" },
     });
+  });
+});
+
+describe("approved cohort, companions and shared limits", () => {
+  it("rejects active demo accounts outside the approved cohort", async () => {
+    const { t, bot } = await world();
+    await t.mutation(internal.demoSeed.seedPerson, {
+      username: "outsider",
+      name: "Other demo",
+      bio: "Art",
+      avatar: "vermeer",
+      leaderboardVisibility: "global",
+      joinedAt: Date.now() - DAY,
+      visits: [],
+    });
+    const activity = await postActivity(t, { author: "outsider" });
+    await expect(bot.action(api.demoActivity.publish, { activity })).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
+    expect(
+      (await bot.query(api.demoActivity.getContext, { since: Date.now() - DAY })).characters.map((p) => p.username),
+    ).not.toContain("outsider");
+    await expect(
+      bot.action(api.demoActivity.publish, { activity: await postActivity(t, { reflection: "With @outsider" }) }),
+    ).rejects.toMatchObject({ data: { code: "invalid_mention" } });
+  });
+
+  it("stores eligible companions, preserves retries after a companion leaves, and rejects changed requests", async () => {
+    const { t, bot } = await world();
+    const activity = await postActivity(t, {
+      companions: ["leahgoldberg"],
+      reflection: "Loved the light #painting @leahgoldberg",
+    });
+    await bot.action(api.demoActivity.publish, { activity });
+    const publication = await t.run((ctx) =>
+      ctx.db
+        .query("sharedVisits")
+        .withIndex("by_postId", (q) => q.eq("postId", activity.submissionId))
+        .unique(),
+    );
+    expect(publication!.companionSelections).toHaveLength(1);
+    expect(publication!.mentions?.map((mention) => mention.username)).toContain("leahgoldberg");
+    expect(
+      (
+        await t.run((ctx) =>
+          ctx.db
+            .query("postTags")
+            .withIndex("by_publication", (q) => q.eq("publicationId", publication!._id))
+            .collect(),
+        )
+      ).map((row) => row.tag),
+    ).toContain("painting");
+    expect(await t.run((ctx) => ctx.db.query("visitCompanions").collect())).toHaveLength(1);
+    await t.run((ctx) => ctx.db.patch("sharedVisits", publication!._id, { companionSelections: [] }));
+    expect(await bot.action(api.demoActivity.publish, { activity })).toMatchObject({ status: "unchanged" });
+    await expect(
+      bot.action(api.demoActivity.publish, { activity: { ...activity, companions: [] } }),
+    ).rejects.toMatchObject({ data: { code: "conflict" } });
+    expect(await t.run((ctx) => ctx.db.query("demoActivityReceipts").collect())).toHaveLength(1);
+  });
+
+  it("rejects self, duplicates, nonfriends and real companions before publication", async () => {
+    const { t, bot } = await world();
+    await socialUser(t, "realperson");
+    for (const companions of [["mayachen"], ["leahgoldberg", "leahgoldberg"], ["alexrivera"], ["realperson"]]) {
+      await expect(
+        bot.action(api.demoActivity.publish, { activity: await postActivity(t, { companions }) }),
+      ).rejects.toThrow(/invalid_activity|not_found/);
+    }
+    expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toHaveLength(0);
+  });
+
+  it("caps posts across authors atomically while duplicates consume no additional allowance", async () => {
+    const { t, bot } = await world();
+    const posts = [];
+    for (let i = 0; i < 13; i++) posts.push(await postActivity(t, { author: i % 2 ? "leahgoldberg" : "mayachen" }));
+    // Insert is the final transaction after moderation; use it to isolate weekly caps from hourly rate limits.
+    for (const post of posts.slice(0, 11)) await t.mutation(internal.demoActivity.insertPost, post);
+    const outcomes = await Promise.allSettled(
+      posts.slice(11).map((post) => t.mutation(internal.demoActivity.insertPost, post)),
+    );
+    expect(outcomes.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toHaveLength(12);
+    expect(await bot.action(api.demoActivity.publish, { activity: posts[0] })).toMatchObject({ status: "unchanged" });
+    expect(await t.run((ctx) => ctx.db.query("demoActivityReceipts").collect())).toHaveLength(12);
+  });
+});
+
+it("caps comments and likes for the entire cohort and opens the next UTC week", async () => {
+  const { t, bot } = await world();
+  const post = await postActivity(t);
+  await bot.action(api.demoActivity.publish, { activity: post });
+  for (let index = 0; index < 8; index++) {
+    await t.mutation(internal.demoActivity.insertComment, comment(post.submissionId, { body: `Thought ${index}` }));
+  }
+  await expect(t.mutation(internal.demoActivity.insertComment, comment(post.submissionId))).rejects.toMatchObject({
+    data: { code: "rate_limited" },
+  });
+  const authors = APPROVED_DEMO_USERNAMES.filter(
+    (name) => !["mayachen", "leahgoldberg", "alexrivera"].includes(name),
+  ).slice(0, 17);
+  for (const username of authors) {
+    await t.mutation(internal.demoSeed.seedPerson, {
+      username,
+      name: username,
+      bio: "Art",
+      avatar: "vermeer",
+      leaderboardVisibility: "global",
+      joinedAt: Date.now() - DAY,
+      visits: [],
+    });
+  }
+  for (const author of authors.slice(0, 16)) {
+    await bot.action(api.demoActivity.publish, { activity: { kind: "like", author, postId: post.submissionId } });
+  }
+  await expect(
+    bot.action(api.demoActivity.publish, {
+      activity: { kind: "like", author: authors[16], postId: post.submissionId },
+    }),
+  ).rejects.toMatchObject({ data: { code: "rate_limited" } });
+  const clock = vi.spyOn(Date, "now").mockReturnValue(weekStart(Date.now()) + WEEK_MS + HOUR);
+  try {
+    await t.mutation(internal.demoActivity.insertComment, comment(post.submissionId, { body: "A different week" }));
+    expect(
+      await bot.action(api.demoActivity.publish, {
+        activity: { kind: "like", author: authors[16], postId: post.submissionId },
+      }),
+    ).toMatchObject({ status: "created" });
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+describe("demo profile walls", () => {
+  const layout = { x: 0.05, y: 0.1, width: 0.4, layer: 0, frame: "oak" };
+  const wall = () => ({ revision: 0, color: "#CDD0CA", pattern: "stripe", items: [{ key: "post:met:0", layout }] });
+
+  it("uses live styles and publishes a visit photo on the author's actual profile wall", async () => {
+    const { t, bot } = await world();
+    expect(await bot.query(api.demoActivity.getWallContext, { author: "mayachen" })).toMatchObject({
+      revision: 0,
+      items: [],
+      catalog: {
+        patterns: expect.arrayContaining(["plain", "stripe"]),
+        frames: expect.arrayContaining([{ value: "oak", border: 9 }]),
+        maxItems: LIMITS.wallItems,
+      },
+      geometry: { wallWidth: 390, fullFrameWidth: 166, sideGap: 0.025, labelGap: 0.16 },
+    });
+    expect(
+      await bot.action(api.demoActivity.publish, { activity: await postActivity(t, { wall: wall() }) }),
+    ).toMatchObject({ wallStatus: "updated" });
+    const updated = await bot.query(api.demoActivity.getWallContext, { author: "mayachen" });
+    expect(updated).toMatchObject({ revision: 1, color: "#CDD0CA", pattern: "stripe" });
+    expect(updated.items.find((item) => item.layout)).toMatchObject({
+      title: TITLES[0],
+      aspectRatio: 1536 / 2048,
+      layout,
+    });
+    const profile = await t.run((ctx) =>
+      ctx.db
+        .query("profiles")
+        .withIndex("by_username", (q) => q.eq("username", "mayachen"))
+        .unique(),
+    );
+    expect(profile?.publishedWallCount).toBe(1);
+    const publicWall = await t.query(api.walls.getPublic, { profileId: profile!._id });
+    expect(publicWall).toMatchObject({ color: "#CDD0CA", pattern: "stripe", artworkCount: 1 });
+    expect(publicWall?.items[0].layout).toEqual(layout);
+  });
+
+  it("moves, resizes and reframes placements and retries without restoring an older wall", async () => {
+    const { t, bot } = await world();
+    const first = await postActivity(t, { wall: wall() });
+    await bot.action(api.demoActivity.publish, { activity: first });
+    const before = await bot.query(api.demoActivity.getWallContext, { author: "mayachen" });
+    const placed = before.items.find((item) => item.layout)!;
+    const saved = before.items.find((item) => !item.layout)!;
+    const moved = { x: 0.5, y: 0.8, width: 0.3, layer: 1, frame: "gilt" };
+    const second = await postActivity(t, {
+      wall: {
+        revision: before.revision,
+        color: "#EDECE7",
+        pattern: "plain",
+        items: [
+          { key: placed.key, layout: moved },
+          { key: saved.key, layout },
+        ],
+      },
+    });
+    await bot.action(api.demoActivity.publish, { activity: second });
+    const after = await bot.query(api.demoActivity.getWallContext, { author: "mayachen" });
+    expect(after).toMatchObject({ revision: 2, pattern: "plain" });
+    expect(after.items.find((item) => item.key === placed.key)?.layout).toEqual(moved);
+    expect(await bot.action(api.demoActivity.publish, { activity: first })).toMatchObject({
+      status: "unchanged",
+      wallStatus: "updated",
+    });
+    expect(await bot.query(api.demoActivity.getWallContext, { author: "mayachen" })).toEqual(after);
+    await expect(
+      bot.action(api.demoActivity.publish, { activity: { ...first, wall: { ...wall(), color: "#EDECE7" } } }),
+    ).rejects.toMatchObject({ data: { code: "conflict" } });
+  });
+
+  it("publishes a visit without overwriting a newer wall or reapplying a retired style", async () => {
+    const { t, bot } = await world();
+    await bot.action(api.demoActivity.publish, { activity: await postActivity(t, { wall: wall() }) });
+    const before = await bot.query(api.demoActivity.getWallContext, { author: "mayachen" });
+    expect(
+      await bot.action(api.demoActivity.publish, { activity: await postActivity(t, { wall: wall() }) }),
+    ).toMatchObject({ status: "created", wallStatus: "stale" });
+    expect(
+      await bot.action(api.demoActivity.publish, {
+        activity: await postActivity(t, { wall: { ...wall(), revision: 1, pattern: "retired" } }),
+      }),
+    ).toMatchObject({ status: "created", wallStatus: "unavailable" });
+    const after = await bot.query(api.demoActivity.getWallContext, { author: "mayachen" });
+    expect(after.revision).toBe(before.revision);
+    expect(after.items.filter((item) => item.layout)).toEqual(before.items.filter((item) => item.layout));
+  });
+
+  it("rejects unauthenticated and real-user wall access and obeys the kill switch", async () => {
+    const { t, bot } = await world();
+    const real = await socialUser(t, "viewer");
+    for (const caller of [t, real.as]) {
+      await expect(caller.query(api.demoActivity.getWallContext, { author: "mayachen" })).rejects.toMatchObject({
+        data: { code: "unauthenticated" },
+      });
+    }
+    await expect(bot.query(api.demoActivity.getWallContext, { author: "u_viewer" })).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
+    vi.stubEnv("FLAG_DEMO_ACTIVITY", "off");
+    await expect(bot.query(api.demoActivity.getWallContext, { author: "mayachen" })).rejects.toMatchObject({
+      data: { code: "feature_off" },
+    });
+  });
+
+  it.each(["foreign", "private", "geometry", "duplicate"])("rejects %s wall selections atomically", async (invalid) => {
+    const { t, bot } = await world();
+    const plan = wall();
+    if (invalid === "foreign") {
+      const real = await socialUser(t, "viewer");
+      const visit = await socialVisit(t, real);
+      plan.items[0].key = `save:${visit.saves[0].localId}`;
+    }
+    if (invalid === "geometry") plan.items[0].layout = { ...layout, x: 0.9, width: 0.4 };
+    if (invalid === "duplicate") plan.items.push(plan.items[0]);
+    const wallsBefore = await t.run((ctx) => ctx.db.query("walls").collect());
+    const activity = await postActivity(t, {
+      wall: plan,
+      ...(invalid === "private" ? { audience: "friends" as const } : {}),
+    });
+    await expect(bot.action(api.demoActivity.publish, { activity })).rejects.toMatchObject({
+      data: { code: "invalid_wall" },
+    });
+    expect(await t.run((ctx) => ctx.db.query("walls").collect())).toEqual(wallsBefore);
+    expect(await t.run((ctx) => ctx.db.query("sharedVisits").collect())).toEqual([]);
   });
 });
