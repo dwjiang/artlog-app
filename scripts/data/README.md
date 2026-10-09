@@ -49,10 +49,11 @@ sqlite3 out/venues.db 'PRAGMA integrity_check; SELECT count(*) FROM venues;'
 cp out/venues.db ../../assets/venues.db
 ```
 
-Commit `assets/venues.db` after a successful full run. Its IDs must come from the
-same deployment the app uses. The export records the deployment's latest venue
-change; every 30 days phones fetch the venues added or edited after it, so
-re-export only for the next app build.
+Commit `assets/venues.db` after a successful full run against production. The
+export records its deployment and that deployment's latest venue change; every 30
+days phones fetch the venues added or edited after it, so re-export only for the
+next app build. A build on another deployment discards the bundled rows and
+downloads that deployment's full venue table before fetching later changes.
 
 For a smaller seed, replace `--all` with `--countries US,GB,FR`. Country-filtered
 runs still export every museum already in the deployment; use them for local

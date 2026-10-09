@@ -19,9 +19,29 @@ beforeEach(() => {
     setCheckedAt: jest.fn().mockResolvedValue(undefined),
     localChangeVersion: jest.fn().mockResolvedValue(100),
     fetchChanges: jest.fn().mockResolvedValue(page(101)),
+    fetchSnapshot: jest.fn(),
     applyChanges: jest.fn().mockResolvedValue(undefined),
     now: jest.fn().mockReturnValue(1_000_000),
   };
+});
+
+it("downloads every snapshot page and catches up from the first page's change version", async () => {
+  deps.localChangeVersion.mockResolvedValue(-1);
+  deps.fetchSnapshot
+    .mockResolvedValueOnce({ venues: [gallery], checkpoint: 100, cursor: "next" })
+    .mockResolvedValueOnce({ venues: [], checkpoint: 101, cursor: null });
+  await expect(refreshVenueTable(deps)).resolves.toBe("updated");
+  expect(deps.fetchSnapshot.mock.calls).toEqual([[null], ["next"]]);
+  expect(deps.fetchChanges).toHaveBeenCalledWith(100);
+  expect(deps.applyChanges.mock.calls).toEqual([[page(-1, true)], [page(100, false, [])], [page(101)]]);
+});
+
+it("does not complete a snapshot when its cursor fails to advance", async () => {
+  deps.localChangeVersion.mockResolvedValue(-1);
+  deps.fetchSnapshot.mockResolvedValue({ venues: [gallery], checkpoint: 100, cursor: "same" });
+  await expect(refreshVenueTable(deps)).rejects.toThrow("snapshot did not advance");
+  expect(deps.fetchChanges).not.toHaveBeenCalled();
+  expect(deps.setCheckedAt).not.toHaveBeenCalled();
 });
 
 it("applies venues changed since the local checkpoint and records the check", async () => {

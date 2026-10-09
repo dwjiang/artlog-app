@@ -22,6 +22,7 @@ EXPORT_ROW = {
     "website": "https://museum.example",
     "region": "sf-bay-area",
 }
+DEPLOYMENT = "https://venues.convex.cloud"
 
 
 def exporting(*pages, change_version=0):
@@ -191,12 +192,14 @@ def test_export_pages_preserves_ids_and_starts_from_the_change_version_read_firs
         },
         change_version=123,
     )
-    asset = seed_venues.export_asset(writer, tmp_path)
+    asset = seed_venues.export_asset(writer, tmp_path, deployment_url=DEPLOYMENT)
     assert (asset.change_version, asset.row_count) == (123, 2)
     assert asset.size_bytes == asset.path.stat().st_size
     assert writer.query.call_args_list[0].args == ("venueChanges:latestVersion",)
     with sqlite3.connect(asset.path) as db:
-        assert db.execute("SELECT changeVersion FROM meta").fetchall() == [(123,)]
+        assert db.execute("SELECT changeVersion, deployment FROM meta").fetchall() == [
+            (123, DEPLOYMENT)
+        ]
         assert db.execute("SELECT id, name FROM venues ORDER BY id").fetchall() == [
             ("museum-1", "Musée"),
             ("museum-2", "Musée"),
@@ -210,7 +213,7 @@ def test_failed_export_preserves_previous_asset(tmp_path):
     existing.write_bytes(b"previous")
     writer = exporting({"page": [], "isDone": True})
     with pytest.raises(RuntimeError, match="empty"):
-        seed_venues.export_asset(writer, tmp_path)
+        seed_venues.export_asset(writer, tmp_path, deployment_url=DEPLOYMENT)
     assert existing.read_bytes() == b"previous"
     assert list(tmp_path.iterdir()) == [existing]
 
@@ -218,13 +221,13 @@ def test_failed_export_preserves_previous_asset(tmp_path):
 def test_oversized_export_omits_websites_then_enforces_hard_limit(tmp_path, monkeypatch):
     writer = exporting({"page": [{**EXPORT_ROW, "website": "x" * 100_000}], "isDone": True})
     monkeypatch.setattr(seed_venues, "MAX_ASSET_BYTES", 20_000)
-    asset = seed_venues.export_asset(writer, tmp_path)
+    asset = seed_venues.export_asset(writer, tmp_path, deployment_url=DEPLOYMENT)
     assert asset.websites_omitted
     with sqlite3.connect(asset.path) as db:
         assert db.execute("SELECT website FROM venues").fetchone() == (None,)
     monkeypatch.setattr(seed_venues, "MAX_ASSET_BYTES", 1)
     with pytest.raises(RuntimeError, match="without websites"):
-        seed_venues.export_asset(writer, tmp_path)
+        seed_venues.export_asset(writer, tmp_path, deployment_url=DEPLOYMENT)
 
 
 def test_census_over_limit_stops_before_writes(tmp_path, monkeypatch):
@@ -247,7 +250,7 @@ def test_city_and_country_survive_export_without_filling_unknown_values(tmp_path
         {**EXPORT_ROW, "city": "San Francisco", "country": "US", "cityKey": "wikidata:Q62"},
         {**EXPORT_ROW, "_id": "unknown", "key": "unknown"},
     ], "isDone": True})
-    asset = seed_venues.export_asset(writer, tmp_path)
+    asset = seed_venues.export_asset(writer, tmp_path, deployment_url=DEPLOYMENT)
     with sqlite3.connect(asset.path) as db:
         assert db.execute("SELECT city, country, cityKey FROM venues ORDER BY id").fetchall() == [
             ("San Francisco", "US", "wikidata:Q62"), (None, None, None),

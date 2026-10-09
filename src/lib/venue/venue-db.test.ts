@@ -9,6 +9,7 @@ const mockConnections = new Set<Database.Database>();
 let mockRoot: string;
 let mockBundled: string;
 const mockQuery = jest.fn();
+const mockSnapshot = jest.fn();
 const mockReportError = jest.fn();
 
 jest.mock("@/lib/observability", () => ({
@@ -27,10 +28,10 @@ jest.mock("@/db/repos/settings", () => ({
   },
 }));
 jest.mock("@/lib/convex-client", () => ({
-  convex: { query: (_query: unknown, args: unknown) => mockQuery(args) },
+  convex: { query: (query: unknown, args: unknown) => (query === "snapshot" ? mockSnapshot(args) : mockQuery(args)) },
 }));
 jest.mock("../../../convex/_generated/api", () => ({
-  api: { venueChanges: { list: "list" } },
+  api: { venueChanges: { list: "list", snapshot: "snapshot" } },
 }));
 jest.mock("expo-asset", () => ({
   Asset: {
@@ -101,11 +102,12 @@ function loadModules() {
   });
 }
 
-function table(file: string, changeVersion: number) {
+const deployment = process.env.EXPO_PUBLIC_CONVEX_URL;
+function table(file: string, changeVersion: number, from = deployment) {
   const db = new Database(file);
   db.exec(`CREATE TABLE venues (id TEXT PRIMARY KEY, key TEXT UNIQUE, name TEXT NOT NULL, lat REAL, lng REAL, website TEXT, region TEXT, city TEXT, country TEXT, cityKey TEXT);
-    CREATE TABLE meta (changeVersion INTEGER, generatedAt TEXT);
-    INSERT INTO meta VALUES (${changeVersion}, 'today');
+    CREATE TABLE meta (changeVersion INTEGER, generatedAt TEXT, deployment TEXT);
+    INSERT INTO meta VALUES (${changeVersion}, 'today', '${from}');
     INSERT INTO venues (id, key, name, lat, lng, website, region) VALUES ('museum-1', 'key-1', 'Museum', 40, -73, NULL, 'seeded');`);
   db.close();
 }
@@ -129,6 +131,7 @@ beforeEach(() => {
   table(mockBundled, 1);
   mockSettings.clear();
   mockReportError.mockClear();
+  mockSnapshot.mockReset();
   mockQuery.mockResolvedValue({ venues: [], checkpoint: 1, hasMore: false });
   loadModules();
 });
@@ -136,6 +139,7 @@ afterEach(() => {
   for (const db of mockConnections) db.close();
   mockConnections.clear();
   fs.rmSync(mockRoot, { recursive: true, force: true });
+  process.env.EXPO_PUBLIC_CONVEX_URL = deployment;
 });
 
 it("applies changed and new venues to the live table, searchable at once and kept across launches", async () => {
@@ -178,6 +182,84 @@ it("leaves the rows and checkpoint unchanged when a page cannot be written", asy
   await expect(refresh.refreshVenueTable(refresh.refreshDependencies)).rejects.toThrow("NOT NULL");
   expect(await venueDb.readVenueTableMeta(live)).toMatchObject({ changeVersion: 1 });
   expect(await venueDb.venueNameById("new-gallery" as never)).toBeUndefined();
+});
+
+it("downloads a full snapshot before changes when the bundle holds another deployment's IDs", async () => {
+  mockBundled = path.join(mockRoot, "other-deployment.db");
+  table(mockBundled, 42, "https://other.convex.cloud");
+  const live = await venueDb.openVenueDb();
+  expect(await venueDb.readVenueTableMeta(live)).toMatchObject({ changeVersion: -1, deployment });
+  expect(await venueDb.nearest(live, { lat: 40, lng: -73 }, 400)).toEqual([]);
+
+  mockSnapshot.mockResolvedValue({ venues: [gallery], checkpoint: 3, cursor: null });
+  mockQuery.mockResolvedValue({ venues: [], checkpoint: 3, hasMore: false });
+  await expect(refresh.refreshVenueTable(refresh.refreshDependencies)).resolves.toBe("updated");
+  expect(mockSnapshot).toHaveBeenCalledWith({ cursor: null });
+  expect(mockQuery).toHaveBeenCalledWith({ since: 3 });
+  await live.closeAsync();
+  loadModules();
+  expect((await venueDb.nearest(await venueDb.openVenueDb(), gallery, 400)).map((row) => row.id)).toEqual([
+    "new-gallery",
+  ]);
+});
+
+it("restarts an interrupted snapshot across launches without treating partial rows as a complete table", async () => {
+  mockBundled = path.join(mockRoot, "other-deployment.db");
+  table(mockBundled, 42, "https://other.convex.cloud");
+  mockSnapshot
+    .mockResolvedValueOnce({ venues: [gallery], checkpoint: 3, cursor: "next" })
+    .mockRejectedValueOnce(new Error("offline"));
+  await expect(refresh.refreshVenueTable(refresh.refreshDependencies)).rejects.toThrow("offline");
+  const live = await venueDb.openVenueDb();
+  expect(await venueDb.readVenueTableMeta(live)).toMatchObject({ changeVersion: -1 });
+  expect(await venueDb.venueNameById(gallery.id)).toBe(gallery.name);
+  expect(mockSettings.has(venueDb.VENUE_TABLE_CHECKED_AT)).toBe(false);
+  await live.closeAsync();
+  loadModules();
+
+  mockSnapshot.mockResolvedValue({ venues: [gallery, renamed], checkpoint: 4, cursor: null });
+  mockQuery.mockResolvedValue({ venues: [], checkpoint: 4, hasMore: false });
+  await expect(refresh.refreshVenueTable(refresh.refreshDependencies)).resolves.toBe("updated");
+  expect(mockSnapshot).toHaveBeenLastCalledWith({ cursor: null });
+  expect(await venueDb.readVenueTableMeta(await venueDb.openVenueDb())).toMatchObject({ changeVersion: 4 });
+  expect(await venueDb.venueMetadataForIds([gallery.id, renamed.id])).toHaveLength(2);
+});
+
+it.each([false, true])(
+  "preserves legacy journal metadata offline when the bundle belongs to another deployment: %s",
+  async (otherDeployment) => {
+    const live = await venueDb.openVenueDb();
+    await venueDb.applyVenueMetadata(live, [gallery]);
+    await live.execAsync("ALTER TABLE meta DROP COLUMN deployment");
+    await live.closeAsync();
+    if (otherDeployment) {
+      mockBundled = path.join(mockRoot, "other-deployment.db");
+      table(mockBundled, 42, "https://other.convex.cloud");
+    }
+    loadModules();
+
+    expect(await venueDb.venueMetadataForIds([gallery.id])).toEqual([
+      expect.objectContaining({ id: gallery.id, city: "New York", country: "US", lat: gallery.lat, lng: gallery.lng }),
+    ]);
+    expect(await venueDb.readVenueTableMeta(await venueDb.openVenueDb())).toMatchObject({ deployment });
+    expect(await venueDb.venueNameById("museum-1" as never)).toBe(otherDeployment ? undefined : "Museum");
+    expect(mockSnapshot).not.toHaveBeenCalled();
+    expect(mockReportError).not.toHaveBeenCalled();
+  },
+);
+
+it("replaces an installed table holding another deployment's IDs even when the asset hash matches", async () => {
+  const live = await venueDb.openVenueDb();
+  await venueDb.applyVenueMetadata(live, [gallery]);
+  await live.runAsync("UPDATE meta SET deployment = 'https://other.convex.cloud'");
+  await live.closeAsync();
+  loadModules();
+
+  const reopened = await venueDb.openVenueDb();
+  expect(await venueDb.readVenueTableMeta(reopened)).toMatchObject({ changeVersion: 1, deployment });
+  expect(await venueDb.venueNameById("museum-1" as never)).toBe("Museum");
+  expect(await venueDb.venueNameById(gallery.id)).toBeUndefined();
+  expect(mockReportError).not.toHaveBeenCalled();
 });
 
 it("names a venue from the local table for a saved work", async () => {
@@ -244,8 +326,10 @@ it("drops fetched changes with a replaced bundled table and fetches them again o
   expect(await venueDb.venueNameById("new-gallery" as never)).toBe("Harbor Gallery");
 });
 
-it("opens the shipped museum asset for nearby lookup and search", async () => {
+it("opens the shipped museum asset for nearby lookup and search on production", async () => {
   mockBundled = path.resolve(__dirname, "../../..", "assets/venues.db");
+  process.env.EXPO_PUBLIC_CONVEX_URL = "https://admired-goldfinch-660.convex.cloud";
+  loadModules();
   const db = await venueDb.openVenueDb();
   const matches = await searchVenues("Metropolitan Museum", db);
   expect(matches.length).toBeGreaterThan(0);

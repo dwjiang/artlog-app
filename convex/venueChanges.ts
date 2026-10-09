@@ -37,6 +37,27 @@ export const latestVersion = internalQuery({
   handler: latestChangeVersion,
 });
 
+export const snapshot = query({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.object({
+    venues: v.array(journalVenue),
+    checkpoint: v.number(),
+    cursor: v.union(v.string(), v.null()),
+  }),
+  handler: async (ctx, { cursor }) => {
+    const checkpoint = await latestChangeVersion(ctx);
+    const page = await ctx.db.query("museums").withIndex("by_creation_time").paginate({
+      numItems: CHANGES_PAGE_SIZE,
+      cursor,
+    });
+    return {
+      venues: page.page.map(projectJournalVenue),
+      checkpoint,
+      cursor: page.isDone ? null : page.continueCursor,
+    };
+  },
+});
+
 export const list = query({
   args: { since: v.number() },
   returns: v.object({ venues: v.array(journalVenue), checkpoint: v.number(), hasMore: v.boolean() }),

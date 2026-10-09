@@ -23,46 +23,53 @@ import {
 export const VENUE_DB_NAME = "venues.db";
 const INSTALLED_ASSET_SETTING = "venueTableAssetHash";
 export const VENUE_TABLE_CHECKED_AT = "venueTableCheckedAt";
+const deployment = process.env.EXPO_PUBLIC_CONVEX_URL!;
 
 export type VenueTableMeta = {
-  /** The server's latest venue change when the table was exported, advanced as later changes are applied. */
+  /** Latest applied change version; -1 means a full snapshot must finish before incremental refresh. */
   changeVersion: number;
   generatedAt: string;
+  /** The Convex URL of the deployment whose museum IDs the table holds. */
+  deployment: string;
 };
 
 const VENUE_COLUMNS = "id, key, name, lat, lng, website, region, city, cityKey, country";
 
 /**
- * Copies the bundled table into place on first launch and again after an app update ships a new
- * asset; the new asset's checkpoint fetches again any change it predates. Journal venues are read
- * out first so the caller can carry them into the new copy: the sync checkpoint has already passed
- * them, so nothing would send them again.
+ * Copies the bundled table into place on first launch, again after an app update ships a new asset,
+ * and when the installed table holds another deployment's IDs; the new asset's checkpoint fetches
+ * again any change it predates. Journal venues are read out first so the caller can carry them into
+ * the new copy: the sync checkpoint has already passed them, so nothing would send them again.
  */
 async function installBundledTable(target: File): Promise<{ assetKey: string; carried: VenueRow[] } | undefined> {
   const asset = Asset.fromModule(bundledVenueAsset);
   const assetKey = asset.hash ?? asset.uri;
-  const reusable = target.exists && (await installedTableIsValid());
-  if (reusable && (await getSetting(INSTALLED_ASSET_SETTING)) === assetKey) {
+  const state = target.exists ? await installedTableState() : "replace";
+  if (state === "current" && (await getSetting(INSTALLED_ASSET_SETTING)) === assetKey) {
     return undefined;
   }
   await asset.downloadAsync();
   if (!asset.localUri) {
     throw new Error("The bundled venue table could not be loaded");
   }
-  const carried = reusable ? await journalVenueRows() : [];
+  const carried = state !== "replace" ? await journalVenueRows() : [];
   target.parentDirectory.create({ intermediates: true, idempotent: true });
   await new File(asset.localUri).copy(target, { overwrite: true });
   return { assetKey, carried };
 }
 
-async function installedTableIsValid(): Promise<boolean> {
+async function installedTableState(): Promise<"current" | "legacy" | "replace"> {
   const db = await openDatabaseAsync(VENUE_DB_NAME, { useNewConnection: true });
   try {
-    return (await missingVenueColumn(db)) === undefined;
+    const missing = await missingVenueColumn(db);
+    // Untagged bundles cannot be trusted, but journal rows came from the connected backend.
+    if (missing === "meta.deployment") return "legacy";
+    if (missing) return "replace";
+    return (await readVenueTableMeta(db)).deployment === deployment ? "current" : "replace";
   } catch (error) {
     reportError(error, "venue.table.validate", { level: "warning" });
     // The installed hash only records which bundle was copied, not that the copy landed intact.
-    return false;
+    return "replace";
   } finally {
     await db.closeAsync();
   }
@@ -88,7 +95,7 @@ let opening: Promise<SQLiteDatabase> | undefined;
 async function missingVenueColumn(db: SQLiteDatabase): Promise<string | undefined> {
   for (const [table, required] of [
     ["venues", VENUE_COLUMNS.split(", ")],
-    ["meta", ["changeVersion", "generatedAt"]],
+    ["meta", ["changeVersion", "generatedAt", "deployment"]],
   ] as const) {
     const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
     const missing = required.find((name) => !columns.some((column) => column.name === name));
@@ -107,6 +114,10 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
       if (missing) throw new Error(`The bundled venue table is missing ${missing}`);
       await db.execAsync("CREATE TABLE IF NOT EXISTS journalVenues (id TEXT PRIMARY KEY)");
       if (installed) {
+        if ((await readVenueTableMeta(db)).deployment !== deployment) {
+          await db.execAsync("DELETE FROM venues");
+          await db.runAsync("UPDATE meta SET changeVersion = -1, deployment = ?", deployment);
+        }
         for (const venue of installed.carried) {
           await writeVenue(db, venue, "IGNORE");
         }
@@ -129,7 +140,9 @@ export function openVenueDb(): Promise<SQLiteDatabase> {
 }
 
 export async function readVenueTableMeta(db: SQLiteDatabase): Promise<VenueTableMeta> {
-  const meta = await db.getFirstAsync<VenueTableMeta>("SELECT changeVersion, generatedAt FROM meta LIMIT 1");
+  const meta = await db.getFirstAsync<VenueTableMeta>(
+    "SELECT changeVersion, generatedAt, deployment FROM meta LIMIT 1",
+  );
   if (!meta) throw new Error("The venue table has no meta row");
   return meta;
 }
@@ -197,6 +210,7 @@ export async function applyVenueMetadata(db: SQLiteDatabase, rows: VenueMetadata
   if (rows.length > 0) for (const listener of metadataListeners) listener();
 }
 export type VenueChanges = FunctionReturnType<typeof api.venueChanges.list>;
+export type VenueSnapshot = FunctionReturnType<typeof api.venueChanges.snapshot>;
 /** Rows are written before the checkpoint, so a page interrupted between the two is fetched and applied again. */
 export async function applyVenueChanges(db: SQLiteDatabase, { venues, checkpoint }: VenueChanges): Promise<void> {
   if (venues.length > 0) {
