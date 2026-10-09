@@ -96,6 +96,7 @@ export async function getEntities(
   ids: string[],
   props = "labels|claims",
   languages = ["en"],
+  sitelinks: "languages" | "all" = "languages",
 ): Promise<Record<string, WikidataEntity>> {
   const unique = [...new Set(ids)];
   const entities: Record<string, WikidataEntity> = {};
@@ -105,7 +106,7 @@ export async function getEntities(
       ids: unique.slice(offset, offset + MAX_IDS).join("|"),
       props,
       languages: languages.join("|"),
-      sitefilter: languages.map((language) => `${language}wiki`).join("|"),
+      ...(sitelinks === "languages" && { sitefilter: languages.map((language) => `${language}wiki`).join("|") }),
     })) as { entities?: Record<string, WikidataEntity> };
     for (const [id, entity] of Object.entries(json.entities ?? {})) {
       if (entity && typeof entity === "object" && entity.missing === undefined) {
@@ -116,8 +117,13 @@ export async function getEntities(
   return entities;
 }
 
-export async function getEntity(id: string, props?: string, languages?: string[]): Promise<WikidataEntity | null> {
-  return (await getEntities([id], props, languages))[id] ?? null;
+export async function getEntity(
+  id: string,
+  props?: string,
+  languages?: string[],
+  sitelinks?: "languages" | "all",
+): Promise<WikidataEntity | null> {
+  return (await getEntities([id], props, languages, sitelinks))[id] ?? null;
 }
 
 // The item that carries this identifier, when exactly one does.
@@ -132,11 +138,15 @@ export async function findEntityByStatement(property: string, value: string): Pr
   return hits.length === 1 && typeof hits[0].title === "string" ? hits[0].title : null;
 }
 
-// Plain text keeps the article's sentences quotable; empty when there is no such article.
-export async function wikipediaArticle(title: string, language = "en"): Promise<string> {
+function wikipediaApi(language: string): string {
   if (!/^[a-z]{2,3}(?:-[a-z0-9]+)*$/.test(language)) {
     throw new ConvexError({ code: "wikidata_error", reason: "invalid_language" });
   }
+  return `https://${language}.wikipedia.org/w/api.php`;
+}
+
+// Plain text keeps the article's sentences quotable; empty when there is no such article.
+export async function wikipediaArticle(title: string, language = "en"): Promise<string> {
   const json = (await call(
     {
       action: "query",
@@ -147,10 +157,57 @@ export async function wikipediaArticle(title: string, language = "en"): Promise<
       titles: title,
       formatversion: "2",
     },
-    `https://${language}.wikipedia.org/w/api.php`,
+    wikipediaApi(language),
   )) as { query?: { pages?: { extract?: unknown }[] } };
   const extract = json.query?.pages?.[0]?.extract;
   return typeof extract === "string" ? extract.trim() : "";
+}
+
+// Resolves each requested title through MediaWiki's normalization and redirects to the page the API answered with.
+function pagesByRequest<Page extends { title?: unknown }>(
+  titles: string[],
+  query: { normalized?: unknown; redirects?: unknown; pages?: unknown } | undefined,
+): Map<string, Page> {
+  const renames = new Map<string, string>();
+  for (const list of [query?.normalized, query?.redirects]) {
+    for (const entry of Array.isArray(list) ? list : []) {
+      const { from, to } = entry as { from?: unknown; to?: unknown };
+      if (typeof from === "string" && typeof to === "string") renames.set(from, to);
+    }
+  }
+  const pages = new Map<string, Page>();
+  for (const page of Array.isArray(query?.pages) ? (query.pages as Page[]) : []) {
+    if (typeof page.title === "string") pages.set(page.title, page);
+  }
+  const resolved = new Map<string, Page>();
+  for (const title of titles) {
+    const normalized = renames.get(title) ?? title;
+    const page = pages.get(renames.get(normalized) ?? normalized);
+    if (page) resolved.set(title, page);
+  }
+  return resolved;
+}
+
+/** Each article's freely licensed lead image as a Commons file name, keyed by the requested title. */
+export async function wikipediaLeadImages(titles: string[], language: string): Promise<Map<string, string>> {
+  const json = (await call(
+    {
+      action: "query",
+      prop: "pageimages",
+      piprop: "name",
+      pilicense: "free",
+      pilimit: String(titles.length),
+      redirects: "1",
+      titles: titles.join("|"),
+      formatversion: "2",
+    },
+    wikipediaApi(language),
+  )) as { query?: { pages?: { title?: unknown; pageimage?: unknown }[] } };
+  const images = new Map<string, string>();
+  for (const [title, page] of pagesByRequest<{ title?: unknown; pageimage?: unknown }>(titles, json.query)) {
+    if (typeof page.pageimage === "string") images.set(title, page.pageimage);
+  }
+  return images;
 }
 
 export function entityLabel(entity: WikidataEntity, language = "en"): string | undefined {
@@ -245,4 +302,56 @@ export async function commonsFileHtml(file: string): Promise<string> {
   const html = json.parse?.text?.["*"];
   if (typeof html !== "string") throw new ConvexError({ code: "wikidata_error", reason: "bad_commons_response" });
   return html;
+}
+
+export type CommonsImage = {
+  /** The file's current name, after Commons' redirects. */
+  file: string;
+  mime: string;
+  width: number;
+  /** HTML, as Commons renders the file page's author field. */
+  artist?: string;
+  license?: string;
+  attributionRequired: boolean;
+};
+
+type ImagePage = {
+  title?: unknown;
+  imageinfo?: { mime?: unknown; width?: unknown; extmetadata?: Record<string, { value?: unknown } | undefined> }[];
+};
+
+/** Each Commons file's format, size and licensing, keyed by the requested name; files Commons lacks are left out. */
+export async function commonsImages(files: string[]): Promise<Map<string, CommonsImage>> {
+  const titles = files.map((file) => `File:${file}`);
+  const json = (await call(
+    {
+      action: "query",
+      prop: "imageinfo",
+      iiprop: "mime|size|extmetadata",
+      iiextmetadatafilter: "Artist|LicenseShortName|AttributionRequired",
+      iiextmetadatalanguage: "en",
+      titles: titles.join("|"),
+      redirects: "1",
+      formatversion: "2",
+    },
+    "https://commons.wikimedia.org/w/api.php",
+  )) as { query?: { pages?: ImagePage[] } };
+  const images = new Map<string, CommonsImage>();
+  for (const [title, page] of pagesByRequest<ImagePage>(titles, json.query)) {
+    const info = page.imageinfo?.[0];
+    if (typeof page.title !== "string" || typeof info?.mime !== "string" || typeof info.width !== "number") continue;
+    const field = (name: string) => {
+      const value = info.extmetadata?.[name]?.value;
+      return typeof value === "string" && value.trim() ? value : undefined;
+    };
+    images.set(title.slice("File:".length), {
+      file: page.title.replace(/^File:/, ""),
+      mime: info.mime,
+      width: info.width,
+      artist: field("Artist"),
+      license: field("LicenseShortName"),
+      attributionRequired: field("AttributionRequired") !== "false",
+    });
+  }
+  return images;
 }
