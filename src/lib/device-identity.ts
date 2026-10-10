@@ -32,7 +32,12 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
     appAttestKeyId: storedKeyId ?? undefined,
   });
   const appAttest = getAppAttest();
-  if (result.attested || !appAttest) {
+  // Every backend this phone signs in to shares the saved key id, so attesting on one can overwrite the id another
+  // already holds. The server attests one key per device, and that key remains on the phone.
+  if (result.attestedKeyId !== undefined && result.attestedKeyId !== storedKeyId) {
+    await installationStorage.setItem(APP_ATTEST_KEY_ID, result.attestedKeyId);
+  }
+  if (result.attested || result.attestedKeyId !== undefined || !appAttest) {
     pendingAttestation = null;
     addBreadcrumb("auth.device_registration.success");
     return;

@@ -387,6 +387,26 @@ it("keeps the key when the server committed attestation but its response was los
   expect(mockDeleteItem).not.toHaveBeenCalled();
 });
 
+it("adopts the key the server attested when another backend replaced the saved one", async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockStorage.set("appAttestKeyId", "other-backend-key");
+  mockAppAttest.isSupported.mockReturnValue(true);
+  mockRegister.mockResolvedValue({
+    deviceId: "device-1",
+    attested: false,
+    attestRequired: true,
+    attestedKeyId: "server-key",
+  });
+  await renderHook(useDeviceIdentity);
+  await act(() => jest.advanceTimersByTimeAsync(60_000));
+  expect(mockStorage.get("appAttestKeyId")).toBe("server-key");
+  expect(mockAppAttest.attestKey).not.toHaveBeenCalled();
+  expect(mockAttest).not.toHaveBeenCalled();
+  expect(mockRegister).toHaveBeenCalledTimes(1);
+  expect(mockReportError).not.toHaveBeenCalled();
+});
+
 it.each(["sign-in", "registration"])("retries failed %s without needing a remount", async (stage) => {
   mockAuth.isLoading = false;
   mockAuth.isAuthenticated = stage === "registration";
