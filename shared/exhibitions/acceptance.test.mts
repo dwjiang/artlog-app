@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { validateExhibitions, type ExhibitionCandidate, type ExhibitionMuseum } from "./acceptance.mts";
+import { validateExhibitions, type ExhibitionCandidate, type ExhibitionMuseum } from "./acceptance.ts";
 
 const museum: ExhibitionMuseum = {
   museumId: "test-museum",
@@ -155,6 +155,106 @@ await test("accepts English day-first and four-digit numeric ranges", () => {
   ]) {
     assert.equal(validate({ dateText, dateEvidence: dateText }).accepted.length, 1, dateText);
   }
+});
+
+const paris: ExhibitionMuseum = { ...museum, timeZone: "Europe/Paris", country: "FR" };
+
+await test("accepts French, German, Italian, Spanish and Dutch day-first ranges", () => {
+  for (const dateText of [
+    "Du 15 octobre 2026 au 14 mars 2027",
+    "du samedi 15 octobre au dimanche 14 mars 2027",
+    "15 oct. 2026 – 14 mars 2027",
+    "15. Oktober 2026 – 14. März 2027",
+    "vom 15. Oktober 2026 bis 14. März 2027",
+    "dal 15 ottobre 2026 al 14 marzo 2027",
+    "del 15 de octubre de 2026 al 14 de marzo de 2027",
+    "15 oktober 2026 t/m 14 maart 2027",
+    "van 15 oktober 2026 tot 14 maart 2027",
+  ]) {
+    const result = validate(
+      { startDate: "2026-10-15", endDate: "2027-03-14", dateText, dateEvidence: dateText },
+      { museum: paris },
+    );
+    assert.equal(result.accepted.length, 1, dateText);
+  }
+});
+
+await test("reads days that share a month and year printed once", () => {
+  for (const dateText of ["Du 3 au 15 mars 2027", "3.–15. März 2027", "dal 3 al 15 marzo 2027", "1–15 March 2027"]) {
+    const startDate = dateText.startsWith("1–") ? "2027-03-01" : "2027-03-03";
+    const result = validate({ startDate, endDate: "2027-03-15", dateText, dateEvidence: dateText }, { museum: paris });
+    assert.equal(result.accepted.length, 1, dateText);
+  }
+});
+
+await test("reads opening and closing dates printed side by side only when both carry a year", () => {
+  const dateText = "11 mars 2026 21 févr. 2027";
+  assert.equal(
+    validate({ startDate: "2026-03-11", endDate: "2027-02-21", dateText, dateEvidence: dateText }).accepted.length,
+    1,
+  );
+  const yearless = "11 mars 21 févr. 2027";
+  assert.ok(
+    validate({
+      startDate: "2026-03-11",
+      endDate: "2027-02-21",
+      dateText: yearless,
+      dateEvidence: yearless,
+    }).rejected[0]?.reasons.includes("dates_not_supported"),
+  );
+});
+
+await test("reads numeric dates in the order the museum's country writes them", () => {
+  const french = "Du 01.07.2026 au 10.01.2027";
+  assert.equal(
+    validate(
+      { startDate: "2026-07-01", endDate: "2027-01-10", dateText: french, dateEvidence: french },
+      { museum: paris },
+    ).accepted.length,
+    1,
+  );
+  assert.ok(
+    validate(
+      { startDate: "2026-01-07", endDate: "2027-10-01", dateText: french, dateEvidence: french },
+      { museum: paris },
+    ).rejected[0]?.reasons.includes("dates_not_supported"),
+  );
+  const american = "07.01.2026 - 01.10.2027";
+  assert.equal(
+    validate(
+      { startDate: "2026-07-01", endDate: "2027-01-10", dateText: american, dateEvidence: american },
+      { museum: { ...museum, country: "US" } },
+    ).accepted.length,
+    1,
+  );
+  const dayOver12 = "31/10/2026 - 15/01/2027";
+  assert.equal(
+    validate({ startDate: "2026-10-31", endDate: "2027-01-15", dateText: dayOver12, dateEvidence: dayOver12 }).accepted
+      .length,
+    1,
+  );
+});
+
+await test("accepts closing dates stated in other languages", () => {
+  for (const dateText of [
+    "jusqu'au 14 mars 2027",
+    "Jusqu’au 14 mars 2027",
+    "bis 14. März 2027",
+    "fino al 14 marzo 2027",
+    "hasta el 14 de marzo de 2027",
+    "t/m 14 maart 2027",
+  ]) {
+    const result = validate({ startDate: null, endDate: "2027-03-14", dateText, dateEvidence: dateText });
+    assert.equal(result.accepted.length, 1, dateText);
+  }
+});
+
+await test("ends a range at its explicit year even when opening hours follow", () => {
+  const dateText = "17 July 2026 - 21 February 2027 10am – 5.30pm";
+  assert.equal(
+    validate({ startDate: "2026-07-17", endDate: "2027-02-21", dateText, dateEvidence: dateText }).accepted.length,
+    1,
+  );
 });
 
 await test("accepts an explicitly stated closing date without inventing the opening date", () => {

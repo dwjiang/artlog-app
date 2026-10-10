@@ -41,6 +41,7 @@ type Env = {
   readonly DOCENT_MODEL: string | undefined;
   readonly FACT_SHEET_MODEL: string | undefined;
   readonly FLAG_DEMO_ACTIVITY: string | undefined;
+  readonly FLAG_EXHIBITION_REFRESH: string | undefined;
   readonly FLAG_LABEL_FLOW: string | undefined;
   readonly FLAG_RIGHT_NOW: string | undefined;
   readonly GOOGLE_WEB_CLIENT_ID: string | undefined;

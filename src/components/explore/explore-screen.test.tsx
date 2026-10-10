@@ -14,11 +14,13 @@ import { WantToSeeScreen } from "./want-to-see-screen";
 const mockPush = jest.fn();
 const mockRefresh = jest.fn();
 const mockOpenBrowser = jest.fn(async (_url: string) => undefined);
+const mockRequestRegion = jest.fn(async (_args: { region: string }) => null);
 let mockParams: { timing?: string } = {};
 let mockFix: { lat: number; lng: number } | undefined;
 let mockOffline = false;
 let mockFailure: Error | undefined;
 let mockRegions: unknown[];
+let mockEmptyRegion: string | undefined;
 let mockCached: Map<string, unknown>;
 
 jest.mock("expo-router", () => {
@@ -42,7 +44,9 @@ jest.mock("@/lib/social/use-query-refresh", () => ({
   useQueryBatchRefresh: () => ({ refreshing: false, refresh: mockRefresh }),
 }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
+jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("convex/react", () => ({
+  useMutation: () => mockRequestRegion,
   useQueries: (
     requests: Record<
       string,
@@ -61,7 +65,12 @@ jest.mock("convex/react", () => ({
         if (name === "exhibitions:regions") {
           data = mockRegions;
         } else if (name === "exhibitions:inRegion") {
-          data = args.region === "country:GB" ? cornwall : bayArea;
+          data =
+            args.region === mockEmptyRegion
+              ? { museums: [], exhibitions: [] }
+              : args.region === "country:GB"
+                ? cornwall
+                : bayArea;
         } else {
           const exhibitions = [...bayArea.exhibitions, ...cornwall.exhibitions].filter((show) =>
             args.museumId ? show.museumId === args.museumId : args.exhibitionIds?.includes(show.exhibitionId),
@@ -98,11 +107,13 @@ beforeEach(() => {
   mockPush.mockClear();
   mockRefresh.mockClear();
   mockOpenBrowser.mockClear();
+  mockRequestRegion.mockClear();
   mockParams = {};
   mockFix = undefined;
   mockOffline = false;
   mockFailure = undefined;
   mockRegions = regions;
+  mockEmptyRegion = undefined;
   mockCached = new Map();
   chooseCity("");
 });
@@ -193,6 +204,20 @@ describe("Explore", () => {
     expect(screen.getByText("No exhibitions listed yet.")).toBeOnTheScreen();
   });
 
+  it("asks the backend to keep the shown city's museum listings current, never while offline", async () => {
+    mockFix = { lat: 50.21, lng: -5.48 };
+    await render(<ExploreScreen />);
+    expect(mockRequestRegion).toHaveBeenLastCalledWith({ region: "country:GB" });
+
+    await fireEvent.press(screen.getByRole("button", { name: "San Francisco Bay Area" }));
+    expect(mockRequestRegion).toHaveBeenLastCalledWith({ region: "sf-bay-area" });
+
+    mockRequestRegion.mockClear();
+    mockOffline = true;
+    await render(<ExploreScreen />);
+    expect(mockRequestRegion).not.toHaveBeenCalled();
+  });
+
   it("keeps the loaded catalog visible when the connection drops", async () => {
     const view = await render(<ExploreScreen />);
     expect(card("Tides of Memory")).toBeOnTheScreen();
@@ -200,6 +225,19 @@ describe("Explore", () => {
     await view.rerender(<ExploreScreen />);
     expect(card("Tides of Memory")).toBeOnTheScreen();
     expect(screen.queryByText("You’re offline.")).toBeNull();
+  });
+
+  it("keeps an empty city selectable and requests its listings", async () => {
+    mockRegions = [...regions, { region: "paris", lat: 48.8, lng: 2.3 }];
+    mockEmptyRegion = "paris";
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Paris" }));
+    expect(screen.getByLabelText("City, Paris")).toBeOnTheScreen();
+    expect(screen.getByText("No exhibitions close in the next 30 days.")).toBeOnTheScreen();
+    expect(mockRequestRegion).toHaveBeenLastCalledWith({ region: "paris" });
+
+    await fireEvent.press(screen.getByRole("button", { name: "San Francisco Bay Area" }));
+    expect(card("Tides of Memory")).toBeOnTheScreen();
   });
 });
 

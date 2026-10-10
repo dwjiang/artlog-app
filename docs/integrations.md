@@ -12,11 +12,12 @@ adapters and configured model IDs are the implementation source of truth.
 - Apple Vision reads wall labels on the iPhone. Label text goes to a Nemotron
   model through Nebius Token Factory; label photographs remain on the phone.
 - Token Factory serves the Nemotron models used for label sorting, artwork fact
-  sheets, docent prose, and moderation. The shared adapter is
+  sheets, docent prose, exhibition listings, and moderation. The shared adapter is
   [tokenFactory.ts](../convex/lib/tokenFactory.ts).
-- Tavily supplies search evidence for label verification and artwork research.
-  The runtime paths are [label.ts](../convex/label.ts) and
-  [docentSources.ts](../convex/lib/docentSources.ts). Search results propose
+- Tavily supplies search evidence for label verification and artwork research,
+  and reads exhibition listings the backend's own fetch cannot. The runtime paths
+  are [label.ts](../convex/label.ts), [docentSources.ts](../convex/lib/docentSources.ts)
+  and [exhibitionRefresh.ts](../convex/exhibitionRefresh.ts). Search results propose
   evidence; an image URL alone does not establish artwork identity or rights.
 - OpenAI supplies narration speech and shared-text moderation. Provider failures
   must preserve retry and moderation behavior without exposing content or

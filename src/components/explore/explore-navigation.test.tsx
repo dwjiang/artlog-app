@@ -87,18 +87,8 @@ afterEach(async () => {
   jest.restoreAllMocks();
 });
 
-it.each(paths)("redirects the release deep link %s to Home", async (path) => {
+it.each(paths)("opens the release deep link %s", async (path) => {
   jest.replaceProperty(runtime, "__DEV__", false);
-  const navigation = renderRouter(routes, { initialUrl: path });
-  await navigation;
-
-  expect(navigation.getPathname()).toBe("/");
-  expect(screen.getByText("Home")).toBeOnTheScreen();
-  expect(screen.queryByText("Explore content")).toBeNull();
-});
-
-it.each(paths)("keeps the development deep link %s available", async (path) => {
-  jest.replaceProperty(runtime, "__DEV__", true);
   const navigation = renderRouter(routes, { initialUrl: path });
   await navigation;
 

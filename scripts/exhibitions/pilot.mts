@@ -12,7 +12,7 @@ import {
   type ExhibitionInterval,
   type ExhibitionMuseum,
   type RejectedExhibition,
-} from "./acceptance.mts";
+} from "../../shared/exhibitions/acceptance.ts";
 
 type JsonValue = string | number | boolean | null | JsonValue[] | JsonObject;
 type JsonObject = { [key: string]: JsonValue };

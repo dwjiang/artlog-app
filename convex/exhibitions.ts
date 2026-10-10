@@ -7,8 +7,9 @@ import { stableStringify } from "../shared/attestation/stable-stringify";
 import { isCalendarDate, isTimeZone, isTimestamp, utf8Bytes } from "../shared/journal/limits";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalAction, internalQuery, query, type QueryCtx } from "./_generated/server";
+import { internalAction, internalQuery, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
+import { titleKey } from "./lib/exhibitionListings";
 import {
   exhibitionBatchResult,
   exhibitionExport,
@@ -29,10 +30,6 @@ const MAX_REGION_EXHIBITIONS = 1000;
 
 function invalidMetadata(): never {
   throw new ConvexError({ code: "invalid_import_file", reason: "exhibition_metadata" });
-}
-
-function titleKey(title: string): string {
-  return title.normalize("NFKC").trim().replaceAll(/\s+/g, " ").toLocaleLowerCase("en-US");
 }
 
 function httpsUrl(value: string): URL {
@@ -60,11 +57,11 @@ function venueHost(venue: Doc<"museums">): string {
   }
 }
 
-function checkRecord(record: Infer<typeof exhibitionImport>, venue: Doc<"museums">): number {
+type VerifiedRecord = Omit<Infer<typeof exhibitionImport>, "venueKey">;
+
+function checkRecord(record: VerifiedRecord, venue: Doc<"museums">): number {
   if (
-    !record.venueKey.trim()
-    || record.venueKey.length > 300
-    || !titleKey(record.title)
+    !titleKey(record.title)
     || record.title.trim() !== record.title
     || record.title.length > 1000
     || !/^[0-9a-f]{64}$/.test(record.sourceSha256)
@@ -136,57 +133,61 @@ export const commitBatch = internalMutation({
       throw new ConvexError({ code: "duplicate_entry", reason: "exhibition_title" });
     }
     const result = { inserted: 0, updated: 0, unchanged: 0 };
-    for (const record of records) {
-      if (!record.venueKey.trim()) invalidMetadata();
-      const museum = await requireVenue(ctx, record.venueKey);
+    for (const { venueKey, ...record } of records) {
+      if (!venueKey.trim() || venueKey.length > 300) invalidMetadata();
+      const museum = await requireVenue(ctx, venueKey);
       if (await isVenueOptedOut(ctx, museum)) throw new ConvexError({ code: "venue_opted_out" });
-      const finalEndAt = checkRecord(record, museum);
-      const { venueKey: _venueKey, ...fields } = record;
-      const saved = {
-        ...fields,
-        museumId: museum._id,
-        region: museum.region,
-        titleKey: titleKey(record.title),
-        finalEndAt,
-      };
-      const existing = await ctx.db
-        .query("exhibitions")
-        .withIndex("by_museum_title", (q) => q.eq("museumId", museum._id).eq("titleKey", saved.titleKey))
-        .unique();
-      if (!existing) {
-        await ctx.db.insert("exhibitions", saved);
-        result.inserted += 1;
-        continue;
-      }
-      const { _id, _creationTime, ...prior } = existing;
-      const { imageUrl: priorImage, imageCheckedAt: priorImageAt, ...priorEvidence } = prior;
-      const { imageUrl, imageCheckedAt, ...evidence } = saved;
-      if (existing.checkedAt > record.checkedAt) {
-        throw new ConvexError({ code: "conflict", reason: "stale_exhibition" });
-      }
-      if (existing.checkedAt === record.checkedAt && stableStringify(priorEvidence) !== stableStringify(evidence)) {
-        throw new ConvexError({ code: "conflict", reason: "timestamp_collision" });
-      }
-      if (imageUrl === undefined && imageCheckedAt === undefined) {
-        // A metadata-only import must not erase a separately checked image.
-        if (priorImage !== undefined) saved.imageUrl = priorImage;
-        if (priorImageAt !== undefined) saved.imageCheckedAt = priorImageAt;
-      } else if (imageUrl !== priorImage || imageCheckedAt !== priorImageAt) {
-        const nextAt = imageCheckedAt ?? record.checkedAt;
-        const previousAt = priorImageAt ?? (priorImage === undefined ? -1 : existing.checkedAt);
-        if (nextAt < previousAt) throw new ConvexError({ code: "conflict", reason: "stale_image" });
-        if (nextAt === previousAt) throw new ConvexError({ code: "conflict", reason: "image_timestamp_collision" });
-      }
-      if (stableStringify(prior) === stableStringify(saved)) {
-        result.unchanged += 1;
-        continue;
-      }
-      await ctx.db.replace("exhibitions", _id, saved);
-      result.updated += 1;
+      result[await saveExhibition(ctx, museum, record)] += 1;
     }
     return result;
   },
 });
+
+/** Stores one verified show, keyed by its museum and title. Every check runs before anything is written. */
+export async function saveExhibition(
+  ctx: MutationCtx,
+  museum: Doc<"museums">,
+  record: VerifiedRecord,
+): Promise<"inserted" | "updated" | "unchanged"> {
+  const finalEndAt = checkRecord(record, museum);
+  const saved = {
+    ...record,
+    museumId: museum._id,
+    region: museum.region,
+    titleKey: titleKey(record.title),
+    finalEndAt,
+  };
+  const existing = await ctx.db
+    .query("exhibitions")
+    .withIndex("by_museum_title", (q) => q.eq("museumId", museum._id).eq("titleKey", saved.titleKey))
+    .unique();
+  if (!existing) {
+    await ctx.db.insert("exhibitions", saved);
+    return "inserted";
+  }
+  const { _id, _creationTime, ...prior } = existing;
+  const { imageUrl: priorImage, imageCheckedAt: priorImageAt, ...priorEvidence } = prior;
+  const { imageUrl, imageCheckedAt, ...evidence } = saved;
+  if (existing.checkedAt > record.checkedAt) {
+    throw new ConvexError({ code: "conflict", reason: "stale_exhibition" });
+  }
+  if (existing.checkedAt === record.checkedAt && stableStringify(priorEvidence) !== stableStringify(evidence)) {
+    throw new ConvexError({ code: "conflict", reason: "timestamp_collision" });
+  }
+  if (imageUrl === undefined && imageCheckedAt === undefined) {
+    // A metadata-only import must not erase a separately checked image.
+    if (priorImage !== undefined) saved.imageUrl = priorImage;
+    if (priorImageAt !== undefined) saved.imageCheckedAt = priorImageAt;
+  } else if (imageUrl !== priorImage || imageCheckedAt !== priorImageAt) {
+    const nextAt = imageCheckedAt ?? record.checkedAt;
+    const previousAt = priorImageAt ?? (priorImage === undefined ? -1 : existing.checkedAt);
+    if (nextAt < previousAt) throw new ConvexError({ code: "conflict", reason: "stale_image" });
+    if (nextAt === previousAt) throw new ConvexError({ code: "conflict", reason: "image_timestamp_collision" });
+  }
+  if (stableStringify(prior) === stableStringify(saved)) return "unchanged";
+  await ctx.db.replace("exhibitions", _id, saved);
+  return "updated";
+}
 
 export const upsertBatch = internalAction({
   args: batchArgs,
@@ -242,7 +243,7 @@ async function buildCatalog(ctx: QueryCtx, rows: Doc<"exhibitions">[], museumIds
   return catalog;
 }
 
-/** Regions with a show that has not closed, each placed at one of its museums so the app can pick the nearest. */
+/** Regions with live shows or validated listings, each placed at a visible museum so Explore can reopen empty cities. */
 export const regions = query({
   args: { asOf: v.number() },
   returns: v.array(exploreRegion),
@@ -264,6 +265,25 @@ export const regions = query({
       next = await ctx.db
         .query("exhibitions")
         .withIndex("by_region_finalEndAt", (q) => q.gt("region", region))
+        .first();
+    }
+    const included = new Set(result.map(({ region }) => region));
+    let refresh = await ctx.db.query("exhibitionRefreshes").withIndex("by_region_dueAt").first();
+    while (refresh) {
+      const { region } = refresh;
+      if (!included.has(region)) {
+        const rows = ctx.db.query("exhibitionRefreshes").withIndex("by_region_dueAt", (q) => q.eq("region", region));
+        for await (const row of rows) {
+          const museum = await visibleMuseum(ctx, museums, row.museumId);
+          if (museum) {
+            result.push({ region, lat: museum.lat, lng: museum.lng });
+            break;
+          }
+        }
+      }
+      refresh = await ctx.db
+        .query("exhibitionRefreshes")
+        .withIndex("by_region_dueAt", (q) => q.gt("region", region))
         .first();
     }
     return result;

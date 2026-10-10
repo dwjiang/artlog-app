@@ -12,6 +12,8 @@ jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({}) }));
 jest.mock("@/lib/settings/use-measurement-units", () => ({
   useMeasurementUnits: () => ({ units: "imperial", failed: false }),
 }));
+jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => false }));
+jest.mock("convex/react", () => ({ useMutation: () => jest.fn() }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (query: unknown) => {
     const { getFunctionName } = jest.requireActual("convex/server");

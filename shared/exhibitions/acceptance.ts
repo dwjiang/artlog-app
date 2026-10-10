@@ -4,6 +4,8 @@ export type ExhibitionMuseum = {
   timeZone: string;
   sourceUrls: string[];
   venueNames?: string[];
+  /** ISO 3166 code; numeric dates such as 01.07.2026 read month first only in month-first countries or when unset. */
+  country?: string;
 };
 
 export type CapturedPage = {
@@ -47,27 +49,59 @@ export type RejectedExhibition = {
   reasons: string[];
 };
 
-const monthNames = [
-  "january",
-  "february",
-  "march",
-  "april",
-  "may",
-  "june",
-  "july",
-  "august",
-  "september",
-  "october",
-  "november",
-  "december",
+// Month names and their usual abbreviations in English, French, German, Italian, Spanish and Dutch, matched on text
+// whose accents are removed.
+const months = [
+  ["january", "jan", "janvier", "janv", "januar", "janner", "gennaio", "gen", "enero", "ene", "januari"],
+  ["february", "feb", "fevrier", "fevr", "fev", "februar", "febbraio", "febrero", "februari"],
+  ["march", "mar", "mars", "marz", "mrz", "marzo", "maart", "mrt"],
+  ["april", "apr", "avril", "avr", "aprile", "abril", "abr"],
+  ["may", "mai", "maggio", "mag", "mayo", "mei"],
+  ["june", "jun", "juin", "juni", "giugno", "giu", "junio"],
+  ["july", "jul", "juillet", "juil", "juli", "luglio", "lug", "julio"],
+  ["august", "aug", "aout", "agosto", "ago", "augustus"],
+  ["september", "sep", "sept", "septembre", "settembre", "set", "septiembre", "setiembre"],
+  ["october", "oct", "octobre", "oktober", "okt", "ottobre", "ott", "octubre"],
+  ["november", "nov", "novembre", "noviembre"],
+  ["december", "dec", "decembre", "dezember", "dez", "dicembre", "dic", "diciembre"],
 ];
-const monthPattern = `(?:${monthNames.join("|")}|jan\\.?|feb\\.?|mar\\.?|apr\\.?|jun\\.?|jul\\.?|aug\\.?|sept?\\.?|oct\\.?|nov\\.?|dec\\.?)`;
-const dayPattern = "(\\d{1,2})(?:st|nd|rd|th)?(?!\\d)";
-const yearPattern = "(?:,?\\s+(\\d{4})(?!\\d))?";
-const connector = "\\s*(?:-|to\\b|through\\b|until\\b)\\s*";
-const weekday =
-  "(?:(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\\.?[,]?\\s+)?";
-const rangeEnd = "\\b(?![\\w/])(?!(?:,\\s*|\\s+)\\d)";
+const monthNumbers = new Map(months.flatMap((names, index) => names.map((name) => [name, index + 1] as const)));
+const monthPattern = `(?:${[...monthNumbers.keys()].sort((a, b) => b.length - a.length).join("|")})(?![a-z])\\.?`;
+const weekdays = [
+  ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+  ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+  ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"],
+  ["montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag", "sonnabend", "sonntag"],
+  ["lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica"],
+  ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"],
+  ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"],
+].flat();
+// Ordinal marks: 1st, 1er, 1º (read as "1o"), 1° and the German "1.".
+const dayPattern = "(\\d{1,2})(?:st|nd|rd|th|er|o|°|\\.)?(?!\\d)";
+// Spanish puts "de" between day, month and year.
+const monthAfterDay = "\\s+(?:de\\s+)?";
+const yearPattern = "(?:,?\\s+(?:de\\s+)?(\\d{4})(?!\\d))?";
+const rangeWords = [
+  "to",
+  "through",
+  "until",
+  "au",
+  "jusqu'au",
+  "jusqu'a",
+  "bis zum",
+  "bis",
+  "fino al",
+  "al",
+  "hasta el",
+  "hasta",
+  "tot en met",
+  "tot",
+];
+const connector = `\\s*(?:-|(?:${rangeWords.join("|")})\\b|t/m(?![\\w/]))\\s*`;
+const closingWords = "(?:through|until|jusqu'au|jusqu'a|bis zum|bis|fino al|hasta el|hasta|tot en met|t/m)";
+const weekday = `(?:(?:${weekdays.join("|")})\\.?[,]?\\s+)?`;
+// A range ends at a word boundary, or right after an explicit year even when a time or another number follows.
+const rangeEnd = "(?:(?<=\\d{4})(?!\\d)|\\b(?![\\w/])(?!(?:,\\s*|\\s+)\\d))";
 
 function normalize(text: string): string {
   return text
@@ -82,6 +116,13 @@ function normalize(text: string): string {
     .trim();
 }
 
+/** The text dates are read from: normalized, without accents so "février" and "fevrier" read alike. */
+function dateText(text: string): string {
+  return normalize(text)
+    .normalize("NFD")
+    .replaceAll(/[\u0300-\u036f]/g, "");
+}
+
 function isCalendarDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00.000Z`);
@@ -94,13 +135,21 @@ function calendarDate(year: number, month: number, day: number): string | null {
 }
 
 function monthNumber(value: string): number {
-  return monthNames.findIndex((name) => name.startsWith(value.replace(".", ""))) + 1;
+  return monthNumbers.get(value.replace(".", "")) ?? 0;
 }
 
-function numericDate(value: string, asOfYear: number): string | null {
+type NumericOrder = "month-first" | "day-first";
+
+// Countries that write 7/1/2026 for July 1.
+const monthFirstCountries = new Set(["US", "PR", "GU", "VI", "AS", "MP", "UM", "PH", "FM", "MH", "PW"]);
+
+function numericDate(value: string, asOfYear: number, order: NumericOrder): string | null {
   if (value.includes("/") || value.includes(".")) {
     if (value.includes("/") && value.includes(".")) return null;
-    const [month, day, yearText] = value.split(/[/.]/);
+    const [first, second, yearText] = value.split(/[/.]/);
+    // A part over 12 can only be the day, whatever the local order.
+    const dayFirst = Number(first) > 12 || (order === "day-first" && Number(second) <= 12);
+    const [month, day] = dayFirst ? [second, first] : [first, second];
     let year = Number(yearText);
     if (yearText!.length === 2) {
       // Explicit short years resolve to the nearest century; a 50-year tie stays ambiguous.
@@ -121,8 +170,8 @@ type DateRange = {
   span?: { start: number; end: number };
 };
 
-function literalRanges(evidence: string, asOfYear: number, inferredYear?: number): DateRange[] {
-  const text = normalize(evidence);
+function literalRanges(evidence: string, asOfYear: number, order: NumericOrder, inferredYear?: number): DateRange[] {
+  const text = dateText(evidence);
   const ranges: DateRange[] = [];
   const add = (match: RegExpExecArray, range: DateRange) =>
     ranges.push({ ...range, span: { start: match.index, end: match.index + match[0].length } });
@@ -165,7 +214,7 @@ function literalRanges(evidence: string, asOfYear: number, inferredYear?: number
   }
 
   const dayFirst = new RegExp(
-    `\\b${weekday}${dayPattern}\\s+(${monthPattern})${yearPattern}${connector}${weekday}${dayPattern}\\s+(${monthPattern})${yearPattern}${rangeEnd}`,
+    `\\b${weekday}${dayPattern}${monthAfterDay}(${monthPattern})${yearPattern}${connector}${weekday}${dayPattern}${monthAfterDay}(${monthPattern})${yearPattern}${rangeEnd}`,
     "g",
   );
   for (const match of text.matchAll(dayFirst)) {
@@ -180,30 +229,54 @@ function literalRanges(evidence: string, asOfYear: number, inferredYear?: number
     );
   }
 
+  // "3 au 15 mars 2026", "3.-15. März 2026": both days share the month and year printed after the second.
+  const sharedMonth = new RegExp(
+    `\\b${weekday}${dayPattern}${connector}${weekday}${dayPattern}${monthAfterDay}(${monthPattern})${yearPattern}${rangeEnd}`,
+    "g",
+  );
+  for (const match of text.matchAll(sharedMonth)) {
+    const month = monthNumber(match[3]!);
+    const year = match[4] ? Number(match[4]) : undefined;
+    addEnglishRange(match, month, Number(match[1]), year, month, Number(match[2]), year);
+  }
+
   const numericPattern = "(?:\\d{4}-\\d{2}-\\d{2}|\\d{1,2}[/.]\\d{1,2}[/.](?:\\d{4}|\\d{2}))";
   const numericRange = new RegExp(
     `\\b${weekday}(${numericPattern})${connector}${weekday}(${numericPattern})\\b(?![\\d/.])`,
     "g",
   );
   for (const match of text.matchAll(numericRange)) {
-    const startDate = numericDate(match[1]!, asOfYear);
-    const endDate = numericDate(match[2]!, asOfYear);
+    const startDate = numericDate(match[1]!, asOfYear, order);
+    const endDate = numericDate(match[2]!, asOfYear, order);
     if (startDate && endDate && startDate <= endDate) add(match, { startDate, endDate });
   }
 
-  const endMonthFirst = new RegExp(`\\b(?:through|until)\\s+(${monthPattern})\\s+${dayPattern},?\\s+(\\d{4})\\b`, "g");
+  // Cards that print the opening and closing dates side by side, as "12 mai 2026 08 nov. 2026", with both years.
+  if (ranges.length === 0) {
+    const fullDate = `${dayPattern}${monthAfterDay}(${monthPattern}),?\\s+(?:de\\s+)?(\\d{4})(?!\\d)`;
+    for (const match of text.matchAll(new RegExp(`\\b${fullDate}\\s+${fullDate}`, "g"))) {
+      const startDate = calendarDate(Number(match[3]), monthNumber(match[2]!), Number(match[1]));
+      const endDate = calendarDate(Number(match[6]), monthNumber(match[5]!), Number(match[4]));
+      if (startDate && endDate && startDate <= endDate) add(match, { startDate, endDate });
+    }
+  }
+
+  const endMonthFirst = new RegExp(`\\b${closingWords}\\s+(${monthPattern})\\s+${dayPattern},?\\s+(\\d{4})\\b`, "g");
   for (const match of text.matchAll(endMonthFirst)) {
     const endDate = calendarDate(Number(match[3]), monthNumber(match[1]!), Number(match[2]));
     if (endDate) add(match, { startDate: null, endDate });
   }
-  const endDayFirst = new RegExp(`\\b(?:through|until)\\s+${dayPattern}\\s+(${monthPattern}),?\\s+(\\d{4})\\b`, "g");
+  const endDayFirst = new RegExp(
+    `\\b${closingWords}\\s+${dayPattern}${monthAfterDay}(${monthPattern}),?\\s+(?:de\\s+)?(\\d{4})\\b`,
+    "g",
+  );
   for (const match of text.matchAll(endDayFirst)) {
     const endDate = calendarDate(Number(match[3]), monthNumber(match[2]!), Number(match[1]));
     if (endDate) add(match, { startDate: null, endDate });
   }
-  const endNumeric = new RegExp(`\\b(?:through|until)\\s+(${numericPattern})\\b(?![\\d/.])`, "g");
+  const endNumeric = new RegExp(`\\b${closingWords}\\s+(${numericPattern})\\b(?![\\d/.])`, "g");
   for (const match of text.matchAll(endNumeric)) {
-    const endDate = numericDate(match[1]!, asOfYear);
+    const endDate = numericDate(match[1]!, asOfYear, order);
     if (endDate) add(match, { startDate: null, endDate });
   }
   const explicitRanges = ranges.filter((range) => range.startDate !== null);
@@ -216,7 +289,7 @@ function literalRanges(evidence: string, asOfYear: number, inferredYear?: number
 }
 
 function joinedDateRanges(evidence: string, ranges: DateRange[]): boolean {
-  const text = normalize(evidence);
+  const text = dateText(evidence);
   const spans = ranges.flatMap((range) => (range.span ? [range.span] : [])).sort((a, b) => a.start - b.start);
   // Only date separators may join runs; another title or description makes the association ambiguous.
   return (
@@ -235,18 +308,18 @@ function shiftDate(value: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-function evidenceRanges(evidence: string, asOfYear: number): DateRange[] {
-  const text = normalize(evidence);
+function evidenceRanges(evidence: string, asOfYear: number, order: NumericOrder): DateRange[] {
+  const text = dateText(evidence);
   const closures = [...text.matchAll(/\b(?:closed|closure)\s*:?\s+(?:from\s+)?([^);]+)(?:[);]|$)/g)];
-  if (closures.length === 0) return literalRanges(text, asOfYear);
+  if (closures.length === 0) return literalRanges(text, asOfYear, order);
   if (closures.length !== 1) return [];
   const closure = closures[0]!;
-  const publishedRanges = literalRanges(text.replace(closure[0], ""), asOfYear);
+  const publishedRanges = literalRanges(text.replace(closure[0], ""), asOfYear, order);
   if (publishedRanges.length !== 1 || publishedRanges[0]!.startDate === null) return [];
   const published = publishedRanges[0]!;
   const startYear = Number(published.startDate!.slice(0, 4));
   const inferredYear = startYear === Number(published.endDate.slice(0, 4)) ? startYear : undefined;
-  const closureRanges = literalRanges(closure[1]!, asOfYear, inferredYear);
+  const closureRanges = literalRanges(closure[1]!, asOfYear, order, inferredYear);
   if (closureRanges.length !== 1 || closureRanges[0]!.startDate === null) return [];
   const closed = closureRanges[0]!;
   if (closed.startDate! < published.startDate! || closed.endDate > published.endDate) return [];
@@ -286,6 +359,8 @@ export function validateExhibitions({
   const seen = new Set<string>();
   const officialHosts = new Set(museum.sourceUrls.map(officialHost).filter((host) => host !== null));
   const asOfYear = Number(asOfDate.slice(0, 4));
+  const order: NumericOrder =
+    museum.country === undefined || monthFirstCountries.has(museum.country) ? "month-first" : "day-first";
 
   for (const original of candidates) {
     if (original.intervals?.length === 0) {
@@ -293,7 +368,7 @@ export function validateExhibitions({
       continue;
     }
     const { intervals, ...base } = original;
-    const originalRanges = evidenceRanges(original.dateEvidence, asOfYear);
+    const originalRanges = evidenceRanges(original.dateEvidence, asOfYear, order);
     const completeIntervals =
       !intervals
       || (originalRanges.length === intervals.length
@@ -349,7 +424,7 @@ export function validateExhibitions({
         if (candidate.startDate !== null && candidate.startDate > candidate.endDate) reasons.push("reversed_dates");
         if (candidate.endDate < asOfDate) reasons.push("expired");
       }
-      const quotedRanges = evidenceRanges(candidate.dateEvidence, asOfYear);
+      const quotedRanges = evidenceRanges(candidate.dateEvidence, asOfYear, order);
       if (
         quotedRanges.length > 1
         && !quotedRanges.every((range) => range.closureSplit)
