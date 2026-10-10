@@ -24,20 +24,27 @@ export function politeClient({
   sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms)),
   now = () => Date.now(),
   maxCrawlDelayS = 120,
+  waitForHost,
 }: {
   userAgent: string;
   fetchImpl?: Fetch;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
   maxCrawlDelayS?: number;
+  /** Resolves when a request may start, coordinating host spacing across clients. */
+  waitForHost?: (host: string, gapMs: number) => Promise<void>;
 }) {
   const robots = new Map<string, Promise<Robot | undefined>>();
   const nextAt = new Map<string, number>();
 
   async function get(url: URL, accept: string, maxBytes: number, gapMs = HOST_GAP_MS): Promise<Fetched> {
-    const at = Math.max(nextAt.get(url.host) ?? 0, now());
-    nextAt.set(url.host, at + gapMs);
-    if (at > now()) await sleep(at - now());
+    if (waitForHost) {
+      await waitForHost(url.host, gapMs);
+    } else {
+      const at = Math.max(nextAt.get(url.host) ?? 0, now());
+      nextAt.set(url.host, at + gapMs);
+      if (at > now()) await sleep(at - now());
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {

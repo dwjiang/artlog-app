@@ -53,9 +53,8 @@ function modelAnswer(candidates: unknown[]): Response {
 }
 
 beforeEach(() => {
-  // Only timers are faked, so the one-second pauses between a site's requests pass instantly while the clock holds.
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-  vi.spyOn(Date, "now").mockReturnValue(NOW);
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
   vi.stubEnv("FLAG_EXHIBITION_REFRESH", "on");
   vi.stubEnv("NEBIUS_API_KEY", "nebius-test");
   vi.stubEnv("TAVILY_API_KEY", "tvly-test");
@@ -117,7 +116,7 @@ async function listedMuseum(t: Harness, host: string, region = BAY_AREA) {
   return { museumId, url };
 }
 
-const runScheduled = (t: Harness) => t.finishAllScheduledFunctions(() => vi.runOnlyPendingTimers());
+const runScheduled = (t: Harness) => t.finishAllScheduledFunctions(() => vi.runOnlyPendingTimersAsync());
 
 async function readDue(t: Harness) {
   await t.mutation(internal.exhibitionRefresh.dispatch, {});
@@ -159,7 +158,7 @@ describe("exhibition listing refresh", () => {
     ]);
     const row = await refreshRow(t, museumId);
     expect(row).toMatchObject({
-      checkedAt: NOW,
+      checkedAt: expect.any(Number),
       pageHash: expect.stringMatching(/^[0-9a-f]{64}$/),
       failures: 0,
       dueAt: TIDES_CLOSES + 3 * DAY,
@@ -187,14 +186,18 @@ describe("exhibition listing refresh", () => {
     expect(requested(MODEL)).toHaveLength(2);
 
     const later = NOW + 26 * DAY;
-    vi.mocked(Date.now).mockReturnValue(later);
+    vi.setSystemTime(later);
     await as.mutation(api.exhibitionRefresh.requestRegion, { region: BAY_AREA });
     await runScheduled(t);
     expect(requested(shown.url)).toHaveLength(2);
     expect(requested(MODEL)).toHaveLength(2);
-    expect(await refreshRow(t, shown.museumId)).toMatchObject({ checkedAt: later, dueAt: later + 30 * DAY });
+    const checked = (await refreshRow(t, shown.museumId))!;
+    expect(checked.checkedAt).toBeGreaterThanOrEqual(later);
+    expect(checked.dueAt).toBe(checked.checkedAt! + 30 * DAY);
 
-    vi.mocked(Date.now).mockReturnValue(later + 30 * DAY);
+    vi.setSystemTime(later + 29 * DAY);
+    await as.mutation(api.exhibitionRefresh.requestRegion, { region: BAY_AREA });
+    vi.setSystemTime(later + 31 * DAY);
     web[shown.url] = { body: listing(`${TIDES.html}<p>Paper Worlds opens soon.</p>`) };
     await readDue(t);
     expect(requested(shown.url)).toHaveLength(3);
@@ -244,7 +247,9 @@ describe("exhibition listing refresh", () => {
     expect(requested(TAVILY)).toHaveLength(0);
     expect(requested(MODEL)).toHaveLength(0);
     for (const { museumId } of [disallowed, refusing]) {
-      expect(await refreshRow(t, museumId)).toMatchObject({ checkedAt: NOW, dueAt: NOW + 30 * DAY, failures: 0 });
+      const row = (await refreshRow(t, museumId))!;
+      expect(row).toMatchObject({ checkedAt: expect.any(Number), failures: 0 });
+      expect(row.dueAt).toBe(row.checkedAt! + 30 * DAY);
     }
   });
 
@@ -292,7 +297,7 @@ describe("exhibition listing refresh", () => {
 
     expect(requested(MODEL)).toHaveLength(2);
     const row = await refreshRow(t, museumId);
-    expect(row).toMatchObject({ failures: 1, dueAt: NOW + DAY });
+    expect(row).toMatchObject({ failures: 1, dueAt: Date.now() + DAY });
     expect(row?.checkedAt).toBeUndefined();
     expect(row?.pageHash).toBeUndefined();
     expect(await readSpend(t)).toEqual({ tokenFactoryCalls: 2, tavilyCredits: 0 });
@@ -329,13 +334,13 @@ describe("exhibition listing refresh", () => {
 
     web[url] = { body: listing(TIDES.html) };
     await readDue(t);
-    expect(await refreshRow(t, museumId)).toMatchObject({ checkedAt: NOW });
+    expect(await refreshRow(t, museumId)).toMatchObject({ checkedAt: expect.any(Number) });
     const moved = `${url}/current`;
     await t.action(internal.exhibitionSources.upsertBatch, {
       records: [{ ...source(museumId, moved), checkedAt: NOW - 1000 }],
     });
     const rediscovered = await refreshRow(t, museumId);
-    expect(rediscovered).toMatchObject({ dueAt: NOW });
+    expect(rediscovered).toMatchObject({ dueAt: Date.now() });
     expect(rediscovered?.checkedAt).toBeUndefined();
     expect(rediscovered?.pageHash).toBeUndefined();
 
@@ -351,6 +356,113 @@ describe("exhibition listing refresh", () => {
     });
     await t.mutation(internal.exhibitionRefresh.backfill, { cursor: null });
     await runScheduled(t);
-    expect(await refreshRow(t, imported)).toMatchObject({ dueAt: NOW, failures: 0 });
+    expect(await refreshRow(t, imported)).toMatchObject({ dueAt: Date.now(), failures: 0 });
   });
+
+  it("lets Explore reopen a dormant region with no remaining shows", async () => {
+    const t = harness();
+    const { as } = await seedDevice(t);
+    const { museumId, url } = await listedMuseum(t, "museum.example");
+    web[url] = { body: listing(TIDES.html) };
+    answer = () => modelAnswer([]);
+    await readDue(t);
+
+    vi.setSystemTime(NOW + 40 * DAY);
+    await readDue(t);
+    expect(requested(url)).toHaveLength(1);
+    const regions = await t.query(api.exhibitions.regions, { asOf: NOW + 40 * DAY });
+    expect(regions).toEqual([{ region: BAY_AREA, lat: 37.785, lng: -122.401 }]);
+
+    await as.mutation(api.exhibitionRefresh.requestRegion, { region: regions[0].region });
+    await runScheduled(t);
+    expect(requested(url)).toHaveLength(2);
+    expect(await refreshRow(t, museumId)).toMatchObject({ checkedAt: expect.any(Number) });
+
+    await t.run((ctx) => ctx.db.patch("museums", museumId, { optOut: true }));
+    expect(await t.query(api.exhibitions.regions, { asOf: NOW + 40 * DAY })).toEqual([]);
+  });
+
+  it("ignores an old worker after listing discovery replaces its source", async () => {
+    const t = harness();
+    const { museumId, url } = await listedMuseum(t, "museum.example");
+    await t.mutation(internal.exhibitionRefresh.dispatch, {});
+    const old = (await refreshRow(t, museumId))!;
+    await t.action(internal.exhibitionSources.upsertBatch, {
+      records: [source(museumId, `${url}/new`, { checkedAt: NOW })],
+    });
+    await t.mutation(internal.exhibitionRefresh.dispatch, {});
+    await t.mutation(internal.exhibitionRefresh.recordCheck, {
+      refreshId: old._id,
+      leasedUntil: old.leasedUntil!,
+      outcome: { kind: "changed", checkedAt: NOW, pageHash: "a".repeat(64), shows: [] },
+    });
+    const row = (await refreshRow(t, museumId))!;
+    expect(row.checkedAt).toBeUndefined();
+    expect(row.pageHash).toBeUndefined();
+    expect(row.dueAt).toBe(NOW);
+    expect(row.leasedUntil).toBe(old.leasedUntil);
+    await runScheduled(t);
+    expect(requested(url)).toHaveLength(0);
+    expect(requested(`${url}/new`)).toHaveLength(1);
+  });
+
+  it("shares host spacing and crawl delays across batches and region requests", async () => {
+    const t = harness();
+    const { as } = await seedDevice(t);
+    const times: number[] = [];
+    const respond = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input).startsWith("https://museum.example/")) times.push(Date.now());
+      return respond(input, init);
+    });
+    web["https://museum.example/robots.txt"] = {
+      type: "text/plain",
+      body: "User-agent: artlog-bot\nAllow: /\nCrawl-delay: 2",
+    };
+    for (let index = 0; index < 21; index++) {
+      const { url } = await listedMuseum(t, "museum.example");
+      web[url] = { body: listing(TIDES.html) };
+    }
+    await t.mutation(internal.exhibitionRefresh.dispatch, {});
+    await listedMuseum(t, "museum.example", "Elsewhere");
+    await as.mutation(api.exhibitionRefresh.requestRegion, { region: "Elsewhere" });
+    await runScheduled(t);
+
+    expect(requested("https://museum.example/exhibitions")).toHaveLength(22);
+    const calls = fetchMock.mock.calls.filter(([input]) => String(input).startsWith("https://museum.example/"));
+    for (let index = 0; index < times.length - 1; index++) {
+      const minimumGap = String(calls[index][0]).endsWith("exhibitions") ? 2000 : 1000;
+      expect(times[index + 1] - times[index]).toBeGreaterThanOrEqual(minimumGap);
+    }
+  });
+
+  it.each(["rate limit", "unreadable fallback"])(
+    "retries a partial read with %s while keeping verified shows",
+    async (failure) => {
+      const t = harness();
+      const { museumId, url } = await listedMuseum(t, "museum.example");
+      const upcoming = `${url}/upcoming`;
+      const current = source(museumId, url, { checkedAt: NOW });
+      await t.action(internal.exhibitionSources.upsertBatch, {
+        records: [{ ...current, urls: [...current.urls, ...source(museumId, upcoming).urls] }],
+      });
+      web[url] = { body: listing(TIDES.html) };
+      web[upcoming] = failure === "rate limit" ? { status: 429 } : { body: "<main>Loading</main>" };
+      answer = () => modelAnswer([TIDES.candidate(url)]);
+      await readDue(t);
+
+      const row = (await refreshRow(t, museumId))!;
+      expect(row.failures).toBe(1);
+      expect(row.dueAt).toBe(Date.now() + DAY);
+      expect(row.checkedAt).toBeUndefined();
+      expect(row.pageHash).toBeUndefined();
+      expect((await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW })).exhibitions).toHaveLength(1);
+
+      vi.setSystemTime(row.dueAt);
+      web[upcoming] = { body: listing("No upcoming shows.") };
+      await readDue(t);
+      expect(await refreshRow(t, museumId)).toMatchObject({ checkedAt: expect.any(Number), failures: 0 });
+      expect(requested(upcoming)).toHaveLength(2);
+    },
+  );
 });

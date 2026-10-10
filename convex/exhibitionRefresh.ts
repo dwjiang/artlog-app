@@ -75,6 +75,7 @@ const checkOutcome = v.union(
   v.object({ kind: v.literal("unchanged"), checkedAt: v.number() }),
   v.object({ kind: v.literal("blocked"), checkedAt: v.number() }),
   v.object({ kind: v.literal("unavailable") }),
+  v.object({ kind: v.literal("partial"), shows: v.array(verifiedExhibition) }),
   v.object({ kind: v.literal("deferred") }),
 );
 type CheckOutcome = Infer<typeof checkOutcome>;
@@ -110,22 +111,14 @@ export async function syncRefresh(
     return;
   }
   const now = Date.now();
-  if (row) {
-    await ctx.db.patch("exhibitionRefreshes", row._id, {
-      region: museum.region,
-      dueAt: now,
-      checkedAt: undefined,
-      pageHash: undefined,
-      failures: 0,
-    });
-  } else {
-    await ctx.db.insert("exhibitionRefreshes", {
-      museumId: museum._id,
-      region: museum.region,
-      dueAt: now,
-      failures: 0,
-    });
-  }
+  // A new row identity invalidates old workers even if the replacement is leased in the same millisecond.
+  if (row) await ctx.db.delete("exhibitionRefreshes", row._id);
+  await ctx.db.insert("exhibitionRefreshes", {
+    museumId: museum._id,
+    region: museum.region,
+    dueAt: now,
+    failures: 0,
+  });
 }
 
 async function budgetLeft(ctx: QueryCtx | MutationCtx): Promise<boolean> {
@@ -133,14 +126,6 @@ async function budgetLeft(ctx: QueryCtx | MutationCtx): Promise<boolean> {
     if ((await spentToday(ctx, kind)) >= dailyCap(kind) * BACKGROUND_SHARE) return false;
   }
   return true;
-}
-
-function websiteHost(website: string | undefined): string {
-  try {
-    return website ? new URL(website).hostname.replace(/^www\./, "") : "";
-  } catch {
-    return "";
-  }
 }
 
 async function takeDue(
@@ -155,19 +140,16 @@ async function takeDue(
   }
 }
 
-/** Leases the rows and reads them in batches; a site's museums share a batch so its one-second spacing holds. */
+/** Leases the rows and reads them in bounded batches. Fetches reserve host slots independently of batch boundaries. */
 async function leaseAndRead(ctx: MutationCtx, rows: Doc<"exhibitionRefreshes">[], now: number) {
   if (rows.length === 0) return;
   const leasedUntil = now + LEASE_MS;
-  const hosts = new Map<Id<"exhibitionRefreshes">, string>();
   for (const row of rows) {
     await ctx.db.patch("exhibitionRefreshes", row._id, { leasedUntil });
-    hosts.set(row._id, websiteHost((await ctx.db.get("museums", row.museumId))?.website));
   }
-  const ordered = rows.map((row) => row._id).sort((a, b) => hosts.get(a)!.localeCompare(hosts.get(b)!));
-  for (let index = 0; index < ordered.length; index += BATCH_SIZE) {
+  for (let index = 0; index < rows.length; index += BATCH_SIZE) {
     await ctx.scheduler.runAfter(0, internal.exhibitionRefresh.readBatch, {
-      refreshIds: ordered.slice(index, index + BATCH_SIZE),
+      refreshIds: rows.slice(index, index + BATCH_SIZE).map((row) => row._id),
       leasedUntil,
     });
   }
@@ -244,6 +226,25 @@ export const remainingBudget = internalQuery({
   args: {},
   returns: v.boolean(),
   handler: (ctx) => budgetLeft(ctx),
+});
+
+/** Claims a request slot now, or returns the delay before trying again without reserving a stale future slot. */
+export const reserveHost = internalMutation({
+  args: { host: v.string(), gapMs: v.number() },
+  returns: v.number(),
+  handler: async (ctx, { host, gapMs }) => {
+    const row = await ctx.db
+      .query("exhibitionFetchHosts")
+      .withIndex("by_host", (q) => q.eq("host", host))
+      .unique();
+    const now = Date.now();
+    const retryAfter = (row?.nextAt ?? 0) - now;
+    if (retryAfter > 0) return retryAfter;
+    const nextAt = now + Math.max(1000, gapMs);
+    if (row) await ctx.db.patch("exhibitionFetchHosts", row._id, { nextAt });
+    else await ctx.db.insert("exhibitionFetchHosts", { host, nextAt });
+    return 0;
+  },
 });
 
 export const loadBatch = internalQuery({
@@ -400,7 +401,9 @@ async function extractShows(
   read: ListingRead,
   tavily: TavilyRead,
 ): Promise<CheckOutcome> {
-  const pages = withinBudget([...read.pages, ...read.fallback.flatMap(longerText(tavily))]);
+  const fallbackPages = read.fallback.flatMap(longerText(tavily));
+  const incomplete = read.failed > 0 || fallbackPages.length < read.fallback.length;
+  const pages = withinBudget([...read.pages, ...fallbackPages]);
   const checkedAt = Date.now();
   if (read.fallback.some(({ url }) => tavily.skipped.has(url))) return { kind: "deferred" };
   if (pages.length === 0) {
@@ -408,7 +411,9 @@ async function extractShows(
   }
   const captured = await capturePages(pages, checkedAt);
   const pageHash = await listingHash(captured);
-  if (pageHash === museum.pageHash) return { kind: "unchanged", checkedAt };
+  if (pageHash === museum.pageHash) {
+    return incomplete ? { kind: "partial", shows: [] } : { kind: "unchanged", checkedAt };
+  }
   if (!(await ctx.runQuery(internal.exhibitionRefresh.remainingBudget, {}))) return { kind: "deferred" };
   let day: string;
   try {
@@ -444,7 +449,7 @@ async function extractShows(
       candidates: response.value,
       asOfDate: calendarDate(checkedAt, museum.timeZone),
     });
-    return { kind: "changed", checkedAt, pageHash, shows };
+    return incomplete ? { kind: "partial", shows } : { kind: "changed", checkedAt, pageHash, shows };
   } catch (error) {
     const sent = error instanceof ConvexError ? (error.data as { calls?: unknown }).calls : undefined;
     if (typeof sent === "number") calls = sent;
@@ -478,7 +483,18 @@ export const readBatch = internalAction({
   handler: (ctx, { refreshIds, leasedUntil }) =>
     withErrorReporting("exhibitionRefresh.readBatch", async () => {
       const museums = await ctx.runQuery(internal.exhibitionRefresh.loadBatch, { refreshIds, leasedUntil });
-      const client = politeClient({ userAgent: userAgent(), maxCrawlDelayS: MAX_CRAWL_DELAY_S });
+      const client = politeClient({
+        userAgent: userAgent(),
+        maxCrawlDelayS: MAX_CRAWL_DELAY_S,
+        waitForHost: (host, gapMs) =>
+          withErrorReporting("exhibitionRefresh.host", async () => {
+            for (;;) {
+              const retryAfter = await ctx.runMutation(internal.exhibitionRefresh.reserveHost, { host, gapMs });
+              if (retryAfter === 0) return;
+              await new Promise((resolve) => setTimeout(resolve, retryAfter));
+            }
+          }),
+      });
       const reads: ListingRead[] = Array(museums.length);
       await eachConcurrently(museums, PAGE_READERS, async (museum, index) => {
         reads[index] = await readListings(client, museum);
@@ -509,21 +525,12 @@ export const recordCheck = internalMutation({
       await ctx.db.patch("exhibitionRefreshes", refreshId, { leasedUntil: undefined });
       return null;
     }
-    if (outcome.kind === "unavailable") {
-      const failures = row.failures + 1;
-      await ctx.db.patch("exhibitionRefreshes", refreshId, {
-        failures,
-        dueAt: retryAt(Date.now(), failures),
-        leasedUntil: undefined,
-      });
-      return null;
-    }
     const museum = await ctx.db.get("museums", row.museumId);
     if (!museum) {
       await ctx.db.delete("exhibitionRefreshes", refreshId);
       return null;
     }
-    if (outcome.kind === "changed" && !(await isVenueOptedOut(ctx, museum))) {
+    if ((outcome.kind === "changed" || outcome.kind === "partial") && !(await isVenueOptedOut(ctx, museum))) {
       for (const show of outcome.shows) {
         try {
           await saveExhibition(ctx, museum, show);
@@ -532,6 +539,16 @@ export const recordCheck = internalMutation({
           if (!(error instanceof ConvexError)) throw error;
         }
       }
+    }
+    if (outcome.kind === "unavailable" || outcome.kind === "partial") {
+      const failures = row.failures + 1;
+      await ctx.db.patch("exhibitionRefreshes", refreshId, {
+        failures,
+        dueAt: retryAt(Date.now(), failures),
+        leasedUntil: undefined,
+        ...(outcome.kind === "partial" ? { pageHash: undefined } : {}),
+      });
+      return null;
     }
     const nextClosing = await ctx.db
       .query("exhibitions")

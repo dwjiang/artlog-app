@@ -377,6 +377,9 @@ export default defineSchema({
     .index("by_checkedAt_dueAt", ["checkedAt", "dueAt"])
     .index("by_region_dueAt", ["region", "dueAt"]),
 
+  // Request slots belong to the fetch host, including robots and redirects, across every refresh worker.
+  exhibitionFetchHosts: defineTable({ host: v.string(), nextAt: v.number() }).index("by_host", ["host"]),
+
   // When Explore last showed each region; recently shown regions have their listings read on schedule.
   exploreRegionViews: defineTable({
     region: v.string(),

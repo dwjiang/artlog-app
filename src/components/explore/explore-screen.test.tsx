@@ -20,6 +20,7 @@ let mockFix: { lat: number; lng: number } | undefined;
 let mockOffline = false;
 let mockFailure: Error | undefined;
 let mockRegions: unknown[];
+let mockEmptyRegion: string | undefined;
 let mockCached: Map<string, unknown>;
 
 jest.mock("expo-router", () => {
@@ -64,7 +65,12 @@ jest.mock("convex/react", () => ({
         if (name === "exhibitions:regions") {
           data = mockRegions;
         } else if (name === "exhibitions:inRegion") {
-          data = args.region === "country:GB" ? cornwall : bayArea;
+          data =
+            args.region === mockEmptyRegion
+              ? { museums: [], exhibitions: [] }
+              : args.region === "country:GB"
+                ? cornwall
+                : bayArea;
         } else {
           const exhibitions = [...bayArea.exhibitions, ...cornwall.exhibitions].filter((show) =>
             args.museumId ? show.museumId === args.museumId : args.exhibitionIds?.includes(show.exhibitionId),
@@ -107,6 +113,7 @@ beforeEach(() => {
   mockOffline = false;
   mockFailure = undefined;
   mockRegions = regions;
+  mockEmptyRegion = undefined;
   mockCached = new Map();
   chooseCity("");
 });
@@ -218,6 +225,19 @@ describe("Explore", () => {
     await view.rerender(<ExploreScreen />);
     expect(card("Tides of Memory")).toBeOnTheScreen();
     expect(screen.queryByText("You’re offline.")).toBeNull();
+  });
+
+  it("keeps an empty city selectable and requests its listings", async () => {
+    mockRegions = [...regions, { region: "paris", lat: 48.8, lng: 2.3 }];
+    mockEmptyRegion = "paris";
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Paris" }));
+    expect(screen.getByLabelText("City, Paris")).toBeOnTheScreen();
+    expect(screen.getByText("No exhibitions close in the next 30 days.")).toBeOnTheScreen();
+    expect(mockRequestRegion).toHaveBeenLastCalledWith({ region: "paris" });
+
+    await fireEvent.press(screen.getByRole("button", { name: "San Francisco Bay Area" }));
+    expect(card("Tides of Memory")).toBeOnTheScreen();
   });
 });
 
