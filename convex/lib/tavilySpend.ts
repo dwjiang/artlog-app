@@ -5,17 +5,18 @@ import type { ActionCtx } from "../_generated/server";
 import { reportBackendError } from "./observability";
 import { reserveSpend } from "./spend";
 import {
-  REFERENCE_EXTRACTION_CREDITS,
   extract,
+  extractCredits,
   search,
+  type ExtractDepth,
   type TavilySearchRequest,
   type TavilySearchResponse,
 } from "./tavily";
 
 export const searchWithCredit = (ctx: ActionCtx, request: TavilySearchRequest): Promise<TavilySearchResponse | null> =>
   withCredit(ctx, () => search(request), "search", 1);
-export const extractWithCredit = (ctx: ActionCtx, urls: string[]) =>
-  withCredit(ctx, () => extract(urls), "extract", REFERENCE_EXTRACTION_CREDITS);
+export const extractWithCredit = (ctx: ActionCtx, urls: string[], depth: ExtractDepth = "advanced") =>
+  withCredit(ctx, () => extract(urls, depth), "extract", extractCredits(urls.length, depth));
 
 // Credits are reserved atomically before dispatch and reconciled from the reported
 // usage. Returns null when the cap is reached, the key is missing, or the search fails; the caller

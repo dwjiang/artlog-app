@@ -22,7 +22,7 @@
     "test:licenses": "node --experimental-strip-types --test scripts/licenses/*.test.mts",
     "test:conductor": "node --experimental-strip-types --test .conductor/*.test.mts",
     "test:sentry-automation": "node --experimental-strip-types --test scripts/sentry-automation/*.test.ts",
-    "test:exhibitions": "node --experimental-strip-types --test scripts/exhibitions/*.test.mts",
+    "test:exhibitions": "node --experimental-strip-types --test scripts/exhibitions/*.test.mts shared/exhibitions/*.test.mts",
     "exhibitions:extract": "node --experimental-strip-types scripts/exhibitions/extract.mts",
     "exhibitions:pilot": "node --experimental-strip-types scripts/exhibitions/pilot.mts",
     "exhibitions:images": "node --experimental-strip-types scripts/exhibitions/images.mts",

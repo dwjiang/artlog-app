@@ -7,7 +7,7 @@ import process from "node:process";
 import { afterEach, beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import type { CapturedPage, ExhibitionCandidate, ExhibitionMuseum } from "./acceptance.mts";
+import type { CapturedPage, ExhibitionCandidate, ExhibitionMuseum } from "../../shared/exhibitions/acceptance.ts";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const cli = fileURLToPath(new URL("./pilot.mts", import.meta.url));

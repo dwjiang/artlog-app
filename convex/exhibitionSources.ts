@@ -4,6 +4,7 @@ import { ConvexError, v, type Infer } from "convex/values";
 import { stableStringify } from "../shared/attestation/stable-stringify";
 import { internal } from "./_generated/api";
 import { internalAction, internalQuery } from "./_generated/server";
+import { syncRefresh } from "./exhibitionRefresh";
 import { internalMutation } from "./functions";
 import { exhibitionSource, exhibitionSourceBatchResult } from "./lib/exhibitionSourceValidators";
 import { withErrorReporting } from "./lib/observability";
@@ -88,6 +89,7 @@ export const commitBatch = internalMutation({
         .unique();
       if (!existing) {
         await ctx.db.insert("exhibitionSources", record);
+        await syncRefresh(ctx, museum, record);
         result.inserted += 1;
         continue;
       }
@@ -103,6 +105,7 @@ export const commitBatch = internalMutation({
         throw new ConvexError({ code: "conflict", reason: "timestamp_collision" });
       }
       await ctx.db.replace("exhibitionSources", _id, record);
+      await syncRefresh(ctx, museum, record);
       result.updated += 1;
     }
     return result;

@@ -362,6 +362,29 @@ export default defineSchema({
     .index("by_museum_finalEndAt", ["museumId", "finalEndAt"])
     .index("by_region_finalEndAt", ["region", "finalEndAt"]),
 
+  // When each museum with a validated listing is next read. `checkedAt` is the last read that reached the page and
+  // `pageHash` what the model last read; `leasedUntil` marks a read under way.
+  exhibitionRefreshes: defineTable({
+    museumId: v.id("museums"),
+    region: v.string(),
+    dueAt: v.number(),
+    checkedAt: v.optional(v.number()),
+    pageHash: v.optional(v.string()),
+    failures: v.number(),
+    leasedUntil: v.optional(v.number()),
+  })
+    .index("by_museumId", ["museumId"])
+    .index("by_checkedAt_dueAt", ["checkedAt", "dueAt"])
+    .index("by_region_dueAt", ["region", "dueAt"]),
+
+  // When Explore last showed each region; recently shown regions have their listings read on schedule.
+  exploreRegionViews: defineTable({
+    region: v.string(),
+    viewedAt: v.number(),
+  })
+    .index("by_region", ["region"])
+    .index("by_viewedAt", ["viewedAt"]),
+
   // A museum's Commons photo for the Now card, looked up the first time someone sees the museum there.
   // `checkedAt` stays unset while a lookup is pending; a checked row without `file` means no usable photo.
   museumPhotos: defineTable({

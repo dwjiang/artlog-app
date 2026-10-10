@@ -18,6 +18,8 @@ const verifiedExhibitionFields = {
   imageCheckedAt: v.optional(v.number()),
 };
 
+export const verifiedExhibition = v.object(verifiedExhibitionFields);
+
 export const exhibitionImport = v.object({ venueKey: v.string(), ...verifiedExhibitionFields });
 
 export const exhibition = v.object({

@@ -5,7 +5,6 @@ import { fetchText, userAgent } from "./politeFetch";
 
 const ENDPOINT = "https://api.tavily.com/search";
 const TIMEOUT_MS = 8000;
-export const REFERENCE_EXTRACTION_CREDITS = 2;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 
 export type TavilySearchRequest = {
@@ -132,14 +131,24 @@ async function requestJson(endpoint: string, body: object, timeoutMs: number): P
 }
 
 export type TavilyExtractResponse = { results: { url: string; text: string }[]; failures: number; credits?: number };
+export type ExtractDepth = "basic" | "advanced";
 
-export async function extract(urls: string[]): Promise<TavilyExtractResponse> {
-  if (urls.length === 0 || urls.length > 5) throw new ConvexError({ code: "invalid_reference_count" });
+// Reservations follow Tavily's published rate, a credit per five successful pages at basic depth and two at
+// advanced; the usage Tavily reports settles them.
+export const EXTRACT_PAGES_PER_GROUP = 5;
+export const MAX_EXTRACT_URLS = 20;
+
+export function extractCredits(pages: number, depth: ExtractDepth): number {
+  return Math.ceil(pages / EXTRACT_PAGES_PER_GROUP) * (depth === "advanced" ? 2 : 1);
+}
+
+export async function extract(urls: string[], depth: ExtractDepth = "advanced"): Promise<TavilyExtractResponse> {
+  if (urls.length === 0 || urls.length > MAX_EXTRACT_URLS) throw new ConvexError({ code: "invalid_reference_count" });
   const value = (await requestJson(
     "https://api.tavily.com/extract",
     {
       urls,
-      extract_depth: "advanced",
+      extract_depth: depth,
       format: "text",
       include_images: false,
       include_usage: true,

@@ -18,6 +18,7 @@ const app = defineApp({
     DOCENT_MODEL: optional,
     FACT_SHEET_MODEL: optional,
     FLAG_DEMO_ACTIVITY: optional,
+    FLAG_EXHIBITION_REFRESH: optional,
     FLAG_LABEL_FLOW: optional,
     FLAG_RIGHT_NOW: optional,
     GOOGLE_WEB_CLIENT_ID: optional,

@@ -4,13 +4,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { imageSize } from "image-size";
-import robotsParser from "robots-parser";
 
+import { politeClient as sharedPoliteClient, sameSite, type Fetch } from "../../shared/exhibitions/polite-client.ts";
 import { prepareOutput } from "./import.mts";
 
-type Robot = ReturnType<typeof robotsParser>;
-type Fetch = (url: string, init: RequestInit) => Promise<Response>;
-type Fetched = { status: number; headers: Headers; body: Buffer };
 export type ImageOutcome = { imageUrl: string } | { reason: string };
 type Show = Record<string, unknown> & { sourceUrl: string; title: string; museumId?: string };
 
@@ -18,14 +15,8 @@ const usage =
   "Usage: node --experimental-strip-types scripts/exhibitions/images.mts --input <verified JSON> --museums <directory JSON> --output <JSON in .context>";
 const contact = process.env.CRAWLER_CONTACT;
 export const USER_AGENT = `artlog-bot/0.1 (+https://github.com/dwjiang/artlog-app${contact ? `; mailto:${contact}` : ""})`;
-const ROBOT = "artlog-bot";
-const HOST_GAP_MS = 1000;
-// Sites asking for longer pauses between requests are skipped rather than waited on.
-const MAX_CRAWL_DELAY_S = 120;
-const TIMEOUT_MS = 15_000;
 const MAX_PAGE_BYTES = 3 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
-const MAX_REDIRECTS = 3;
 // Share images are usually about 1200×630; anything smaller than this is a logo or an icon.
 const MIN_WIDTH = 400;
 const MIN_HEIGHT = 200;
@@ -87,84 +78,13 @@ export function previewImage(html: string, pageUrl: string): string | undefined 
   return undefined;
 }
 
-const site = (url: URL) => url.hostname.toLowerCase().replace(/^www\./, "");
-const sameSite = (url: URL, home: URL) => site(url) === site(home) || site(url).endsWith(`.${site(home)}`);
-
-/**
- * Fetches as artlog-bot under RFC 9309: a robots.txt that is missing (4xx) or served as an HTML page has no rules; one
- * that cannot be read (429, 5xx, network) blocks the site. Requests to a host are at least a second apart, longer when
- * its robots.txt asks.
- */
+/** Finds show preview images through the shared polite client; the parameters exist so tests can fake the network. */
 export function politeClient(
   fetchImpl: Fetch = fetch,
   sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms)),
   now = () => Date.now(),
 ) {
-  const robots = new Map<string, Promise<Robot | undefined>>();
-  const nextAt = new Map<string, number>();
-
-  async function get(url: URL, accept: string, maxBytes: number, gapMs = HOST_GAP_MS): Promise<Fetched> {
-    const at = Math.max(nextAt.get(url.host) ?? 0, now());
-    nextAt.set(url.host, at + gapMs);
-    if (at > now()) await sleep(at - now());
-    const response = await fetchImpl(url.href, {
-      redirect: "manual",
-      headers: { "User-Agent": USER_AGENT, Accept: accept },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    const declared = Number(response.headers.get("content-length"));
-    if (declared > maxBytes) throw new Error("Response too large");
-    const body = Buffer.from(await response.arrayBuffer());
-    if (body.byteLength > maxBytes) throw new Error("Response too large");
-    return { status: response.status, headers: response.headers, body };
-  }
-
-  async function readRobots(origin: URL): Promise<Robot | undefined> {
-    const url = new URL("/robots.txt", origin);
-    try {
-      let current = url;
-      let response = await get(url, "text/plain", MAX_PAGE_BYTES);
-      for (let hop = 0; hop < MAX_REDIRECTS && response.status >= 300 && response.status < 400; hop++) {
-        const location = response.headers.get("location");
-        if (!location) break;
-        current = new URL(location, current);
-        response = await get(current, "text/plain", MAX_PAGE_BYTES);
-      }
-      if (response.status >= 200 && response.status < 300) {
-        const html = response.headers.get("content-type")?.includes("text/html");
-        return robotsParser(url.href, html ? "" : response.body.toString("utf8"));
-      }
-      if (response.status >= 400 && response.status < 500 && response.status !== 429) return robotsParser(url.href, "");
-    } catch {
-      // Unreachable: the whole site counts as disallowed.
-    }
-    return undefined;
-  }
-
-  /** The pause a host asks for, or undefined when artlog-bot may not fetch `url` at all. */
-  async function permission(url: URL): Promise<number | undefined> {
-    if (!robots.has(url.origin)) robots.set(url.origin, readRobots(url));
-    const rules = await robots.get(url.origin)!;
-    if (!rules || rules.isAllowed(url.href, ROBOT) === false) return undefined;
-    const delay = rules.getCrawlDelay(ROBOT) ?? 0;
-    return delay > MAX_CRAWL_DELAY_S ? undefined : Math.max(HOST_GAP_MS, delay * 1000);
-  }
-
-  /** Follows redirects that `keep` accepts, checking robots.txt before every hop. */
-  async function follow(start: URL, accept: string, maxBytes: number, keep: (url: URL) => boolean) {
-    let url = start;
-    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-      const gapMs = await permission(url);
-      if (gapMs === undefined) return { reason: "robots" } as const;
-      const response = await get(url, accept, maxBytes, gapMs);
-      if (response.status < 300 || response.status >= 400) return { url, response } as const;
-      const location = response.headers.get("location");
-      const next = location ? new URL(location, url) : undefined;
-      if (!next || next.protocol !== "https:" || !keep(next)) return { reason: "redirect_elsewhere" } as const;
-      url = next;
-    }
-    return { reason: "too_many_redirects" } as const;
-  }
+  const { follow } = sharedPoliteClient({ userAgent: USER_AGENT, fetchImpl, sleep, now });
 
   async function checkImage(imageUrl: string): Promise<ImageOutcome> {
     const fetched = await follow(new URL(imageUrl), "image/*", MAX_IMAGE_BYTES, () => true);
@@ -191,7 +111,7 @@ export function politeClient(
       const { url, response } = fetched;
       if (response.status !== 200) return { reason: `http_${response.status}` };
       if (!response.headers.get("content-type")?.includes("html")) return { reason: "not_html" };
-      const imageUrl = previewImage(response.body.toString("utf8"), url.href);
+      const imageUrl = previewImage(new TextDecoder().decode(response.body), url.href);
       return imageUrl ? { imageUrl } : { reason: "no_preview_image" };
     } catch {
       return { reason: "fetch_failed" };

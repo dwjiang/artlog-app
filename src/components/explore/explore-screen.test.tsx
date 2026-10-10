@@ -14,6 +14,7 @@ import { WantToSeeScreen } from "./want-to-see-screen";
 const mockPush = jest.fn();
 const mockRefresh = jest.fn();
 const mockOpenBrowser = jest.fn(async (_url: string) => undefined);
+const mockRequestRegion = jest.fn(async (_args: { region: string }) => null);
 let mockParams: { timing?: string } = {};
 let mockFix: { lat: number; lng: number } | undefined;
 let mockOffline = false;
@@ -42,7 +43,9 @@ jest.mock("@/lib/social/use-query-refresh", () => ({
   useQueryBatchRefresh: () => ({ refreshing: false, refresh: mockRefresh }),
 }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
+jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("convex/react", () => ({
+  useMutation: () => mockRequestRegion,
   useQueries: (
     requests: Record<
       string,
@@ -98,6 +101,7 @@ beforeEach(() => {
   mockPush.mockClear();
   mockRefresh.mockClear();
   mockOpenBrowser.mockClear();
+  mockRequestRegion.mockClear();
   mockParams = {};
   mockFix = undefined;
   mockOffline = false;
@@ -191,6 +195,20 @@ describe("Explore", () => {
     mockRegions = [];
     await render(<ExploreScreen />);
     expect(screen.getByText("No exhibitions listed yet.")).toBeOnTheScreen();
+  });
+
+  it("asks the backend to keep the shown city's museum listings current, never while offline", async () => {
+    mockFix = { lat: 50.21, lng: -5.48 };
+    await render(<ExploreScreen />);
+    expect(mockRequestRegion).toHaveBeenLastCalledWith({ region: "country:GB" });
+
+    await fireEvent.press(screen.getByRole("button", { name: "San Francisco Bay Area" }));
+    expect(mockRequestRegion).toHaveBeenLastCalledWith({ region: "sf-bay-area" });
+
+    mockRequestRegion.mockClear();
+    mockOffline = true;
+    await render(<ExploreScreen />);
+    expect(mockRequestRegion).not.toHaveBeenCalled();
   });
 
   it("keeps the loaded catalog visible when the connection drops", async () => {

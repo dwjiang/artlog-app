@@ -1,11 +1,15 @@
+import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useNetworkState } from "expo-network";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 import { useCurrentMinute } from "@/hooks/use-current-minute";
+import { isNetworkError } from "@/lib/network-error";
 import { isOffline } from "@/lib/network-state";
+import { reportError } from "@/lib/observability";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
 import { useBatchedSocialQuery, useSocialQuery } from "@/lib/social/use-social-query";
+import { useDeviceReady } from "@/lib/use-device-ready";
 import { useVenue } from "@/lib/venue/use-venue";
 import { calendarDate } from "@/shared/journal/limits";
 
@@ -52,6 +56,7 @@ export function useExplore(): ExploreView<ExploreData> {
   const cities = useMemo(() => exploreCities(regions.data ?? []), [regions.data]);
   const cityId = cities.some((city) => city.id === chosen) ? chosen : defaultCity(regions.data ?? [], fix);
   const catalog = useSocialQuery(api.exhibitions.inRegion, !cityId ? "skip" : { region: cityId, asOf }, "explore");
+  useRegionRefresh(cityId, offline);
   const city = cities.find((candidate) => candidate.id === cityId);
   const data = useMemo(
     () => (catalog.data && city ? exploreData(catalog.data, { city, cities, today }, fix, units) : undefined),
@@ -62,6 +67,18 @@ export function useExplore(): ExploreView<ExploreData> {
   if (regions.error || catalog.error) return { status: "error", retry };
   if (regions.data?.length === 0) return { status: "empty", retry };
   return data ? { status: "ready", data, retry } : { status: "loading", retry };
+}
+
+/** Tells the backend which region Explore shows, so it keeps that region's museum listings current. */
+function useRegionRefresh(region: string | undefined, offline: boolean) {
+  const requestRegion = useMutation(api.exhibitionRefresh.requestRegion);
+  const deviceReady = useDeviceReady();
+  useEffect(() => {
+    if (!region || !deviceReady || offline) return;
+    requestRegion({ region }).catch((cause: unknown) => {
+      if (!isNetworkError(cause)) reportError(cause, "explore.region.refresh");
+    });
+  }, [region, deviceReady, offline, requestRegion]);
 }
 
 type Catalog = FunctionReturnType<typeof api.exhibitions.inRegion>;
