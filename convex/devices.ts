@@ -44,6 +44,7 @@ export const registerDevice = mutation({
     deviceId: v.id("devices"),
     attested: v.boolean(),
     attestRequired: v.boolean(),
+    attestedKeyId: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
     const userId = await requireLiveUser(ctx);
@@ -55,6 +56,7 @@ export const registerDevice = mutation({
         deviceId: existing._id,
         attested: isAttested(existing, args.appAttestKeyId),
         attestRequired: attestRequired(),
+        attestedKeyId: isAttested(existing) ? existing.appAttestKeyId : undefined,
       };
     }
     const deviceId = await ctx.db.insert("devices", {

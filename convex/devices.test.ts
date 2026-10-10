@@ -100,6 +100,29 @@ describe("registerDevice", () => {
       data: { code: "rate_limited", name: "registerDevice" },
     });
   });
+
+  it("returns the attested key to a phone that saved a different one", async () => {
+    const t = harness();
+    const phone = await registered(t, "ios");
+    expect(
+      await phone.as.mutation(api.devices.registerDevice, { platform: "ios", appAttestKeyId: "key-1" }),
+    ).not.toHaveProperty("attestedKeyId");
+
+    await t.run((ctx) =>
+      ctx.db.patch("devices", phone.deviceId, {
+        appAttestKeyId: "key-1",
+        attestPublicKey: "spki",
+        attestedAt: Date.now(),
+      }),
+    );
+
+    expect(
+      await phone.as.mutation(api.devices.registerDevice, { platform: "ios", appAttestKeyId: "other-key" }),
+    ).toMatchObject({ attested: false, attestedKeyId: "key-1" });
+    expect(
+      await phone.as.mutation(api.devices.registerDevice, { platform: "ios", appAttestKeyId: "key-1" }),
+    ).toMatchObject({ attested: true, attestedKeyId: "key-1" });
+  });
 });
 
 describe("me", () => {
