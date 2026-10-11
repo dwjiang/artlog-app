@@ -6,10 +6,12 @@ import pytest
 import torch
 from PIL import Image
 
+from pipeline import embed
+from pipeline.config import Settings
 from pipeline.download import image_filename
 from pipeline.embed import embed_shard, read_features, update_manifest
-from pipeline.model import Embedder, NonFiniteEmbedding, apply_fakequant
-from pipeline.model_version import EMBEDDING_DIM, INPUT_SIZE, MODEL_VERSION
+from pipeline.model import Embedder, NonFiniteEmbedding, apply_fakequant, sha256_of
+from pipeline.model_version import EMBEDDING_DIM, INPUT_SIZE, MODEL_VERSION, ORB_MAX_KEYPOINTS
 from pipeline.orb import DESCRIPTOR_BYTES, KEYPOINT_BYTES
 
 
@@ -142,3 +144,134 @@ def test_jpeg_bytes_survive_letterbox_and_orb_in_the_dataset(tmp_path):
     assert pixels.shape == (3, INPUT_SIZE, INPUT_SIZE) and pixels.dtype == np.uint8
     assert isinstance(pixels, np.ndarray)
     assert orb.count > 0
+
+
+@pytest.fixture
+def standalone_build(tmp_path, monkeypatch):
+    weights = tmp_path / "fakequant.pt"
+    weights.write_bytes(b"phone-compatible-model-export")
+    features = tmp_path / "features"
+    for shard in (0, 1):
+        images = tmp_path / f"shard-{shard}"
+        images.mkdir()
+        painting(shard).save(images / image_filename(f"met:{shard}"), "JPEG")
+    report = embed_shard(tmp_path / "shard-0", features, 0, FakeEmbedder(), workers=0)
+    update_manifest(
+        features,
+        run={
+            "fakequantSha256": sha256_of(weights),
+            "driftCheck": {"passed": True, "modelVersion": MODEL_VERSION, "dtype": "float32"},
+        },
+        shard_report=report,
+    )
+    monkeypatch.setattr(
+        embed, "get_settings", lambda: Settings(_env_file=None, scratch_dir=tmp_path)
+    )
+    monkeypatch.setattr(embed, "setup_logging", lambda settings: None)
+    return (
+        weights,
+        features,
+        [
+            "--images",
+            str(tmp_path / "shard-1"),
+            "--out",
+            str(features),
+            "--fakequant",
+            str(weights),
+            "--dtype",
+            "float32",
+            "--workers",
+            "0",
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "incompatible"),
+    [
+        ("fakequantSha256", "different-export"),
+        ("fakequantSha256", None),
+        ("modelVersion", "different-model"),
+        ("inputSize", INPUT_SIZE + 1),
+        ("embeddingDim", EMBEDDING_DIM + 1),
+        ("orbMaxKeypoints", ORB_MAX_KEYPOINTS + 1),
+        ("dtype", "float16"),
+    ],
+)
+def test_standalone_resume_rejects_incompatible_features_before_loading_or_writing(
+    standalone_build, monkeypatch, field, incompatible
+):
+    weights, features, args = standalone_build
+    manifest_path = features / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    if incompatible is None:
+        manifest.pop(field)
+    elif field == "fakequantSha256":
+        weights.write_bytes(b"incompatible-model-export")
+    elif field == "dtype":
+        args[args.index("--dtype") + 1] = incompatible
+    else:
+        manifest[field] = incompatible
+    manifest_path.write_text(json.dumps(manifest))
+    before = {path.name: path.read_bytes() for path in features.iterdir()}
+    loaded = []
+
+    def load(*args, **kwargs):
+        loaded.append(True)
+        return FakeEmbedder()
+
+    monkeypatch.setattr(embed, "load_embedder", load)
+    with pytest.raises(ValueError, match=field):
+        embed.main(args)
+    assert not loaded
+    assert {path.name: path.read_bytes() for path in features.iterdir()} == before
+
+
+def test_standalone_resume_accepts_same_export_under_a_new_filename(standalone_build, monkeypatch):
+    weights, features, args = standalone_build
+    copied_weights = weights.with_name("copied-export.pt")
+    copied_weights.write_bytes(weights.read_bytes())
+    args[args.index("--fakequant") + 1] = str(copied_weights)
+    original_vectors = (features / "vectors-0.npy").read_bytes()
+    monkeypatch.setattr(embed, "load_embedder", lambda *args, **kwargs: FakeEmbedder())
+
+    assert embed.main(args) == 0
+
+    manifest = json.loads((features / "manifest.json").read_text())
+    assert manifest["fakequantSha256"] == sha256_of(weights)
+    assert manifest["driftCheck"]["passed"]
+    assert manifest["counts"]["shards"] == 2
+    assert (features / "vectors-0.npy").read_bytes() == original_vectors
+    assert len(list(read_features(features, 1))) == 1
+
+
+def test_standalone_resume_refuses_feature_files_without_provenance(standalone_build, monkeypatch):
+    _, features, args = standalone_build
+    (features / "manifest.json").unlink()
+    before = {path.name: path.read_bytes() for path in features.iterdir()}
+    monkeypatch.setattr(embed, "load_embedder", lambda *args, **kwargs: FakeEmbedder())
+
+    with pytest.raises(ValueError, match="modelVersion"):
+        embed.main(args)
+
+    assert {path.name: path.read_bytes() for path in features.iterdir()} == before
+
+
+def test_fresh_standalone_output_records_provenance_without_claiming_drift_validation(
+    standalone_build, monkeypatch
+):
+    weights, previous, args = standalone_build
+    features = previous.with_name("fresh-features")
+    args[args.index("--out") + 1] = str(features)
+    monkeypatch.setattr(embed, "load_embedder", lambda *args, **kwargs: FakeEmbedder())
+
+    assert embed.main(args) == 0
+
+    manifest = json.loads((features / "manifest.json").read_text())
+    assert manifest["fakequantSha256"] == sha256_of(weights)
+    assert manifest["modelVersion"] == MODEL_VERSION
+    assert manifest["inputSize"] == INPUT_SIZE
+    assert manifest["embeddingDim"] == EMBEDDING_DIM
+    assert manifest["orbMaxKeypoints"] == ORB_MAX_KEYPOINTS
+    assert manifest["dtype"] == "float32"
+    assert "driftCheck" not in manifest

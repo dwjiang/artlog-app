@@ -196,6 +196,7 @@ def candidate_rows(
                 "queryId": query_id,
                 "sourceObjectId": source_object_id,
                 "candidateObjectId": object_id,
+                "candidateArtworkId": index.objects[object_id]["artworkKey"],
                 "label": int(positive),
                 "outOfIndex": out_of_index,
                 "referenceCosine": reference_cosine,

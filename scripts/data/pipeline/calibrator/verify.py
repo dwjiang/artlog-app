@@ -7,7 +7,7 @@ from ..orb import OrbFeatures
 
 
 def is_sane_quad(matrix: np.ndarray, input_size: int) -> bool:
-    if not np.isfinite(matrix).all() or abs(np.linalg.det(matrix[:2, :2])) <= 1e-6:
+    if not np.isfinite(matrix).all() or abs(np.linalg.det(matrix)) <= 1e-6:
         return False
     square = np.array(
         [[0, 0, 1], [input_size, 0, 1], [input_size, input_size, 1], [0, input_size, 1]]

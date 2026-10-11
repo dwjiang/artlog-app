@@ -34,6 +34,20 @@ describe("verifyOrb", () => {
     expect(result.verified).toBe(false);
   });
 
+  it("verifies an invertible perspective transform with a singular affine submatrix", () => {
+    const { ref, query } = makeSyntheticPair({
+      seed: 113,
+      count: 120,
+      noiseSigma: 0,
+      bitFlipFraction: 0,
+      outlierFraction: 0,
+      homography: [0, 0, 500, 0, -1, 512, 0.001, 0, 1],
+    });
+    const result = verifyOrb(query, ref, { inputSize });
+    expect(result.inlierCount).toBe(120);
+    expect(result.verified).toBe(true);
+  });
+
   it("returns an empty unverified result for fewer than four keypoints without throwing", () => {
     const rand = mulberry32(14);
     const tiny = makeRandomFeatures(rand, 3, inputSize);

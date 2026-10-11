@@ -16,6 +16,7 @@ from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import StandardScaler
 
 from ..model import sha256_of
+from ..model_version import MODEL_VERSION
 from .features import DUPLICATE_REFERENCE_COSINE, FEATURE_NAMES, featurize
 
 VERSION = "lr-v4"
@@ -77,11 +78,27 @@ def choose_confident(
     allowed: np.ndarray,
     *,
     target: float = 0.99,
+    competitor_probabilities: np.ndarray | None = None,
 ) -> float | None:
     if not allowed.any():
         return None
-    thresholds, positives, totals = _thresholds(probabilities[allowed], truth[allowed])
-    passing = np.flatnonzero(positives / totals >= target)
+    scores = probabilities[allowed]
+    if competitor_probabilities is None:
+        thresholds, positives, totals = _thresholds(scores, truth[allowed])
+    else:
+        competitors = np.minimum(competitor_probabilities[allowed], scores)
+        thresholds = np.unique(np.r_[scores, competitors[np.isfinite(competitors)]])[::-1]
+        correct = truth[allowed].astype(bool)
+        # A winner is confident exactly when competitor < cutoff <= score. Count these
+        # intervals at both endpoints without an O(queries²) threshold sweep.
+        totals = np.searchsorted(np.sort(competitors), thresholds) - np.searchsorted(
+            np.sort(scores), thresholds
+        )
+        positives = np.searchsorted(np.sort(competitors[correct]), thresholds) - np.searchsorted(
+            np.sort(scores[correct]), thresholds
+        )
+    precision = np.divide(positives, totals, out=np.zeros(len(totals)), where=totals > 0)
+    passing = np.flatnonzero((totals > 0) & (precision >= target))
     return float(thresholds[passing[-1]]) if len(passing) else None
 
 
@@ -119,13 +136,39 @@ def _answerable(rows: list[dict], winners: np.ndarray) -> np.ndarray:
     return np.array([not rows[i].get("outOfIndex", False) for i in winners], dtype=bool)
 
 
+def _competitor_probabilities(
+    rows: list[dict], probabilities: np.ndarray, winners: np.ndarray, config: dict
+) -> np.ndarray:
+    by_query: dict[str, dict[str, float]] = {}
+    for row, probability in zip(rows, probabilities, strict=True):
+        if eligible(row["signals"], config):
+            artwork = row.get("candidateArtworkId", row["candidateObjectId"])
+            candidates = by_query.setdefault(row["queryId"], {})
+            candidates[artwork] = max(candidates.get(artwork, -np.inf), probability)
+    return np.array(
+        [
+            max(
+                (
+                    probability
+                    for artwork, probability in by_query.get(rows[i]["queryId"], {}).items()
+                    if artwork != rows[i].get("candidateArtworkId", rows[i]["candidateObjectId"])
+                ),
+                default=-np.inf,
+            )
+            for i in winners
+        ]
+    )
+
+
 def evaluate(rows: list[dict], probabilities: np.ndarray, config: dict) -> dict:
     winners = _winners(rows, probabilities)
     truth = np.array([rows[i]["label"] for i in winners])
     answerable = _answerable(rows, winners)
     allowed = np.array([eligible(rows[i]["signals"], config) for i in winners])
     scores = probabilities[winners]
-    confident = (scores >= config["thresholds"]["confident"]) & allowed
+    threshold = config["thresholds"]["confident"]
+    ambiguous = _competitor_probabilities(rows, probabilities, winners, config) >= threshold
+    confident = (scores >= threshold) & allowed & ~ambiguous
     soft = ~confident & (scores >= config["thresholds"]["soft"])
 
     def counts(mask):
@@ -150,6 +193,7 @@ def evaluate(rows: list[dict], probabilities: np.ndarray, config: dict) -> dict:
         },
         "accepted": counts(confident | soft),
         "eligibleTop1": int(allowed.sum()),
+        "ambiguousTop1": int(((scores >= threshold) & allowed & ambiguous).sum()),
     }
 
 
@@ -219,7 +263,14 @@ def train(rows: list[dict], *, seed: int = 20260911) -> TrainingResult:
     winners = _winners(held_rows, probabilities)
     winner_truth = y[held_ids][winners]
     allowed = np.array([eligible(held_rows[i]["signals"], RULES) for i in winners])
-    confident = choose_confident(probabilities[winners], winner_truth, allowed)
+    confident = choose_confident(
+        probabilities[winners],
+        winner_truth,
+        allowed,
+        competitor_probabilities=_competitor_probabilities(
+            held_rows, probabilities, winners, RULES
+        ),
+    )
     soft = choose_soft(
         probabilities[winners],
         winner_truth,
@@ -311,6 +362,8 @@ def main(argv: list[str] | None = None) -> int:
             provenance = json.loads(manifest.read_text())
             if provenance["featuresSha256"] != sha256_of(args.features):
                 raise ValueError("feature file does not match its sampling manifest")
+            if provenance.get("modelVersion", MODEL_VERSION) != MODEL_VERSION:
+                raise ValueError(f"feature manifest modelVersion must equal {MODEL_VERSION}")
             # The per-object id lists stay in the manifest; the report is for reading.
             for key in ("sourceObjects", "skippedObjects"):
                 provenance.pop(key, None)

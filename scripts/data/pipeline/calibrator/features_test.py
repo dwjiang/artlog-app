@@ -87,6 +87,10 @@ def test_candidate_signals_match_the_twenty_object_and_ten_verification_budgets(
     assert sum(query is scan for query in calls) == 10
     assert rows[0]["signals"]["keypointCount"] is None
     assert rows[1]["label"] == 1
+    assert all(
+        row["candidateArtworkId"] == index.objects[row["candidateObjectId"]]["artworkKey"]
+        for row in rows
+    )
     assert rows[1]["signals"]["objectPenalty"] == 0.6
     assert all(row["features"][1] == 0 for row in rows)
     assert not rows[11]["signals"]["homographyValid"]

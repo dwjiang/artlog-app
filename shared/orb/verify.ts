@@ -56,7 +56,8 @@ export function verifyOrb(query: OrbFeatures, ref: OrbFeatures, opts: VerifyOpti
 }
 
 function isSaneQuad(H: Float64Array, corners: Point[], inputSize: number): boolean {
-  const determinant = H[0] * H[4] - H[1] * H[3];
+  const determinant =
+    H[0] * (H[4] * H[8] - H[5] * H[7]) - H[1] * (H[3] * H[8] - H[5] * H[6]) + H[2] * (H[3] * H[7] - H[4] * H[6]);
   if (Math.abs(determinant) <= MIN_DETERMINANT) return false;
   if (!corners.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y))) {
     return false;

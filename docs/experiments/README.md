@@ -153,12 +153,50 @@ answerable queries. Holdout tuning is not an independent production accuracy rat
 
 The independent check used 1,046 Commons camera photos of 919 catalogued paintings,
 excluded each reference file, and cropped through the import path. Removing
-23 near-copies and 21 crops depicting another painting/panel left 937 photos.
+88 near-copies and 21 crops depicting another painting/panel left 937 photos.
 Retrieval reached the target artwork in 507. `lr-v4` produced 458 correct and
 six incorrect confident answers, plus one correct and two incorrect soft answers;
 accepted recall was 0.490. All six confident errors were copies or versions of
 the photographed composition. This dataset does not establish a zero false-match
 rate or accuracy for every venue and camera condition.
+
+The pipeline keeps a match soft when another distinct artwork independently meets
+the existing confidence threshold and evidence rules. Multiple objects of the same
+artwork do not create this ambiguity. Replaying the 937 archived candidate-signal
+sets with this guard moves five correct confident answers to soft: confident counts
+become 453 correct and six incorrect, and soft counts become six correct and two
+incorrect. Accepted recall stays 459/937; confident precision changes from
+458/464 to 453/459. This demonstrates an abstention tradeoff, not an accuracy gain.
+The replay uses saved retrieval and geometry, so it does not measure the corrected
+perspective verifier or fresh image inference. Offline packages expose only confident
+results, so ambiguity reduces offline coverage rather than displaying soft choices.
+Tentative visitor identities require verified geometry even for sparse references;
+this can withhold correct low-texture suggestions. Established low-texture references
+retain their similarity-and-venue confidence rule.
+
+The deterministic [offline ORB evaluation](../../scripts/data/README.md#offline-recognition-evaluations)
+uses one licensed painting with three fixed seeds. It verifies 19 of 24 known
+variants and rejects six blank/noise unknowns. Saturated glare verifies two of three,
+10%-area crops two of three, and combined 25%-area crops with saturated glare zero
+of three. Raising the inlier minimum from 15 to 30 reduces verified known variants
+from 19 to 16 without improving these easy negatives. These are Python geometry
+checks; they omit embedding retrieval, iOS capture triage, real unknown artworks,
+copies, and independent camera photos. They do not support changing production
+thresholds or claiming camera accuracy.
+
+Unresolved recognition limits include an unindexed original whose indexed copy is
+the only strong candidate, established low-texture confidence based on similarity and venue
+without geometry, and reduced detail under combined glare and tight crops. The
+glare gate counts bright pixels and cannot distinguish white paint from reflection;
+changing that rule needs labelled capture images. Training removes near-copy
+negative rows and tunes thresholds on its holdout, so its reported precision does
+not independently measure those hard unknowns. Its candidate-row format also omits
+queries with zero retained candidates from query-level denominators, and object-level
+splits do not guarantee separation of different objects depicting the same artwork.
+Legacy training inputs without a declared model version still lack verified provenance.
+Online retrieval and training keep 20 grouped objects from 32 vector hits, while
+offline packages rank 32 objects;
+that candidate-pool difference remains uncalibrated.
 
 The fitted object-penalty coefficient is zero. Stored hub and rejection penalties
 therefore do not affect this calibrator's probabilities. A penalty cannot gain an
