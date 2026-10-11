@@ -97,12 +97,10 @@ function message(error: unknown): string {
 }
 
 function expected(error: unknown): boolean {
-  const nativeTransferMessage = message(error).match(/^Unable to (?:download|upload) a file:\s*(.*)$/)?.[1];
   return (
     isTransientError(error)
     || expectedCodes.has(errorCode(error) ?? "")
     || expectedCodes.has(message(error))
-    || (nativeTransferMessage !== undefined && isTransientError(new Error(nativeTransferMessage)))
     || (error instanceof Error && error.name === "AbortError")
     || expectedMessages.has(message(error))
     || /^(Allow photo access in Settings\b|This visit is no longer available\b)/.test(message(error))

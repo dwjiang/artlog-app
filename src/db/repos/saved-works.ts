@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, or, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
@@ -6,6 +6,7 @@ import {
   artworkEncounters,
   pendingScans,
   savedWorks,
+  visits,
   type NewSavedWork,
   type SavedWork,
 } from "@/db/schema";
@@ -13,7 +14,7 @@ import { getLocalOwner } from "@/lib/account/owner-store";
 import { requestCollectionSync } from "@/lib/account/sync-events";
 
 import type { Doc } from "../../../convex/_generated/dataModel";
-import { saveArtworkSession, selectArtworkPhotos } from "./artwork-album";
+import { hasLiveCapturePhoto, saveArtworkSession, selectArtworkPhotos } from "./artwork-album";
 import { requireVisitMembership } from "./visit-membership";
 
 /** A save with its capture as the first album photo; the scan flow builds the same session in saveResult. */
@@ -83,22 +84,20 @@ export async function softDeleteSavedWork(
   deletedAt = Date.now(),
   owner = getLocalOwner(),
 ): Promise<void> {
-  await db
-    .update(savedWorks)
-    .set({
-      deletedAt,
-      syncedAt: null,
-      revision: sql`${savedWorks.revision} + 1`,
-    })
-    .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId)));
-  db.update(artworkPhotos)
-    .set({ deletedAt, syncedAt: null })
-    .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.savedLocalId, localId)))
-    .run();
-  db.update(artworkEncounters)
-    .set({ deletedAt, syncedAt: null })
-    .where(and(eq(artworkEncounters.owner, owner), eq(artworkEncounters.savedLocalId, localId)))
-    .run();
+  db.transaction((tx) => {
+    tx.update(savedWorks)
+      .set({ deletedAt, syncedAt: null, revision: sql`${savedWorks.revision} + 1` })
+      .where(and(eq(savedWorks.owner, owner), eq(savedWorks.localId, localId)))
+      .run();
+    tx.update(artworkPhotos)
+      .set({ deletedAt, syncedAt: null, revision: sql`${artworkPhotos.revision} + 1` })
+      .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.savedLocalId, localId)))
+      .run();
+    tx.update(artworkEncounters)
+      .set({ deletedAt, syncedAt: null, revision: sql`${artworkEncounters.revision} + 1` })
+      .where(and(eq(artworkEncounters.owner, owner), eq(artworkEncounters.savedLocalId, localId)))
+      .run();
+  });
   requestCollectionSync();
 }
 
@@ -152,7 +151,16 @@ export async function listUnsynced(owner = getLocalOwner()) {
 export async function upsertFromRemote(rows: Doc<"collections">[], owner = getLocalOwner()): Promise<string[]> {
   const displaced: string[] = [];
   db.transaction((tx) => {
-    for (const row of rows) {
+    for (const remote of rows) {
+      const visit = remote.visitLocalId
+        ? tx
+            .select()
+            .from(visits)
+            .where(and(eq(visits.owner, owner), eq(visits.localId, remote.visitLocalId)))
+            .get()
+        : undefined;
+      // A delayed album page may predate a synced or pending visit move. The local parent owns its museum.
+      const row = visit ? { ...remote, venueId: visit.venueId, venueName: visit.venueName } : remote;
       requireVisitMembership(owner, { ...row, visitId: undefined });
       const existing = tx
         .select()
@@ -237,7 +245,7 @@ export async function upsertFromRemote(rows: Doc<"collections">[], owner = getLo
   return displaced;
 }
 
-export function listPhotoTransfers(owner = getLocalOwner()) {
+export function listPhotoTransfers(owner = getLocalOwner(), afterLocalId?: string) {
   return db
     .select()
     .from(savedWorks)
@@ -245,6 +253,7 @@ export function listPhotoTransfers(owner = getLocalOwner()) {
       and(
         eq(savedWorks.owner, owner),
         isNull(savedWorks.deletedAt),
+        afterLocalId === undefined ? undefined : gt(savedWorks.localId, afterLocalId),
         or(
           and(isNotNull(savedWorks.cropPath), isNull(savedWorks.cropStorageId)),
           and(isNull(savedWorks.cropPath), isNotNull(savedWorks.cropStorageId)),
@@ -329,7 +338,16 @@ export async function isPhotoFileReferenced(path: string): Promise<boolean> {
   const pending = await db
     .select({ localId: pendingScans.localId })
     .from(pendingScans)
-    .where(or(eq(pendingScans.photoPath, path), eq(pendingScans.cropPath, path)))
+    .leftJoin(
+      artworkPhotos,
+      and(eq(artworkPhotos.owner, pendingScans.owner), eq(artworkPhotos.localId, pendingScans.localId)),
+    )
+    .where(
+      and(
+        or(eq(pendingScans.photoPath, path), eq(pendingScans.cropPath, path), eq(pendingScans.labelPhotoPath, path)),
+        or(isNull(artworkPhotos.deletedAt), hasLiveCapturePhoto()),
+      ),
+    )
     .limit(1);
   const album = db
     .select()

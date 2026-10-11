@@ -13,7 +13,9 @@ import { isPhotoFileReferenced, upsertFromRemote } from "@/db/repos/saved-works"
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { upsertVisitsFromRemote } from "@/db/repos/visits";
 import { convex } from "@/lib/convex-client";
+import { scanPreviewPath } from "@/lib/files/photos";
 import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
+import { isTransientError } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 
 import { api } from "../../../convex/_generated/api";
@@ -25,11 +27,20 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
     const deleted = deletedAlbumPhotoFiles(context.owner);
     if (deleted.length === 0) break;
     for (const photo of deleted) {
-      if (!isCurrent()) return;
-      if (!(await isPhotoFileReferenced(photo.path))) {
-        removePhotoFile(photo.path);
+      const paths = new Set([
+        photo.path,
+        photo.capture?.photoPath,
+        photo.capture?.cropPath,
+        photo.capture && scanPreviewPath(photo.capture.cropPath),
+        photo.capture?.labelPhotoPath,
+      ]);
+      for (const path of paths) {
+        if (!isCurrent()) return;
+        if (path && !(await isPhotoFileReferenced(path))) {
+          removePhotoFile(path);
+        }
       }
-      clearDeletedAlbumPhotoPath(photo.localId, context.owner);
+      clearDeletedAlbumPhotoPath(photo.localId, context.owner, photo.capture);
     }
   }
   const key = `albumSync:${context.owner}`;
@@ -59,11 +70,15 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
       break;
     }
   }
-  // One photo that keeps failing must not stop the others: finish the batch, then rethrow so the queue retries.
+  // Failed photos stay pending, so advance past them before reporting the sweep's failure.
+  let failure: unknown;
+  let afterLocalId: string | undefined;
   while (isCurrent()) {
-    const photos = albumPhotoTransfers(context.owner);
-    if (photos.length === 0) return;
-    let failure: unknown;
+    const photos = albumPhotoTransfers(context.owner, afterLocalId);
+    if (photos.length === 0) {
+      if (failure) throw failure;
+      return;
+    }
     for (const photo of photos) {
       if (!isCurrent()) return;
       try {
@@ -94,6 +109,7 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
           }
         }
       } catch (error) {
+        if (isTransientError(error)) throw error;
         reportError(error, "sync.photos", {
           data: {
             kind: "album",
@@ -103,6 +119,6 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
         failure = error;
       }
     }
-    if (failure) throw failure;
+    afterLocalId = photos.at(-1)!.localId;
   }
 }

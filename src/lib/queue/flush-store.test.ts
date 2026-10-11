@@ -34,6 +34,7 @@ function capture(localId: string, modelVersion = "v1"): NewPendingScan {
 function dependencies(modelVersion = "v1") {
   return {
     modelVersion,
+    getPendingScan: pending.getPendingScan,
     listFlushable: pending.listFlushable,
     listPendingLabels: pending.listPendingLabels,
     clearPendingLabel: pending.clearPendingLabel,
@@ -81,6 +82,77 @@ afterEach(async () => {
     await pending.deletePendingScan(row.localId);
   }
   jest.useRealTimers();
+});
+
+it("does not upload a queued capture discarded while an earlier capture is identifying", async () => {
+  await pending.enqueuePendingScan(capture("first"));
+  await pending.enqueuePendingScan({ ...capture("discarded"), capturedAt: 2 });
+  const deps = dependencies();
+  let finish!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let identifyStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    identifyStarted = resolve;
+  });
+  deps.identify.mockImplementationOnce(async ({ localId }) => {
+    identifyStarted();
+    await waiting;
+    return { localId, scanId: "scan-first" as Id<"scans">, capturedAt: 1, status: "identified" };
+  });
+  const flusher = createFlusher(deps);
+  try {
+    const running = flusher.start();
+    await started;
+    await pending.deletePendingScan("discarded");
+    finish();
+    await running;
+    expect(deps.identify.mock.calls.map(([args]) => args.localId)).toEqual(["first"]);
+    expect(await pending.getPendingScan("discarded")).toBeUndefined();
+  } finally {
+    flusher.stop();
+  }
+});
+
+it("does not read a queued label discarded while an earlier label is being read", async () => {
+  for (const [index, localId] of ["first-label", "discarded-label"].entries()) {
+    await pending.enqueuePendingScan({
+      ...capture(localId),
+      capturedAt: index + 1,
+      status: "identified",
+      scanId: `scan-${localId}` as Id<"scans">,
+      qrUrl: `https://museum.example/${localId}`,
+    });
+  }
+  let finish!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let labelStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    labelStarted = resolve;
+  });
+  const deps = {
+    ...dependencies(),
+    runLabelFlow: jest.fn(async () => {}),
+  };
+  deps.runLabelFlow.mockImplementationOnce(async () => {
+    labelStarted();
+    await waiting;
+  });
+  const flusher = createFlusher(deps);
+  try {
+    const running = flusher.start();
+    await started;
+    await pending.deletePendingScan("discarded-label");
+    finish();
+    await running;
+    expect(deps.runLabelFlow).toHaveBeenCalledTimes(1);
+    expect(await pending.getPendingScan("discarded-label")).toBeUndefined();
+  } finally {
+    flusher.stop();
+  }
 });
 
 it("drains a healthy offline batch through the device quota without spending capture attempts", async () => {

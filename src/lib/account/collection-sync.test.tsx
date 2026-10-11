@@ -14,6 +14,7 @@ import { captureOwner, getLocalOwner, switchOwner } from "./owner-store";
 import { requestCollectionSync } from "./sync-events";
 
 const mockRecognition = jest.fn();
+const mockAlbums = jest.fn();
 const mockGetSavedWork = jest.fn();
 const mockSelectPhotos = jest.fn();
 const mockUploadPhoto = jest.fn();
@@ -23,7 +24,7 @@ jest.mock("./photo-transfer", () => ({
   removePhotoFile: jest.fn(),
 }));
 jest.mock("./recognition-sync", () => ({ syncSavedRecognition: (...args: unknown[]) => mockRecognition(...args) }));
-jest.mock("./album-sync", () => ({ syncArtworkAlbums: async () => {} }));
+jest.mock("./album-sync", () => ({ syncArtworkAlbums: (...args: unknown[]) => mockAlbums(...args) }));
 
 const mockSync = jest.fn();
 const mockPhotos = jest.fn();
@@ -82,6 +83,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   mockSync.mockReset().mockResolvedValue(undefined);
   mockRecognition.mockReset().mockResolvedValue(undefined);
+  mockAlbums.mockReset().mockResolvedValue(undefined);
   mockPhotos.mockReset().mockResolvedValue(undefined);
   mockClaim.mockReset().mockResolvedValue({ claimId: null, complete: true });
   mockReportError.mockReset();
@@ -147,6 +149,37 @@ it("keeps syncing notes while a photo transfer runs and retries a failed transfe
   expect(mockPhotos).toHaveBeenCalledTimes(3);
   expect(mockSync).toHaveBeenCalledTimes(2);
 });
+
+it("continues crop backups when an album photo keeps failing, and retries both", async () => {
+  jest.spyOn(console, "warn").mockImplementation(() => {});
+  mockAlbums.mockRejectedValue(new Error("missing image"));
+  await render(<CollectionSync />);
+  await tick();
+  await tick();
+  expect(mockPhotos).toHaveBeenCalledTimes(1);
+  await act(() => jest.advanceTimersByTimeAsync(30_000));
+  expect(mockAlbums).toHaveBeenCalledTimes(2);
+  expect(mockPhotos).toHaveBeenCalledTimes(2);
+});
+
+it.each(["Network request failed", "Photo upload failed with HTTP 429"])(
+  "defers crop backups after %s until the transfer queue retries",
+  async (message) => {
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    mockAlbums.mockRejectedValueOnce(new Error(message));
+    await render(<CollectionSync />);
+    await tick();
+    await tick();
+    expect(mockAlbums).toHaveBeenCalledTimes(1);
+    expect(mockPhotos).not.toHaveBeenCalled();
+    await act(() => jest.advanceTimersByTimeAsync(29_000));
+    expect(mockAlbums).toHaveBeenCalledTimes(1);
+    expect(mockPhotos).not.toHaveBeenCalled();
+    await act(() => jest.advanceTimersByTimeAsync(1_000));
+    expect(mockAlbums).toHaveBeenCalledTimes(2);
+    expect(mockPhotos).toHaveBeenCalledTimes(1);
+  },
+);
 
 it("doubles a failing transfer's wait up to 15 minutes, ignores local changes meanwhile, and retries on reconnect", async () => {
   jest.spyOn(console, "warn").mockImplementation(() => {});
@@ -367,6 +400,72 @@ it.each([false, true])(
     );
   },
 );
+
+it("does not carry an old account's failed request backoff into the next account", async () => {
+  jest.spyOn(console, "warn").mockImplementation(() => {});
+  let fail!: (error: Error) => void;
+  mockSync.mockImplementationOnce(
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        fail = reject;
+      }),
+  );
+  const screen = await render(<CollectionSync />);
+  await tick();
+  mockAccount = { scope: "account:next", accountId: "next" };
+  await screen.rerender(<CollectionSync />);
+  await tick();
+  const failure = new Error("Old session failed");
+  await act(async () => fail(failure));
+  await tick();
+  expect(mockSync).toHaveBeenCalledTimes(2);
+  expect(mockSync.mock.calls[1][1].owner).toBe("account:next");
+  expect(mockReportError).not.toHaveBeenCalledWith(failure, "sync.journal");
+});
+
+it("rejects a direct journal flush if its account changes while the request runs", async () => {
+  const screen = await render(<CollectionSync />);
+  await tick();
+  let finish!: () => void;
+  mockSync.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const outcome = flushJournal().then(
+    () => null,
+    (error: unknown) => error,
+  );
+  await act(async () => {});
+  mockAccount = { scope: "account:next", accountId: "next" };
+  await screen.rerender(<CollectionSync />);
+  await act(async () => finish());
+  expect(await outcome).toBeInstanceOf(SyncUnavailableError);
+});
+
+it("rejects a media flush if its account changes during a transfer", async () => {
+  const screen = await render(<CollectionSync />);
+  await tick();
+  await tick();
+  mockPending = true;
+  let finish!: () => void;
+  mockPhotos.mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const outcome = flushCollectionMedia({ photoLocalIds: ["photo"] }).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  await act(async () => {});
+  mockAccount = { scope: "account:next", accountId: "next" };
+  await screen.rerender(<CollectionSync />);
+  await act(async () => finish());
+  expect(await outcome).toBeInstanceOf(SyncUnavailableError);
+});
 
 it("keeps a linked scope across a token refresh but suspends it again when the account scope changes", async () => {
   const screen = await render(<CollectionSync />);

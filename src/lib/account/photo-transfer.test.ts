@@ -1,3 +1,5 @@
+import { isTransientError } from "@/lib/network-error";
+
 import { downloadCollectionPhoto, uploadCollectionPhoto } from "./photo-transfer";
 
 const mockUpload = jest.fn();
@@ -157,9 +159,13 @@ it("keeps the existing 512-pixel longest-edge limit for crop thumbnails", async 
   expect(mockResize).toHaveBeenCalledWith({ height: 512 });
 });
 
-it("cleans up a failed upload and reports the HTTP failure for retry", async () => {
-  mockUpload.mockResolvedValue({ status: 503, body: "{}" });
-  await expect(uploadCollectionPhoto("token", "scope", "a", "photo", "original.jpg")).rejects.toThrow("503");
+it.each([429, 503])("cleans up an HTTP %i upload failure and classifies rate limits for backoff", async (status) => {
+  mockUpload.mockResolvedValue({ status, body: "{}" });
+  const error = await uploadCollectionPhoto("token", "scope", "a", "photo", "original.jpg").catch(
+    (cause: unknown) => cause,
+  );
+  expect(error).toEqual(new Error(`Photo upload failed with HTTP ${status}`));
+  expect(isTransientError(error)).toBe(status === 429);
   expect(mockDelete).toHaveBeenCalledWith("file:///cache/encoded.jpg");
 });
 
