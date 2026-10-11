@@ -1,6 +1,7 @@
 import tzLookup from "@photostructure/tz-lookup";
 import { ConvexError, v, type Infer } from "convex/values";
 
+import type { ExhibitionCandidate } from "../shared/exhibitions/acceptance";
 import { politeClient, sameSite } from "../shared/exhibitions/polite-client";
 import { calendarDate } from "../shared/journal/limits";
 import { internal } from "./_generated/api";
@@ -12,6 +13,7 @@ import { requireDevice } from "./lib/auth";
 import {
   EXHIBITION_MODEL,
   EXTRACTION_SYSTEM,
+  SHOW_PAGE_SYSTEM,
   MAX_CHECK_GAP_MS,
   MAX_MUSEUM_CHARS,
   MIN_LISTING_CHARS,
@@ -21,13 +23,19 @@ import {
   extractionPrompt,
   extractionSchema,
   listingHash,
+  listingLinks,
   listingText,
   nextDueAt,
   parseExtraction,
   retryAt,
+  showPage,
+  showPages,
   siteName,
+  titleKey,
   verifiedShows,
   type ListingPage,
+  type PageLink,
+  type VerifiedShow,
 } from "./lib/exhibitionListings";
 import type { exhibitionSource } from "./lib/exhibitionSourceValidators";
 import { verifiedExhibition } from "./lib/exhibitionValidators";
@@ -41,6 +49,7 @@ import { MAX_EXTRACT_URLS } from "./lib/tavily";
 import { extractWithCredit } from "./lib/tavilySpend";
 import { chatJson } from "./lib/tokenFactory";
 import { isVenueOptedOut } from "./lib/venueOptOut";
+import { entityNames, getEntities } from "./lib/wikidata";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Regions Explore showed within this window are read on schedule; the rest when someone opens them.
@@ -55,6 +64,9 @@ const REGION_LIMIT = 40;
 const BACKGROUND_SHARE = 0.5;
 const MAX_LISTINGS = 4;
 const MAX_LISTING_BYTES = 3 * 1024 * 1024;
+// Listings that give only titles link each show to a page leading with its dates; the rest is visits and related shows.
+const MAX_SHOW_PAGES = 8;
+const SHOW_PAGE_CHARS = 5_000;
 // Sites asking for longer pauses between requests count as refusing rather than being waited on.
 const MAX_CRAWL_DELAY_S = 10;
 const PAGE_READERS = 8;
@@ -69,7 +81,7 @@ const checkOutcome = v.union(
   v.object({
     kind: v.literal("changed"),
     checkedAt: v.number(),
-    pageHash: v.string(),
+    pageHash: v.optional(v.string()),
     shows: v.array(verifiedExhibition),
   }),
   v.object({ kind: v.literal("unchanged"), checkedAt: v.number() }),
@@ -87,6 +99,7 @@ const listingMuseum = v.object({
   website: v.union(v.string(), v.null()),
   timeZone: v.string(),
   country: v.optional(v.string()),
+  wikidataId: v.optional(v.string()),
   pageHash: v.optional(v.string()),
   listings: v.array(v.object({ url: v.string(), venueSpecific: v.boolean() })),
 });
@@ -268,6 +281,7 @@ export const loadBatch = internalQuery({
         website: museum.website ?? null,
         timeZone: tzLookup(museum.lat, museum.lng),
         country: museum.country ?? regionCountry(museum.region),
+        ...(museum.wikidataId ? { wikidataId: museum.wikidataId } : {}),
         pageHash: row.pageHash,
         listings: readable
           ? source.urls.map((listing) => ({
@@ -287,6 +301,8 @@ type ListingRead = {
   fallback: { url: string; title?: string; text?: string }[];
   /** Names the museum's own listing pages give the site, accepted as venue evidence. */
   siteNames: string[];
+  /** Links on the listings to pages of the same site, where a show the listing leaves undated may give its dates. */
+  links: PageLink[];
   /** Listings that failed in a way a later read may not: a missing page, a redirect off the site, a rate limit. */
   failed: number;
 };
@@ -311,7 +327,7 @@ function listingUrls(museum: ListingMuseum, home: URL) {
 }
 
 async function readListings(client: PoliteClient, museum: ListingMuseum): Promise<ListingRead> {
-  const read: ListingRead = { pages: [], fallback: [], siteNames: [], failed: 0 };
+  const read: ListingRead = { pages: [], fallback: [], siteNames: [], links: [], failed: 0 };
   let home: URL;
   try {
     home = new URL(museum.website ?? "");
@@ -340,6 +356,7 @@ async function readListings(client: PoliteClient, museum: ListingMuseum): Promis
       const html = new TextDecoder().decode(body);
       const name = venueSpecific ? siteName(html) : undefined;
       if (name) read.siteNames.push(name);
+      read.links.push(...listingLinks(html, followed.url.href).filter((link) => sameSite(new URL(link.url), home)));
       const text = listingText(html);
       if (text.length >= THIN_LISTING_CHARS) read.pages.push({ url: followed.url.href, text });
       else read.fallback.push({ url: url.href, title: documentTitle(html), text });
@@ -386,49 +403,68 @@ function longerText(tavily: TavilyRead) {
   };
 }
 
+/** Each museum's Wikidata labels and aliases in every language, so a page may name its venue in its own language. */
+async function wikidataNames(museums: ListingMuseum[]): Promise<Map<Id<"museums">, string[]> | null> {
+  const ids = museums.flatMap((museum) => (museum.wikidataId ? [museum.wikidataId] : []));
+  if (ids.length === 0) return new Map();
+  try {
+    const entities = await getEntities(ids, "labels|aliases", "all");
+    return new Map(
+      museums.flatMap((museum) => {
+        const entity = museum.wikidataId ? entities[museum.wikidataId] : undefined;
+        return entity ? [[museum.museumId, entityNames(entity)] as const] : [];
+      }),
+    );
+  } catch (error) {
+    // Without them only the museum's own name and its pages' site names count as venue evidence.
+    await reportBackendError(error, "exhibitionRefresh.names");
+    return null;
+  }
+}
+
 function withinBudget(pages: ListingPage[]): ListingPage[] {
   let left = MAX_MUSEUM_CHARS;
   return pages.flatMap((page) => {
     const text = page.text.slice(0, left);
     left -= text.length;
-    return text ? [{ url: page.url, text }] : [];
+    return text ? [{ ...page, text }] : [];
   });
 }
 
-async function extractShows(
+type ShowsRead = { candidates: ExhibitionCandidate[]; shows: VerifiedShow[] };
+
+type ReadContext = {
+  museum: ListingMuseum;
+  /** Names the listings give their site, offered to the model as the museum's. */
+  siteNames: string[];
+  /** Further names a venue quote may use, such as the museum's Wikidata names. */
+  otherNames: string[];
+  checkedAt: number;
+};
+
+/** One model read of the pages, with the shows those pages quote. */
+async function readShows(
   ctx: ActionCtx,
-  museum: ListingMuseum,
-  read: ListingRead,
-  tavily: TavilyRead,
-): Promise<CheckOutcome> {
-  const fallbackPages = read.fallback.flatMap(longerText(tavily));
-  const incomplete = read.failed > 0 || fallbackPages.length < read.fallback.length;
-  const pages = withinBudget([...read.pages, ...fallbackPages]);
-  const checkedAt = Date.now();
-  if (read.fallback.some(({ url }) => tavily.skipped.has(url))) return { kind: "deferred" };
-  if (pages.length === 0) {
-    return read.failed === 0 && read.fallback.length === 0 ? { kind: "blocked", checkedAt } : { kind: "unavailable" };
-  }
-  const captured = await capturePages(pages, checkedAt);
-  const pageHash = await listingHash(captured);
-  if (pageHash === museum.pageHash) {
-    return incomplete ? { kind: "partial", shows: [] } : { kind: "unchanged", checkedAt };
-  }
-  if (!(await ctx.runQuery(internal.exhibitionRefresh.remainingBudget, {}))) return { kind: "deferred" };
+  { museum, siteNames, otherNames, checkedAt }: ReadContext,
+  pages: ListingPage[],
+  singleShow = false,
+): Promise<ShowsRead | "deferred" | "failed"> {
+  if (!(await ctx.runQuery(internal.exhibitionRefresh.remainingBudget, {}))) return "deferred";
   let day: string;
   try {
     day = await reserveSpend(ctx, "tokenFactory", MODEL_CALLS_RESERVED);
   } catch (error) {
-    if (error instanceof ConvexError && error.data.code === "spend_cap") return { kind: "deferred" };
+    if (error instanceof ConvexError && error.data.code === "spend_cap") return "deferred";
     throw error;
   }
-  const venueNames = [...new Set(read.siteNames)];
+  const asOfDate = calendarDate(checkedAt, museum.timeZone);
+  const venueNames = [...new Set([...siteNames, ...otherNames])];
   let calls = MODEL_CALLS_RESERVED;
   try {
     const response = await chatJson({
       model: EXHIBITION_MODEL,
-      system: EXTRACTION_SYSTEM,
-      user: extractionPrompt({ name: museum.name, venueNames }, pages, calendarDate(checkedAt, museum.timeZone)),
+      system: singleShow ? SHOW_PAGE_SYSTEM : EXTRACTION_SYSTEM,
+      user: extractionPrompt({ name: museum.name, venueNames }, pages, asOfDate),
       schemaName: "exhibitions",
       schema: extractionSchema,
       maxTokens: MAX_OUTPUT_TOKENS,
@@ -445,16 +481,16 @@ async function extractShows(
         sourceUrls: pages.map((page) => page.url),
         venueNames,
       },
-      pages: captured,
+      pages: await capturePages(pages, checkedAt),
       candidates: response.value,
-      asOfDate: calendarDate(checkedAt, museum.timeZone),
+      asOfDate,
     });
-    return incomplete ? { kind: "partial", shows } : { kind: "changed", checkedAt, pageHash, shows };
+    return { candidates: response.value, shows };
   } catch (error) {
     const sent = error instanceof ConvexError ? (error.data as { calls?: unknown }).calls : undefined;
     if (typeof sent === "number") calls = sent;
     await reportBackendError(error, "exhibitionRefresh.extract");
-    return { kind: "unavailable" };
+    return "failed";
   } finally {
     await ctx.runMutation(internal.spend.reconcile, {
       kind: "tokenFactory",
@@ -463,6 +499,89 @@ async function extractShows(
       actual: calls,
     });
   }
+}
+
+async function readShowPage(client: PoliteClient, url: string): Promise<ListingPage | "blocked" | "failed"> {
+  const start = new URL(url);
+  try {
+    const followed = await client.follow(start, "text/html, application/xhtml+xml;q=0.9", MAX_LISTING_BYTES, (next) =>
+      sameSite(next, start),
+    );
+    if ("reason" in followed) return followed.reason === "robots" ? "blocked" : "failed";
+    const { status, headers, body } = followed.response;
+    if ([401, 403, 451].includes(status)) return "blocked";
+    if (status >= 500) {
+      await reportBackendError(
+        new ConvexError({ code: "page_unavailable", reason: `http_${status}` }),
+        "exhibitionRefresh.showPage",
+      );
+    }
+    if (status !== 200 || !headers.get("content-type")?.includes("html")) return "failed";
+    const page = showPage(new TextDecoder().decode(body), SHOW_PAGE_CHARS);
+    return page.text.length >= MIN_LISTING_CHARS ? { ...page, url: followed.url.href } : "failed";
+  } catch (error) {
+    await reportBackendError(error, "exhibitionRefresh.showPage");
+    return "failed";
+  }
+}
+
+/** Shows the listings name without verifiable dates, read from their own pages when the listings link to them. */
+async function readOwnPages(
+  ctx: ActionCtx,
+  client: PoliteClient,
+  context: ReadContext,
+  links: PageLink[],
+  listed: ShowsRead,
+): Promise<{ shows: VerifiedShow[]; complete: boolean; cacheable: boolean }> {
+  const dated = new Set(listed.shows.map((show) => titleKey(show.title)));
+  const undated = listed.candidates.filter(
+    (candidate) =>
+      candidate.kind === "temporary_exhibition" && candidate.venueMatch && !dated.has(titleKey(candidate.title)),
+  );
+  const urls = showPages(
+    undated.map((candidate) => candidate.title),
+    links,
+    MAX_SHOW_PAGES,
+  );
+  if (urls.length === 0) return { shows: [], complete: true, cacheable: true };
+  const results = await Promise.all(urls.map((url) => readShowPage(client, url)));
+  const complete = !results.includes("failed");
+  const pages = withinBudget(results.flatMap((page) => (typeof page === "string" ? [] : [page])));
+  if (pages.length === 0) return { shows: [], complete, cacheable: false };
+  const read = await readShows(ctx, context, pages, true);
+  if (typeof read === "string") return { shows: [], complete: false, cacheable: false };
+  return { shows: read.shows.filter((show) => !dated.has(titleKey(show.title))), complete, cacheable: false };
+}
+
+async function extractShows(
+  ctx: ActionCtx,
+  client: PoliteClient,
+  museum: ListingMuseum,
+  read: ListingRead,
+  tavily: TavilyRead,
+  names: string[] | null,
+): Promise<CheckOutcome> {
+  const fallbackPages = read.fallback.flatMap(longerText(tavily));
+  const incomplete = names === null || read.failed > 0 || fallbackPages.length < read.fallback.length;
+  const pages = withinBudget([...read.pages, ...fallbackPages]);
+  const checkedAt = Date.now();
+  if (read.fallback.some(({ url }) => tavily.skipped.has(url))) return { kind: "deferred" };
+  if (pages.length === 0) {
+    return read.failed === 0 && read.fallback.length === 0 ? { kind: "blocked", checkedAt } : { kind: "unavailable" };
+  }
+  const pageHash = await listingHash(await capturePages(pages, checkedAt), read.links);
+  if (pageHash === museum.pageHash) {
+    return incomplete ? { kind: "partial", shows: [] } : { kind: "unchanged", checkedAt };
+  }
+  const context: ReadContext = { museum, siteNames: [...new Set(read.siteNames)], otherNames: names ?? [], checkedAt };
+  const listed = await readShows(ctx, context, pages);
+  if (listed === "deferred") return { kind: "deferred" };
+  if (listed === "failed") return { kind: "unavailable" };
+  const own = await readOwnPages(ctx, client, context, read.links, listed);
+  const shows = [...listed.shows, ...own.shows];
+  if (incomplete || !own.complete) return { kind: "partial", shows };
+  // Detail-page dates can change independently of the listing, so only self-contained listings may skip a read.
+  return { kind: "changed", checkedAt, ...(own.cacheable ? { pageHash } : {}), shows };
 }
 
 async function eachConcurrently<T>(items: T[], limit: number, run: (item: T, index: number) => Promise<void>) {
@@ -503,8 +622,10 @@ export const readBatch = internalAction({
         ctx,
         reads.flatMap((read) => read.fallback.map(({ url }) => url)),
       );
+      const names = await wikidataNames(museums);
       await eachConcurrently(museums, MODEL_READERS, async (museum, index) => {
-        const outcome = await extractShows(ctx, museum, reads[index], tavily);
+        const otherNames = museum.wikidataId && names === null ? null : (names?.get(museum.museumId) ?? []);
+        const outcome = await extractShows(ctx, client, museum, reads[index], tavily, otherNames);
         await ctx.runMutation(internal.exhibitionRefresh.recordCheck, {
           refreshId: museum.refreshId,
           leasedUntil,

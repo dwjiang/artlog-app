@@ -13,6 +13,8 @@ export type CapturedPage = {
   checkedAt: number;
   text: string;
   sha256: string;
+  /** The detail page's main heading and its section, captured before another heading or article begins. */
+  singleShow?: { heading: string; text: string };
 };
 
 export type ExhibitionInterval = {
@@ -65,8 +67,30 @@ const months = [
   ["november", "nov", "novembre", "noviembre"],
   ["december", "dec", "decembre", "dezember", "dez", "dicembre", "dic", "diciembre"],
 ];
-const monthNumbers = new Map(months.flatMap((names, index) => names.map((name) => [name, index + 1] as const)));
-const monthPattern = `(?:${[...monthNumbers.keys()].sort((a, b) => b.length - a.length).join("|")})(?![a-z])\\.?`;
+// Russian month names in the nominative and in the genitive dates use, accents removed so "май" reads "маи".
+const russianMonths = [
+  ["январь", "января", "янв"],
+  ["февраль", "февраля", "февр", "фев"],
+  ["март", "марта", "мар"],
+  ["апрель", "апреля", "апр"],
+  ["маи", "мая"],
+  ["июнь", "июня", "июн"],
+  ["июль", "июля", "июл"],
+  ["август", "августа", "авг"],
+  ["сентябрь", "сентября", "сент", "сен"],
+  ["октябрь", "октября", "окт"],
+  ["ноябрь", "ноября", "нояб", "ноя"],
+  ["декабрь", "декабря", "дек"],
+];
+// JavaScript's \b only knows ASCII letters, so words that may be Cyrillic use these bounds instead.
+const wordBefore = "(?<![\\w\\u0430-\\u044f])";
+const wordAfter = "(?![\\w\\u0430-\\u044f])";
+const monthNumbers = new Map(
+  [months, russianMonths].flatMap((table) =>
+    table.flatMap((names, index) => names.map((name) => [name, index + 1] as const)),
+  ),
+);
+const monthPattern = `(?:${[...monthNumbers.keys()].sort((a, b) => b.length - a.length).join("|")})(?![a-z\\u0430-\\u044f])\\.?`;
 const weekdays = [
   ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
   ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
@@ -78,9 +102,9 @@ const weekdays = [
 ].flat();
 // Ordinal marks: 1st, 1er, 1º (read as "1o"), 1° and the German "1.".
 const dayPattern = "(\\d{1,2})(?:st|nd|rd|th|er|o|°|\\.)?(?!\\d)";
-// Spanish puts "de" between day, month and year.
+// Spanish puts "de" between day, month and year; Russian may follow the year with "г." or "года".
 const monthAfterDay = "\\s+(?:de\\s+)?";
-const yearPattern = "(?:,?\\s+(?:de\\s+)?(\\d{4})(?!\\d))?";
+const yearPattern = `(?:,?\\s+(?:de\\s+)?(\\d{4})(?!\\d)(?:\\s*(?:года|г\\.?)${wordAfter})?)?`;
 const rangeWords = [
   "to",
   "through",
@@ -96,14 +120,16 @@ const rangeWords = [
   "hasta",
   "tot en met",
   "tot",
+  "по",
 ];
-const connector = `\\s*(?:-|(?:${rangeWords.join("|")})\\b|t/m(?![\\w/]))\\s*`;
-const closingWords = "(?:through|until|jusqu'au|jusqu'a|bis zum|bis|fino al|hasta el|hasta|tot en met|t/m)";
+const connector = `\\s*(?:-|(?:${rangeWords.join("|")})${wordAfter}|t/m(?![\\w/]))\\s*`;
+const closingWords =
+  "(?:through|until|closes|closing|ends|jusqu'au|jusqu'a|bis zum|bis|fino al|hasta el|hasta|tot en met|t/m|до)";
 const weekday = `(?:(?:${weekdays.join("|")})\\.?[,]?\\s+)?`;
 // A range ends at a word boundary, or right after an explicit year even when a time or another number follows.
 const rangeEnd = "(?:(?<=\\d{4})(?!\\d)|\\b(?![\\w/])(?!(?:,\\s*|\\s+)\\d))";
 
-function normalize(text: string): string {
+export function normalizeEvidence(text: string): string {
   return text
     .normalize("NFKC")
     .toLowerCase()
@@ -118,7 +144,7 @@ function normalize(text: string): string {
 
 /** The text dates are read from: normalized, without accents so "février" and "fevrier" read alike. */
 function dateText(text: string): string {
-  return normalize(text)
+  return normalizeEvidence(text)
     .normalize("NFD")
     .replaceAll(/[\u0300-\u036f]/g, "");
 }
@@ -240,6 +266,23 @@ function literalRanges(evidence: string, asOfYear: number, order: NumericOrder, 
     addEnglishRange(match, month, Number(match[1]), year, month, Number(match[2]), year);
   }
 
+  // "2026年9月29日（火）～12月20日（日）": a closing date without a year takes the opening's, or the next.
+  const cjk = new RegExp(
+    "(\\d{4})年\\s*(\\d{1,2})月\\s*(\\d{1,2})日(?:\\s*\\([^)]{1,4}\\))?\\s*(?:~|〜|-|至)\\s*(?:(\\d{4})年\\s*)?(\\d{1,2})月\\s*(\\d{1,2})日",
+    "g",
+  );
+  for (const match of text.matchAll(cjk)) {
+    addEnglishRange(
+      match,
+      Number(match[2]),
+      Number(match[3]),
+      Number(match[1]),
+      Number(match[5]),
+      Number(match[6]),
+      match[4] ? Number(match[4]) : undefined,
+    );
+  }
+
   const numericPattern = "(?:\\d{4}-\\d{2}-\\d{2}|\\d{1,2}[/.]\\d{1,2}[/.](?:\\d{4}|\\d{2}))";
   const numericRange = new RegExp(
     `\\b${weekday}(${numericPattern})${connector}${weekday}(${numericPattern})\\b(?![\\d/.])`,
@@ -248,6 +291,22 @@ function literalRanges(evidence: string, asOfYear: number, order: NumericOrder, 
   for (const match of text.matchAll(numericRange)) {
     const startDate = numericDate(match[1]!, asOfYear, order);
     const endDate = numericDate(match[2]!, asOfYear, order);
+    if (startDate && endDate && startDate <= endDate) add(match, { startDate, endDate });
+  }
+
+  // "4.9-18.10.2026": the opening day and month take the closing date's year, or the year before when they fall later.
+  const sharedYearNumeric = new RegExp(
+    `(?<![\\d/.])\\b${weekday}(\\d{1,2})([/.])(\\d{1,2})\\.?${connector}${weekday}(\\d{1,2})\\2(\\d{1,2})\\2(\\d{4})(?!\\d|[/.]\\d)`,
+    "g",
+  );
+  for (const match of text.matchAll(sharedYearNumeric)) {
+    const [, startFirst, separator, startSecond, endFirst, endSecond, endYear] = match;
+    const date = (first: string, second: string, year: number) =>
+      numericDate(`${first}${separator}${second}${separator}${year}`, asOfYear, order);
+    const endDate = date(endFirst!, endSecond!, Number(endYear));
+    const sameYear = date(startFirst!, startSecond!, Number(endYear));
+    const startDate =
+      sameYear && endDate && sameYear > endDate ? date(startFirst!, startSecond!, Number(endYear) - 1) : sameYear;
     if (startDate && endDate && startDate <= endDate) add(match, { startDate, endDate });
   }
 
@@ -261,20 +320,23 @@ function literalRanges(evidence: string, asOfYear: number, order: NumericOrder, 
     }
   }
 
-  const endMonthFirst = new RegExp(`\\b${closingWords}\\s+(${monthPattern})\\s+${dayPattern},?\\s+(\\d{4})\\b`, "g");
+  const endMonthFirst = new RegExp(
+    `${wordBefore}${closingWords}\\s+${weekday}(${monthPattern})\\s+${dayPattern},?\\s+(\\d{4})\\b`,
+    "g",
+  );
   for (const match of text.matchAll(endMonthFirst)) {
     const endDate = calendarDate(Number(match[3]), monthNumber(match[1]!), Number(match[2]));
     if (endDate) add(match, { startDate: null, endDate });
   }
   const endDayFirst = new RegExp(
-    `\\b${closingWords}\\s+${dayPattern}${monthAfterDay}(${monthPattern}),?\\s+(?:de\\s+)?(\\d{4})\\b`,
+    `${wordBefore}${closingWords}\\s+${weekday}${dayPattern}${monthAfterDay}(${monthPattern}),?\\s+(?:de\\s+)?(\\d{4})\\b`,
     "g",
   );
   for (const match of text.matchAll(endDayFirst)) {
     const endDate = calendarDate(Number(match[3]), monthNumber(match[2]!), Number(match[1]));
     if (endDate) add(match, { startDate: null, endDate });
   }
-  const endNumeric = new RegExp(`\\b${closingWords}\\s+(${numericPattern})\\b(?![\\d/.])`, "g");
+  const endNumeric = new RegExp(`${wordBefore}${closingWords}\\s+${weekday}(${numericPattern})\\b(?![\\d/.])`, "g");
   for (const match of text.matchAll(endNumeric)) {
     const endDate = numericDate(match[1]!, asOfYear, order);
     if (endDate) add(match, { startDate: null, endDate });
@@ -299,6 +361,15 @@ function joinedDateRanges(evidence: string, ranges: DateRange[]): boolean {
       const previous = spans[index - 1];
       return previous.end <= span.start && /^[\s,;]*(?:(?:and|&)[\s,;]*)?$/.test(text.slice(previous.end, span.start));
     })
+  );
+}
+
+// A heading may carry the show's dates, but a date beside another show's name must stay outside its scope.
+export function isDateHeading(heading: string): boolean {
+  const text = dateText(heading);
+  const year = new Date().getUTCFullYear();
+  return (["day-first", "month-first"] as const).some((order) =>
+    literalRanges(text, year, order).some((range) => range.span?.start === 0 && range.span.end === text.length),
   );
 }
 
@@ -331,6 +402,54 @@ function evidenceRanges(evidence: string, asOfYear: number, order: NumericOrder)
     runs.push({ startDate: shiftDate(closed.endDate, 1), endDate: published.endDate, closureSplit: true });
   }
   return runs;
+}
+
+// Short names such as "V&A" or "Met" must stand as whole words, so "Kismet Hall" does not name the Met.
+const SHORT_NAME_CHARS = 4;
+const CJK_NAME = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+
+function namesVenue(venue: string, name: string): boolean {
+  const wanted = normalizeEvidence(name);
+  if (!wanted) return false;
+  // Spacing varies between a page and Wikidata ("А.С." and "А. С."), so long names compare without it.
+  if (wanted.length > SHORT_NAME_CHARS) return venue.replaceAll(" ", "").includes(wanted.replaceAll(" ", ""));
+  // CJK names can be followed immediately by another word or a grammatical particle.
+  if (CJK_NAME.test(wanted)) return venue.includes(wanted);
+  const escaped = wanted.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "u").test(venue);
+}
+
+function namedByOwnPage(page: CapturedPage, candidate: ExhibitionCandidate): boolean {
+  if (!page.singleShow) return false;
+  const heading = normalizeEvidence(page.singleShow.heading);
+  const title = normalizeEvidence(candidate.title);
+  const named = heading.includes(title) || (heading.length >= 4 && title.includes(heading));
+  return (
+    !!heading
+    && !!title
+    && named
+    && quotedInOrder(normalizeEvidence(page.singleShow.text), quoteParts(candidate.dateEvidence, page))
+  );
+}
+
+/** A quote's normalized parts: on a single show's page the model may join its heading to its dates with "...". */
+function quoteParts(quote: string, page: CapturedPage | undefined): string[] {
+  const whole = normalizeEvidence(quote);
+  if (!page?.singleShow) return whole ? [whole] : [];
+  return whole
+    .split("...")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function quotedInOrder(source: string, parts: string[]): boolean {
+  let from = 0;
+  for (const part of parts) {
+    const at = source.indexOf(part, from);
+    if (at < 0) return false;
+    from = at + part.length;
+  }
+  return parts.length > 0;
 }
 
 function officialHost(url: string): string | null {
@@ -383,10 +502,10 @@ export function validateExhibitions({
       if (!host || !officialHosts.has(host)) reasons.push("unapproved_source");
       if (!page) {
         reasons.push("source_not_captured");
-      } else if (!normalize(page.text)) {
+      } else if (!normalizeEvidence(page.text)) {
         reasons.push("source_unavailable");
       } else {
-        const source = normalize(page.text);
+        const source = normalizeEvidence(page.text);
         if (
           [
             candidate.titleEvidence,
@@ -394,22 +513,27 @@ export function validateExhibitions({
             candidate.dateEvidence,
             candidate.dateText,
             original.dateEvidence,
-          ].some((quote) => !normalize(quote) || !source.includes(normalize(quote)))
+          ].some((quote) => !quotedInOrder(source, quoteParts(quote, page)))
         ) {
           reasons.push("evidence_not_in_source");
         }
       }
-      if (!normalize(candidate.title) || !normalize(candidate.titleEvidence).includes(normalize(candidate.title))) {
+      if (
+        !normalizeEvidence(candidate.title)
+        || !normalizeEvidence(candidate.titleEvidence).includes(normalizeEvidence(candidate.title))
+      ) {
         reasons.push("title_not_supported");
       }
-      if (!normalize(candidate.dateEvidence).includes(normalize(candidate.title))) {
+      // A quote joined with "..." binds its title only through the page's own heading.
+      const titled =
+        quoteParts(candidate.dateEvidence, page).length <= 1
+        && normalizeEvidence(candidate.dateEvidence).includes(normalizeEvidence(candidate.title));
+      if (page?.singleShow ? !namedByOwnPage(page, candidate) : !titled) {
         reasons.push("title_not_in_date_evidence");
       }
       if (!completeIntervals) reasons.push("incomplete_intervals");
-      const venue = normalize(candidate.venueEvidence);
-      if (
-        ![museum.name, ...(museum.venueNames ?? [])].some((name) => normalize(name) && venue.includes(normalize(name)))
-      ) {
+      const venue = normalizeEvidence(candidate.venueEvidence);
+      if (![museum.name, ...(museum.venueNames ?? [])].some((name) => namesVenue(venue, name))) {
         reasons.push("venue_not_supported");
       }
       if (!candidate.venueMatch) reasons.push("wrong_venue");
@@ -437,7 +561,7 @@ export function validateExhibitions({
       ) {
         reasons.push("dates_not_supported");
       }
-      const key = JSON.stringify([normalize(candidate.title), candidate.startDate, candidate.endDate]);
+      const key = JSON.stringify([normalizeEvidence(candidate.title), candidate.startDate, candidate.endDate]);
       if (reasons.length === 0 && seen.has(key)) reasons.push("duplicate");
       if (reasons.length > 0) {
         rejected.push({ candidate, reasons });
