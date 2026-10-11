@@ -63,7 +63,7 @@ it("reserves direct uploads under the file document ID", async () => {
 
 it("keeps private files off the direct-download endpoint and redirects published bytes without proxying them", async () => {
   const t = harness();
-  const id = await t.run((ctx) => fileStorage.store(ctx, new Blob(["audio"], { type: "audio/mpeg" })));
+  const id = await t.run((ctx) => fileStorage.store(ctx, new Blob(["photo"], { type: "image/jpeg" })));
   expect(await t.run((ctx) => fileStorage.getUrl(ctx, id))).toBeNull();
   expect((await t.fetch(`/file?id=${id}`)).status).toBe(404);
   await t.run((ctx) => retainFile(ctx, id, true));
