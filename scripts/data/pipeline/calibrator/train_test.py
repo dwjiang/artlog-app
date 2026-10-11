@@ -250,3 +250,103 @@ def test_stop_exit_removes_stale_artifacts_and_metrics(tmp_path):
     assert main(["--features", str(features), "--out", str(out)]) == 1
     assert sorted(path.name for path in out.iterdir()) == ["calibrator-report.md"]
     assert "STOP" in (out / "calibrator-report.md").read_text()
+
+
+def test_training_rejects_a_feature_manifest_from_another_model_before_emitting_weights(tmp_path):
+    from ..model import sha256_of
+    from .train import main
+
+    features = tmp_path / "features.jsonl"
+    features.write_text("".join(json.dumps(row) + "\n" for row in separable_rows()))
+    features.with_suffix(".manifest.json").write_text(
+        json.dumps({"featuresSha256": sha256_of(features), "modelVersion": "obsolete-model"})
+    )
+    out = tmp_path / "out"
+    assert main(["--features", str(features), "--out", str(out)]) == 1
+    assert not (out / f"calibrator-{VERSION}.json").exists()
+    assert "modelVersion" in (out / "calibrator-report.md").read_text()
+
+
+@pytest.mark.parametrize("same_artwork", [False, True])
+def test_two_eligible_confident_artworks_require_review_but_views_of_one_artwork_do_not(
+    same_artwork,
+):
+    rows = separable_rows(1)[:2]
+    for row in rows:
+        row["signals"].update(homographyValid=True, orbInliers=40)
+    rows[0]["candidateArtworkId"] = "artwork-a"
+    rows[1]["candidateArtworkId"] = "artwork-a" if same_artwork else "artwork-b"
+    config = RULES | {"thresholds": {"confident": 0.9, "soft": 0.4}}
+    metrics = evaluate(rows, np.array([0.99, 0.95]), config)
+    assert metrics["outcomes"]["confident"]["count"] == int(same_artwork)
+    assert metrics["outcomes"]["soft"]["count"] == int(not same_artwork)
+    assert metrics["accepted"]["correct"] == 1
+
+
+def test_confident_threshold_selection_excludes_ambiguous_winners_at_each_cutoff():
+    probabilities = np.array([0.99, 0.95, 0.92])
+    truth = np.array([1, 0, 1])
+    competitors = np.array([0.1, 0.94, 0.1])
+    assert (
+        choose_confident(
+            probabilities, truth, np.ones(3, dtype=bool), competitor_probabilities=competitors
+        )
+        == 0.92
+    )
+
+
+def test_competitor_cutoff_can_meet_precision_when_no_winner_cutoff_does():
+    rows = separable_rows(1)[:4]
+    for row in rows:
+        row["signals"].update(homographyValid=True, orbInliers=40)
+    probabilities = np.array([0.97, 0.99, 0.98, 0.90])
+    cutoff = choose_confident(
+        np.array([0.99, 0.98]),
+        np.array([0, 1]),
+        np.ones(2, dtype=bool),
+        competitor_probabilities=np.array([0.97, 0.90]),
+    )
+    assert cutoff == 0.97
+    metrics = evaluate(
+        rows, probabilities, RULES | {"thresholds": {"confident": cutoff, "soft": 0.4}}
+    )
+    assert metrics["outcomes"]["confident"]["count"] == 1
+    assert metrics["outcomes"]["confident"]["precision"] == 1.0
+    assert metrics["ambiguousTop1"] == 1
+
+
+@pytest.mark.parametrize("competitor_score,competitor_eligible", [(0.89, True), (0.95, False)])
+def test_a_weak_or_ineligible_distinct_candidate_does_not_soften_the_winner(
+    competitor_score, competitor_eligible
+):
+    rows = separable_rows(1)[:2]
+    rows[1]["signals"].update(homographyValid=competitor_eligible, orbInliers=40)
+    config = RULES | {"thresholds": {"confident": 0.9, "soft": 0.4}}
+    metrics = evaluate(rows, np.array([0.99, competitor_score]), config)
+    assert metrics["outcomes"]["confident"]["count"] == 1
+    assert metrics["ambiguousTop1"] == 0
+
+
+def test_threshold_selection_matches_direct_decisions_with_ties_and_ineligible_winners():
+    rng = np.random.default_rng(19)
+    for _ in range(20):
+        probabilities = rng.choice([0.4, 0.7, 0.85, 0.9, 0.95], 40)
+        competitors = np.minimum(probabilities, rng.choice([-np.inf, 0.2, 0.7, 0.8, 0.85, 0.9], 40))
+        truth = rng.integers(0, 2, 40)
+        allowed = rng.random(40) > 0.2
+        expected = None
+        cutoffs = set(probabilities[allowed]) | set(competitors[allowed & np.isfinite(competitors)])
+        for cutoff in sorted(cutoffs, reverse=True):
+            accepted = allowed & (probabilities >= cutoff) & (competitors < cutoff)
+            if accepted.any() and truth[accepted].mean() >= 0.8:
+                expected = cutoff
+        assert (
+            choose_confident(
+                probabilities,
+                truth,
+                allowed,
+                target=0.8,
+                competitor_probabilities=competitors,
+            )
+            == expected
+        )
