@@ -278,6 +278,42 @@ async function fixture(
 }
 
 describe("docent.ensure", () => {
+  it.each(["rejected", "provider failure"])(
+    "keeps completed research when prose has a %s and retries only prose",
+    async (failure) => {
+      const { artwork, ensure } = await fixture();
+      page(PAGE, ownerPage);
+      wikidata();
+      tavily();
+      if (failure === "provider failure") {
+        routes.push((url, init) =>
+          url.href === TOKEN_FACTORY && JSON.parse(String(init?.body)).model === DOCENT_MODEL
+            ? new Response("unavailable", { status: 400 })
+            : undefined,
+        );
+      }
+      models(facts, [{ sentence: "This sentence cites an unknown fact.", fact_ids: ["missing"] }]);
+      const result = await ensure().catch((error: { data?: { code?: string } }) => error.data?.code);
+      expect(result).toBe(failure === "provider failure" ? "model_error" : null);
+      const stored = await artwork();
+      expect(stored?.factSheet?.length).toBeGreaterThan(0);
+      expect(stored?.factSheetUpdatedAt).toEqual(expect.any(Number));
+      expect(stored?.docent?.en?.length ?? 0).toBe(0);
+      expect(stored).toHaveProperty("docentFailedAt");
+      const searches = calls(TAVILY).length;
+      const reads = calls(PAGE).length;
+      const extractions = modelCalls("factSheet").length;
+      routes = [];
+      everything();
+      await ensure();
+      expect((await artwork())?.docent?.en).toHaveLength(2);
+      expect((await artwork())?.factSheetUpdatedAt).toBe(stored?.factSheetUpdatedAt);
+      expect(calls(TAVILY)).toHaveLength(searches);
+      expect(calls(PAGE)).toHaveLength(reads);
+      expect(modelCalls("factSheet")).toHaveLength(extractions);
+    },
+  );
+
   it.each(["facts", "prose"])("keeps a run retryable when all generated %s are rejected", async (stage) => {
     const { artwork, ensure } = await fixture();
     page(PAGE, ownerPage);
@@ -875,6 +911,37 @@ it("rejects late writes and releases after a claim is reclaimed or invalidated",
   expect((await readArtwork(t, artworkId))?.docent).toBeUndefined();
 });
 
+it.each(["reclaimed", "invalidated", "review", "retired", "identity"])(
+  "does not cache research from a %s artwork generation",
+  async (change) => {
+    const { t, work, artwork } = await fixture();
+    const { artworkId } = work;
+    const generation = (await t.mutation(internal.docent.claim, { artworkId }))!;
+    if (change === "invalidated") {
+      await t.mutation(internal.docent.invalidateDocent, { artworkId, includeResearch: true });
+    } else if (change === "reclaimed") {
+      await t.run((ctx) => ctx.db.patch("artworks", artworkId, { enrichClaimedAt: Date.now() - 11 * 60_000 }));
+      await t.mutation(internal.docent.claim, { artworkId });
+    } else {
+      await t.run((ctx) =>
+        ctx.db.patch("artworks", artworkId, {
+          ...(change === "review" ? { factSheetNeedsReview: true } : {}),
+          ...(change === "retired" ? { retiredAt: Date.now() } : {}),
+          ...(change === "identity" ? { identityStatus: "tentative" as const } : {}),
+        }),
+      );
+    }
+    expect(
+      await t.mutation(internal.docent.saveResearch, {
+        artworkId,
+        generation,
+        factSheet: [{ id: "f1", text: facts[0].text, sourceUrl: PAGE, sourceLabel: "The Met", sourceScore: 1 }],
+      }),
+    ).toBe(false);
+    expect((await artwork())?.factSheet).toBeUndefined();
+  },
+);
+
 it("shares a single research pass between independent docent and audio scripts", async () => {
   const { t, work, ensure, artwork } = await fixture();
   everything();
@@ -1121,6 +1188,7 @@ describe("reference attribution review", () => {
     tavily({ results: [], images: [], usage: { credits: 1 } });
     await t.action(internal.docent.ensure, { artworkId, deviceId });
     expect((await readArtwork(t, artworkId))?.factSheetNeedsReview).toBe(true);
+    expect((await readArtwork(t, artworkId))?.factSheet).toBeUndefined();
     expect(bodies(TOKEN_FACTORY).map((body) => body.response_format.json_schema.name)).toEqual(["referenceReview"]);
     expect(await readSpend(t)).toEqual({ tokenFactoryCalls: 1, tavilyCredits: 3 });
   });
@@ -1365,6 +1433,9 @@ describe("docent for confirmed scan details", () => {
     await confirm("label", { title: "Wheat Field with Cypresses", artist: "Vincent van Gogh" });
     await settle();
     expect((await view())?.docentStatus).toBe("failed");
+    expect((await view())?.factSheet?.length).toBeGreaterThan(0);
+    const searches = calls(TAVILY).length;
+    const extractions = modelCalls("factSheet").length;
     routes = [];
     everything();
     await user.as.mutation(api.docent.retry, { scanId });
@@ -1372,7 +1443,8 @@ describe("docent for confirmed scan details", () => {
     await settle();
     vi.useRealTimers();
     expect((await view())?.docentStatus).toBe("ready");
-    // The retry reuses the cached fact sheet and only rewrites the sentences.
+    expect(calls(TAVILY)).toHaveLength(searches);
+    expect(modelCalls("factSheet")).toHaveLength(extractions);
     expect(bodies(TOKEN_FACTORY).at(-1)?.model).toBe(DOCENT_MODEL);
   });
 

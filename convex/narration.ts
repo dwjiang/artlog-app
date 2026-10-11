@@ -95,7 +95,12 @@ async function awaitResearch(ctx: ActionCtx, artworkId: Id<"artworks">, deviceId
     const state = await ctx.runQuery(internal.narration.researchState, { artworkId });
     if (state === "missing" && !researched) {
       researched = true;
-      await researchArtwork(ctx, artworkId, deviceId);
+      try {
+        await researchArtwork(ctx, artworkId, deviceId);
+      } catch (error) {
+        // The written docent can fail after valid research was saved for this independent guide.
+        if ((await ctx.runQuery(internal.narration.researchState, { artworkId })) !== "ready") throw error;
+      }
     } else if (state === "writing") {
       await sleep(1000);
     } else {
@@ -444,7 +449,7 @@ export const render = action({
     const research = { facts: facts.map(toFactChip), researchUpdatedAt };
     if (audio) return { ...audio, ...research };
     try {
-      if (!env.OPENAI_API_KEY || !env.NEBIUS_API_KEY) {
+      if (!env.OPENAI_API_KEY || (!cached && !env.NEBIUS_API_KEY)) {
         throw new ConvexError({ code: "narration_not_configured" });
       }
       const sentences = cached ?? (await authorScript(ctx, facts, opening));
@@ -480,6 +485,7 @@ export const speak = internalAction({
   returns: v.null(),
   handler: async (ctx, { artworkId, claim, input }) => {
     let storageId: Id<"files"> | undefined;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     try {
       const response = await fetch("https://api.openai.com/v1/audio/speech", {
         method: "POST",
@@ -496,13 +502,13 @@ export const speak = internalAction({
         }),
         signal: AbortSignal.timeout(60_000),
       });
-      if (!response.ok || !response.body || !response.headers.get("content-type")?.startsWith("audio/")) {
+      reader = response.body?.getReader();
+      if (!response.ok || !reader || !response.headers.get("content-type")?.startsWith("audio/")) {
         console.warn("Narration provider request failed", {
           status: response.status,
         });
         throw new ConvexError({ code: "narration_provider_failed", reason: `http_${response.status}` });
       }
-      const reader = response.body.getReader();
       const segmenter = createSegmenter();
       const chunks: Uint8Array<ArrayBuffer>[] = [];
       let segments = 0;
@@ -520,7 +526,6 @@ export const speak = internalAction({
         for (const next of segmenter.push(read.value)) {
           // Replaced or cleared while speaking: stop paying for speech nobody will hear.
           if (!(await append(next))) {
-            await reader.cancel();
             return null;
           }
         }
@@ -534,6 +539,12 @@ export const speak = internalAction({
       await reportBackendError(error, "narration.speak", { artworkId });
       if (storageId) await fileStorage.delete(ctx, storageId);
       await ctx.runMutation(internal.narration.finish, { artworkId, claim });
+    } finally {
+      if (reader) {
+        // Failed streams reject cancellation too; that must not replace the reported generation failure.
+        await reader.cancel().catch(() => {});
+        reader.releaseLock();
+      }
     }
     return null;
   },
