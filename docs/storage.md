@@ -47,7 +47,12 @@ Narration, profile photos, contribution thumbnails, and museum packages use
 stable `/file?id=...` URLs. That endpoint returns an uncached redirect to a fresh,
 one-hour R2 signed URL; the payload travels directly from R2. Only files explicitly
 marked for public download can use it. Cached Convex query results therefore do
-not contain expiring R2 URLs. Previously issued direct-download URLs can continue
+not contain expiring R2 URLs. Profile photos also require a live profile and account;
+contribution crops require current consent, an active device, and eligible rights.
+Narration URLs identify the artwork and render; package URLs identify the venue and
+version. Every request checks that the file still belongs to that current, visible
+source. Bare audio and package file URLs are refused; callers must refresh their
+query to obtain a source-bound URL. Previously issued direct-download URLs can continue
 working until expiry or physical deletion, as with other bearer links.
 
 Contribution crops upload directly using a fifteen-minute signed PUT URL bound

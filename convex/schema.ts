@@ -493,6 +493,7 @@ export default defineSchema({
     .index("by_deviceId", ["deviceId"])
     .index("by_scanId", ["scanId"])
     .index("by_device_venue_model", ["deviceId", "venueId", "modelVersion"])
+    .index("by_cropStorageId", ["cropStorageId"])
     .index("by_status", ["status"])
     .index("by_object_device", ["indexedObjectId", "deviceId", "status"])
     .index("by_object_status", ["indexedObjectId", "status"]),
@@ -827,6 +828,7 @@ export default defineSchema({
   })
     .index("by_accountId", ["accountId"])
     .index("by_username", ["username"])
+    .index("by_photoStorageId", ["photoStorageId"])
     .index("by_active", ["active"])
     .searchIndex("search_text", {
       searchField: "searchText",

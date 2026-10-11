@@ -13,6 +13,7 @@ import { readArtworkContent } from "./lib/artworkContent";
 import { requireDevice } from "./lib/auth";
 import { narrationEntry, renderedNarration, scriptCurrent } from "./lib/narrationCache";
 import { readObjectDetails } from "./lib/objectDetails";
+import { eligibleObjectRecord } from "./lib/recognitionEligibility";
 import { docentSentence, factChip, guideSentence, rightsStatus, snapshotFields, toFactChip } from "./lib/validators";
 import { narrationResearch } from "./narration";
 import { joinCandidate } from "./scans";
@@ -48,7 +49,7 @@ export const enrichment = query({
       for await (const object of ctx.db
         .query("objects")
         .withIndex("by_artworkId", (q) => q.eq("artworkId", artworkId))) {
-        if (object.reverted || object.mergedInto) {
+        if (!(await eligibleObjectRecord(ctx, object))) {
           continue;
         }
         const details = await readObjectDetails(ctx, object);

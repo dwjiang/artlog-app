@@ -199,9 +199,12 @@ export const discard = internalMutation({
 
 export const download = httpAction(async (ctx, request) => {
   try {
-    const storageId = await ctx.runQuery(internal.collectionPhotos.findForCaller, parameters(request));
+    const input = parameters(request);
+    const storageId = await ctx.runQuery(internal.collectionPhotos.findForCaller, input);
     const blob = storageId ? await fileStorage.get(ctx, storageId) : null;
-    if (!blob) throw new ConvexError({ code: "not_found" });
+    if (!blob || (await ctx.runQuery(internal.collectionPhotos.findForCaller, input)) !== storageId) {
+      throw new ConvexError({ code: "not_found" });
+    }
     return new Response(blob, {
       headers: {
         "Content-Type": "image/jpeg",

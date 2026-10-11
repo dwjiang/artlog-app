@@ -1,11 +1,16 @@
 import { ConvexError, v } from "convex/values";
 
+import model from "../shared/model/model-version.json";
 import { internal } from "./_generated/api";
 import { httpAction, internalAction, internalQuery } from "./_generated/server";
 import { internalMutation } from "./functions";
 import { fileStorage, findFile, queueFileDeletion, reserveFile } from "./lib/fileStorage";
+import { narrationCurrent, narrationEntry, narrationFiles } from "./lib/narrationCache";
 import { reportBackendError, withErrorReporting } from "./lib/observability";
+import { activeProfile } from "./lib/ownership";
 import { r2 } from "./lib/r2";
+import { eligibleContribution } from "./lib/recognitionEligibility";
+import { isVenueOptedOut } from "./lib/venueOptOut";
 import schema from "./schema";
 
 export const reserve = internalMutation({
@@ -105,8 +110,17 @@ export const deleteRemote = internalAction({
 export const download = httpAction(async (ctx, request) => {
   const headers = { "Cache-Control": "no-store" };
   try {
-    const raw = new URL(request.url).searchParams.get("id");
-    const id = raw ? await ctx.runQuery(internal.files.downloadable, { id: raw }) : null;
+    const params = new URL(request.url).searchParams;
+    const raw = params.get("id");
+    const id = raw
+      ? await ctx.runQuery(internal.files.downloadable, {
+          id: raw,
+          artworkId: params.get("artworkId") ?? undefined,
+          render: params.get("render") ?? undefined,
+          venueId: params.get("venueId") ?? undefined,
+          version: params.get("version") ?? undefined,
+        })
+      : null;
     if (!id) return new Response(null, { status: 404, headers });
     return new Response(null, { status: 302, headers: { ...headers, Location: await r2.downloadUrl(id) } });
   } catch (error) {
@@ -116,11 +130,62 @@ export const download = httpAction(async (ctx, request) => {
 });
 
 export const downloadable = internalQuery({
-  args: { id: v.string() },
+  args: {
+    id: v.string(),
+    artworkId: v.optional(v.string()),
+    render: v.optional(v.string()),
+    venueId: v.optional(v.string()),
+    version: v.optional(v.string()),
+  },
   returns: v.union(v.id("files"), v.null()),
-  handler: async (ctx, { id }) => {
+  handler: async (ctx, { id, artworkId: rawArtworkId, render, venueId: rawVenueId, version }) => {
     const fileId = ctx.db.normalizeId("files", id);
     const file = fileId ? await fileStorage.getMetadata(ctx, fileId) : null;
-    return file?.publicDownload ? file._id : null;
+    if (!file?.publicDownload) return null;
+    if (file.contributionCrop) {
+      for await (const contribution of ctx.db
+        .query("contributions")
+        .withIndex("by_cropStorageId", (q) => q.eq("cropStorageId", file._id))) {
+        if (await eligibleContribution(ctx, contribution)) return file._id;
+      }
+      return null;
+    }
+    // Older file rows also need live source authorization; a retained public flag cannot grant access on its own.
+    if (file.contentType === "audio/mpeg") {
+      const artworkId = rawArtworkId ? ctx.db.normalizeId("artworks", rawArtworkId) : null;
+      const artwork = artworkId ? await ctx.db.get("artworks", artworkId) : null;
+      const entry = artworkId ? await narrationEntry(ctx, artworkId) : null;
+      return artwork
+        && entry?.claim
+        && entry.claim === render
+        && narrationCurrent(entry, artwork)
+        && narrationFiles(entry).includes(file._id)
+        ? file._id
+        : null;
+    }
+    if (file.contentType === "application/json") {
+      const venueId = rawVenueId ? ctx.db.normalizeId("museums", rawVenueId) : null;
+      const venue = venueId ? await ctx.db.get("museums", venueId) : null;
+      if (!venue || (await isVenueOptedOut(ctx, venue))) return null;
+      const row = await ctx.db
+        .query("museumDownloads")
+        .withIndex("by_venue", (q) => q.eq("venueId", venue._id))
+        .unique();
+      const pack = row?.published;
+      return pack?.count
+        && pack.version === version
+        && pack.modelVersion === model.modelVersion
+        && pack.chunks.some((part) => part.storageId === file._id)
+        ? file._id
+        : null;
+    }
+    let profilePhoto = false;
+    for await (const profile of ctx.db
+      .query("profiles")
+      .withIndex("by_photoStorageId", (q) => q.eq("photoStorageId", file._id))) {
+      profilePhoto = true;
+      if (await activeProfile(ctx, profile._id)) return file._id;
+    }
+    return profilePhoto ? null : file._id;
   },
 });

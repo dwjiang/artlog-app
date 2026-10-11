@@ -61,7 +61,7 @@ export async function renderedNarration(ctx: QueryCtx, artwork: Doc<"artworks">)
   if (!entry?.claim || !entry.storageId || !entry.sentences || !narrationCurrent(entry, artwork)) {
     return null;
   }
-  const uri = await fileStorage.getUrl(ctx, entry.storageId);
+  const uri = await fileStorage.getUrl(ctx, entry.storageId, { artworkId: artwork._id, render: entry.claim });
   return uri ? { uri, sentences: entry.sentences, renderId: entry.claim, live: false } : null;
 }
 

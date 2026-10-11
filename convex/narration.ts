@@ -281,7 +281,7 @@ export const listing = internalQuery({
     }
     const segments = [];
     for (const { storageId, duration } of entry.segments) {
-      const uri = await fileStorage.getUrl(ctx, storageId);
+      const uri = await fileStorage.getUrl(ctx, storageId, { artworkId: artwork._id, render: args.render });
       if (!uri) return null;
       segments.push({ uri, duration });
     }
