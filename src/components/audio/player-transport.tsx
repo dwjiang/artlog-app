@@ -24,8 +24,13 @@ import { SystemVolumeSlider } from "../../../modules/system-volume/src";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
 
 export type PlayerView = "player" | "queue" | "transcript" | "saved";
-export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (view: PlayerView) => void }) {
+type TransportProps = { view: PlayerView; onView: (view: PlayerView) => void };
+export function PlayerTransport(props: TransportProps) {
   const audio = useListening();
+  return <Transport key={`${audio.current?.work.artworkId}:${audio.renderId}`} {...props} audio={audio} />;
+}
+
+function Transport({ view, onView, audio }: TransportProps & { audio: ReturnType<typeof useListening> }) {
   const [scrubbing, setScrubbing] = useState(false);
   const dragging = useRef(false);
   // The section under the thumb while dragging; crossing into another one ticks.
@@ -33,6 +38,8 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
   const [draft, setDraft] = useState(audio.position);
   const [draftScale, setDraftScale] = useState(0);
   const ready = audio.phase === "ready";
+  const speedReady = ready && audio.duration > 0;
+  const speed = speedReady ? audio.rate : 1;
   const preparing = audio.phase === "loading";
   const preparation = preparationLabel(audio.preparationStage);
   useEffect(() => {
@@ -45,6 +52,12 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
   const position = scrubbing ? draft : audio.position;
   const queue = view === "queue" || view === "saved";
   const section = timeline && sectionAt(timeline, position);
+  function seek(...args: Parameters<typeof audio.controller.seek>) {
+    const current = audio.controller.snapshot();
+    if (current.current === audio.current && current.renderId === audio.renderId) {
+      void audio.controller.seek(...args);
+    }
+  }
   return (
     <View style={styles.container}>
       <View style={styles.status}>
@@ -59,7 +72,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
               timeline={timeline}
               current={section}
               audio={audio}
-              onSelect={(start) => void audio.controller.seek(start, { clamp: false })}
+              onSelect={(start) => seek(start, { clamp: false })}
             />
           )
         )}
@@ -90,7 +103,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           ]}
           onAccessibilityAction={({ nativeEvent }) => {
             if (seekable) {
-              void audio.controller.seek(audio.position + (nativeEvent.actionName === "increment" ? 15 : -15));
+              seek(audio.position + (nativeEvent.actionName === "increment" ? 15 : -15));
             }
           }}
           value={seekable ? position : 0}
@@ -113,7 +126,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           onValueChange={(value) => {
             setDraft(value);
             if (!dragging.current) {
-              void audio.controller.seek(value);
+              seek(value);
               return;
             }
             const next = timeline && sectionAt(timeline, value);
@@ -125,7 +138,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           onSlidingComplete={(value) => {
             dragging.current = false;
             setScrubbing(false);
-            void audio.controller.seek(value);
+            seek(value);
           }}
         />
       </View>
@@ -139,7 +152,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           label="Back 15 seconds"
           size={29}
           disabled={!seekable}
-          onPress={() => void audio.controller.seek(audio.position - 15)}
+          onPress={() => seek(audio.position - 15)}
         />
         <MotionPressable
           accessibilityRole="button"
@@ -176,7 +189,7 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
           label="Forward 15 seconds"
           size={29}
           disabled={!seekable}
-          onPress={() => void audio.controller.seek(audio.position + 15)}
+          onPress={() => seek(audio.position + 15)}
         />
       </View>
       <View style={styles.volume}>
@@ -191,14 +204,18 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
       <View style={styles.actions}>
         <TransportAction
           label="Speed"
-          accessibilityLabel={`Playback speed, ${audio.rate} times`}
+          accessibilityLabel={`Playback speed, ${speed} times`}
+          accessibilityHint={!speedReady ? "Available when the audio is ready." : undefined}
+          disabled={!speedReady}
           onPress={() => {
             const rates = [1, 1.25, 1.5, 2];
             playSelectionHaptic();
             audio.controller.setRate(rates[(rates.indexOf(audio.rate) + 1) % rates.length]);
           }}
         >
-          <Text style={styles.rate}>{audio.rate}×</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={styles.rate}>
+            {speed}×
+          </Text>
         </TransportAction>
         <TransportAction
           label="Transcript"
@@ -305,12 +322,16 @@ function GeneratedFill({ generated, start, end }: { generated: SharedValue<numbe
 function TransportAction({
   label,
   accessibilityLabel = label,
+  accessibilityHint,
+  disabled,
   selected,
   onPress,
   children,
 }: {
   label: string;
   accessibilityLabel?: string;
+  accessibilityHint?: string;
+  disabled?: boolean;
   selected?: boolean;
   onPress: () => void;
   children: ReactNode;
@@ -320,7 +341,9 @@ function TransportAction({
       <MotionPressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
-        accessibilityState={{ selected }}
+        accessibilityHint={accessibilityHint}
+        accessibilityState={{ selected, disabled }}
+        disabled={disabled}
         onPress={onPress}
         style={[styles.action, selected && styles.selected]}
       >

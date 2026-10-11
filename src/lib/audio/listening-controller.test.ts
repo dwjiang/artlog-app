@@ -55,7 +55,7 @@ class Player implements AudioHandle {
   setPlaybackRate = jest.fn();
   setActiveForLockScreen = jest.fn();
   seekTo = jest.fn<ReturnType<AudioHandle["seekTo"]>, Parameters<AudioHandle["seekTo"]>>(async (seconds) => {
-    this.currentStatus = { ...this.currentStatus, currentTime: seconds };
+    this.currentStatus = { ...this.currentStatus, currentTime: seconds, didJustFinish: false };
   });
   addListener(_event: "playbackStatusUpdate", callback: (value: Playback) => void) {
     this.callback = callback;
@@ -86,9 +86,11 @@ function setup() {
       }),
     ),
     cancel: jest.fn(),
+    invalidate: jest.fn(),
     configure: jest.fn(async () => {}),
     create: jest.fn(() => {
       const player = new Player();
+      player.currentStatus = { ...player.currentStatus, isLoaded: false, duration: 0 };
       players.push(player);
       return player;
     }),
@@ -395,7 +397,7 @@ it("ignores a stale toast Retry once another track has started", async () => {
   await controller.play(track("b"));
   retry();
   expect(deps.render).toHaveBeenCalledTimes(2);
-  expect(controller.snapshot().current).toEqual(track("b"));
+  expect(controller.snapshot().current).toMatchObject(track("b"));
   controller.dispose();
 });
 
@@ -444,11 +446,12 @@ it("shows the spoken transcript while retaining the original evidence for replay
   const original = track("a");
   await play(original);
   expect(controller.snapshot().sentences).toEqual([{ sentence: "A spoken guide.", factIds: ["f1"], section: "hook" }]);
-  expect(controller.snapshot().current).toEqual(original);
+  const replay = { work: { ...original.work, renderId: "stored-render" } };
+  expect(controller.snapshot().current).toEqual(replay);
   controller.restart();
   await Promise.resolve();
   await Promise.resolve();
-  expect(deps.render).toHaveBeenLastCalledWith(original, expect.any(Function));
+  expect(deps.render).toHaveBeenLastCalledWith(replay, expect.any(Function));
   controller.stop();
   expect(controller.snapshot().sentences).toBeUndefined();
 });
@@ -816,5 +819,219 @@ it("clears preparation on failure and reports the new attempt on retry", async (
   expect(controller.snapshot().preparationStage).toBe("preparing");
   await retry;
   expect(controller.snapshot().preparationStage).toBe("buffering");
+  controller.dispose();
+});
+
+it("keeps the learned render identity for cached replay and retries", async () => {
+  const { controller, deps, play } = setup();
+  await play(track("a"));
+  controller.restart();
+  await Promise.resolve();
+  expect(deps.render).toHaveBeenLastCalledWith(
+    { work: { ...track("a").work, renderId: "stored-render" } },
+    expect.any(Function),
+  );
+  controller.dispose();
+});
+
+it.each(["research", "script"])("discards saved position and duration when the returned %s changes", async (change) => {
+  const { controller, deps, play, players } = setup();
+  const original = { work: { ...track("a").work, renderId: "stored-render" } };
+  const first = await play(original);
+  first.emit({ currentTime: 70, duration: 100, playing: true });
+  controller.stop();
+  deps.render.mockResolvedValueOnce({
+    ...liveAudio,
+    renderId: change === "script" ? "replacement-render" : "stored-render",
+    sentences:
+      change === "script" ? [{ ...liveAudio.sentences[0], sentence: "A replacement guide." }] : liveAudio.sentences,
+    researchUpdatedAt: change === "research" ? 6 : 5,
+  });
+  await controller.play(original);
+  expect(controller.snapshot()).toMatchObject({ position: 0, duration: 0 });
+  const replacement = players.at(-1)!;
+  replacement.emit({ duration: 0 });
+  await Promise.resolve();
+  expect(replacement.seekTo).toHaveBeenCalledWith(0, 0, 0);
+  controller.dispose();
+});
+
+it("preserves progress in an unchanged script when speech retry creates a new recording", async () => {
+  const { controller, deps, play, players } = setup();
+  const original = { work: { ...track("a").work, renderId: "stored-render" } };
+  const first = await play(original);
+  first.emit({ currentTime: 30, duration: 100, playing: true });
+  controller.stop();
+  deps.render.mockResolvedValueOnce({ ...liveAudio, renderId: "replacement-render" });
+  await controller.play(original);
+  expect(controller.snapshot()).toMatchObject({ position: 30, duration: 0 });
+  const replacement = players.at(-1)!;
+  replacement.emit({ duration: 0 });
+  await Promise.resolve();
+  expect(replacement.seekTo).toHaveBeenCalledWith(30, 0, 0);
+  controller.dispose();
+});
+
+it("restarts a completed script when the next play already knows its replacement recording", async () => {
+  const { controller, deps, play, players } = setup();
+  const first = await play(track("a"));
+  first.emit({ currentTime: 100, duration: 100, didJustFinish: true });
+  controller.stop();
+  deps.render.mockResolvedValueOnce({ ...liveAudio, renderId: "replacement-render" });
+  await controller.play({ work: { ...track("a").work, renderId: "replacement-render" } });
+  const replacement = players.at(-1)!;
+  replacement.emit({ duration: 0 });
+  await Promise.resolve();
+  expect(replacement.seekTo).toHaveBeenCalledWith(0, 0, 0);
+  controller.dispose();
+});
+
+it("starts a player already loaded before its event subscription", async () => {
+  const { controller, deps } = setup();
+  const player = new Player();
+  deps.create.mockReturnValueOnce(player);
+  await controller.play(track("a"));
+  await Promise.resolve();
+  expect(player.seekTo).toHaveBeenCalledWith(0, 0, 0);
+  expect(player.play).toHaveBeenCalledTimes(1);
+  expect(controller.snapshot()).toMatchObject({ phase: "ready", playing: true });
+  controller.dispose();
+});
+
+it("applies rapid play and pause requests using native state before events arrive", async () => {
+  const { controller, players } = setup();
+  await controller.play(track("a"), false);
+  const player = players.at(-1)!;
+  player.emit();
+  await Promise.resolve();
+  controller.toggle();
+  expect(controller.snapshot().playing).toBe(true);
+  controller.toggle();
+  expect(player.pause).toHaveBeenCalledTimes(1);
+  expect(controller.snapshot().playing).toBe(false);
+  controller.toggle();
+  expect(player.play).toHaveBeenCalledTimes(2);
+  expect(controller.snapshot().playing).toBe(true);
+  controller.dispose();
+});
+
+it.each([true, false])("synchronizes native pause and progress when events are delayed (live=%s)", async (live) => {
+  jest.useFakeTimers();
+  const { controller, deps, play } = setup();
+  if (live) deps.render.mockResolvedValueOnce(liveAudio);
+  const player = await play(track("a"));
+  player.emit({ currentTime: 4, playing: true });
+  player.currentStatus = { ...player.currentStatus, currentTime: 12, playing: false, timeControlStatus: "paused" };
+  await jest.advanceTimersByTimeAsync(1000);
+  expect(controller.snapshot()).toMatchObject({ phase: "ready", position: 12, playing: false });
+  expect(controller.progressFor(controller.snapshot().current!)?.position).toBe(12);
+  controller.dispose();
+});
+
+it("advances the queue when a finished guide is replayed from a sentence", async () => {
+  const { controller, play, deps } = setup();
+  const player = await play(track("a"));
+  player.emit({ currentTime: 100, didJustFinish: true });
+  await controller.seek(20, { play: true, clamp: false });
+  controller.enqueue(track("b"));
+  player.emit({ currentTime: 100, didJustFinish: true });
+  player.emit({ currentTime: 100, didJustFinish: true });
+  await Promise.resolve();
+  expect(controller.snapshot().current?.work.artworkId).toBe("b");
+  expect(deps.render).toHaveBeenCalledTimes(2);
+  controller.dispose();
+});
+
+it.each([false, true])("invalidates only local audio on native playback failure (live=%s)", async (live) => {
+  const { controller, deps, play } = setup();
+  if (live) deps.render.mockResolvedValueOnce(liveAudio);
+  const player = await play(track("a"));
+  player.emit({ playbackState: "failed" });
+  player.emit({ playbackState: "failed" });
+  await Promise.resolve();
+  expect(deps.invalidate.mock.calls).toEqual(live ? [] : [["stored-render"]]);
+  expect(reportError).toHaveBeenCalledWith(expect.any(Error), "narration.playback");
+  expect(controller.snapshot().phase).toBe("error");
+  controller.dispose();
+});
+
+it("offers retry without reporting an expected offline stream failure", async () => {
+  const { controller, deps, play } = setup();
+  deps.render.mockResolvedValueOnce(liveAudio);
+  jest.mocked(getNetworkStateAsync).mockResolvedValue({ isConnected: false, isInternetReachable: false });
+  const player = await play(track("a"));
+  player.emit({ playbackState: "failed" });
+  await Promise.resolve();
+  expect(controller.snapshot().phase).toBe("error");
+  expect(showErrorToast).toHaveBeenCalledWith("Couldn’t play audio.", expect.any(Function), { quiet: true });
+  expect(deps.invalidate).not.toHaveBeenCalled();
+  expect(reportError).not.toHaveBeenCalled();
+  controller.dispose();
+});
+
+it("handles native item failure even when the player status has not failed", async () => {
+  const { controller, deps, players } = setup();
+  await controller.play(track("a"));
+  players[0].emit({ isLoaded: false, playbackState: "unknown", error: "Cannot decode file" });
+  expect(deps.invalidate).toHaveBeenCalledWith("stored-render");
+  expect(controller.snapshot().phase).toBe("error");
+  controller.dispose();
+});
+
+it("retains valid cached audio when seeking fails", async () => {
+  const { controller, deps, play } = setup();
+  const player = await play(track("a"));
+  player.seekTo.mockRejectedValueOnce(new Error("Seek failed"));
+  await controller.seek(20);
+  expect(deps.invalidate).not.toHaveBeenCalled();
+  expect(controller.snapshot().phase).toBe("error");
+  controller.dispose();
+});
+
+it("still offers playback recovery if invalidating a corrupt cache fails", async () => {
+  const { controller, deps, play } = setup();
+  const player = await play(track("a"));
+  const error = new Error("Cache could not be removed");
+  deps.invalidate.mockImplementationOnce(() => {
+    throw error;
+  });
+  player.emit({ playbackState: "failed" });
+  expect(reportError).toHaveBeenCalledWith(error, "narration.cache");
+  expect(controller.snapshot().phase).toBe("error");
+  controller.dispose();
+});
+
+it("restores the selected speed after a native interruption resumes at 1×", async () => {
+  const { controller, play } = setup();
+  controller.setRate(1.5);
+  const player = await play(track("a"));
+  player.setPlaybackRate.mockClear();
+  player.setPlaybackRate.mockImplementation((rate: number) => {
+    player.currentStatus = { ...player.currentStatus, playbackRate: rate };
+  });
+  player.emit({ playing: false, playbackRate: 0 });
+  expect(player.setPlaybackRate).not.toHaveBeenCalled();
+  player.emit({ playing: true, playbackRate: 1 });
+  expect(player.setPlaybackRate).toHaveBeenCalledWith(1.5);
+  player.callback?.(player.currentStatus);
+  expect(player.setPlaybackRate).toHaveBeenCalledTimes(1);
+  expect(controller.snapshot()).toMatchObject({ playing: true, rate: 1.5 });
+  controller.dispose();
+});
+
+it("keeps native speed at 1× while live speech is unfinished before restoring the selected speed", async () => {
+  const { controller, deps, players } = setup();
+  controller.setRate(1.5);
+  deps.render.mockResolvedValueOnce(liveAudio);
+  await controller.play(track("a"));
+  const player = players.at(-1)!;
+  player.emit({ duration: 0 });
+  await Promise.resolve();
+  player.setPlaybackRate.mockClear();
+  player.emit({ duration: 0, playing: true, playbackRate: 1 });
+  expect(player.setPlaybackRate).not.toHaveBeenCalled();
+  player.emit({ duration: 60, playing: true, playbackRate: 1 });
+  expect(player.setPlaybackRate).toHaveBeenCalledTimes(1);
+  expect(player.setPlaybackRate).toHaveBeenCalledWith(1.5);
   controller.dispose();
 });

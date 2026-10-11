@@ -465,7 +465,12 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
   const canCapture = active && cameraReady && !busy;
   return (
     <View style={styles.camera}>
-      <CameraPermission onImport={importPhoto} loading={active && !cameraReady && !cameraError && !busy}>
+      <CameraPermission
+        onImport={importPhoto}
+        importBusy={busy}
+        importBusyLabel="Reading the label"
+        loading={active && !cameraReady && !cameraError && !busy}
+      >
         <Sentry.Mask style={StyleSheet.absoluteFill}>
           <TapToFocusCamera
             device="back"

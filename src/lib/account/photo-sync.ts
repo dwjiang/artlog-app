@@ -1,5 +1,6 @@
 import type * as repository from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
+import { isTransientError } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import type { CollectionPhotoKind } from "@/shared/collection/photo-limits";
 
@@ -37,10 +38,17 @@ export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurren
       await deps.clearDeletedPhotoPaths(work.localId);
     }
   }
+  let failure: unknown;
+  let afterLocalId: string | undefined;
   while (isCurrent()) {
-    const pending = await deps.listPhotoTransfers();
-    if (pending.length === 0) return;
-    let failure: unknown;
+    const pending = await deps.listPhotoTransfers(undefined, afterLocalId);
+    if (pending.length === 0) {
+      if (failure) throw failure;
+      if (afterLocalId === undefined) return;
+      // A crop edited during upload stays pending; drain it after finishing this sweep.
+      afterLocalId = undefined;
+      continue;
+    }
     // Only the crop travels with the save; the full photo is an album row and transfers with the album.
     for (const work of pending) {
       if (!isCurrent()) return;
@@ -70,6 +78,7 @@ export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurren
           }
         }
       } catch (error) {
+        if (isTransientError(error)) throw error;
         reportError(error, "sync.photos", {
           data: {
             kind: "crop",
@@ -79,6 +88,6 @@ export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurren
         failure = error;
       }
     }
-    if (failure) throw failure;
+    afterLocalId = pending.at(-1)!.localId;
   }
 }

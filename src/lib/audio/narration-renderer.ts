@@ -29,6 +29,11 @@ export function createNarrationRenderer(generate: Generate) {
     cancel() {
       pending?.abort();
     },
+    invalidate(renderId: string) {
+      const directory = cacheDirectory();
+      removeFileIfExists(new File(directory, `${renderId}.mp3`));
+      removeFileIfExists(new File(directory, `${renderId}.json`));
+    },
     async render(
       track: ListeningTrack,
       onStage?: (stage: NarrationPreparationStage) => void,

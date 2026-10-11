@@ -15,11 +15,12 @@ export type LabelInput = { labelPhotoPath?: string; qrUrl?: string };
 export type FlushDependencies = {
   isCurrent?(): boolean;
   isLabelCapture?(row: PendingScan): boolean;
+  getPendingScan(localId: string): Promise<PendingScan | undefined>;
   listFlushable(modelVersion: string): Promise<PendingScan[]>;
   listPendingLabels(): Promise<PendingScan[]>;
   clearPendingLabel(localId: string, label: LabelInput): Promise<void>;
   recordLabelFailure: FlushDependencies["recordFailure"];
-  markIdentifying(localId: string): Promise<void>;
+  markIdentifying(localId: string): Promise<boolean>;
   recordResult(localId: string, response: IdentifyResponse): Promise<void>;
   recordFailure: (
     localId: string,
@@ -100,7 +101,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       visitId = await deps.resolveVisitId(row.visitLocalId);
     }
     if (!isCurrent()) return;
-    await deps.markIdentifying(row.localId);
+    if (!(await deps.markIdentifying(row.localId))) return;
     if (!isCurrent()) {
       await deps.recordFailure(row.localId, "Identification interrupted", {
         countAttempt: false,
@@ -132,8 +133,9 @@ export function createFlusher(deps: FlushDependencies): Flusher {
     }
   }
 
-  async function processLabel(row: PendingScan, isCurrent: () => boolean): Promise<void> {
-    if (!row.scanId) return;
+  async function processLabel(queued: PendingScan, isCurrent: () => boolean): Promise<void> {
+    const row = await deps.getPendingScan(queued.localId);
+    if (!isCurrent() || row?.status !== "identified" || !row.scanId || (!row.labelPhotoPath && !row.qrUrl)) return;
     const label = {
       labelPhotoPath: row.labelPhotoPath ?? undefined,
       qrUrl: row.qrUrl ?? undefined,

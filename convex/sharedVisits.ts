@@ -179,9 +179,10 @@ export const get = query({
     const profile = await optionalProfile(ctx);
     if (!isUuid(input.postId)) throw new ConvexError({ code: "not_found" });
     const { publication, profile: author, visit } = await requireSharedVisit(ctx, input.postId, profile?._id);
+    const items = await publicationItems(ctx, publication._id);
     return {
-      ...(await header(ctx, publication, author, visit, profile?._id)),
-      artworks: await projectArtworkPage(ctx, publication, visit, input),
+      ...(await header(ctx, publication, author, visit, profile?._id, items.length)),
+      artworks: await projectArtworkPage(ctx, publication, visit, input, items),
     };
   },
 });
@@ -240,12 +241,16 @@ async function historyPage(
       || (await isSelectedCompanion(ctx, candidate, input.profileId));
     const access = listed && (await readablePublication(ctx, candidate, viewerId));
     if (access) {
-      const artworks = await projectArtworkPage(ctx, candidate, access.visit, {
-        limit: 3,
-        highlightsOnly: true,
-      });
+      const items = await publicationItems(ctx, candidate._id);
+      const artworks = await projectArtworkPage(
+        ctx,
+        candidate,
+        access.visit,
+        { limit: 3, highlightsOnly: true },
+        items,
+      );
       const result = {
-        ...(await header(ctx, candidate, access.profile, access.visit, viewerId)),
+        ...(await header(ctx, candidate, access.profile, access.visit, viewerId, items.length)),
         artworks,
       };
       const size = utf8Bytes(result);

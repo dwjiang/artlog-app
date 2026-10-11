@@ -133,11 +133,12 @@ export async function header(
   profile: Doc<"profiles">,
   visit: Doc<"visits">,
   viewerId: Id<"profiles"> | undefined,
+  artworkCount: number,
 ): Promise<Infer<typeof publicationHeader>> {
   const venue = await ctx.db.get("museums", visit.venueId);
   return {
     audience: publication.audience,
-    artworkCount: (await publicationItems(ctx, publication._id)).length,
+    artworkCount,
     postId: publication.postId,
     author: await projectProfile(ctx, profile),
     venue: {
@@ -226,13 +227,16 @@ export async function projectArtworkPage(
   publication: Doc<"sharedVisits">,
   visit: Doc<"visits">,
   input: { cursor?: string | null; limit?: number; highlightsOnly?: boolean },
+  publicationSelection?: Doc<"sharedVisitItems">[],
 ): Promise<Infer<typeof artworkPage>> {
   const { numItems } = pagination(input);
   const start = artworkPosition(publication, input.cursor);
-  const items = await ctx.db
-    .query("sharedVisitItems")
-    .withIndex("by_publication_position", (q) => q.eq("publicationId", publication._id).gt("position", start))
-    .take(LIMITS.selectedSaves + 1);
+  const items = publicationSelection
+    ? publicationSelection.filter((item) => item.position > start)
+    : await ctx.db
+        .query("sharedVisitItems")
+        .withIndex("by_publication_position", (q) => q.eq("publicationId", publication._id).gt("position", start))
+        .take(LIMITS.selectedSaves + 1);
   const page: Infer<typeof sharedVisitCard>[] = [];
   let position = start;
   let consumed = 0;

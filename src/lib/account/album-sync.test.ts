@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/react-native";
 
 import { db } from "@/db/client";
-import { selectArtworkPhotos } from "@/db/repos/artwork-album";
+import { editArtworkPhoto, findArtworkPhoto, selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { insertSavedWork } from "@/db/repos/saved-works";
 import { artworkPhotos, artworkEncounters, savedWorks, settings } from "@/db/schema";
 
@@ -52,6 +52,8 @@ beforeEach(async () => {
     db.delete(table).run();
   }
   jest.clearAllMocks();
+  mockUpload.mockReset().mockResolvedValue({ storageId: "uploaded", photoUpdatedAt: 0 });
+  mockDownload.mockReset();
   mockMutation.mockResolvedValue({
     photos: [],
     encounters: [],
@@ -93,6 +95,43 @@ it("finishes the batch when one photo transfer fails, then rethrows so the queue
   expect(rows.broken).toMatchObject({ storageId: null });
 });
 
+it("reaches healthy album photos beyond a full batch of failures on every retry", async () => {
+  db.insert(artworkPhotos)
+    .values(Array.from({ length: 21 }, (_, index) => photo(String(index).padStart(2, "0"), { path: `${index}.jpg` })))
+    .run();
+  mockUpload.mockImplementation(async (_token, _scope, _saveId, _kind, path) => {
+    if (path !== "20.jpg") throw new Error("missing image");
+    return { storageId: "uploaded", photoUpdatedAt: 0 };
+  });
+
+  await expect(syncArtworkAlbums(context, "token", () => true)).rejects.toThrow("missing image");
+  await expect(syncArtworkAlbums(context, "token", () => true)).rejects.toThrow("missing image");
+
+  expect(
+    selectArtworkPhotos("work")
+      .all()
+      .find((row) => row.localId === "20"),
+  ).toMatchObject({
+    storageId: "uploaded",
+  });
+  expect(mockUpload.mock.calls.filter(([, , , , path]) => path === "20.jpg")).toHaveLength(1);
+});
+
+it.each(["Network request failed", "Photo upload failed with HTTP 429"])(
+  "stops the album sweep after %s before attempting the remaining backlog",
+  async (message) => {
+    db.insert(artworkPhotos)
+      .values(Array.from({ length: 21 }, (_, index) => photo(String(index).padStart(2, "0"), { path: `${index}.jpg` })))
+      .run();
+    mockUpload.mockRejectedValue(new Error(message));
+
+    await expect(syncArtworkAlbums(context, "token", () => true)).rejects.toThrow(message);
+
+    expect(mockUpload).toHaveBeenCalledTimes(1);
+    expect(findArtworkPhoto("20")).toMatchObject({ storageId: null });
+  },
+);
+
 it("removes the files of deleted album photos unless a live row still uses them", async () => {
   await insertSavedWork({
     localId: "kept",
@@ -122,6 +161,52 @@ it("removes the files of deleted album photos unless a live row still uses them"
       { localId: "live", path: "artwork-photos/live.jpg" },
     ]),
   );
+});
+
+it("discards a download completed after the account changes", async () => {
+  let active = true;
+  db.insert(artworkPhotos)
+    .values(photo("remote", { storageId: "cloud" }))
+    .run();
+  mockDownload.mockImplementationOnce(async () => {
+    active = false;
+    return "collection-photos/old-account.jpg";
+  });
+
+  await syncArtworkAlbums(context, "token", () => active);
+
+  expect(findArtworkPhoto("remote")).toMatchObject({ path: null, storageId: "cloud" });
+  expect(mockRemove).toHaveBeenCalledWith("collection-photos/old-account.jpg");
+});
+
+it("does not acknowledge an upload completed after the account changes", async () => {
+  let active = true;
+  db.insert(artworkPhotos)
+    .values(photo("local", { path: "original.jpg" }))
+    .run();
+  mockUpload.mockImplementationOnce(async () => {
+    active = false;
+    return { storageId: "cloud", photoUpdatedAt: 0 };
+  });
+
+  await syncArtworkAlbums(context, "token", () => active);
+
+  expect(findArtworkPhoto("local")).toMatchObject({ path: "original.jpg", storageId: null });
+});
+
+it("discards a download when its album photo is deleted during transfer", async () => {
+  db.insert(artworkPhotos)
+    .values(photo("remote", { storageId: "cloud" }))
+    .run();
+  mockDownload.mockImplementationOnce(async () => {
+    editArtworkPhoto("remote", { deletedAt: 2 });
+    return "collection-photos/deleted.jpg";
+  });
+
+  await syncArtworkAlbums(context, "token", () => true);
+
+  expect(findArtworkPhoto("remote")).toMatchObject({ path: null, deletedAt: 2, syncedAt: null });
+  expect(mockRemove).toHaveBeenCalledWith("collection-photos/deleted.jpg");
 });
 
 it("reports an album transfer failure before a later offline error while preserving the batch retry", async () => {

@@ -12,7 +12,7 @@ import { getSetting, setSetting } from "@/db/repos/settings";
 import { listUnsyncedVisits } from "@/db/repos/visits";
 import { convex } from "@/lib/convex-client";
 import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
-import { SyncUnavailableError } from "@/lib/network-error";
+import { isTransientError, SyncUnavailableError } from "@/lib/network-error";
 import { hasInternetSignal } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
 import { useDeviceReady } from "@/lib/use-device-ready";
@@ -73,11 +73,13 @@ async function flush(queue: Queue): Promise<unknown> {
   queue.running = queue
     .run(session.context, session.token, isCurrent)
     .then(() => {
+      if (!isCurrent()) return;
       queue.failures = 0;
       queue.retryAt = 0;
     })
     .catch((error: unknown) => {
       failure = error;
+      if (!isCurrent()) return;
       console.warn(`${queue.label} will retry`, error);
       reportError(error, queue.operation);
       queue.failures++;
@@ -103,13 +105,15 @@ const transfers: Queue = {
   run: async (context, token, isCurrent) => {
     let failure: unknown;
     await syncArtworkAlbums(context, token, isCurrent).catch((error: unknown) => {
+      if (!isCurrent()) return;
+      if (isTransientError(error)) throw error;
       failure = error;
     });
     if (!isCurrent()) return;
     await syncCollectionPhotos(
       {
         ...savedWorks,
-        listPhotoTransfers: () => savedWorks.listPhotoTransfers(context.owner),
+        listPhotoTransfers: (_owner, afterLocalId) => savedWorks.listPhotoTransfers(context.owner, afterLocalId),
         getSavedWork: (id) => savedWorks.getSavedWork(id, context.owner),
         updatePhotoTransfer: (id, fields, _owner, expected) =>
           savedWorks.updatePhotoTransfer(id, fields, context.owner, expected),
@@ -226,9 +230,11 @@ export function pauseCollectionSync(): void {
 
 /** Runs one journal sync now and rejects the way the sync did, so callers keep the server's error classification. */
 export async function flushJournal(): Promise<void> {
+  const current = generation;
   while (sync.running) await sync.running;
-  if (!ready()) throw new SyncUnavailableError();
+  if (current !== generation || !ready()) throw new SyncUnavailableError();
   const failure = await flush(sync);
+  if (current !== generation || !ready()) throw new SyncUnavailableError();
   if (failure !== undefined) throw failure;
 }
 
@@ -242,16 +248,20 @@ async function journalPending(owner: string): Promise<boolean> {
  * Each sync round trip spends a shared rate-limit token, so a caller with nothing pending makes no request at all.
  */
 export async function flushCollectionMedia(dependsOn: Parameters<typeof albumMediaPending>[1] = {}): Promise<void> {
+  const current = generation;
   const session = ready();
   if (!session) throw new SyncUnavailableError();
   const { owner } = session.context;
-  if (!albumMediaPending(owner, dependsOn) && !(await journalPending(owner))) {
+  const pending = albumMediaPending(owner, dependsOn) || (await journalPending(owner));
+  if (current !== generation || !ready()) throw new SyncUnavailableError();
+  if (!pending) {
     return;
   }
   await flushJournal();
   while (transfers.running) await transfers.running;
-  if (!ready()) throw new SyncUnavailableError();
+  if (current !== generation || !ready()) throw new SyncUnavailableError();
   const failure = await flush(transfers);
+  if (current !== generation || !ready()) throw new SyncUnavailableError();
   if (albumMediaPending(owner, dependsOn)) {
     throw failure ?? new SyncUnavailableError();
   }

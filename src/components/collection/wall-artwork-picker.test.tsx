@@ -113,3 +113,26 @@ it("clears selection from review without changing the library filters", async ()
   await fireEvent.press(screen.getByRole("button", { name: "Library" }));
   expect(screen.getByLabelText("Search artworks")).toHaveProp("value", "sunflowers");
 });
+
+it("offers recovery when the artwork library could not load", async () => {
+  const retry = jest.fn();
+  await render(
+    <WallArtworkPicker
+      works={[]}
+      pieces={[]}
+      selectedIds={[]}
+      count={0}
+      signedIn={false}
+      disabled={false}
+      error="Your collection could not load. Try again."
+      onRetry={retry}
+      onChange={jest.fn()}
+      onDismiss={jest.fn()}
+      onAdd={jest.fn()}
+    />,
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent(/Your collection could not load/);
+  expect(screen.queryByText("No saved artworks yet")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(retry).toHaveBeenCalledTimes(1);
+});

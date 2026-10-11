@@ -104,7 +104,7 @@ export const get = query({
     }
     const chunks = [];
     for (const part of pack.chunks) {
-      const url = await fileStorage.getUrl(ctx, part.storageId);
+      const url = await fileStorage.getUrl(ctx, part.storageId, { venueId, version: pack.version });
       if (!url) return null;
       chunks.push({ url, size: part.size, sha256: part.sha256 });
     }

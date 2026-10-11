@@ -74,7 +74,9 @@ export async function eligibleContribution(ctx: QueryCtx, row: Doc<"contribution
     return false;
   }
   const device = await ctx.db.get("devices", row.deviceId);
-  return !!device && !device.banned && (await contributionRightsIssue(ctx, row)) === null;
+  return (
+    !!device && !device.banned && device.retiredAt === undefined && (await contributionRightsIssue(ctx, row)) === null
+  );
 }
 
 // The object row on its own: reverts, merges, takedowns, and reviewed proposal provenance.

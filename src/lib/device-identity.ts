@@ -6,6 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { APP_ATTEST_KEY_ID, getAppAttest } from "@/lib/app-attest";
 import { forgetDeviceAuthSecret, getDeviceAuthSecret } from "@/lib/device-credentials";
 import { installationStorage } from "@/lib/installation-storage";
+import { rateLimitRetryAfterMs } from "@/lib/network-error";
 import { addBreadcrumb, reportError } from "@/lib/observability";
 
 import { api } from "../../convex/_generated/api";
@@ -186,7 +187,8 @@ export function useDeviceIdentity(): void {
         data: { attempt: attempt + 1, retrying },
       });
       if (!retrying) return;
-      retry = setTimeout(() => setAttempt((value) => value + 1), Math.min(1000 * 2 ** attempt, 30_000));
+      const delay = Math.max(Math.min(1000 * 2 ** attempt, 30_000), rateLimitRetryAfterMs(error) ?? 0);
+      retry = setTimeout(() => setAttempt((value) => value + 1), delay);
     });
     return () => {
       active = false;

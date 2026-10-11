@@ -48,7 +48,10 @@ def write_report(result: "TrainingResult", *, out: Path, provenance: dict | None
         "",
         (
             "Only the highest-probability candidate is decided; ties use clamped similarity. "
-            "A blocked winner is never replaced with an eligible runner-up. Recall uses every "
+            "A blocked winner is never replaced with an eligible runner-up. A distinct artwork "
+            "that also meets confident eligibility and probability softens the winner. Legacy "
+            "rows without candidateArtworkId use candidateObjectId, so views of one artwork "
+            "may conservatively count as distinct. Recall uses every "
             "held-out query whose artwork is in the index, including queries where retrieval "
             "lost it; precision counts every query, so a confident answer to a withheld "
             "artwork counts as wrong."
@@ -85,8 +88,10 @@ def write_report(result: "TrainingResult", *, out: Path, provenance: dict | None
             "## Threshold rationale",
             "",
             (
-                "Confident: the lowest observed eligible top-1 probability with precision ≥ 0.99, "
-                "counting ties together and requiring nonzero predictions. Soft: the highest observed "
+                "Confident: the lowest observed eligible winner or competitor probability with "
+                "precision ≥ 0.99, "
+                "counting ties together, excluding ambiguous winners at each cutoff, and requiring "
+                "nonzero predictions. Soft: the highest observed "
                 "top-1 probability retaining ≥ 0.90 correct-object recall, capped at confident. "
                 "These thresholds are selected on this holdout; this is a tuning estimate, not an "
                 "independent museum-photo evaluation. All rule constants remain at v1."

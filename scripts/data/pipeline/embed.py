@@ -208,6 +208,25 @@ def benchmark(embedder: Embedder, images: int, batch_size: int) -> dict:
     }
 
 
+def require_matching_build(features_dir: Path, run: dict) -> None:
+    path = features_dir / "manifest.json"
+    manifest = json.loads(path.read_text()) if path.exists() else {}
+    has_features = bool(manifest.get("shards")) or any(
+        next(features_dir.glob(pattern), None) is not None
+        for pattern in ("vectors-*", "keys-*", "descriptors-*")
+    )
+    drift = manifest.get("driftCheck") or {}
+    if not has_features and not drift:
+        return
+    previous = {"dtype": drift.get("dtype"), **manifest}
+    mismatched = [name for name, value in run.items() if previous.get(name) != value]
+    if mismatched:
+        raise ValueError(
+            f"feature build differs in {', '.join(mismatched)}; "
+            "use the original model settings or an empty output directory"
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Embed one downloaded image shard")
     parser.add_argument("--images", type=Path, help="shard directory, e.g. images/shard-0")
@@ -223,18 +242,28 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     settings = get_settings()
     setup_logging(settings)
-    embedder = load_embedder(args.fakequant, device=settings.device, dtype=args.dtype)
     if args.benchmark:
+        embedder = load_embedder(args.fakequant, device=settings.device, dtype=args.dtype)
         print(json.dumps(benchmark(embedder, args.benchmark, args.batch_size)))
         return 0
     if args.images is None:
         parser.error("--images is required unless --benchmark is given")
     shard = args.shard if args.shard is not None else int(args.images.name.rsplit("-", 1)[1])
     out = args.out or settings.scratch_dir / "features"
+    run = {
+        "modelVersion": MODEL_VERSION,
+        "inputSize": INPUT_SIZE,
+        "embeddingDim": EMBEDDING_DIM,
+        "orbMaxKeypoints": ORB_MAX_KEYPOINTS,
+        "fakequantSha256": sha256_of(args.fakequant),
+        "dtype": args.dtype,
+    }
+    require_matching_build(out, run)
+    embedder = load_embedder(args.fakequant, device=settings.device, dtype=args.dtype)
     report = embed_shard(
         args.images, out, shard, embedder, batch_size=args.batch_size, workers=args.workers
     )
-    update_manifest(out, run={"fakequantSha256": sha256_of(args.fakequant)}, shard_report=report)
+    update_manifest(out, run=run, shard_report=report)
     print(json.dumps(report))
     return 0
 

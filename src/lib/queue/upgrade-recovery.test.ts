@@ -94,6 +94,7 @@ function legacyScan(
 function dependencies() {
   return {
     modelVersion: "v2",
+    getPendingScan: pending.getPendingScan,
     listFlushable: pending.listFlushable,
     listPendingLabels: pending.listPendingLabels,
     clearPendingLabel: pending.clearPendingLabel,

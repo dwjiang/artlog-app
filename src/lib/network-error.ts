@@ -3,13 +3,12 @@ import { ConvexError } from "convex/values";
 /** Transport failures: the request never reached the server or its reply never arrived. */
 export function isNetworkError(error: unknown): boolean {
   if (error instanceof ConvexError || !(error instanceof Error)) return false;
+  const message = error.message.replace(/^Unable to (?:download|upload) a file:\s*/, "");
   return (
     /^(Network request failed|Network request timed out|Failed to fetch|Load failed|The Internet connection appears to be offline\.?)$/i.test(
-      error.message,
+      message,
     )
-    || /^(?:\[CONVEX A\([^\n]+\)\] )?Connection lost while action was in flight(?:\n  Called by client)?$/.test(
-      error.message,
-    )
+    || /^(?:\[CONVEX A\([^\n]+\)\] )?Connection lost while action was in flight(?:\n  Called by client)?$/.test(message)
   );
 }
 
@@ -32,9 +31,14 @@ export class SyncUnavailableError extends Error {
 /** Failures a later retry can fix with no change on the phone. */
 export function isTransientError(error: unknown): boolean {
   const code = convexErrorCode(error);
+  const rateLimitedTransfer =
+    error instanceof Error
+    && !(error instanceof ConvexError)
+    && /^(?:Photo upload failed with HTTP |Unable to download a file: response has status )429$/.test(error.message);
   return (
     error instanceof SyncUnavailableError
     || isNetworkError(error)
+    || rateLimitedTransfer
     || code === "unauthenticated"
     || code === "device_not_registered"
     || code === "rate_limited"
