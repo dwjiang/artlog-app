@@ -21,7 +21,22 @@ import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 import { wallAspect, type WallArrangement, type WallPiece } from "@/lib/wall/wall-layout";
 import type { OwnerWall, WallTransport } from "@/lib/wall/wall-transport";
 
+import { CollectionScreen } from "./collection-screen";
 import { CollectionWall } from "./collection-wall";
+
+let mockCollectionError: Error | undefined;
+jest.mock("@/lib/collection/use-collection-data", () => ({
+  useCollectionData: () => ({
+    owner: "account:a",
+    works: [],
+    visits: [],
+    hiddenIds: [],
+    loading: false,
+    error: mockCollectionError,
+  }),
+}));
+jest.mock("./collection-header", () => ({ CollectionHeader: () => null }));
+jest.mock("@/components/visits/collection-visits", () => ({ CollectionVisits: () => null }));
 
 jest.mock("expo-crypto", () => ({
   randomUUID: () => jest.requireActual("node:crypto").randomUUID(),
@@ -40,9 +55,11 @@ const mockTransport = {
 } satisfies WallTransport;
 jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => mockToken }));
 jest.mock("react-native-safe-area-context", () => ({
+  SafeAreaView: jest.requireActual("react-native").View,
   useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
 }));
 jest.mock("expo-network", () => ({
+  useNetworkState: () => ({ isInternetReachable: true }),
   getNetworkStateAsync: async () => ({
     isConnected: true,
     isInternetReachable: true,
@@ -127,6 +144,8 @@ jest.mock("expo-router", () => {
     }, [effect]);
   };
   return {
+    router: { setParams: jest.fn() },
+    useLocalSearchParams: () => ({}),
     useFocusEffect,
     useRouter: () => ({ push: mockPush, navigate: mockPush }),
     Stack: {
@@ -172,8 +191,23 @@ const published: OwnerWall = {
   ],
 };
 
+it("surfaces a local collection load failure on the wall instead of hiding it in the artwork picker", async () => {
+  const retry = jest.fn();
+  await render(
+    <CollectionWall
+      works={[]}
+      collectionError="Your collection could not load. Try again."
+      onCollectionRetry={retry}
+    />,
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent("Your collection could not load. Try again.");
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(retry).toHaveBeenCalledTimes(1);
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
+  mockCollectionError = undefined;
   mockToken = "token";
   switchOwner("account:a", "scope-a");
   mockTransport.getMine.mockResolvedValue(published);
@@ -438,6 +472,54 @@ it("retains a failed edit until an explicit retry saves it", async () => {
   expect(screen.queryByRole("alert")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Done" }));
   expect(await screen.findByRole("button", { name: "Edit wall" })).toBeOnTheScreen();
+});
+
+it("holds collection recovery until an unsaved wall change is saved or discarded", async () => {
+  const retry = jest.fn();
+  const view = await openWall();
+  await view.rerender(
+    <CollectionWall
+      works={libraryWorks}
+      collectionError="Your collection could not load. Try again."
+      onCollectionRetry={retry}
+    />,
+  );
+  let rejectSave!: (cause: Error) => void;
+  mockTransport.setLayout.mockImplementationOnce(
+    () => new Promise<OwnerWall>((_resolve, reject) => (rejectSave = reject)),
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
+  await chooseWallColor("Burgundy");
+  expect(screen.getByRole("button", { name: "Try again" })).toBeDisabled();
+  await act(() => rejectSave(new Error("Network request failed")));
+  expect(await screen.findByRole("button", { name: "Retry saving" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Try again" })).toBeDisabled();
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(retry).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Discard unsaved change" }));
+  expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(retry).toHaveBeenCalledTimes(1);
+});
+
+it("preserves an uncommitted wallpaper choice when the collection read is retried", async () => {
+  mockCollectionError = new Error("Local read failed");
+  await render(<CollectionScreen />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Edit wall" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Wallpaper" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Burgundy" }));
+  expect(screen.getByRole("button", { name: "Burgundy" })).toBeSelected();
+  mockCollectionError = undefined;
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(screen.getByRole("button", { name: "Burgundy" })).toBeSelected();
+  expect(screen.queryByText(/Your collection could not load/)).toBeNull();
+  expect(mockTransport.setLayout).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
+  await waitFor(() => expect(mockTransport.setLayout).toHaveBeenCalledTimes(1));
+  expect(mockTransport.setLayout).toHaveBeenCalledWith(
+    expect.objectContaining({ color: "#6C2F2B" }),
+    expect.anything(),
+  );
 });
 
 it("discards a failed change without publishing and restores the saved wall", async () => {

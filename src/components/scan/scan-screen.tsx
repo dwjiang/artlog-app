@@ -1,14 +1,14 @@
-import { Button, Host, Row } from "@expo/ui";
 import * as Sentry from "@sentry/react-native";
 import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } from "expo-router";
 import { useIsFocused, type ParamListBase } from "expo-router/react-navigation";
 import { useEffect, useMemo, useState } from "react";
-import { AppState, StyleSheet, View } from "react-native";
+import { AppState, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePhotoOutput } from "react-native-vision-camera";
 
 import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { useCapture } from "@/lib/capture/use-capture";
@@ -43,6 +43,8 @@ const FAILURE_SHAKE = new Keyframe({
 
 export function ScanScreen() {
   const listening = useHasListeningTrack();
+  const { fontScale } = useWindowDimensions();
+  const stackRetryActions = fontScale > 1.4;
   // Scans resolve quietly, so an undecided spot asks here, once, when the camera comes up.
   const { status: venueStatus, options: venueOptions, promptChooser } = useVenue();
   const audioInset = listening ? MINI_PLAYER_HEIGHT + 16 : 0;
@@ -134,6 +136,72 @@ export function ScanScreen() {
     if (active && searching && !visitId) promptChooser();
   }, [active, searching, visitId, venueStatus, venueOptions, promptChooser]);
 
+  const renderOverlay = (cameraAvailable: boolean) => (
+    <View
+      pointerEvents="box-none"
+      style={[
+        styles.overlay,
+        { paddingTop: top + Spacing.three + controls.top + Spacing.four, paddingBottom: controlsBottom },
+      ]}
+    >
+      <View
+        pointerEvents="box-none"
+        style={styles.bottom}
+        onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}
+      >
+        <DevTimings timings={busy ? undefined : capture.timings} detection={detecting ? detectionLog : undefined} />
+        {message ? (
+          <Animated.View entering={FAILURE_SHAKE} accessible accessibilityRole="alert">
+            <OverlayCaption hint={retryHint}>{message}</OverlayCaption>
+          </Animated.View>
+        ) : (
+          <CaptureFeedback controller={capture.controller} detecting={detecting} busy={busy} />
+        )}
+        {failedImport ? (
+          <View style={[styles.retryActions, stackRetryActions && styles.stackedRetryActions]}>
+            <GalleryButton
+              label="Choose another photo"
+              variant="filled"
+              fullWidth={stackRetryActions}
+              onPress={() => {
+                void capture.importPhoto();
+              }}
+            />
+            {cameraAvailable && (
+              <GalleryButton
+                label="Use camera"
+                variant="filled"
+                fullWidth={stackRetryActions}
+                onPress={capture.useCamera}
+              />
+            )}
+          </View>
+        ) : (
+          <CaptureControls
+            importLabel={cameraAvailable ? "Import" : "Import a photo"}
+            importDisabled={busy || !active}
+            onImport={() => {
+              void capture.importPhoto();
+            }}
+          >
+            {cameraAvailable && (
+              <CaptureShutter
+                controller={capture.controller}
+                disabled={shutterDisabled}
+                busy={busy}
+                captured={busy && source === "camera"}
+                detecting={detecting}
+                onPress={() => {
+                  void capture.captureManually(takePhoto);
+                }}
+              />
+            )}
+          </CaptureControls>
+        )}
+      </View>
+    </View>
+  );
+
   return (
     <View
       style={styles.container}
@@ -144,7 +212,7 @@ export function ScanScreen() {
         onImport={() => {
           void capture.importPhoto();
         }}
-        notice={message}
+        fallback={source === "library" ? renderOverlay(false) : undefined}
         loading={cameraActive && !cameraReady && !cameraError}
       >
         <Sentry.Mask style={StyleSheet.absoluteFill}>
@@ -168,59 +236,7 @@ export function ScanScreen() {
           />
         </Sentry.Mask>
         {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
-        <View
-          pointerEvents="box-none"
-          style={[
-            styles.overlay,
-            { paddingTop: top + Spacing.three + controls.top + Spacing.four, paddingBottom: controlsBottom },
-          ]}
-        >
-          <View
-            pointerEvents="box-none"
-            style={styles.bottom}
-            onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}
-          >
-            <DevTimings timings={busy ? undefined : capture.timings} detection={detecting ? detectionLog : undefined} />
-            {message ? (
-              <Animated.View entering={FAILURE_SHAKE} accessible accessibilityRole="alert">
-                <OverlayCaption hint={retryHint}>{message}</OverlayCaption>
-              </Animated.View>
-            ) : (
-              <CaptureFeedback controller={capture.controller} detecting={detecting} busy={busy} />
-            )}
-            {failedImport ? (
-              <Host matchContents colorScheme="light">
-                <Row spacing={Spacing.three}>
-                  <Button
-                    label="Choose another photo"
-                    onPress={() => {
-                      void capture.importPhoto();
-                    }}
-                  />
-                  <Button label="Use camera" onPress={capture.useCamera} />
-                </Row>
-              </Host>
-            ) : (
-              <CaptureControls
-                importDisabled={busy || !active}
-                onImport={() => {
-                  void capture.importPhoto();
-                }}
-              >
-                <CaptureShutter
-                  controller={capture.controller}
-                  disabled={shutterDisabled}
-                  busy={busy}
-                  captured={busy && source === "camera"}
-                  detecting={detecting}
-                  onPress={() => {
-                    void capture.captureManually(takePhoto);
-                  }}
-                />
-              </CaptureControls>
-            )}
-          </View>
-        </View>
+        {renderOverlay(true)}
       </CameraPermission>
       {/* The venue and queue entry points have no other home, so they stay above the permission invitation as well. */}
       <View pointerEvents="box-none" style={[styles.topLayer, { paddingTop: top + Spacing.three }]}>
@@ -276,4 +292,6 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   bottom: { gap: Spacing.three },
+  retryActions: { flexDirection: "row", gap: Spacing.three },
+  stackedRetryActions: { flexDirection: "column" },
 });

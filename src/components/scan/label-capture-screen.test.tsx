@@ -292,6 +292,18 @@ it("offers one photo import when camera permission is denied", async () => {
   expect(await screen.findByText("Confirm artwork details")).toBeOnTheScreen();
 });
 
+it("disables denied-camera imports while keeping an offline label on this phone", async () => {
+  mockCameraPermission = false;
+  mockReachable = false;
+  let finish!: (path: string) => void;
+  mockPersistLabel.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+  await render(<LabelCaptureScreen scanId={scanId} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Import a photo" }));
+  expect(screen.getByRole("button", { name: "Import a photo" })).toBeDisabled();
+  await act(async () => finish("labels/cap-1.jpg"));
+  expect(screen.getByText(QUEUED_MESSAGE)).toBeOnTheScreen();
+});
+
 it("shows a recoverable camera error over the preview and keeps Photos available", async () => {
   await start();
   await act(async () => mockCameraProps.onError(new Error("Camera session failed")));

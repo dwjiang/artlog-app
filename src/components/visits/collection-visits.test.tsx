@@ -45,6 +45,7 @@ const props = {
   loading: false,
   clearSearch: jest.fn(),
   onSearchChange: jest.fn(),
+  onRetry: jest.fn(),
 };
 beforeEach(() => {
   mockMode = "list";
@@ -125,10 +126,46 @@ it("holds visits behind the loading state until their places are read", async ()
   expect(screen.getByText("Globe canvas")).toBeOnTheScreen();
 });
 
-it("opens the Scan tab from the visits failure recovery action", async () => {
+it("retries the local collection read from the visits failure recovery action", async () => {
   await render(<CollectionVisits {...props} search="" error={new Error("Read failed")} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Go to Scan" }));
-  expect(router.push).toHaveBeenCalledWith("/scan");
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(props.onRetry).toHaveBeenCalledTimes(1);
+});
+
+it.each(["list", "globe"] as const)("keeps available visits visible after a %s refresh fails", async (mode) => {
+  mockMode = mode;
+  const view = await render(<CollectionVisits {...props} search="" />);
+  const content = mode === "list" ? "Museum" : "Globe canvas";
+  expect(screen.getByText(content)).toBeOnTheScreen();
+  await view.rerender(<CollectionVisits {...props} search="" error={new Error("Read failed")} />);
+  expect(screen.getByText(content)).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Try again" })).toBeOnTheScreen();
+});
+
+it.each(["list", "globe"] as const)("keeps available visits visible while retrying the %s read", async (mode) => {
+  mockMode = mode;
+  const view = await render(<CollectionVisits {...props} search="" />);
+  const content = mode === "list" ? "Museum" : "Globe canvas";
+  expect(screen.getByText(content)).toBeOnTheScreen();
+  await view.rerender(<CollectionVisits {...props} search="" visits={[]} loading />);
+  expect(screen.getByText(content)).toBeOnTheScreen();
+  expect(screen.getByRole("progressbar", { name: "Loading your visits…" })).toBeOnTheScreen();
+});
+
+it.each(["list", "globe"] as const)("keeps an incomplete first read out of the %s failure state", async (mode) => {
+  mockMode = mode;
+  const view = await render(<CollectionVisits {...props} loading search="" />);
+  await view.rerender(<CollectionVisits {...props} search="" error={new Error("Read failed")} />);
+  expect(screen.queryByText("Museum")).toBeNull();
+  expect(screen.queryByText("Globe canvas")).toBeNull();
+  expect(screen.getByRole("button", { name: "Try again" })).toBeOnTheScreen();
+});
+
+it("does not retain another owner's visits when the new account fails to load", async () => {
+  const view = await render(<CollectionVisits {...props} search="" />);
+  expect(screen.getByText("Museum")).toBeOnTheScreen();
+  await view.rerender(<CollectionVisits {...props} owner="b" visits={[]} search="" error={new Error("Read failed")} />);
+  expect(screen.queryByText("Museum")).toBeNull();
 });
 
 it("shows the visit privacy note under List but not under the globe", async () => {

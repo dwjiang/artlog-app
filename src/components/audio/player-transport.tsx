@@ -198,7 +198,9 @@ export function PlayerTransport({ view, onView }: { view: PlayerView; onView: (v
             audio.controller.setRate(rates[(rates.indexOf(audio.rate) + 1) % rates.length]);
           }}
         >
-          <Text style={styles.rate}>{audio.rate}×</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={styles.rate}>
+            {audio.rate}×
+          </Text>
         </TransportAction>
         <TransportAction
           label="Transcript"

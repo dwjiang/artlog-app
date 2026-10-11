@@ -32,6 +32,20 @@ jest.mock("@/lib/social/use-social-query", () => ({
 }));
 const mockHrefs: unknown[] = [];
 let mockParams: { view?: string } = {};
+let mockCollectionFailureOnNextMount = false;
+let mockSetCollectionFailure: (failed: boolean) => void;
+jest.mock("@/lib/collection/use-collection-data", () => ({
+  useCollectionData: () => {
+    const data = jest.requireActual("@/lib/collection/use-collection-data").useCollectionData();
+    const [failed, setFailed] = jest.requireActual("react").useState(() => {
+      const failed = mockCollectionFailureOnNextMount;
+      mockCollectionFailureOnNextMount = false;
+      return failed;
+    });
+    mockSetCollectionFailure = setFailed;
+    return failed ? { ...data, loading: false, error: new Error("Local read failed") } : data;
+  },
+}));
 jest.mock("@/components/visits/globe-canvas", () => ({ GlobeCanvas: () => null }));
 jest.mock("@/lib/venue/venue-db", () => ({
   venueMetadataForIds: async () => [],
@@ -117,8 +131,57 @@ const search = () => screen.getByPlaceholderText(/Title, artist, date or place|S
 
 beforeEach(() => {
   mockParams = {};
+  mockCollectionFailureOnNextMount = false;
   mockHrefs.length = 0;
   switchOwner(anonymousOwner(), "scope-anonymous");
+});
+
+it("retries a failed local collection read without leaving Visits", async () => {
+  switchOwner("device:retry-collection", "scope-retry-collection");
+  mockCollectionFailureOnNextMount = true;
+  await render(<CollectionScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+  expect(screen.getByText(/Your visits could not load/)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "List" }));
+  await fireEvent.changeText(screen.getByLabelText("Search your visits"), "museum");
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByText("No visits found.")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Visits" })).toBeSelected();
+  expect(screen.getByLabelText("Search your visits")).toHaveDisplayValue("museum");
+});
+
+it("keeps loaded visits through repeated failed retries and replaces them after recovery", async () => {
+  switchOwner("device:retry-snapshot", "scope-retry-snapshot");
+  const visit = {
+    visitedOn: "2026-09-08",
+    timeZone: "UTC",
+    localId: "77777777-1111-4111-8111-111111111111",
+    venueId,
+    venueName: "Review Museum",
+    startedAt: new Date(2026, 8, 8, 14).getTime(),
+  };
+  await upsertVisit(visit);
+  await render(<CollectionScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "List" }));
+  expect(await screen.findByText("Review Museum")).toBeVisible();
+  const field = screen.getByLabelText("Search your visits");
+  await act(() => mockSetCollectionFailure(true));
+  for (let retry = 0; retry < 2; retry++) {
+    expect(screen.getByText("Review Museum")).toBeVisible();
+    mockCollectionFailureOnNextMount = true;
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText(/Your visits could not load/)).toBeVisible();
+    expect(screen.getByLabelText("Search your visits") === field).toBe(true);
+    expect(screen.getByText("Review Museum")).toBeVisible();
+  }
+  await upsertVisit({ ...visit, venueName: "Renamed Museum" });
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByText("Renamed Museum")).toBeVisible();
+  expect(screen.queryByText("Review Museum")).toBeNull();
+  expect(screen.queryByText(/Your visits could not load/)).toBeNull();
+  await act(() => switchOwner("device:other-retry-owner", "scope-other-retry-owner"));
+  expect(screen.queryByText("Renamed Museum", { includeHiddenElements: true })).toBeNull();
 });
 
 it("keeps the public wall as the account collection view", async () => {
