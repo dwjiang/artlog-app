@@ -52,6 +52,7 @@ function identified(localId: string, outcome: "confident" | "soft" | "miss" = "c
 function fakeDependencies(rows: PendingScan[]) {
   const store = new Map(rows.map((row) => [row.localId, row]));
   const deps = {
+    getPendingScan: jest.fn(async (localId: string) => store.get(localId)),
     listFlushable: jest.fn(async (modelVersion: string) =>
       [...store.values()]
         .filter(
@@ -82,7 +83,10 @@ function fakeDependencies(rows: PendingScan[]) {
       };
     }),
     markIdentifying: jest.fn(async (localId: string) => {
-      store.get(localId)!.status = "identifying";
+      const row = store.get(localId);
+      if (row?.status !== "queued") return false;
+      row.status = "identifying";
+      return true;
     }),
     recordResult: jest.fn(async (localId: string, response: IdentifyResponse) => {
       Object.assign(store.get(localId)!, {
@@ -525,6 +529,7 @@ it("releases a claimed row when cleanup happens before its request is sent", asy
     await new Promise<void>((resolve) => {
       finish = resolve;
     });
+    return true;
   });
   const flusher = createFlusher(deps);
   const running = flusher.start();

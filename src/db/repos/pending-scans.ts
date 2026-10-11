@@ -157,11 +157,15 @@ export async function listFlushable(modelVersion: string, owner = getLocalOwner(
     .orderBy(asc(pendingScans.capturedAt), asc(pendingScans.localId));
 }
 
-export async function markIdentifying(localId: string, owner = getLocalOwner()): Promise<void> {
-  await db
-    .update(pendingScans)
-    .set({ status: "identifying" })
-    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)));
+export async function markIdentifying(localId: string, owner = getLocalOwner()): Promise<boolean> {
+  return (
+    db
+      .update(pendingScans)
+      .set({ status: "identifying" })
+      .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId), eq(pendingScans.status, "queued")))
+      .returning({ localId: pendingScans.localId })
+      .all().length > 0
+  );
 }
 
 export async function markIdentified(localId: string, scanId: Id<"scans">, owner = getLocalOwner()): Promise<void> {

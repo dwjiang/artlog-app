@@ -85,6 +85,7 @@ function makeFlusher() {
   return createFlusher({
     isCurrent: current.isCurrent,
     isLabelCapture,
+    getPendingScan: (id) => pending.getPendingScan(id, owner),
     listFlushable: (version) => pending.listFlushable(version, owner),
     listPendingLabels: () => pending.listPendingLabels(owner),
     recordLabelFailure: (id, error, options) => pending.recordLabelFailure(id, error, options, owner),

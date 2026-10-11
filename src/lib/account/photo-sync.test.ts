@@ -197,6 +197,51 @@ it("drains more than one batch of queued crops", async () => {
   expect(await repo.listPhotoTransfers()).toEqual([]);
 });
 
+it("reaches healthy crops beyond a full batch of failures on every retry", async () => {
+  await db.insert(savedWorks).values(
+    Array.from({ length: 21 }, (_, i) => ({
+      owner: "device:test-installation",
+      localId: String(i).padStart(2, "0"),
+      title: "Painting",
+      artist: "",
+      savedAt: i,
+      cropPath: `${i}.jpg`,
+    })),
+  );
+  upload.mockImplementation(async (localId) => {
+    if (localId !== "20") throw new Error("missing image");
+    return { storageId: cropStorageId, photoUpdatedAt: 1 };
+  });
+
+  await expect(syncCollectionPhotos(deps)).rejects.toThrow("missing image");
+  await expect(syncCollectionPhotos(deps)).rejects.toThrow("missing image");
+
+  expect(await repo.getSavedWork("20")).toMatchObject({ cropStorageId });
+  expect(upload.mock.calls.filter(([id]) => id === "20")).toHaveLength(1);
+});
+
+it.each(["Network request failed", "Photo upload failed with HTTP 429"])(
+  "stops the crop sweep after %s before attempting the remaining backlog",
+  async (message) => {
+    await db.insert(savedWorks).values(
+      Array.from({ length: 21 }, (_, i) => ({
+        owner: "device:test-installation",
+        localId: String(i).padStart(2, "0"),
+        title: "Painting",
+        artist: "",
+        savedAt: i,
+        cropPath: `${i}.jpg`,
+      })),
+    );
+    upload.mockRejectedValue(new Error(message));
+
+    await expect(syncCollectionPhotos(deps)).rejects.toThrow(message);
+
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(await repo.getSavedWork("20")).toMatchObject({ cropStorageId: null });
+  },
+);
+
 it("cleans up deleted local photos while keeping a file used by another saved work", async () => {
   await repo.insertSavedWork({
     localId: "a",

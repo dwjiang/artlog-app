@@ -68,6 +68,21 @@ it("walks a row from queued through identifying to identified", async () => {
   await repo.deletePendingScan("a");
 });
 
+it("claims only a queued capture that still belongs to this owner", async () => {
+  await enqueueAll(row("claim"));
+  expect(await repo.markIdentifying("claim", "account:someone-else")).toBe(false);
+  expect(await repo.markIdentifying("claim")).toBe(true);
+  expect(await repo.markIdentifying("claim")).toBe(false);
+  await repo.markIdentified("claim", scanId);
+  expect(await repo.markIdentifying("claim")).toBe(false);
+  await repo.markFailed("claim", "failed");
+  expect(await repo.markIdentifying("claim")).toBe(false);
+  await repo.retryPendingScan("claim");
+  expect(await repo.markIdentifying("claim")).toBe(true);
+  await repo.deletePendingScan("claim");
+  expect(await repo.markIdentifying("claim")).toBe(false);
+});
+
 it("keeps failed and waiting captures that already reference a server scan", async () => {
   await enqueueAll(row("waiting", { scanId }), row("failed", { status: "failed", scanId }));
   expect((await repo.pendingScansQuery()).map((entry) => entry.localId)).toEqual(["waiting", "failed"]);

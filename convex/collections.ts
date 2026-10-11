@@ -45,7 +45,11 @@ export const saveToCollection = mutation({
     validateSave(args);
     const existing = await findOwnedSave(ctx, owner, args.localId);
     const { suggested, scope: _scope, scanId, ...row } = args;
-    const saved = await upsertJournalSave(ctx, owner, device._id, row);
+    // Confirmation can arrive after journal edits; its original snapshot must not overwrite them.
+    const saved = await upsertJournalSave(ctx, owner, device._id, {
+      ...row,
+      snapshot: existing?.snapshot ?? row.snapshot,
+    });
     const scan = args.scanId ? await ctx.db.get("scans", args.scanId) : null;
     if (args.scanId) {
       if (!scan || scan.deviceId !== device._id) {

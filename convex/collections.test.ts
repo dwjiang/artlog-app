@@ -90,7 +90,7 @@ it("saves a snapshot once per local id and confirms an untouched suggestion exac
     venueId: args.venueId,
     visitLocalId: args.visitLocalId,
     gallery: "4",
-    snapshot,
+    snapshot: { ...snapshot, title: " Water Lilies " },
     savedAt: expect.any(Number),
   });
   expect(saved[0]).not.toHaveProperty("suggested");
@@ -248,6 +248,38 @@ it("records the save confirmation once when background sync inserted the snapsho
   await save();
   expect(await object()).toMatchObject({ confirmCount: 1 });
 });
+
+it.each([false, true])(
+  "preserves a journal edit when the initial save confirmation is delayed or retried (already confirmed: %s)",
+  async (alreadyConfirmed) => {
+    const { user, args, save, object, rows } = await fixture();
+    if (alreadyConfirmed) await save();
+    const edited = { ...snapshot, title: "My corrected title", medium: "Corrected medium" };
+    await user.as.mutation(api.sync.syncJournal, {
+      scope: user.scope,
+      since: 0,
+      visits: [],
+      saves: [
+        {
+          localId: args.localId,
+          snapshot: edited,
+          objectId: args.objectId,
+          artworkId: args.artworkId,
+          savedAt: args.savedAt,
+          venueId: args.venueId,
+          visitLocalId: args.visitLocalId,
+        },
+      ],
+    });
+    const [before] = await rows();
+
+    const acknowledgement = await save();
+
+    expect(await rows()).toMatchObject([{ snapshot: edited, updatedAt: before.updatedAt, confirmationRecorded: true }]);
+    expect(acknowledgement.updatedAt).toBe(before.updatedAt);
+    expect(await object()).toMatchObject({ confirmCount: alreadyConfirmed ? 1 : 0 });
+  },
+);
 
 it("rejects changed or foreign visit associations even when the save UUID is retried", async () => {
   const { t, args, save } = await fixture();

@@ -1,13 +1,16 @@
-import { and, asc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, exists, gt, inArray, isNotNull, isNull, not, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 
 import { db } from "@/db/client";
 import {
   artworkEncounters,
   artworkPhotos,
+  pendingScans,
   savedWorks,
   visits,
   type ArtworkPhoto,
   type NewSavedWork,
+  type PendingScan,
 } from "@/db/schema";
 import { getLocalOwner } from "@/lib/account/owner-store";
 import { requestCollectionSync } from "@/lib/account/sync-events";
@@ -353,7 +356,7 @@ export function applyAlbum(photos: Doc<"artworkPhotos">[], encounters: Doc<"artw
     }
   });
 }
-export function albumPhotoTransfers(owner: string) {
+export function albumPhotoTransfers(owner: string, afterLocalId?: string) {
   return db
     .select({ photo: artworkPhotos })
     .from(artworkPhotos)
@@ -364,11 +367,13 @@ export function albumPhotoTransfers(owner: string) {
     .where(
       and(
         eq(artworkPhotos.owner, owner),
+        afterLocalId === undefined ? undefined : gt(artworkPhotos.localId, afterLocalId),
         isNull(savedWorks.deletedAt),
         isNull(artworkPhotos.deletedAt),
         sql`${artworkPhotos.syncedAt} IS NOT NULL AND ((${artworkPhotos.path} IS NULL AND ${artworkPhotos.storageId} IS NOT NULL) OR (${artworkPhotos.path} IS NOT NULL AND ${artworkPhotos.storageId} IS NULL))`,
       ),
     )
+    .orderBy(asc(artworkPhotos.localId))
     .limit(20)
     .all()
     .map(({ photo }) => photo);
@@ -440,17 +445,75 @@ export function albumMediaPending(
 }
 export function deletedAlbumPhotoFiles(owner: string) {
   return db
-    .select({ localId: artworkPhotos.localId, path: artworkPhotos.path })
+    .select({
+      localId: artworkPhotos.localId,
+      path: artworkPhotos.path,
+      capture: {
+        photoPath: pendingScans.photoPath,
+        cropPath: pendingScans.cropPath,
+        labelPhotoPath: pendingScans.labelPhotoPath,
+      },
+    })
     .from(artworkPhotos)
-    .where(and(eq(artworkPhotos.owner, owner), isNotNull(artworkPhotos.deletedAt), isNotNull(artworkPhotos.path)))
+    .leftJoin(
+      pendingScans,
+      and(
+        eq(pendingScans.owner, artworkPhotos.owner),
+        eq(pendingScans.localId, artworkPhotos.localId),
+        not(hasLiveCapturePhoto()),
+      ),
+    )
+    .where(
+      and(
+        eq(artworkPhotos.owner, owner),
+        isNotNull(artworkPhotos.deletedAt),
+        or(isNotNull(artworkPhotos.path), isNotNull(pendingScans.localId)),
+      ),
+    )
     .limit(20)
-    .all() as { localId: string; path: string }[];
+    .all();
 }
-export function clearDeletedAlbumPhotoPath(localId: string, owner: string) {
-  db.update(artworkPhotos)
-    .set({ path: null })
-    .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId), isNotNull(artworkPhotos.deletedAt)))
-    .run();
+
+export function hasLiveCapturePhoto() {
+  const photo = alias(artworkPhotos, "liveCapturePhoto");
+  return exists(
+    db
+      .select({ localId: photo.localId })
+      .from(photo)
+      .where(and(eq(photo.owner, pendingScans.owner), eq(photo.path, pendingScans.photoPath), isNull(photo.deletedAt))),
+  );
+}
+
+export function clearDeletedAlbumPhotoPath(
+  localId: string,
+  owner: string,
+  capture?: Pick<PendingScan, "photoPath" | "cropPath" | "labelPhotoPath"> | null,
+) {
+  db.transaction((tx) => {
+    const deleted = tx
+      .update(artworkPhotos)
+      .set({ path: null })
+      .where(
+        and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId), isNotNull(artworkPhotos.deletedAt)),
+      )
+      .returning({ localId: artworkPhotos.localId })
+      .all();
+    if (deleted.length === 0 || !capture) return;
+    tx.delete(pendingScans)
+      .where(
+        and(
+          eq(pendingScans.owner, owner),
+          eq(pendingScans.localId, localId),
+          eq(pendingScans.photoPath, capture.photoPath),
+          eq(pendingScans.cropPath, capture.cropPath),
+          capture.labelPhotoPath === null
+            ? isNull(pendingScans.labelPhotoPath)
+            : eq(pendingScans.labelPhotoPath, capture.labelPhotoPath),
+          not(hasLiveCapturePhoto()),
+        ),
+      )
+      .run();
+  });
 }
 
 export function selectAllArtworkPhotos(owner = getLocalOwner()) {
