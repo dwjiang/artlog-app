@@ -11,7 +11,7 @@ import { HighlightHeading } from "@/components/highlight-heading";
 import { useCapturePhotos } from "@/components/scan/capture-photos-button";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, PinnedFooterBorder, Radius, Spacing } from "@/constants/theme";
-import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
+import { captureFileUri, scanDisplayPath } from "@/lib/files/photos";
 import type { SaveResultInput } from "@/lib/result/save";
 import { canSave, draftFromCandidate, draftFromConfirmed, type SnapshotDraft } from "@/lib/result/snapshot";
 import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
@@ -190,7 +190,7 @@ export function ResultCard({
             scanId={captureInput?.scanId}
             savedId={savedId}
             imageUri={
-              captureInput?.capture ? captureFileUri(scanPreviewPath(captureInput.capture.cropPath)) : undefined
+              captureInput?.capture ? captureFileUri(scanDisplayPath(captureInput.capture.cropPath)) : undefined
             }
             docent={view.docent}
             factSheet={view.factSheet}

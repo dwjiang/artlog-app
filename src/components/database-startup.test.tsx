@@ -4,17 +4,17 @@ import { Text } from "react-native";
 
 import { db } from "@/db/client";
 import { savedWorks } from "@/db/schema";
+import { createTestDatabase } from "@/db/test-db";
 import { reportError } from "@/lib/observability";
 
 import { DatabaseGate } from "./database-gate";
 
-const mockMigrationState = { success: false };
+let mockDb: ReturnType<typeof createTestDatabase>;
 
-jest.mock("drizzle-orm/expo-sqlite/migrator", () => ({
-  useMigrations: () => mockMigrationState,
-}));
 jest.mock("@/db/client", () => ({
-  db: jest.requireActual("@/db/test-db").createTestDatabase(),
+  get db() {
+    return mockDb;
+  },
   describeDatabase: jest.fn(),
 }));
 jest.mock("@/lib/installation-storage", () => ({
@@ -40,8 +40,7 @@ function App() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockMigrationState.success = false;
-  db.run(sql`BEGIN`);
+  mockDb = createTestDatabase();
   db.run(sql`ALTER TABLE savedWorks DROP COLUMN photoUpdatedAt`);
   db.run(sql`INSERT INTO savedWorks (owner, localId, savedAt, title, artist)
     VALUES ('device:test-installation', 'work', 1, 'Test painting', 'Test artist')`);
@@ -49,31 +48,34 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.restoreAllMocks();
-  db.run(sql`ROLLBACK`);
+  mockDb.$client.close();
 });
 
 it("repairs the missing column before database consumers mount", async () => {
-  const view = await render(<App />);
-  expect(screen.getByRole("progressbar", { name: "Opening your collection" })).toBeOnTheScreen();
-
-  mockMigrationState.success = true;
-  await view.rerender(<App />);
+  await render(<App />);
 
   expect(screen.getByText("Photo timestamp: 0")).toBeOnTheScreen();
   expect(reportError).not.toHaveBeenCalled();
 });
 
-it("reports a failed repair and keeps database consumers behind the gate", async () => {
+it("keeps consumers behind the gate after a failed repair and recovers on relaunch without losing the collection", async () => {
   const error = new Error("disk I/O error");
   jest.spyOn(db, "run").mockImplementationOnce(() => {
     throw error;
   });
-  mockMigrationState.success = true;
-
-  await render(<App />);
+  const view = await render(<App />);
 
   expect(screen.getByText("Could not open the local database")).toBeOnTheScreen();
   expect(screen.queryByText(/Photo timestamp:/)).toBeNull();
   expect(reportError).toHaveBeenCalledWith(error, "database.initialize");
   expect(db.get(sql`SELECT title FROM savedWorks`)).toEqual({ title: "Test painting" });
+
+  const ledger = db.all(sql`SELECT * FROM __drizzle_migrations`);
+  await view.unmount();
+  await render(<App />);
+
+  expect(screen.getByText("Photo timestamp: 0")).toBeOnTheScreen();
+  expect(db.get(sql`SELECT title FROM savedWorks`)).toEqual({ title: "Test painting" });
+  expect(db.all(sql`SELECT * FROM __drizzle_migrations`)).toEqual(ledger);
+  expect(reportError).toHaveBeenCalledTimes(1);
 });

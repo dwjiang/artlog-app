@@ -1,4 +1,4 @@
-import { findArtworkPhoto } from "@/db/repos/artwork-album";
+import { findCapturePhoto } from "@/db/repos/artwork-album";
 import { deletePendingScan, getPendingScan } from "@/db/repos/pending-scans";
 import { removePhotoFile } from "@/lib/account/photo-transfer";
 import { scanPreviewPath } from "@/lib/files/photos";
@@ -8,7 +8,7 @@ import { clearPhotoDraft, readPhotoDraft } from "./photo-draft";
 export async function discardCapture(localId: string, owner: string): Promise<void> {
   const capture = await getPendingScan(localId, owner);
   if (!capture) return;
-  if (findArtworkPhoto(localId, owner)) {
+  if (findCapturePhoto(localId, owner)) {
     throw new Error("This scan has already been saved.");
   }
   const paths = new Set([

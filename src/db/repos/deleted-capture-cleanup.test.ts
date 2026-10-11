@@ -14,6 +14,12 @@ import * as repository from "./saved-works";
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
+jest.mock("expo-file-system", () => ({
+  Paths: { document: "file:///documents" },
+  File: class {
+    exists = true;
+  },
+}));
 const mockRemove = jest.fn();
 jest.mock("@/lib/account/photo-transfer", () => ({
   removePhotoFile: (path: string) => mockRemove(path),
@@ -36,9 +42,10 @@ beforeEach(() => {
   mockRemove.mockReset();
 });
 
-async function savedCapture() {
+async function savedCapture(photoId = "capture") {
   await enqueuePendingScan({
     localId: "capture",
+    savedPhotoLocalId: photoId === "capture" ? null : photoId,
     photoPath: "photos/original.jpg",
     cropPath: "crops/model.jpg",
     labelPhotoPath: "labels/label.jpg",
@@ -60,60 +67,69 @@ async function savedCapture() {
       photoPath: "photos/original.jpg",
       cropPath: "crops/model.preview.jpg",
     },
-    [{ localId: "capture", savedLocalId: "work", kind: "full", capturedAt: 1, path: "photos/original.jpg" }],
+    [{ localId: photoId, savedLocalId: "work", kind: "full", capturedAt: 1, path: "photos/original.jpg" }],
     undefined,
     owner,
   );
 }
 
-it("removes a deleted artwork's original even when its saved scan still retains the recognition fingerprint", async () => {
-  await savedCapture();
-  await repository.softDeleteSavedWork("work", 2, owner);
-  expect(pendingScansQuery(owner).all()).toEqual([]);
-  const removeFile = jest.fn();
+it.each(["capture", "legacy-photo"])(
+  "removes a deleted original linked to its saved capture by %s",
+  async (photoId) => {
+    await savedCapture(photoId);
+    await repository.softDeleteSavedWork("work", 2, owner);
+    expect(pendingScansQuery(owner).all()).toEqual([]);
+    const removeFile = jest.fn();
 
-  await syncCollectionPhotos({
-    ...repository,
-    upload: jest.fn(),
-    download: jest.fn(),
-    removeFile,
-  });
+    await syncCollectionPhotos({
+      ...repository,
+      upload: jest.fn(),
+      download: jest.fn(),
+      removeFile,
+    });
 
-  expect(removeFile).toHaveBeenCalledWith("photos/original.jpg");
-  expect(removeFile).toHaveBeenCalledWith("crops/model.preview.jpg");
-});
+    expect(removeFile).toHaveBeenCalledWith("photos/original.jpg");
+    expect(removeFile).toHaveBeenCalledWith("crops/model.preview.jpg");
+  },
+);
 
-it("removes the original, model crop, preview and label before retiring a deleted saved capture", async () => {
-  await savedCapture();
-  await repository.softDeleteSavedWork("work", 2, owner);
+it.each(["capture", "legacy-photo"])(
+  "removes all source files before retiring a deleted capture linked by %s",
+  async (photoId) => {
+    await savedCapture(photoId);
+    await repository.softDeleteSavedWork("work", 2, owner);
 
-  await syncArtworkAlbums(context, "token", () => true);
+    await syncArtworkAlbums(context, "token", () => true);
 
-  for (const path of ["photos/original.jpg", "crops/model.jpg", "crops/model.preview.jpg", "labels/label.jpg"]) {
-    expect(mockRemove).toHaveBeenCalledWith(path);
-  }
-  expect(await getPendingScan("capture", owner)).toBeUndefined();
-  expect(db.select().from(artworkPhotos).get()).toMatchObject({ path: null });
-});
+    for (const path of ["photos/original.jpg", "crops/model.jpg", "crops/model.preview.jpg", "labels/label.jpg"]) {
+      expect(mockRemove).toHaveBeenCalledWith(path);
+    }
+    expect(await getPendingScan("capture", owner)).toBeUndefined();
+    expect(db.select().from(artworkPhotos).get()).toMatchObject({ path: null });
+  },
+);
 
-it("retries all capture cleanup after a file deletion fails, including an already-cleared album path", async () => {
-  await savedCapture();
-  await repository.softDeleteSavedWork("work", 2, owner);
-  db.update(artworkPhotos).set({ path: null }).where(eq(artworkPhotos.localId, "capture")).run();
-  mockRemove.mockImplementationOnce(() => {
-    throw new Error("File could not be deleted");
-  });
+it.each(["capture", "legacy-photo"])(
+  "retries cleanup for %s after a file deletion fails and its album path is cleared",
+  async (photoId) => {
+    await savedCapture(photoId);
+    await repository.softDeleteSavedWork("work", 2, owner);
+    db.update(artworkPhotos).set({ path: null }).where(eq(artworkPhotos.localId, photoId)).run();
+    mockRemove.mockImplementationOnce(() => {
+      throw new Error("File could not be deleted");
+    });
 
-  await expect(syncArtworkAlbums(context, "token", () => true)).rejects.toThrow("File could not be deleted");
-  expect(await getPendingScan("capture", owner)).toBeDefined();
-  mockRemove.mockReset();
+    await expect(syncArtworkAlbums(context, "token", () => true)).rejects.toThrow("File could not be deleted");
+    expect(await getPendingScan("capture", owner)).toBeDefined();
+    mockRemove.mockReset();
 
-  await syncArtworkAlbums(context, "token", () => true);
+    await syncArtworkAlbums(context, "token", () => true);
 
-  expect(mockRemove).toHaveBeenCalledWith("crops/model.jpg");
-  expect(mockRemove).toHaveBeenCalledWith("labels/label.jpg");
-  expect(await getPendingScan("capture", owner)).toBeUndefined();
-});
+    expect(mockRemove).toHaveBeenCalledWith("crops/model.jpg");
+    expect(mockRemove).toHaveBeenCalledWith("labels/label.jpg");
+    expect(await getPendingScan("capture", owner)).toBeUndefined();
+  },
+);
 
 it("keeps a label file referenced by another live scan while retiring the deleted capture", async () => {
   await savedCapture();

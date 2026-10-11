@@ -150,6 +150,48 @@ it("keeps syncing notes while a photo transfer runs and retries a failed transfe
   expect(mockSync).toHaveBeenCalledTimes(2);
 });
 
+it.each([false, true])(
+  "transfers crops after an album failure and retains retries (crop failure: %s)",
+  async (cropFails) => {
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    const failure = new Error("Photo download failed with HTTP 404");
+    const cropFailure = new Error("Crop download failed with HTTP 500");
+    mockAlbums.mockRejectedValueOnce(failure);
+    if (cropFails) mockPhotos.mockRejectedValueOnce(cropFailure);
+
+    await render(<CollectionSync />);
+    await tick();
+    await tick();
+
+    expect(mockPhotos).toHaveBeenCalledTimes(1);
+    expect(mockReportError.mock.calls).toEqual([
+      [failure, "sync.photos"],
+      ...(cropFails ? [[cropFailure, "sync.photos"]] : []),
+    ]);
+    await act(() => jest.advanceTimersByTimeAsync(30_000));
+    expect(mockAlbums).toHaveBeenCalledTimes(2);
+    expect(mockPhotos).toHaveBeenCalledTimes(2);
+  },
+);
+
+it("does not start crop transfers after the album request outlives its owner scope", async () => {
+  let failAlbum!: (error: Error) => void;
+  mockAlbums.mockImplementationOnce(
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        failAlbum = reject;
+      }),
+  );
+  await render(<CollectionSync />);
+  await tick();
+  await tick();
+
+  pauseCollectionSync();
+  await act(async () => failAlbum(new Error("Photo download failed")));
+
+  expect(mockPhotos).not.toHaveBeenCalled();
+});
+
 it("continues crop backups when an album photo keeps failing, and retries both", async () => {
   jest.spyOn(console, "warn").mockImplementation(() => {});
   mockAlbums.mockRejectedValue(new Error("missing image"));
@@ -329,6 +371,10 @@ it("lets flushCollectionMedia through a transfer failure unless the caller depen
   await expect(flushCollectionMedia({ photoLocalIds: ["hung"] })).rejects.toBe(failure);
   expect(mockReportError).toHaveBeenCalledWith(failure, "sync.photos");
   mockPhotos.mockResolvedValue(undefined);
+  await expect(flushCollectionMedia({ photoLocalIds: ["hung"] })).rejects.toBeInstanceOf(SyncUnavailableError);
+  mockPhotos.mockImplementationOnce(async () => {
+    mockPending = false;
+  });
   await expect(flushCollectionMedia({ photoLocalIds: ["hung"] })).resolves.toBeUndefined();
 });
 
@@ -357,6 +403,9 @@ it("uploads saved scans on their own queue, so media flushes never wait for them
   expect(mockRecognition).toHaveBeenCalledTimes(1);
   expect(mockPhotos).toHaveBeenCalledTimes(1);
   mockPending = true;
+  mockPhotos.mockImplementationOnce(async () => {
+    mockPending = false;
+  });
   await expect(flushCollectionMedia({ photoLocalIds: ["photo"] })).resolves.toBeUndefined();
   expect(mockPhotos).toHaveBeenCalledTimes(2);
   const failure = new Error("Network request failed");

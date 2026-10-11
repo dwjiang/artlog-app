@@ -13,7 +13,7 @@ import { selectPendingScan } from "@/db/repos/pending-scans";
 import { useScreenActive } from "@/hooks/use-screen-active";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { isLabelCapture } from "@/lib/capture/photo-draft";
-import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
+import { captureFileUri, scanDisplayPath } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
 import { retryPendingScan } from "@/lib/queue/queue";
 import { useSaveResult } from "@/lib/result/use-save-result";
@@ -167,7 +167,7 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
       >
         {row && (
           <CardHeader
-            cropUri={captureFileUri(scanPreviewPath(row.cropPath))}
+            cropUri={captureFileUri(scanDisplayPath(row.cropPath))}
             kind={row.status === "failed" ? "failed" : "loading"}
             onAdjustCrop={!saving && !savedId ? adjustCrop : undefined}
           />

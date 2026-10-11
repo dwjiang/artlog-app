@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { getLocalOwner } from "@/lib/account/owner-store";
 import { requestCollectionSync } from "@/lib/account/sync-events";
+import { photoTransferNeeded } from "@/lib/files/photo-transfer-needed";
 
 import type { Doc } from "../../../convex/_generated/dataModel";
 import { hasLiveCapturePhoto, saveArtworkSession, selectArtworkPhotos } from "./artwork-album";
@@ -245,7 +246,7 @@ export async function upsertFromRemote(rows: Doc<"collections">[], owner = getLo
   return displaced;
 }
 
-export function listPhotoTransfers(owner = getLocalOwner(), afterLocalId?: string) {
+export async function listPhotoTransfers(owner = getLocalOwner(), afterLocalId?: string) {
   return db
     .select()
     .from(savedWorks)
@@ -254,14 +255,13 @@ export function listPhotoTransfers(owner = getLocalOwner(), afterLocalId?: strin
         eq(savedWorks.owner, owner),
         isNull(savedWorks.deletedAt),
         afterLocalId === undefined ? undefined : gt(savedWorks.localId, afterLocalId),
-        or(
-          and(isNotNull(savedWorks.cropPath), isNull(savedWorks.cropStorageId)),
-          and(isNull(savedWorks.cropPath), isNotNull(savedWorks.cropStorageId)),
-        ),
+        or(isNotNull(savedWorks.cropPath), isNotNull(savedWorks.cropStorageId)),
       ),
     )
     .orderBy(savedWorks.localId)
-    .limit(20);
+    .all()
+    .filter((work) => photoTransferNeeded(work.cropPath, work.cropStorageId))
+    .slice(0, 20);
 }
 
 export async function updatePhotoTransfer(
@@ -340,7 +340,10 @@ export async function isPhotoFileReferenced(path: string): Promise<boolean> {
     .from(pendingScans)
     .leftJoin(
       artworkPhotos,
-      and(eq(artworkPhotos.owner, pendingScans.owner), eq(artworkPhotos.localId, pendingScans.localId)),
+      and(
+        eq(artworkPhotos.owner, pendingScans.owner),
+        eq(artworkPhotos.localId, sql`coalesce(${pendingScans.savedPhotoLocalId}, ${pendingScans.localId})`),
+      ),
     )
     .where(
       and(

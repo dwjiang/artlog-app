@@ -13,7 +13,7 @@ import { markFailed, selectCaptureForScan } from "@/db/repos/pending-scans";
 import { useScreenActive } from "@/hooks/use-screen-active";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { isLabelCapture } from "@/lib/capture/photo-draft";
-import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
+import { captureFileUri, scanDisplayPath } from "@/lib/files/photos";
 import { SHARING_NOTICE } from "@/lib/label/contribute";
 import { canShareLabel, confirmedLabelForm } from "@/lib/label/fields";
 import { reportError } from "@/lib/observability";
@@ -240,7 +240,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
   }
   const header = (
     <CardHeader
-      cropUri={capture ? captureFileUri(scanPreviewPath(capture.cropPath)) : undefined}
+      cropUri={capture ? captureFileUri(scanDisplayPath(capture.cropPath)) : undefined}
       artworkTitle={view.primary?.title}
       loading={!captureUpdatedAt && !captureError}
       kind={view.kind}

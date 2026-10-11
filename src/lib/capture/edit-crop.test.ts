@@ -99,9 +99,10 @@ beforeEach(() => {
   }
   mockFeatures.mockReset().mockResolvedValue(features);
 });
-async function seedScan() {
+async function seedScan(savedPhotoLocalId?: string) {
   await enqueuePendingScan({
     localId: "scan",
+    savedPhotoLocalId,
     photoPath: "full.jpg",
     cropPath: "old.jpg",
     capturedAt: 1,
@@ -113,6 +114,12 @@ async function seedScan() {
     scanId: "old-scan" as Id<"scans">,
   });
 }
+
+it("keeps an edited legacy capture in the unsaved queue instead of inheriting its album link", async () => {
+  await seedScan("legacy-photo");
+  const nextId = await saveEditedScanCrop("scan", crop, owner);
+  expect(await getPendingScan(nextId)).toMatchObject({ savedPhotoLocalId: null, status: "queued" });
+});
 
 it("updates only the collection crop and its corners, preserves the original album photo, and queues an upload", async () => {
   await insertSavedWork({

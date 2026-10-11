@@ -14,9 +14,11 @@ import {
 } from "@/db/schema";
 import { getLocalOwner } from "@/lib/account/owner-store";
 import { requestCollectionSync } from "@/lib/account/sync-events";
+import { photoFileExists, photoTransferNeeded } from "@/lib/files/photo-transfer-needed";
 import type { AlbumEncounter, AlbumPhoto } from "@/shared/collection/album";
 
 import type { Doc } from "../../../convex/_generated/dataModel";
+import { hasLegacyAlbumRecovery } from "./legacy-album-recovery";
 
 function requireWork(localId: string, owner: string) {
   const work = db
@@ -73,6 +75,14 @@ export function findArtworkPhoto(localId: string, owner = getLocalOwner()) {
     .from(artworkPhotos)
     .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId)))
     .get();
+}
+export function findCapturePhoto(localId: string, owner = getLocalOwner()) {
+  const capture = db
+    .select({ savedPhotoLocalId: pendingScans.savedPhotoLocalId })
+    .from(pendingScans)
+    .where(and(eq(pendingScans.owner, owner), eq(pendingScans.localId, localId)))
+    .get();
+  return findArtworkPhoto(capture?.savedPhotoLocalId ?? localId, owner);
 }
 export function selectArtworkEncounters(owner = getLocalOwner()) {
   return db
@@ -314,6 +324,7 @@ export function applyAlbum(photos: Doc<"artworkPhotos">[], encounters: Doc<"artw
           owner,
           path: null,
           storageId: row.storageId ?? null,
+          recoveryStorageId: null,
           syncedAt: row.updatedAt,
           revision: 0,
         }),
@@ -321,6 +332,7 @@ export function applyAlbum(photos: Doc<"artworkPhotos">[], encounters: Doc<"artw
         visitLocalId: row.visitLocalId ?? null,
         deletedAt: row.deletedAt ?? null,
         storageId: row.storageId ?? null,
+        recoveryStorageId: row.storageId ? null : (existing?.recoveryStorageId ?? existing?.storageId ?? null),
         syncedAt: row.updatedAt,
       };
       if (!existing) {
@@ -330,7 +342,7 @@ export function applyAlbum(photos: Doc<"artworkPhotos">[], encounters: Doc<"artw
       } else if (existing.syncedAt !== null || row.deletedAt !== undefined) {
         tx.update(artworkPhotos).set(fields).where(where).run();
       } else if (row.storageId) {
-        tx.update(artworkPhotos).set({ storageId: row.storageId }).where(where).run();
+        tx.update(artworkPhotos).set({ storageId: row.storageId, recoveryStorageId: null }).where(where).run();
       }
     }
     for (const row of encounters) {
@@ -358,7 +370,7 @@ export function applyAlbum(photos: Doc<"artworkPhotos">[], encounters: Doc<"artw
 }
 export function albumPhotoTransfers(owner: string, afterLocalId?: string) {
   return db
-    .select({ photo: artworkPhotos })
+    .select({ photo: artworkPhotos, cropStorageId: savedWorks.cropStorageId })
     .from(artworkPhotos)
     .innerJoin(
       savedWorks,
@@ -370,13 +382,25 @@ export function albumPhotoTransfers(owner: string, afterLocalId?: string) {
         afterLocalId === undefined ? undefined : gt(artworkPhotos.localId, afterLocalId),
         isNull(savedWorks.deletedAt),
         isNull(artworkPhotos.deletedAt),
-        sql`${artworkPhotos.syncedAt} IS NOT NULL AND ((${artworkPhotos.path} IS NULL AND ${artworkPhotos.storageId} IS NOT NULL) OR (${artworkPhotos.path} IS NOT NULL AND ${artworkPhotos.storageId} IS NULL))`,
+        isNotNull(artworkPhotos.syncedAt),
+        or(
+          isNotNull(artworkPhotos.path),
+          isNotNull(artworkPhotos.storageId),
+          isNotNull(artworkPhotos.recoveryStorageId),
+        ),
       ),
     )
     .orderBy(asc(artworkPhotos.localId))
-    .limit(20)
     .all()
-    .map(({ photo }) => photo);
+    .filter(({ photo, cropStorageId }) => {
+      if (!photo.storageId && photo.recoveryStorageId) {
+        // An old ID alone cannot authorize a download; retain it until a local file or owned backup is available.
+        return photoFileExists(photo.path) || photo.recoveryStorageId === cropStorageId;
+      }
+      return photoTransferNeeded(photo.path, photo.storageId);
+    })
+    .map(({ photo }) => photo)
+    .slice(0, 20);
 }
 export function updateAlbumTransfer(
   localId: string,
@@ -386,7 +410,7 @@ export function updateAlbumTransfer(
   return (
     db
       .update(artworkPhotos)
-      .set(fields)
+      .set({ ...fields, ...(fields.storageId ? { recoveryStorageId: null } : {}) })
       .where(and(eq(artworkPhotos.owner, owner), eq(artworkPhotos.localId, localId), isNull(artworkPhotos.deletedAt)))
       .returning({ localId: artworkPhotos.localId })
       .all().length > 0
@@ -417,7 +441,8 @@ export function albumMediaPending(
   }
   if (saveLocalIds.length === 0) return false;
   return (
-    db
+    hasLegacyAlbumRecovery(owner, saveLocalIds)
+    || db
       .select({ localId: artworkPhotos.localId })
       .from(artworkPhotos)
       .where(
@@ -459,7 +484,7 @@ export function deletedAlbumPhotoFiles(owner: string) {
       pendingScans,
       and(
         eq(pendingScans.owner, artworkPhotos.owner),
-        eq(pendingScans.localId, artworkPhotos.localId),
+        eq(sql`coalesce(${pendingScans.savedPhotoLocalId}, ${pendingScans.localId})`, artworkPhotos.localId),
         not(hasLiveCapturePhoto()),
       ),
     )
@@ -503,7 +528,7 @@ export function clearDeletedAlbumPhotoPath(
       .where(
         and(
           eq(pendingScans.owner, owner),
-          eq(pendingScans.localId, localId),
+          eq(sql`coalesce(${pendingScans.savedPhotoLocalId}, ${pendingScans.localId})`, localId),
           eq(pendingScans.photoPath, capture.photoPath),
           eq(pendingScans.cropPath, capture.cropPath),
           capture.labelPhotoPath === null

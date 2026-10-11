@@ -1,4 +1,11 @@
-import { captureFileUri, deleteCapture, persistCapture, persistLabelPhoto, scanPreviewPath } from "./photos";
+import {
+  captureFileUri,
+  deleteCapture,
+  persistCapture,
+  persistLabelPhoto,
+  scanDisplayPath,
+  scanPreviewPath,
+} from "./photos";
 
 const mockCreate = jest.fn();
 const mockMove = jest.fn();
@@ -68,6 +75,18 @@ beforeEach(() => {
     }),
   });
   mockSave.mockResolvedValue({ uri: "file:///tmp/preview.jpg" });
+});
+
+it("uses an existing preview, falling back to the recorded crop for legacy or missing previews", () => {
+  const crop = "crops/legacy.jpg";
+  expect(scanDisplayPath(crop)).toBe(crop);
+  mockExisting.add(captureFileUri(crop));
+  expect(scanDisplayPath(crop)).toBe(crop);
+  mockExisting.add(captureFileUri(scanPreviewPath(crop)));
+  expect(scanDisplayPath(crop)).toBe("crops/legacy.preview.jpg");
+  mockDocumentsUri = "file:///new-container/documents";
+  mockExisting.add(captureFileUri(scanPreviewPath(crop)));
+  expect(scanDisplayPath(crop)).toBe("crops/legacy.preview.jpg");
 });
 
 it("moves the photo and crop into documents named by the capture, keeping extensions", async () => {

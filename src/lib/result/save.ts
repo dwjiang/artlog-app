@@ -1,6 +1,6 @@
 import { randomUUID } from "expo-crypto";
 
-import { findArtworkPhoto, saveArtworkSession, selectArtworkPhotos } from "@/db/repos/artwork-album";
+import { findCapturePhoto, saveArtworkSession, selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { getSavedWork, listSavedWorks, markSynced } from "@/db/repos/saved-works";
 import { getVisit } from "@/db/repos/visits";
 import type { PendingScan, Visit } from "@/db/schema";
@@ -12,7 +12,7 @@ import { clearPhotoDraft, readPhotoDraft, readPhotoSession } from "@/lib/capture
 import { captureVisitChoice } from "@/lib/capture/visit-choice";
 import { convex } from "@/lib/convex-client";
 import { keepPhotos } from "@/lib/files/kept-photos";
-import { scanPreviewPath } from "@/lib/files/photos";
+import { scanDisplayPath } from "@/lib/files/photos";
 import type { ContributeInput } from "@/lib/label/contribute";
 import { shareSavedLabel, type ContributionAttempt } from "@/lib/label/share-saved-label";
 import { reportError } from "@/lib/observability";
@@ -130,8 +130,8 @@ export async function saveResult(
     venueId: venueId ?? null,
   };
   const primary = view?.primary;
-  // The capture's album row carries the scan's id, so saving the same scan twice lands on the same artwork.
-  const captured = findArtworkPhoto(capture.localId, current.owner);
+  // The capture's album link keeps repeated saves on the same artwork.
+  const captured = findCapturePhoto(capture.localId, current.owner);
   const saved = captured?.deletedAt === null ? await getSavedWork(captured.savedLocalId, current.owner) : undefined;
   const existing =
     saved?.deletedAt === null
@@ -177,7 +177,7 @@ export async function saveResult(
           artworkId: primary?.artworkId,
           scanId,
           photoPath: capture.photoPath,
-          cropPath: scanPreviewPath(capture.cropPath),
+          cropPath: scanDisplayPath(capture.cropPath),
           cropCorners: capture.cropCorners,
         },
     additional,
@@ -229,7 +229,7 @@ export async function saveResult(
           ...additional.map((photo) => photo.localId),
         ],
       },
-      previewPath: scanPreviewPath(capture.cropPath),
+      previewPath: scanDisplayPath(capture.cropPath),
       visitOutcome: visit && outcome,
     },
   };

@@ -1,7 +1,7 @@
 import { addNetworkStateListener, getNetworkStateAsync } from "expo-network";
 import { AppState } from "react-native";
 
-import { findArtworkPhoto } from "@/db/repos/artwork-album";
+import { findCapturePhoto } from "@/db/repos/artwork-album";
 import { getPendingScan } from "@/db/repos/pending-scans";
 import { getSavedWork } from "@/db/repos/saved-works";
 import { listSettings, removeSetting, setSetting } from "@/db/repos/settings";
@@ -89,7 +89,7 @@ export function flushPendingShares(): Promise<void> {
 // The capture's album row follows the photo into whichever artwork it is merged; a delete and re-save tombstones that
 // row and creates another, so the share also stands while the artwork it was queued for is still in the collection.
 async function isSaved(share: PendingShare, captureLocalId: string, owner: string): Promise<boolean> {
-  const photo = findArtworkPhoto(captureLocalId, owner);
+  const photo = findCapturePhoto(captureLocalId, owner);
   for (const localId of new Set([photo?.savedLocalId, share.savedLocalId])) {
     if (localId && (await getSavedWork(localId, owner))?.deletedAt === null) {
       return true;

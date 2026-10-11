@@ -22,6 +22,7 @@ jest.mock("@/lib/result/use-scan", () => ({
 
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
+  scanDisplayPath: jest.requireActual("@/lib/files/photos").scanPreviewPath,
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
 
@@ -36,6 +37,7 @@ const row: PendingScan = {
   photoPath: "photos/cap-1.jpg",
   cropPath: "crops/cap-1.jpg",
   cropCorners: null,
+  savedPhotoLocalId: null,
   vector: [0.1],
   descriptors: new ArrayBuffer(0),
   keypoints: new ArrayBuffer(0),

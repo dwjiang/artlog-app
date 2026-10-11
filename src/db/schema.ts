@@ -97,6 +97,8 @@ export const artworkPhotos = sqliteTable(
     caption: text(),
     path: text(),
     storageId: text().$type<string>(),
+    // Keep an unconfirmed legacy backup until this album has an authorized server reference.
+    recoveryStorageId: text(),
     deletedAt: integer(),
     syncedAt: integer(),
     revision: integer().notNull().default(0),
@@ -149,6 +151,8 @@ export const pendingScans = sqliteTable(
   {
     owner: text().notNull(),
     localId: text().notNull(),
+    // Legacy saves use a shared album id; this local link survives photo moves, downloads and deletion.
+    savedPhotoLocalId: text(),
     photoPath: text().notNull(),
     cropPath: text().notNull(),
     /** Where the crop sits in `photoPath`, normalized. */

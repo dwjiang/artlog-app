@@ -9,10 +9,12 @@ import {
   photoInput,
   updateAlbumTransfer,
 } from "@/db/repos/artwork-album";
-import { isPhotoFileReferenced, upsertFromRemote } from "@/db/repos/saved-works";
+import { hasLegacyAlbumRecovery, recoverLegacyAlbumPhotos } from "@/db/repos/legacy-album-recovery";
+import { getSavedWork, isPhotoFileReferenced, upsertFromRemote } from "@/db/repos/saved-works";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { upsertVisitsFromRemote } from "@/db/repos/visits";
 import { convex } from "@/lib/convex-client";
+import { photoFileExists } from "@/lib/files/photo-transfer-needed";
 import { scanPreviewPath } from "@/lib/files/photos";
 import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
 import { isTransientError } from "@/lib/network-error";
@@ -45,8 +47,9 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
   }
   const key = `albumSync:${context.owner}`;
   let since = Number((await getSetting(key)) ?? 0);
+  let recovering = hasLegacyAlbumRecovery(context.owner);
   while (isCurrent()) {
-    const pending = pendingAlbum(context.owner);
+    const pending = recovering ? { photos: [], encounters: [] } : pendingAlbum(context.owner);
     const result = await convex.mutation(api.artworkAlbums.sync, {
       scope: context.scope,
       since,
@@ -62,6 +65,11 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
     applyAlbum(result.photos, result.encounters, context.owner);
     since = result.checkpoint;
     await setSetting(key, String(since));
+    if (!isCurrent()) return;
+    if (recovering && !result.hasMore) {
+      recoverLegacyAlbumPhotos(context.owner);
+      recovering = false;
+    }
     if (
       !result.hasMore
       && pendingAlbum(context.owner).photos.length === 0
@@ -77,32 +85,42 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
     const photos = albumPhotoTransfers(context.owner, afterLocalId);
     if (photos.length === 0) {
       if (failure) throw failure;
-      return;
+      if (afterLocalId === undefined) return;
+      // A recovered legacy download still needs an album upload before its backup is ready to publish.
+      afterLocalId = undefined;
+      continue;
     }
     for (const photo of photos) {
       if (!isCurrent()) return;
+      const upload = photo.path && !photo.storageId && (!photo.recoveryStorageId || photoFileExists(photo.path));
       try {
-        if (photo.path && !photo.storageId) {
+        if (upload) {
           const { storageId } = await uploadCollectionPhoto(
             token,
             context.scope,
             photo.savedLocalId,
             "photo",
-            photo.path,
+            photo.path!,
             isCurrent,
             photo.localId,
           );
           if (isCurrent()) {
             updateAlbumTransfer(photo.localId, { storageId }, context.owner);
           }
-        } else if (!photo.path && photo.storageId) {
+        } else if (photo.storageId || photo.recoveryStorageId) {
+          const storageId = photo.storageId ?? photo.recoveryStorageId!;
+          const work = !photo.storageId ? await getSavedWork(photo.savedLocalId, context.owner) : undefined;
+          if (!isCurrent()) return;
+          if (!photo.storageId && work?.cropStorageId !== storageId) continue;
+          // A legacy album may have been recovered from the save's crop. Read it through that owned source.
+          const kind = photo.storageId ? "photo" : "crop";
           const path = await downloadCollectionPhoto(
             token,
             context.scope,
             photo.savedLocalId,
-            "photo",
-            photo.storageId,
-            photo.localId,
+            kind,
+            storageId,
+            kind === "photo" ? photo.localId : undefined,
           );
           if (!isCurrent() || !updateAlbumTransfer(photo.localId, { path }, context.owner)) {
             removePhotoFile(path);
@@ -113,7 +131,7 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
         reportError(error, "sync.photos", {
           data: {
             kind: "album",
-            direction: photo.path ? "upload" : "download",
+            direction: upload ? "upload" : "download",
           },
         });
         failure = error;

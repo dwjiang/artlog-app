@@ -32,9 +32,14 @@ export function captureFileUri(path: string): string {
   return new File(Paths.document, path).uri;
 }
 
-// Each scan owns a model crop and a sibling preview containing only the artwork.
 export function scanPreviewPath(cropPath: string): string {
   return cropPath.replace(/\.[^/.]+$/, "") + ".preview.jpg";
+}
+
+export function scanDisplayPath(cropPath: string): string {
+  const preview = scanPreviewPath(cropPath);
+  // Captures saved before separate previews were introduced only have the model crop.
+  return new File(captureFileUri(preview)).exists ? preview : cropPath;
 }
 
 export async function persistArtworkPhoto(uri: string, localId: string): Promise<string> {

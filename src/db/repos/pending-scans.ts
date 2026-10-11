@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getTableColumns, isNotNull, isNull, lt, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 
 import { db } from "@/db/client";
 import {
@@ -134,7 +134,10 @@ export function pendingScansQuery(owner = getLocalOwner()) {
     .from(pendingScans)
     .leftJoin(
       artworkPhotos,
-      and(eq(artworkPhotos.owner, pendingScans.owner), eq(artworkPhotos.localId, pendingScans.localId)),
+      and(
+        eq(artworkPhotos.owner, pendingScans.owner),
+        eq(artworkPhotos.localId, sql`coalesce(${pendingScans.savedPhotoLocalId}, ${pendingScans.localId})`),
+      ),
     )
     .where(and(eq(pendingScans.owner, owner), isNull(artworkPhotos.localId)))
     .orderBy(desc(pendingScans.capturedAt), desc(pendingScans.localId));

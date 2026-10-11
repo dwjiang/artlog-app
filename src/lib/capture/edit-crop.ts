@@ -131,6 +131,7 @@ export async function saveEditedScanCrop(
           ...original,
           ...features,
           localId: nextId,
+          savedPhotoLocalId: null,
           photoPath: photoPath!,
           cropPath: modelPath,
           cropCorners: crop.corners,

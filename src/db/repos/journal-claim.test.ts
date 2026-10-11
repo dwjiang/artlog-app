@@ -112,6 +112,15 @@ it("carries queued index shares to the account with their captures", async () =>
   expect(await getSetting(`pendingShare:${source}:scan-1`)).toBeUndefined();
 });
 
+it("carries deferred legacy album recovery to the account without changing its backup", async () => {
+  const source = anonymousOwner();
+  const recovery = JSON.stringify({ localId: "legacy", path: null, storageId: "original-backup", capturedAt: 100 });
+  await setSetting(`albumRecovery:${source}:legacy`, recovery);
+  await claimLocalJournal(source, "account:a", "claim");
+  expect(await getSetting("albumRecovery:account:a:legacy")).toBe(recovery);
+  expect(await getSetting(`albumRecovery:${source}:legacy`)).toBeUndefined();
+});
+
 it("carries the private wall to the account, replacing one an earlier claim left unpublished", async () => {
   const source = anonymousOwner();
   await setSetting("wall:account:a", '{"color":"#111111","items":[]}');

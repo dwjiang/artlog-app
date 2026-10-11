@@ -103,15 +103,12 @@ const transfers: Queue = {
   failures: 0,
   retryAt: 0,
   run: async (context, token, isCurrent) => {
-    let albumFailure: unknown;
-    try {
-      await syncArtworkAlbums(context, token, isCurrent);
-    } catch (error) {
+    let failure: unknown;
+    await syncArtworkAlbums(context, token, isCurrent).catch((error: unknown) => {
       if (!isCurrent()) return;
       if (isTransientError(error)) throw error;
-      reportError(error, "sync.photos");
-      albumFailure = error;
-    }
+      failure = error;
+    });
     if (!isCurrent()) return;
     await syncCollectionPhotos(
       {
@@ -136,8 +133,11 @@ const transfers: Queue = {
         removeFile: removePhotoFile,
       },
       isCurrent,
-    );
-    if (albumFailure !== undefined) throw albumFailure;
+    ).catch((error: unknown) => {
+      if (failure !== undefined) reportError(failure, "sync.photos");
+      failure = error;
+    });
+    if (failure !== undefined) throw failure;
   },
 };
 // Saved-scan uploads get their own queue too: flushCollectionMedia waits on transfers, never on this backlog.
@@ -262,8 +262,8 @@ export async function flushCollectionMedia(dependsOn: Parameters<typeof albumMed
   if (current !== generation || !ready()) throw new SyncUnavailableError();
   const failure = await flush(transfers);
   if (current !== generation || !ready()) throw new SyncUnavailableError();
-  if (failure !== undefined && albumMediaPending(owner, dependsOn)) {
-    throw failure;
+  if (albumMediaPending(owner, dependsOn)) {
+    throw failure ?? new SyncUnavailableError();
   }
 }
 

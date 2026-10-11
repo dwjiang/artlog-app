@@ -57,6 +57,7 @@ jest.mock("@/db/repos/offline-scan-results", () => ({
 }));
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
+  scanDisplayPath: jest.requireActual("@/lib/files/photos").scanPreviewPath,
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
 jest.mock("@/lib/queue/queue", () => ({ retryPendingScan: jest.fn() }));
