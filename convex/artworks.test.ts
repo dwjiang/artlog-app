@@ -301,9 +301,12 @@ it("researches a work opened from search once, and not again after it found noth
   const t = harness();
   const { as } = await seedDevice(t);
   const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
-  const scheduled = () => t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+  const runs = async () =>
+    (await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect())).filter(
+      ({ name }) => name === "docent:ensure",
+    );
   expect(await as.mutation(api.artworks.research, { artworkId })).toBe(true);
-  expect((await scheduled()).map(({ name }) => name)).toEqual(["docent:ensure"]);
+  expect(await runs()).toHaveLength(1);
 
   // A run in progress or one that found no sources is left alone; so is a work that already has its story.
   await t.run((ctx) => ctx.db.patch("artworks", artworkId, { enrichClaimedAt: Date.now() }));
@@ -314,5 +317,5 @@ it("researches a work opened from search once, and not again after it found noth
     seedArtworkWithObject(ctx, { artworkContent: { docent: { en: docent }, factSheet } }),
   );
   expect(await as.mutation(api.artworks.research, { artworkId: told.artworkId })).toBe(false);
-  expect(await scheduled()).toHaveLength(1);
+  expect(await runs()).toHaveLength(1);
 });

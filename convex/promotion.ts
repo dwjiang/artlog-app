@@ -169,10 +169,7 @@ async function applyMultiView(
     multiViewDuplicateVectorId: duplicate?._id,
     multiViewAgreement: { firstDeviceId, secondDeviceId },
   });
-  if (multiViewVectorId) {
-    await bumpCounter(ctx, "vectors", 1);
-    await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
-  }
+  if (multiViewVectorId) await bumpCounter(ctx, "vectors", 1);
   return done;
 }
 

@@ -175,10 +175,12 @@ export default defineSchema({
     key: v.string(),
     name: v.string(),
     workCount: v.number(),
+    // The cover job's avatar pick, null when no work has a public-domain picture; absent until the job reaches it.
+    coverArtworkId: v.optional(v.union(v.id("artworks"), v.null())),
   })
     .index("by_key", ["key"])
     .searchIndex("search_key", { searchField: "key" }),
-  // The monthly avatar pick: each artist's most-saved work, resolved to its picture on read.
+  // Each artist's most-saved work, tallied monthly for the cover job.
   artistCovers: defineTable({
     artistKey: v.string(),
     artworkId: v.id("artworks"),

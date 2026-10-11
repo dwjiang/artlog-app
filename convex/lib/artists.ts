@@ -21,11 +21,12 @@ export function artistByKey(ctx: QueryCtx, key: string) {
     .unique();
 }
 
+// Changed works can change the avatar, so a count change clears it for the cover job to pick again.
 async function changeWorkCount(ctx: MutationCtx, key: string, name: string, delta: number) {
   const artist = await artistByKey(ctx, key);
   const workCount = (artist?.workCount ?? 0) + delta;
   if (artist && workCount <= 0) await ctx.db.delete("artists", artist._id);
-  else if (artist) await ctx.db.patch("artists", artist._id, { workCount });
+  else if (artist) await ctx.db.patch("artists", artist._id, { workCount, coverArtworkId: undefined });
   else if (workCount > 0) await ctx.db.insert("artists", { key, name, workCount });
 }
 

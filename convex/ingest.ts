@@ -437,7 +437,6 @@ export const commitVectors = internalMutation({
       }
     }
     await bumpCounter(ctx, "vectors", inserted);
-    if (rows.length > 0) await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
     return { ids };
   },
 });

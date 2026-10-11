@@ -66,6 +66,120 @@ it("keeps a delete queued when it arrives during an upsert, and rejects the stal
   expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ ready: true });
 });
 
+function stubPinecone() {
+  vi.stubEnv("PINECONE_API_KEY", "secret");
+  vi.stubEnv("PINECONE_INDEX_HOST", "test.svc.us-east-1.pinecone.io");
+  const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async (_url, options) => {
+    const { vectors } = JSON.parse(options!.body as string);
+    return Response.json(vectors ? { upsertedCount: vectors.length } : {});
+  });
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+}
+
+const sent = (fetch: ReturnType<typeof stubPinecone>, call: number) =>
+  JSON.parse(fetch.mock.calls[call][1]!.body as string);
+
+it("syncs every vector a transaction deletes through one scheduled drain", async () => {
+  const fetch = stubPinecone();
+  const t = harness({ vectorSync: true });
+  const works = await t.run(async (ctx) => [await seedArtworkWithObject(ctx), await seedArtworkWithObject(ctx)]);
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+  expect(sent(fetch, 0).vectors).toHaveLength(2);
+
+  await t.run(async (ctx) => {
+    for (const work of works) await deleteVector(ctx, (await ctx.db.get("vectors", work.vectorId))!);
+  });
+  const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+  expect(scheduled.filter((job) => job.name === "vectorSync:drain" && job.state.kind === "pending")).toHaveLength(1);
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(sent(fetch, 1).ids).toEqual(expect.arrayContaining(works.map((work) => work.recordId)));
+  expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ ready: true });
+});
+
+it("drains a delete that waited behind an upsert as soon as the upsert is acknowledged", async () => {
+  const fetch = stubPinecone();
+  const t = harness({ vectorSync: true });
+  const work = await t.run((ctx) => seedArtworkWithObject(ctx));
+  const [upsert] = await t.mutation(internal.vectorSync.claim, {});
+  await t.run(async (ctx) => deleteVector(ctx, (await ctx.db.get("vectors", work.vectorId))!));
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+  expect(fetch).not.toHaveBeenCalled();
+
+  await t.mutation(internal.vectorSync.acknowledge, { receipts: [receipt(upsert.job)], success: true });
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(sent(fetch, 0).ids).toEqual([work.recordId]);
+  expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ ready: true });
+});
+
+it("retries a failed write once its lease ends", async () => {
+  const fetch = stubPinecone();
+  fetch.mockRejectedValueOnce(new Error("provider unavailable"));
+  const t = harness({ vectorSync: true });
+  const work = await t.run((ctx) => seedArtworkWithObject(ctx));
+  await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+  expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ pending: true });
+
+  const failedAt = Date.now();
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(Date.now()).toBeGreaterThanOrEqual(failedAt + 31 * 60_000);
+  expect(sent(fetch, 1).vectors).toEqual([expect.objectContaining({ id: work.recordId })]);
+  expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ ready: true });
+});
+
+it.each(["before", "after"] as const)(
+  "drains a delete queued %s the last failed write is acknowledged, after its lease ends",
+  async (queued) => {
+    const fetch = stubPinecone();
+    const t = harness({ vectorSync: true });
+    const work = await t.run((ctx) => seedArtworkWithObject(ctx));
+    await t.run(async (ctx) => {
+      const job = (await ctx.db.query("vectorSyncJobs").first())!;
+      await ctx.db.patch("vectorSyncJobs", job._id, { attempts: 7 });
+    });
+    const [lastAttempt] = await t.mutation(internal.vectorSync.claim, {});
+    const remove = () => t.run(async (ctx) => deleteVector(ctx, (await ctx.db.get("vectors", work.vectorId))!));
+    if (queued === "before") await remove();
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+    await t.mutation(internal.vectorSync.acknowledge, {
+      receipts: [receipt(lastAttempt.job)],
+      success: false,
+    });
+    if (queued === "after") await remove();
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+    expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ pending: true, failed: true });
+    expect(fetch).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(31 * 60_000 - 1);
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+    expect(fetch).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(sent(fetch, 0).ids).toEqual([work.recordId]);
+    expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ ready: true });
+  },
+);
+
+it("leaves an exhausted write failed when its lease wakeup has no newer work", async () => {
+  const fetch = stubPinecone();
+  const t = harness({ vectorSync: true });
+  await t.run((ctx) => seedArtworkWithObject(ctx));
+  await t.run(async (ctx) => {
+    const job = (await ctx.db.query("vectorSyncJobs").first())!;
+    await ctx.db.patch("vectorSyncJobs", job._id, { attempts: 7 });
+  });
+  const [lastAttempt] = await t.mutation(internal.vectorSync.claim, {});
+  await t.mutation(internal.vectorSync.acknowledge, { receipts: [receipt(lastAttempt.job)], success: false });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(fetch).not.toHaveBeenCalled();
+  expect(await t.query(internal.vectorSync.status, {})).toMatchObject({ pending: false, failed: true });
+  expect(await t.run((ctx) => ctx.db.query("vectorSyncJobs").first())).toMatchObject({ attempts: 8, state: "failed" });
+});
+
 it("rejects old embedding revisions, preserves new ones, and skips unchanged reimports", async () => {
   const t = harness({ vectorSync: true });
   const work = await t.run((ctx) => seedArtworkWithObject(ctx));

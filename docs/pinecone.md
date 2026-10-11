@@ -36,16 +36,16 @@ cd scripts/data && uv run python -m pipeline.vector_sync
 ```
 
 Each vector mutation appends an outbox job; producers never read the outbox, so
-import batches cannot conflict with worker claims. Imports, rebuilds, and new
-contributions schedule a drain once per batch; a drain examines up to 100 jobs and
-chains the next page even when every job on its page is waiting on a lease. A job
-syncs its remote record to the current `vectors` row, so a vector deleted before
-its job runs turns into a delete.
+import batches cannot conflict with worker claims. A transaction that queues jobs
+schedules one drain; a drain examines up to 100 jobs and chains the next page even
+when every job on its page is waiting on a lease. A job syncs its remote record to
+the current `vectors` row, so a vector deleted before its job runs turns into a delete.
 Workers hold one lease per record and drop duplicate jobs for a record they claim;
-a job behind a lease for the same record waits for the one-minute cron, which also
-recovers stranded jobs. Failed/abandoned writes wait 31 minutes before retry, longer
-than a Convex action can remain alive; after eight failed attempts, jobs remain in
-`failed` state for operator repair. Errors use the shared Sentry helper without
+a job behind a lease for the same record drains when that lease is acknowledged.
+Failed writes schedule their retry for when the lease ends, 31 minutes later, longer
+than a Convex action can remain alive. An hourly cron recovers jobs whose drain
+died before acknowledging. After eight failed attempts, jobs remain in `failed`
+state for operator repair. Errors use the shared Sentry helper without
 sending vectors, credentials, or provider bodies.
 
 Pinecone is eventually consistent. A successful queue drain means writes were

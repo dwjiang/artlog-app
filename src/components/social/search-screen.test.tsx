@@ -89,8 +89,7 @@ beforeEach(() => {
       { tag: "mondrian", postCount: 1 },
     ],
     "profiles:search": { page: [monica], cursor: null, isDone: true },
-    "artists:search": [],
-    "artworks:search": { page: [], cursor: null, isDone: true },
+    "catalog:search": { artists: [], artworks: { page: [], cursor: null, isDone: true } },
   };
 });
 
@@ -101,8 +100,17 @@ afterEach(() => {
 
 async function type(text: string) {
   await fireEvent.changeText(screen.getByLabelText("Artworks, artists and people"), text);
-  await act(() => jest.advanceTimersByTime(250));
+  await act(() => jest.advanceTimersByTime(300));
 }
+
+it("waits for typing to pause before searching", async () => {
+  await render(<SearchScreen />);
+  await fireEvent.changeText(screen.getByLabelText("Artworks, artists and people"), "monet");
+  await act(() => jest.advanceTimersByTime(299));
+  expect(mockArgs).not.toHaveBeenCalledWith("catalog:search", expect.anything());
+  await act(() => jest.advanceTimersByTime(1));
+  expect(mockArgs).toHaveBeenCalledWith("catalog:search", { query: "monet", limit: 5 });
+});
 
 it("offers popular tags and remembers the one opened", async () => {
   await render(<SearchScreen />);
@@ -168,8 +176,7 @@ it("searches only tags when the text starts with #", async () => {
   await type("#mon");
   expect(mockArgs).toHaveBeenCalledWith("tags:search", { prefix: "mon" });
   expect(mockArgs).not.toHaveBeenCalledWith("profiles:search", expect.anything());
-  expect(mockArgs).not.toHaveBeenCalledWith("artworks:search", expect.anything());
-  expect(mockArgs).not.toHaveBeenCalledWith("artists:search", expect.anything());
+  expect(mockArgs).not.toHaveBeenCalledWith("catalog:search", expect.anything());
   expect(screen.queryByRole("header", { name: "People" })).toBeNull();
 });
 
@@ -189,12 +196,10 @@ const monet = {
 };
 
 it("finds artists and artworks as you type, above tags and people", async () => {
-  mockResults["artists:search"] = [monet];
-  mockResults["artworks:search"] = { page: [lilies, wheat], cursor: null, isDone: true };
+  mockResults["catalog:search"] = { artists: [monet], artworks: { page: [lilies, wheat], cursor: null, isDone: true } };
   await render(<SearchScreen />);
   await type("monet");
-  expect(mockArgs).toHaveBeenCalledWith("artists:search", { query: "monet" });
-  expect(mockArgs).toHaveBeenCalledWith("artworks:search", { query: "monet", limit: 8 });
+  expect(mockArgs).toHaveBeenCalledWith("catalog:search", { query: "monet", limit: 5 });
   expect(screen.getAllByRole("header").map((header) => header.props.children)).toEqual([
     "Artists",
     "Artworks",
@@ -217,10 +222,13 @@ it("finds artists and artworks as you type, above tags and people", async () => 
 
 it("opens your saved copy of an artwork you saved, and lists the rest under See all", async () => {
   mockSaved = new Map([["lilies", { localId: "save-1" }]]);
-  mockResults["artworks:search"] = {
-    page: [lilies, wheat, { ...wheat, artworkId: "w2" }, { ...wheat, artworkId: "w3" }],
-    cursor: "next",
-    isDone: false,
+  mockResults["catalog:search"] = {
+    artists: [],
+    artworks: {
+      page: [lilies, wheat, { ...wheat, artworkId: "w2" }, { ...wheat, artworkId: "w3" }],
+      cursor: "next",
+      isDone: false,
+    },
   };
   await render(<SearchScreen />);
   await type("monet");
@@ -234,7 +242,7 @@ it("opens your saved copy of an artwork you saved, and lists the rest under See 
 it("keeps later artwork matches reachable when the first page contains only hidden works", async () => {
   mockResults["tags:search"] = [];
   mockResults["profiles:search"] = { page: [], cursor: null, isDone: true };
-  mockResults["artworks:search"] = { page: [], cursor: "next", isDone: false };
+  mockResults["catalog:search"] = { artists: [], artworks: { page: [], cursor: "next", isDone: false } };
   await render(<SearchScreen />);
   await type("water lilies");
   expect(screen.queryByText("No results found.")).toBeNull();
@@ -257,15 +265,13 @@ it("reopens recent artworks and artists", async () => {
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/catalog/[artworkId]", params: { artworkId: "wheat" } });
 });
 
-it("offers a retry when the catalog searches fail", async () => {
-  mockResults["artists:search"] = new Error("Server unavailable");
-  mockResults["artworks:search"] = new Error("Server unavailable");
+it("offers a retry when the catalog search fails", async () => {
+  mockResults["catalog:search"] = new Error("Server unavailable");
   await render(<SearchScreen />);
   await type("monet");
   expect(screen.getByRole("button", { name: "#monet, 312 posts" })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Retry artists" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Retry artworks" }));
-  expect(mockRefresh.mock.calls).toEqual([["artists:search"], ["artworks:search"]]);
+  await fireEvent.press(screen.getByRole("button", { name: "Retry artists and artworks" }));
+  expect(mockRefresh.mock.calls).toEqual([["catalog:search"]]);
 });
 
 it("says when nothing matches and when the phone is offline", async () => {
