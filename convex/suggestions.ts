@@ -179,15 +179,11 @@ export const list = query({
     const people = [];
     for (const { id, entry } of ranked) {
       if (people.length === SHOWN.suggestions) break;
-      const [person, snapshot, dismissal] = await Promise.all([
-        activeProfile(ctx, id),
-        relationshipSnapshot(ctx, viewer._id, id),
-        findDismissal(ctx, viewer._id, id),
-      ]);
+      if (await findDismissal(ctx, viewer._id, id)) continue;
+      const [person, snapshot] = await Promise.all([activeProfile(ctx, id), relationshipSnapshot(ctx, viewer._id, id)]);
       const { edge, block, reverseBlock, state } = snapshot;
       if (
         !person
-        || dismissal
         || block?.active
         || reverseBlock?.active
         || edge?.state === "accepted"

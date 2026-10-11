@@ -1,4 +1,5 @@
 import { convexTest } from "convex-test";
+import type { FunctionReturnType } from "convex/server";
 import { expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
@@ -248,6 +249,99 @@ it("finishes cover assignment across pages within transaction limits when works 
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("tallies a long tail of saved works across bounded transactions without dropping covers", async () => {
+  const t = harness({ transactionLimits: true });
+  const { deviceId } = await seedDevice(t);
+  const venueId = await t.run((ctx) => seedMuseum(ctx));
+  for (let work = 0; work < 500; work++) {
+    await t.run(async (ctx) => {
+      const key = `cover-work-${work}`;
+      const artworkId = await ctx.db.insert("artworks", {
+        key,
+        title: key,
+        artist: `Painter ${work}`,
+        identityStatus: "established",
+        rightsStatus: "public_domain",
+        multiplicity: "unique",
+        enrichGeneration: 0,
+      });
+      const detailsId = await ctx.db.insert("objectDetails", { thumbnailUrl: `https://museum.example/${work}.jpg` });
+      await ctx.db.insert("objects", {
+        key,
+        artworkId,
+        ownerId: venueId,
+        detailsId,
+        identityStatus: "established",
+        source: "corpus",
+        sourceId: key,
+        ...newObjectCounters,
+        reverted: false,
+      });
+      await save(ctx, artworkId, deviceId);
+    });
+  }
+  let cursor: string | null = null;
+  let open: { artworkId: Id<"artworks">; saves: number } | undefined;
+  let done = false;
+  while (!done) {
+    const page: FunctionReturnType<typeof internal.artists.tallyCovers> = await t.mutation(
+      internal.artists.tallyCovers,
+      { cursor, open },
+    );
+    cursor = page.cursor;
+    open = page.open ?? undefined;
+    done = page.isDone;
+  }
+  expect(await t.run((ctx) => ctx.db.query("artistCovers").collect())).toHaveLength(500);
+}, 30_000);
+
+it("carries save counts across tally pages and excludes deleted saves", async () => {
+  const t = harness({ transactionLimits: true });
+  const { deviceId } = await seedDevice(t);
+  const first = await seedWork(t, { artist: "Claude Monet" });
+  const second = await seedWork(t, { artist: "Henri Rousseau" });
+  await t.run(async (ctx) => {
+    for (const { artworkId } of [first, second]) {
+      for (let i = 0; i < 21; i++) await save(ctx, artworkId, deviceId);
+    }
+    for (let i = 0; i < 25; i++) await save(ctx, second.artworkId, deviceId, true);
+  });
+  let cursor: string | null = null;
+  let open: { artworkId: Id<"artworks">; saves: number } | undefined;
+  for (;;) {
+    const page: FunctionReturnType<typeof internal.artists.tallyCovers> = await t.mutation(
+      internal.artists.tallyCovers,
+      { cursor, open },
+    );
+    if (page.isDone) break;
+    cursor = page.cursor;
+    open = page.open ?? undefined;
+  }
+  const covers = await t.run((ctx) => ctx.db.query("artistCovers").collect());
+  expect(covers).toHaveLength(2);
+  expect(covers).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ artworkId: first.artworkId, saves: 21 }),
+      expect.objectContaining({ artworkId: second.artworkId, saves: 21 }),
+    ]),
+  );
+});
+
+it("keeps the earlier cover when a later work ties its save count", async () => {
+  const t = harness();
+  const { deviceId } = await seedDevice(t);
+  const first = await seedWork(t, { artist: "Claude Monet" });
+  const second = await seedWork(t, { artist: "Claude Monet" });
+  await t.run(async (ctx) => {
+    await save(ctx, second.artworkId, deviceId);
+    await ctx.db.insert("artistCovers", { artistKey: "claude monet", artworkId: first.artworkId, saves: 1 });
+  });
+  await t.mutation(internal.artists.tallyCovers, { cursor: null });
+  expect(await t.run((ctx) => ctx.db.query("artistCovers").collect())).toMatchObject([
+    { artworkId: first.artworkId, saves: 1 },
+  ]);
 });
 
 it("lists an artist's shown works page by page and their details", async () => {

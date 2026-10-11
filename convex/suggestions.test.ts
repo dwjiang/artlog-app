@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import type { VisitVisibility } from "../shared/journal/contracts";
 import { api } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { befriend, type SocialUser, socialUser } from "./lib/socialTestFixtures";
 import { seedArtworkWithObject, seedDevice, seedMuseum } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
@@ -147,6 +147,70 @@ it("suggests people who liked the viewer's shared visit", async () => {
   ]);
 });
 
+it("keeps dismissed likers within a 150-query budget and rechecks access when restored", async () => {
+  const t = harness({ transactionLimits: { databaseQueries: 150 } });
+  const viewer = await socialUser(t, "viewer");
+  const elena = await socialUser(t, "Elena");
+  const venueId = await t.run((ctx) => seedMuseum(ctx, { name: "The Met" }));
+  const publications: Doc<"sharedVisits">[] = [];
+  for (let index = 0; index < 3; index++) {
+    const postId = await share(t, viewer, await visitAt(t, viewer, venueId));
+    const publication = await t.run((ctx) =>
+      ctx.db
+        .query("sharedVisits")
+        .withIndex("by_postId", (q) => q.eq("postId", postId))
+        .unique(),
+    );
+    publications.push(publication!);
+  }
+  await elena.as.mutation(api.visitReactions.setLike, { postId: publications[0].postId, liked: true });
+  const expected = await suggested(viewer);
+  expect(expected).toMatchObject([
+    { profile: { profileId: elena.profileId }, reason: { kind: "liked", venueName: "The Met" } },
+  ]);
+
+  for (let index = 1; index < 60; index++) {
+    await t.run(async (ctx) => {
+      const accountId = await ctx.db.insert("accounts", { provider: "apple", providerUserId: `liker-${index}` });
+      const profileId = await ctx.db.insert("profiles", {
+        accountId,
+        name: `Liker ${index}`,
+        username: `liker_${index}`,
+        searchText: `liker ${index}`,
+        active: true,
+        publishedWallCount: 0,
+        leaderboardVisibility: "off",
+        updatedAt: 1,
+      });
+      await ctx.db.insert("visitLikes", { publicationId: publications[Math.floor(index / 20)]._id, profileId });
+      await ctx.db.insert("suggestionDismissals", { profileId: viewer.profileId, dismissedId: profileId });
+    });
+  }
+  await viewer.as.mutation(api.suggestions.dismiss, { profileId: elena.profileId });
+  expect(await suggested(viewer)).toEqual([]);
+  await viewer.as.mutation(api.suggestions.restore, { profileId: elena.profileId });
+  expect(await suggested(viewer)).toEqual(expected);
+
+  for (const [blocker, blocked] of [
+    [viewer, elena],
+    [elena, viewer],
+  ]) {
+    await viewer.as.mutation(api.suggestions.dismiss, { profileId: elena.profileId });
+    const block = await blocker.as.mutation(api.friendships.block, {
+      scope: blocker.scope,
+      profileId: blocked.profileId,
+    });
+    await viewer.as.mutation(api.suggestions.restore, { profileId: elena.profileId });
+    expect(await suggested(viewer)).toEqual([]);
+    await blocker.as.mutation(api.friendships.unblock, {
+      scope: blocker.scope,
+      profileId: blocked.profileId,
+      blockRevision: block.blockRevision,
+    });
+    expect(await names(viewer)).toEqual(["Elena"]);
+  }
+});
+
 it("leaves out friends, incoming and day-old requests, blocks and dismissals, and restores a dismissal", async () => {
   const t = harness();
   const viewer = await socialUser(t, "viewer");
@@ -241,12 +305,21 @@ it("requires a profile", async () => {
   const t = harness();
   const guest = await seedDevice(t);
   const other = await socialUser(t);
+  await expect(t.query(api.suggestions.list, {})).rejects.toMatchObject({ data: { code: "unauthenticated" } });
   await expect(guest.as.query(api.suggestions.list, {})).rejects.toMatchObject({
     data: { code: "sign_in_required" },
   });
   await expect(guest.as.query(api.suggestions.inCommonWith, { profileId: other.profileId })).rejects.toMatchObject({
     data: { code: "sign_in_required" },
   });
+  for (const operation of [api.suggestions.dismiss, api.suggestions.restore]) {
+    await expect(t.mutation(operation, { profileId: other.profileId })).rejects.toMatchObject({
+      data: { code: "unauthenticated" },
+    });
+    await expect(guest.as.mutation(operation, { profileId: other.profileId })).rejects.toMatchObject({
+      data: { code: "sign_in_required" },
+    });
+  }
 });
 
 it("lists public-wall artworks and readable museums in common, and nothing across a block", async () => {
