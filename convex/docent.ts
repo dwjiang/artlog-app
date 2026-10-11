@@ -127,6 +127,28 @@ export const claim = internalMutation({
   },
 });
 
+export const saveResearch = internalMutation({
+  args: { artworkId: v.id("artworks"), generation: v.number(), factSheet: v.array(factSheetEntry) },
+  returns: v.boolean(),
+  handler: async (ctx, { artworkId, generation, factSheet }) => {
+    const artwork = await ctx.db.get("artworks", artworkId);
+    if (
+      !artwork
+      || artwork.retiredAt
+      || artwork.identityStatus !== "established"
+      || artwork.factSheetNeedsReview
+      || artwork.enrichGeneration !== generation
+      || artwork.enrichClaimedAt === undefined
+      || factSheet.length === 0
+    ) {
+      return false;
+    }
+    await patchArtworkContent(ctx, artwork, { factSheet });
+    await ctx.db.patch("artworks", artworkId, { factSheetUpdatedAt: Date.now() });
+    return true;
+  },
+});
+
 // Shared with the Python enrichment job. Omit `factSheet` to rewrite only the sentences.
 export const writeEnrichment = internalMutation({
   args: {
@@ -254,14 +276,13 @@ type DocentContext = {
   owner: Doc<"museums"> | null;
 };
 type Generated = {
-  factSheet?: FactSheetEntry[];
   docentEn: DocentSentence[];
   researchConflicts?: ResearchConflict[];
 };
 // Why a run wrote nothing. Only "no_sources", a successful search that found nothing, is permanent.
 type Unwritten = "no_sources" | "sources_unavailable" | "no_facts" | "prose_rejected";
 
-// Each unwritten reason other than an empty search leaves the work without prose or an audio guide.
+// Empty search results are expected; other failures leave the written docent retryable.
 async function reportUnwritten(reason: Unwritten, operation: string, artworkId?: Id<"artworks">) {
   if (reason === "no_sources") return;
   await reportBackendError(new ConvexError({ code: "research_failed", reason }), operation, { artworkId });
@@ -273,7 +294,8 @@ async function generate(
   models: Models,
   artwork: DocentTarget,
   context: DocentContext,
-): Promise<Generated | Unwritten> {
+  saveResearch: (factSheet: FactSheetEntry[]) => Promise<boolean>,
+): Promise<Generated | Unwritten | null> {
   const cached = context.cachedFactSheet?.length ? context.cachedFactSheet : undefined;
   let sources: Awaited<ReturnType<typeof gatherSources>> | undefined;
   if (!cached) {
@@ -361,6 +383,8 @@ async function generate(
       );
     }
     if (factSheet.length === 0) return "no_facts";
+    // Validated research survives an independent prose failure and can already feed the audio guide.
+    if (!cached && !(await saveResearch(factSheet))) return null;
     const prose = await counted(
       chatJson({
         model: models.docent,
@@ -380,7 +404,7 @@ async function generate(
       })),
       new Set(factSheet.map((fact) => fact.id)),
     );
-    return docentEn.length > 0 ? { ...(cached ? {} : { factSheet }), docentEn } : "prose_rejected";
+    return docentEn.length > 0 ? { docentEn } : "prose_rejected";
   } finally {
     await ctx.runMutation(internal.spend.reconcile, {
       kind: "tokenFactory",
@@ -416,12 +440,30 @@ export async function researchArtwork(ctx: ActionCtx, artworkId: Id<"artworks">,
       return;
     }
     await limitDevice(ctx, "docent", deviceId);
-    const result = await generate(ctx, models, context.artwork, {
-      cachedFactSheet: context.content?.factSheet,
-      pageUrl: context.pageUrl,
-      accession: context.accession,
-      owner: context.owner,
-    });
+    const result = await generate(
+      ctx,
+      models,
+      context.artwork,
+      {
+        cachedFactSheet: context.content?.factSheet,
+        pageUrl: context.pageUrl,
+        accession: context.accession,
+        owner: context.owner,
+      },
+      async (factSheet) => {
+        const saved = await ctx.runMutation(internal.docent.saveResearch, { artworkId, generation, factSheet });
+        // Catalogue lines can feed written prose, but cannot support an audio guide.
+        if (saved && guideResearch(factSheet).length === 0) {
+          await reportBackendError(
+            new ConvexError({ code: "narration_unavailable", reason: "catalogue_only" }),
+            "docent.ensure",
+            { artworkId },
+          );
+        }
+        return saved;
+      },
+    );
+    if (!result) return;
     if (typeof result === "string") {
       noSources = result === "no_sources";
       await reportUnwritten(result, "docent.ensure", artworkId);
@@ -432,14 +474,6 @@ export async function researchArtwork(ctx: ActionCtx, artworkId: Id<"artworks">,
       generation,
       ...result,
     });
-    // The audio guide skips catalogue lines, so research made only of them leaves the work without one.
-    if (written && result.factSheet?.length && guideResearch(result.factSheet).length === 0) {
-      await reportBackendError(
-        new ConvexError({ code: "narration_unavailable", reason: "catalogue_only" }),
-        "docent.ensure",
-        { artworkId },
-      );
-    }
   } catch (error) {
     if (!skipped(error)) await reportBackendError(error, "docent.ensure", { artworkId });
     throw error;
@@ -563,6 +597,25 @@ export const writeScan = internalMutation({
   },
 });
 
+export const saveScanResearch = internalMutation({
+  args: { scanId: v.id("scans"), generation: v.number(), factSheet: v.array(factSheetEntry) },
+  returns: v.boolean(),
+  handler: async (ctx, { scanId, generation, factSheet }) => {
+    const scan = await ctx.db.get("scans", scanId);
+    const confirmed = scan?.confirmed;
+    if (
+      !confirmed
+      || confirmed.generation !== generation
+      || confirmed.docentClaimedAt === undefined
+      || factSheet.length === 0
+    ) {
+      return false;
+    }
+    await ctx.db.patch("scans", scanId, { confirmed: { ...confirmed, factSheet } });
+    return true;
+  },
+});
+
 export const failScan = internalMutation({
   args: { scanId: v.id("scans"), generation: v.number(), unavailable: v.boolean() },
   returns: v.null(),
@@ -600,7 +653,10 @@ export const ensureForScan = internalAction({
         return null;
       }
       await limitDevice(ctx, "docent", deviceId);
-      const result = await generate(ctx, models, context.target, context);
+      const result = await generate(ctx, models, context.target, context, (factSheet) =>
+        ctx.runMutation(internal.docent.saveScanResearch, { scanId, generation, factSheet }),
+      );
+      if (!result) return null;
       if (typeof result === "string") {
         unavailable = result === "no_sources";
         await reportUnwritten(result, "docent.ensureForScan");

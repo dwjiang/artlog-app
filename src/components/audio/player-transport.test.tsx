@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
 import { guideTimeline } from "@/lib/audio/guide-timeline";
@@ -14,6 +14,8 @@ const mockToggle = jest.fn();
 const mockSetRate = jest.fn();
 jest.mock("@/lib/ui/haptics");
 const mockAudio = {
+  current: { work: { artworkId: "artwork-1" } },
+  renderId: "render-1",
   position: 12,
   duration: 120,
   availableDuration: 0,
@@ -21,13 +23,13 @@ const mockAudio = {
   preparationStage: undefined as NarrationPreparationStage | undefined,
   sentences: undefined as GuideSentence[] | undefined,
   waiting: false,
+  rate: 1,
 };
 jest.mock("@/lib/audio/use-listening", () => ({
   useListening: () => ({
     ...mockAudio,
     playing: true,
-    rate: 1,
-    controller: { seek: mockSeek, toggle: mockToggle, setRate: mockSetRate },
+    controller: { seek: mockSeek, toggle: mockToggle, setRate: mockSetRate, snapshot: () => mockAudio },
   }),
 }));
 // Four equally long sentences, one per section, so each section takes a quarter of the guide.
@@ -46,6 +48,8 @@ jest.mock("@react-native-community/slider", () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockAudio.current = { work: { artworkId: "artwork-1" } };
+  mockAudio.renderId = "render-1";
   mockAudio.position = 12;
   mockAudio.duration = 120;
   mockAudio.availableDuration = 0;
@@ -53,6 +57,7 @@ beforeEach(() => {
   mockAudio.preparationStage = undefined;
   mockAudio.sentences = undefined;
   mockAudio.waiting = false;
+  mockAudio.rate = 1;
 });
 
 it("keeps the controls in place with a busy play button and the stage where the section goes", async () => {
@@ -96,6 +101,33 @@ it("previews the drag position and seeks once to the final released value", asyn
   await fireEvent(slider, "slidingComplete", 48);
   expect(mockSeek).toHaveBeenCalledTimes(1);
   expect(mockSeek).toHaveBeenCalledWith(48);
+});
+
+it.each(["artwork", "render", "session"])("discards a scrub when the %s changes before release", async (change) => {
+  const { rerender } = await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  const slider = screen.getByRole("adjustable", { name: "Narration position" });
+  await fireEvent(slider, "slidingStart", 12);
+  await fireEvent(slider, "valueChange", 45);
+  const finishOldDrag = slider.props.onSlidingComplete;
+  if (change === "render") {
+    mockAudio.renderId = "render-2";
+  } else {
+    mockAudio.current = { work: { artworkId: "artwork-2" } };
+    if (change === "session") {
+      await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
+      mockAudio.current = { work: { artworkId: "artwork-1" } };
+    }
+  }
+  mockAudio.position = 3;
+  await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(screen.getByText("0:03")).toBeOnTheScreen();
+  expect(screen.queryByText("0:45")).toBeNull();
+  await act(() => finishOldDrag(48));
+  expect(mockSeek).not.toHaveBeenCalled();
+  const currentSlider = screen.getByRole("adjustable", { name: "Narration position" });
+  await fireEvent(currentSlider, "slidingStart", 3);
+  await fireEvent(currentSlider, "slidingComplete", 6);
+  expect(mockSeek).toHaveBeenCalledWith(6);
 });
 
 it("ticks each time a drag carries the position into another section, and only while dragging", async () => {
@@ -144,6 +176,21 @@ it("labels the speed, transcript, and queue buttons with visible text", async ()
   expect(screen.getByRole("button", { name: "Playback speed, 1 times" })).toHaveTextContent("1×Speed");
   expect(screen.getByRole("button", { name: "Transcript and sources" })).toHaveTextContent("Transcript");
   expect(screen.getByRole("button", { name: "Up next" })).toHaveTextContent("Up next");
+});
+
+it("shows the live guide's actual speed until the selected speed can take effect", async () => {
+  mockAudio.rate = 2;
+  mockAudio.duration = 0;
+  mockAudio.availableDuration = 12;
+  const { rerender } = await render(<PlayerTransport view="player" onView={jest.fn()} />);
+  const speed = screen.getByRole("button", { name: "Playback speed, 1 times" });
+  expect(speed).toHaveTextContent("1×Speed");
+  expect(speed).toBeDisabled();
+  await fireEvent.press(speed);
+  expect(mockSetRate).not.toHaveBeenCalled();
+  mockAudio.duration = 120;
+  await rerender(<PlayerTransport view="player" onView={jest.fn()} />);
+  expect(screen.getByRole("button", { name: "Playback speed, 2 times" })).toBeEnabled();
 });
 
 it("names the section being spoken and jumps to the start of another", async () => {
