@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { findArtworkPhoto } from "@/db/repos/artwork-album";
+import { findCapturePhoto } from "@/db/repos/artwork-album";
 import { settings } from "@/db/schema";
 import { reportError } from "@/lib/observability";
 import type { SaveResultInput } from "@/lib/result/save";
@@ -88,6 +88,6 @@ export function clearPhotoDraft(owner: string, draftId: string) {
 export function isLabelCapture(capture: { localId: string; owner: string; photoPath: string }) {
   return (
     readPhotoSession(capture.owner, capture.photoPath).primaryKind === "label"
-    || findArtworkPhoto(capture.localId, capture.owner)?.kind === "label"
+    || findCapturePhoto(capture.localId, capture.owner)?.kind === "label"
   );
 }

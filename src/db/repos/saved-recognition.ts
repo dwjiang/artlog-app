@@ -17,7 +17,10 @@ export function pendingSavedRecognition(owner: string, localId?: string) {
       pendingScans,
       and(
         eq(pendingScans.owner, artworkPhotos.owner),
-        or(eq(pendingScans.localId, artworkPhotos.localId), eq(pendingScans.photoPath, artworkPhotos.path)),
+        or(
+          eq(sql`coalesce(${pendingScans.savedPhotoLocalId}, ${pendingScans.localId})`, artworkPhotos.localId),
+          eq(pendingScans.photoPath, artworkPhotos.path),
+        ),
       ),
     )
     .leftJoin(

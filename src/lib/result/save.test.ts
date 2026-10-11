@@ -47,6 +47,10 @@ jest.mock("@/lib/venue/venue-db", () => ({
   venueNameById: async (id: string) => (id === "museum-met" ? "The Met" : undefined),
 }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => `uuid-${++mockUuid}` }));
+jest.mock("@/lib/files/photos", () => ({
+  ...jest.requireActual("@/lib/files/photos"),
+  scanDisplayPath: jest.requireActual("@/lib/files/photos").scanPreviewPath,
+}));
 const mockKeepPhotos = jest.fn();
 jest.mock("@/lib/files/kept-photos", () => ({
   keepPhotos: (...args: unknown[]) => mockKeepPhotos(...args),

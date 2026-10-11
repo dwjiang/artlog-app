@@ -64,6 +64,27 @@
       "when": 1791457220396,
       "tag": "0008_drop-artwork-notes",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1791676800000,
+      "tag": "0009_restore-legacy-albums",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1791676800001,
+      "tag": "0010_photo-recovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1791676800002,
+      "tag": "0011_defer-remote-album-recovery",
+      "breakpoints": true
     }
   ]
 }

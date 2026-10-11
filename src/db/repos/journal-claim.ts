@@ -20,7 +20,7 @@ export async function claimLocalJournal(source: string, accountOwner: string, cl
         WHERE source.owner = ${source} AND target.owner = ${accountOwner} LIMIT 1`);
       if (collision) throw new Error("Journal ownership collision");
     }
-    for (const draftKind of ["labelDraft", "photoDraft", "pendingShare"]) {
+    for (const draftKind of ["labelDraft", "photoDraft", "pendingShare", "albumRecovery"]) {
       const prefix = `${draftKind}:${source}:`;
       const drafts = tx
         .select()

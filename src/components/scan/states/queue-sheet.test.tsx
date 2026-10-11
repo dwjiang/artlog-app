@@ -36,6 +36,7 @@ jest.mock("expo-router", () => ({
 }));
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
+  scanDisplayPath: jest.requireActual("@/lib/files/photos").scanPreviewPath,
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
 jest.mock("@/lib/queue/queue", () => ({
@@ -58,6 +59,7 @@ function row(localId: string, status: PendingScan["status"], minutesAgo: number)
     photoPath: `photos/${localId}.jpg`,
     cropPath: `crops/${localId}.jpg`,
     cropCorners: null,
+    savedPhotoLocalId: null,
     vector: [0.1],
     descriptors: new ArrayBuffer(0),
     keypoints: new ArrayBuffer(0),

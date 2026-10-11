@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { getLocalOwner } from "@/lib/account/owner-store";
 import { requestCollectionSync } from "@/lib/account/sync-events";
+import { photoTransferNeeded } from "@/lib/files/photo-transfer-needed";
 
 import type { Doc } from "../../../convex/_generated/dataModel";
 import { saveArtworkSession, selectArtworkPhotos } from "./artwork-album";
@@ -237,7 +238,7 @@ export async function upsertFromRemote(rows: Doc<"collections">[], owner = getLo
   return displaced;
 }
 
-export function listPhotoTransfers(owner = getLocalOwner()) {
+export async function listPhotoTransfers(owner = getLocalOwner()) {
   return db
     .select()
     .from(savedWorks)
@@ -245,14 +246,13 @@ export function listPhotoTransfers(owner = getLocalOwner()) {
       and(
         eq(savedWorks.owner, owner),
         isNull(savedWorks.deletedAt),
-        or(
-          and(isNotNull(savedWorks.cropPath), isNull(savedWorks.cropStorageId)),
-          and(isNull(savedWorks.cropPath), isNotNull(savedWorks.cropStorageId)),
-        ),
+        or(isNotNull(savedWorks.cropPath), isNotNull(savedWorks.cropStorageId)),
       ),
     )
     .orderBy(savedWorks.localId)
-    .limit(20);
+    .all()
+    .filter((work) => photoTransferNeeded(work.cropPath, work.cropStorageId))
+    .slice(0, 20);
 }
 
 export async function updatePhotoTransfer(

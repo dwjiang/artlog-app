@@ -9,6 +9,12 @@ import { syncCollectionPhotos, type PhotoSyncDependencies } from "./photo-sync";
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
+jest.mock("expo-file-system", () => ({
+  Paths: { document: "file:///documents" },
+  File: class {
+    exists = true;
+  },
+}));
 let deps: PhotoSyncDependencies;
 const upload = jest.fn();
 const download = jest.fn();

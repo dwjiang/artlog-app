@@ -60,7 +60,7 @@ export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurren
             undefined,
             current,
           );
-        } else if (!current.cropPath && current.cropStorageId) {
+        } else if (current.cropStorageId) {
           const downloaded = await deps.download(work.localId, "crop", current.cropStorageId);
           if (
             !isCurrent()
@@ -73,7 +73,7 @@ export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurren
         reportError(error, "sync.photos", {
           data: {
             kind: "crop",
-            direction: current.cropPath ? "upload" : "download",
+            direction: current.cropStorageId ? "download" : "upload",
           },
         });
         failure = error;

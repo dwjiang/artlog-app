@@ -53,6 +53,7 @@ jest.mock("@/db/client", () => ({
 }));
 jest.mock("@/lib/files/photos", () => ({
   ...jest.requireActual("@/lib/files/photos"),
+  scanDisplayPath: jest.requireActual("@/lib/files/photos").scanPreviewPath,
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
 jest.mock("@/lib/venue/venue-db", () => ({

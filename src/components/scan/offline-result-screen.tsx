@@ -5,7 +5,7 @@ import { Alert } from "react-native";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedView } from "@/components/themed-view";
 import type { PendingScan } from "@/db/schema";
-import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
+import { captureFileUri, scanDisplayPath } from "@/lib/files/photos";
 import { draftFromCandidate } from "@/lib/result/snapshot";
 import { selectResultCandidates, type ResultCandidate, type ResultViewState } from "@/lib/result/state";
 import { useSaveResult } from "@/lib/result/use-save-result";
@@ -101,7 +101,7 @@ export function OfflineResultScreen({
         captureInput={{ capture, view }}
         header={
           <CardHeader
-            cropUri={captureFileUri(scanPreviewPath(capture.cropPath))}
+            cropUri={captureFileUri(scanDisplayPath(capture.cropPath))}
             artworkTitle={view.primary?.title}
             kind={view.kind}
             probability={view.primary?.probability}

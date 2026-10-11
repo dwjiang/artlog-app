@@ -10,7 +10,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Colors, Gallery, Radius, Spacing } from "@/constants/theme";
 import type { PendingScan, PendingScanStatus } from "@/db/schema";
 import { readPhotoSession } from "@/lib/capture/photo-draft";
-import { captureFileUri, scanPreviewPath } from "@/lib/files/photos";
+import { captureFileUri, scanDisplayPath } from "@/lib/files/photos";
 import { formatRelativeTime } from "@/lib/queue/relative-time";
 import { useRecentScanMetadata } from "@/lib/queue/use-recent-scan-metadata";
 
@@ -68,7 +68,7 @@ export function QueueRow({
       >
         <Image
           cachePolicy="memory"
-          source={captureFileUri(scanPreviewPath(item.cropPath))}
+          source={captureFileUri(scanDisplayPath(item.cropPath))}
           contentFit="cover"
           style={styles.thumbnail}
         />

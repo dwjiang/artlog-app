@@ -1,43 +1,36 @@
-import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
 import { useEffect, useState } from "react";
 
 import { initializeOwner } from "@/lib/account/owner-store";
 import { getInstallationId } from "@/lib/installation-storage";
 
 import { db, describeDatabase } from "./client";
-import { ensureSavedWorkPhotoTimestamp } from "./ensure-saved-work-photo-timestamp";
-import migrations from "./migrations/migrations";
+import { migrateDatabase } from "./migrate-database";
 import { getSetting } from "./repos/settings";
 
 export type MigrationState = { success: boolean; error?: Error };
 
 // DatabaseGate prevents reads until the pending migrations have been applied.
 export function useDatabaseMigrations(): MigrationState {
-  const state = useMigrations(db, migrations);
-  const [ownerReady, setOwnerReady] = useState(false);
-  const [ownerError, setOwnerError] = useState<Error>();
+  const [state, setState] = useState<MigrationState>({ success: false });
   useEffect(() => {
-    if (!state.success) return;
     let active = true;
-    void getSetting("activeJournalOwner")
-      .then((stored) => {
+    async function initialize() {
+      try {
+        const installationId = getInstallationId();
+        await migrateDatabase(db, installationId);
+        const stored = await getSetting("activeJournalOwner");
         if (!active) return;
-        ensureSavedWorkPhotoTimestamp();
-        initializeOwner(getInstallationId(), stored);
-        setOwnerReady(true);
+        initializeOwner(installationId, stored);
         if (__DEV__) console.debug("Local database ready", describeDatabase());
-      })
-      .catch((error: unknown) => {
-        if (active) {
-          setOwnerError(error instanceof Error ? error : new Error(String(error)));
-        }
-      });
+        setState({ success: true });
+      } catch (error) {
+        if (active) setState({ success: false, error: error instanceof Error ? error : new Error(String(error)) });
+      }
+    }
+    void initialize();
     return () => {
       active = false;
     };
-  }, [state.success]);
-  return {
-    success: state.success && ownerReady,
-    error: state.error ?? ownerError,
-  };
+  }, []);
+  return state;
 }

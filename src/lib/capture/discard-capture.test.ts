@@ -63,7 +63,8 @@ it("leaves another owner’s capture and photos alone", async () => {
   expect(removePhotoFile).not.toHaveBeenCalled();
 });
 
-it("protects a scan saved after the recent-scans sheet was opened", async () => {
+it.each(["scan", "legacy-work"])("protects a saved scan whose album photo id is %s", async (photoId) => {
+  if (photoId !== "scan") db.update(pendingScans).set({ savedPhotoLocalId: photoId }).run();
   saveArtworkSession(
     "work",
     {
@@ -76,7 +77,7 @@ it("protects a scan saved after the recent-scans sheet was opened", async () => 
     },
     [
       {
-        localId: "scan",
+        localId: photoId,
         savedLocalId: "work",
         path: "photos/scan.jpg",
         kind: "full",

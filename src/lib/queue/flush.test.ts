@@ -19,6 +19,7 @@ function pendingScan(localId: string, overrides: Partial<PendingScan> = {}): Pen
     photoPath: `photos/${localId}.jpg`,
     cropPath: `crops/${localId}.jpg`,
     cropCorners: null,
+    savedPhotoLocalId: null,
     vector: [0.1],
     descriptors: new ArrayBuffer(4),
     keypoints: new ArrayBuffer(2),

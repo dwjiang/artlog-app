@@ -11,6 +11,12 @@ import { syncArtworkAlbums } from "./album-sync";
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
+jest.mock("expo-file-system", () => ({
+  Paths: { document: "file:///documents" },
+  File: class {
+    exists = true;
+  },
+}));
 const mockMutation = jest.fn();
 const mockUpload = jest.fn();
 const mockDownload = jest.fn();
