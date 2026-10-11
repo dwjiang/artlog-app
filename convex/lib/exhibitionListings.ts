@@ -1,4 +1,8 @@
+import { parseFragment, serialize, type DefaultTreeAdapterTypes } from "parse5";
+
 import {
+  isDateHeading,
+  normalizeEvidence,
   validateExhibitions,
   type CapturedPage,
   type ExhibitionCandidate,
@@ -24,16 +28,90 @@ export const MAX_MUSEUM_CHARS = 40_000;
 
 const CHROME = /<(script|style|noscript|svg|template)\b[\s\S]*?<\/\1>/gi;
 
+/** The page's main region, or its body, without non-text elements. */
+function contentRegion(html: string): string {
+  const region =
+    /<main\b[^>]*>([\s\S]*)<\/main>/i.exec(html)?.[1] ?? /<body\b[^>]*>([\s\S]*)<\/body>/i.exec(html)?.[1] ?? html;
+  return region.replace(CHROME, " ");
+}
+
 /**
  * A listing's readable text, led by the document title so a page that names its museum only there still can.
  * Cards often wrap titles and dates in header and footer tags, so only non-text elements are dropped.
  */
 export function listingText(html: string): string {
   const title = documentTitle(html);
-  const region =
-    /<main\b[^>]*>([\s\S]*)<\/main>/i.exec(html)?.[1] ?? /<body\b[^>]*>([\s\S]*)<\/body>/i.exec(html)?.[1] ?? html;
-  const body = visibleText(region.replace(CHROME, " ")).trim();
+  const body = visibleText(contentRegion(html)).trim();
   return (title ? `${title}\n${body}` : body).slice(0, MAX_PAGE_CHARS);
+}
+
+// The h1's section includes date-only subheadings; other headings and articles start a different scope.
+export function showPage(html: string, maxChars = MAX_PAGE_CHARS): Pick<CapturedPage, "text" | "singleShow"> {
+  let heading: DefaultTreeAdapterTypes.Element | undefined;
+  const parts: string[] = [];
+  function visit(node: DefaultTreeAdapterTypes.Node): boolean {
+    const tag = "tagName" in node ? node.tagName : "";
+    if (["nav", "aside", "footer", "form"].includes(tag)) return true;
+    const boundary = tag === "article" || tag === "section";
+    if (heading && "tagName" in node && (boundary || /^h[1-6]$/.test(tag))) {
+      if (!/^h[2-6]$/.test(tag) || !isDateHeading(visibleText(serialize(node)))) return false;
+    }
+    if (tag === "h1" && "tagName" in node) heading = node;
+    if (heading && "value" in node) parts.push(node.value);
+    if ("childNodes" in node) {
+      for (const child of node.childNodes) {
+        if (!visit(child)) return false;
+      }
+    }
+    return !(heading && boundary);
+  }
+  const region = parseFragment(contentRegion(html));
+  visit(region);
+  const title = documentTitle(html);
+  const body = visibleText(serialize(region)).trim();
+  return {
+    text: (title ? `${title}\n${body}` : body).slice(0, maxChars),
+    singleShow: {
+      heading: heading ? visibleText(serialize(heading)).trim() : "",
+      text: parts.join(" ").replaceAll(/\s+/g, " ").trim().slice(0, maxChars),
+    },
+  };
+}
+
+export type PageLink = { url: string; text: string };
+
+/** The web links in a page's main region with their text; an image link and a title link to one page share it. */
+export function listingLinks(html: string, pageUrl: string): PageLink[] {
+  const links = new Map<string, string>();
+  for (const [, href, inner] of contentRegion(html).matchAll(
+    /<a\b[^>]*?\bhref\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi,
+  )) {
+    let url: URL;
+    try {
+      url = new URL(decodeEntities(href!), pageUrl);
+    } catch {
+      continue;
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") continue;
+    url.hash = "";
+    const text = visibleText(inner!).trim();
+    if (text) links.set(url.href, [links.get(url.href), text].filter(Boolean).join(" "));
+  }
+  return [...links].map(([url, text]) => ({ url, text }));
+}
+
+/** Up to `max` pages of the given shows: for each title, the first link whose text contains it. */
+export function showPages(titles: string[], links: PageLink[], max: number): string[] {
+  const urls: string[] = [];
+  for (const title of titles) {
+    const key = normalizeEvidence(title);
+    const link =
+      key
+      && links.find((candidate) => normalizeEvidence(candidate.text).includes(key) && !urls.includes(candidate.url));
+    if (link) urls.push(link.url);
+    if (urls.length === max) break;
+  }
+  return urls;
 }
 
 export function documentTitle(html: string): string {
@@ -58,16 +136,16 @@ async function sha256(value: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export type ListingPage = { url: string; text: string };
+export type ListingPage = Pick<CapturedPage, "url" | "text" | "singleShow">;
 
 export async function capturePages(pages: ListingPage[], checkedAt: number): Promise<CapturedPage[]> {
   return Promise.all(pages.map(async (page) => ({ ...page, checkedAt, sha256: await sha256(page.text) })));
 }
 
-/** Identifies what the model would read, so an unchanged listing is not read again. */
-export function listingHash(pages: CapturedPage[]): Promise<string> {
+// Version extraction semantics as well as inputs, so parser changes can retry previously cached misses.
+export function listingHash(pages: CapturedPage[], links: PageLink[] = []): Promise<string> {
   const entries = pages.map((page) => `${page.url} ${page.sha256}`);
-  return sha256(entries.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join("\n"));
+  return sha256(JSON.stringify({ version: 1, pages: entries.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)), links }));
 }
 
 const candidateFields = {
@@ -107,6 +185,10 @@ Find every current or upcoming temporary physical exhibition at the named museum
 Each candidate.url MUST equal a supplied page URL where ALL evidence strings occur. titleEvidence is an exact source quote containing the title. venueEvidence is an exact source quote containing the museum name or one of its venueNames; a page's first line is its title and may be quoted for this. dateEvidence is one exact contiguous source excerpt containing BOTH the exact exhibition title AND its own date range, in their original order. Do not include any adjacent exhibition's dates. When one title is followed by several disjoint date ranges, reuse the complete contiguous title/date excerpt as dateEvidence for each run. dateText copies the published date portion. Do not concatenate quotes from different places or pages.
 Dates are YYYY-MM-DD. A range with an explicit year can share that year only when unambiguous. Never infer a day for month-only or season-only dates, or a missing year from today's date. Set null for unknown dates. Include dated borderline cases with honest datePrecision, kind and venueMatch. Split disjoint runs into separate candidates, each with its own dates; never bridge a closure gap. Do not invent dates, titles or quotes. Return the candidates and a concise outcomeReason.`;
 
+/** For pages of single shows, read for dates their listing left out. */
+export const SHOW_PAGE_SYSTEM = `${EXTRACTION_SYSTEM}
+Each page belongs to one exhibition, named in its first line: for that exhibition, dateEvidence is just the contiguous excerpt with its own dates, not joined to the title with "...". A closing date alone ("Closes …", "Until …") leaves startDate null.`;
+
 export function extractionPrompt(
   museum: Pick<ExhibitionMuseum, "name" | "venueNames">,
   pages: ListingPage[],
@@ -114,7 +196,7 @@ export function extractionPrompt(
 ): string {
   return `Museum-local date: ${asOfDate}\nDATA:\n${JSON.stringify({
     museum: { name: museum.name, venueNames: museum.venueNames ?? [] },
-    pages,
+    pages: pages.map(({ url, text }) => ({ url, text })),
   })}`;
 }
 

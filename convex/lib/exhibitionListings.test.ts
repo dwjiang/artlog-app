@@ -4,9 +4,12 @@ import type { ExhibitionCandidate } from "../../shared/exhibitions/acceptance";
 import {
   capturePages,
   listingHash,
+  listingLinks,
   listingText,
   nextDueAt,
   retryAt,
+  showPage,
+  showPages,
   siteName,
   verifiedShows,
 } from "./exhibitionListings";
@@ -50,6 +53,141 @@ describe("listing text", () => {
     expect(await listingHash(later)).toBe(await listingHash(first));
     const changed = await capturePages([{ ...first[0], text: "Tides of Light, extended" }, first[1]], NOW);
     expect(await listingHash(changed)).not.toBe(await listingHash(first));
+  });
+});
+
+describe("show pages", () => {
+  const html = `<html><body><nav><a href="/visit">Tides of Light tickets</a></nav><main>
+    <a href="/exhibitions/tides#top"><img src="tides.jpg"></a>
+    <article><a href="/exhibitions/tides"><h3>Tides of Light</h3></a><p>Opening soon</p></article>
+    <a href="https://museum.example/exhibitions/paper-worlds">Paper Worlds: Folded Cities</a>
+    <a href="mailto:info@museum.example">Contact</a></main></body></html>`;
+
+  it.each([
+    "<h2>Related exhibitions</h2><p>Paper Worlds closes January 3, 2027</p>",
+    "<h2>Paper Worlds closes January 3, 2027</h2>",
+    "<h2>Related exhibitions</h2><h3>Paper Worlds</h3><h4>closes January 3, 2027</h4>",
+    "<article><p>Paper Worlds closes January 3, 2027</p></article>",
+    "<section><p>Paper Worlds closes January 3, 2027</p></section>",
+  ])("keeps a detail page's main exhibition section separate from %s", (related) => {
+    const page = showPage(`<main><h1><span>Tides of Light</span></h1>
+      <p>Until October 31, 2026</p>${related}</main>`);
+    expect(page.singleShow).toEqual({
+      heading: "Tides of Light",
+      text: "Tides of Light Until October 31, 2026",
+    });
+    expect(page.text).toContain("Paper Worlds closes January 3, 2027");
+  });
+
+  it("ends the exhibition's section with its enclosing article and excludes navigation and sidebars", () => {
+    const page = showPage(`<body><nav><h1>Visit</h1></nav><article><header><h1>Tides of Light</h1></header>
+      <aside>Paper Worlds closes January 3, 2027</aside><p>Until October 31, 2026</p></article>
+      <p>Another show closes February 1, 2027</p></body>`);
+    expect(page.singleShow).toEqual({
+      heading: "Tides of Light",
+      text: "Tides of Light Until October 31, 2026",
+    });
+  });
+
+  it.each([
+    ["25.09.2027 – 09.01.2028", "2027-09-25", "2028-01-09"],
+    ["September 25, 2027 – January 9, 2028", "2027-09-25", "2028-01-09"],
+    ["Closes Sunday, 3 January 2027", null, "2027-01-03"],
+  ] as const)("accepts the show's own dates inside a subheading: %s", async (dates, startDate, endDate) => {
+    const page = showPage(`<title>verzuckert | Verified Museum</title><main>
+      <h1><span>verzuckert</span><span>Die Kunst des königlichen Desserts</span></h1>
+      <p>An exhibition about the art of desserts.</p><div class="accordion-item">
+      <h2><button><span>${dates}</span><svg><use href="#calendar"></use></svg></button></h2></div>
+      <h2>Related exhibitions</h2><h3>Paper Worlds</h3><p>Until October 31, 2028</p></main>`);
+    const shows = verifiedShows({
+      museum: { museumId: "m1", name: "Verified Museum", timeZone: "Europe/Berlin", country: "DE", sourceUrls: [PAGE] },
+      pages: await capturePages([{ url: PAGE, ...page }], NOW),
+      candidates: [
+        {
+          title: "verzuckert",
+          url: PAGE,
+          startDate,
+          endDate,
+          titleEvidence: "verzuckert",
+          venueEvidence: "Verified Museum",
+          dateText: dates,
+          dateEvidence: dates,
+          kind: "temporary_exhibition",
+          datePrecision: "day",
+          venueMatch: true,
+        },
+      ],
+      asOfDate: "2026-10-09",
+    });
+    expect(shows).toEqual([expect.objectContaining({ title: "verzuckert", viewingPeriods: [{ startDate, endDate }] })]);
+    expect(page.singleShow?.text).not.toContain("Paper Worlds");
+  });
+
+  it("does not infer a main exhibition section from an unstructured page or its document title", () => {
+    const page = showPage("<title>Tides of Light | Museum</title><p>Paper Worlds Until January 3, 2027</p>");
+    expect(page.singleShow).toEqual({ heading: "", text: "" });
+  });
+
+  it("keeps names encoded as HTML entities quotable in the main section and the captured page", async () => {
+    const page = showPage(`<title>Exhibition | Verified Museum</title><main>
+      <h1>Ren&eacute; &amp; friends</h1><p>Until October 31, 2026</p></main>`);
+    const shows = verifiedShows({
+      museum: { museumId: "m1", name: "Verified Museum", timeZone: "America/Los_Angeles", sourceUrls: [PAGE] },
+      pages: await capturePages([{ url: PAGE, ...page }], NOW),
+      candidates: [
+        {
+          title: "René & friends",
+          url: PAGE,
+          startDate: null,
+          endDate: "2026-10-31",
+          titleEvidence: "René & friends",
+          venueEvidence: "Verified Museum",
+          dateText: "Until October 31, 2026",
+          dateEvidence: "Until October 31, 2026",
+          kind: "temporary_exhibition",
+          datePrecision: "day",
+          venueMatch: true,
+        },
+      ],
+      asOfDate: "2026-10-09",
+    });
+    expect(shows.map((show) => show.title)).toEqual(["René & friends"]);
+  });
+
+  it("collects the main region's web links with their text, resolved against the page", () => {
+    expect(listingLinks(html, PAGE)).toEqual([
+      { url: "https://museum.example/exhibitions/tides", text: "Tides of Light" },
+      { url: "https://museum.example/exhibitions/paper-worlds", text: "Paper Worlds: Folded Cities" },
+    ]);
+  });
+
+  it("invalidates the listing cache when its detail link changes without changing visible text", async () => {
+    const changed = html.replaceAll("/exhibitions/tides", "/exhibitions/tides-updated");
+    const pages = await capturePages([{ url: PAGE, text: listingText(html) }], NOW);
+    expect(listingText(changed)).toBe(listingText(html));
+    const original = await listingHash(pages, listingLinks(html, PAGE));
+    expect(await listingHash(pages, listingLinks(changed, PAGE))).not.toBe(original);
+    expect(await listingHash(pages)).not.toBe(original);
+  });
+
+  it("picks the link naming each show, at most the given number", () => {
+    const links = listingLinks(html, PAGE);
+    expect(showPages(["Paper Worlds", "Tides of Light", "Not Linked"], links, 5)).toEqual([
+      "https://museum.example/exhibitions/paper-worlds",
+      "https://museum.example/exhibitions/tides",
+    ]);
+    expect(showPages(["Paper Worlds", "Tides of Light"], links, 1)).toEqual([
+      "https://museum.example/exhibitions/paper-worlds",
+    ]);
+  });
+
+  it.each([
+    ["An Artist’s World", "An Artist's World"],
+    ["“Paper Worlds”", '"Paper Worlds"'],
+    ["Light — Colour", "Light-Colour"],
+  ])("matches detail links using the evidence typography rules: %s", (published, extracted) => {
+    const links = listingLinks(`<main><a href="/exhibitions/show">${published}</a></main>`, PAGE);
+    expect(showPages([extracted], links, 8)).toEqual([`${PAGE}/show`]);
   });
 });
 

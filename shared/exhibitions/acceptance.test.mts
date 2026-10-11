@@ -179,6 +179,32 @@ await test("accepts French, German, Italian, Spanish and Dutch day-first ranges"
   }
 });
 
+await test("accepts Russian ranges and closing dates", () => {
+  const moscow: ExhibitionMuseum = { ...museum, timeZone: "Europe/Moscow", country: "RU" };
+  for (const [dateText, startDate, endDate] of [
+    ["6 июня 2026 – 11 января 2027", "2026-06-06", "2027-01-11"],
+    ["с 6 июня 2026 г. по 11 января 2027 г.", "2026-06-06", "2027-01-11"],
+    ["с 6 по 11 мая 2027 года", "2027-05-06", "2027-05-11"],
+    ["1 сентября 2026 – 31 мая 2027", "2026-09-01", "2027-05-31"],
+    ["до 11 января 2027 г.", null, "2027-01-11"],
+  ] as const) {
+    const result = validate({ startDate, endDate, dateText, dateEvidence: dateText }, { museum: moscow });
+    assert.equal(result.accepted.length, 1, dateText);
+  }
+});
+
+await test("accepts Japanese and Chinese dates", () => {
+  const tokyo: ExhibitionMuseum = { ...museum, timeZone: "Asia/Tokyo", country: "JP" };
+  for (const [dateText, startDate, endDate] of [
+    ["会期 2026年9月29日（火）～12月20日（日）", "2026-09-29", "2026-12-20"],
+    ["2026年12月1日〜2027年1月10日", "2026-12-01", "2027-01-10"],
+    ["2026年11月5日—2027年2月28日", "2026-11-05", "2027-02-28"],
+  ] as const) {
+    const result = validate({ startDate, endDate, dateText, dateEvidence: dateText }, { museum: tokyo });
+    assert.equal(result.accepted.length, 1, dateText);
+  }
+});
+
 await test("reads days that share a month and year printed once", () => {
   for (const dateText of ["Du 3 au 15 mars 2027", "3.–15. März 2027", "dal 3 al 15 marzo 2027", "1–15 March 2027"]) {
     const startDate = dateText.startsWith("1–") ? "2027-03-01" : "2027-03-03";
@@ -202,6 +228,38 @@ await test("reads opening and closing dates printed side by side only when both 
       dateEvidence: yearless,
     }).rejected[0]?.reasons.includes("dates_not_supported"),
   );
+});
+
+await test("reads a numeric range whose year is printed once, after its closing date", () => {
+  const saoPaulo: ExhibitionMuseum = { ...museum, timeZone: "America/Sao_Paulo", country: "BR" };
+  for (const [dateText, startDate, endDate, from] of [
+    ["4.9-18.10.2026", "2026-09-04", "2026-10-18", saoPaulo],
+    ["3.7 — 4.11.2026", "2026-07-03", "2026-11-04", saoPaulo],
+    ["15.12.-10.01.2027", "2026-12-15", "2027-01-10", saoPaulo],
+    ["9/4 - 10/18/2026", "2026-09-04", "2026-10-18", { ...museum, country: "US" }],
+  ] as const) {
+    const result = validate({ startDate, endDate, dateText, dateEvidence: dateText }, { museum: from });
+    assert.equal(result.accepted.length, 1, dateText);
+  }
+  assert.ok(
+    validate(
+      { startDate: "2026-04-09", endDate: "2026-10-18", dateText: "4.9-18.10.2026", dateEvidence: "4.9-18.10.2026" },
+      { museum: saoPaulo },
+    ).rejected[0]?.reasons.includes("dates_not_supported"),
+  );
+});
+
+await test("does not read a complete opening date's suffix as another shared-year range", () => {
+  for (const dateText of ["09/04/26 - 10/31/2026", "09.04.26 - 10.31.2026"]) {
+    const result = validate({
+      startDate: "2026-09-04",
+      endDate: "2026-10-31",
+      dateText,
+      dateEvidence: dateText,
+    });
+    assert.equal(result.accepted.length, 1, dateText);
+    assert.equal(result.rejected.length, 0, dateText);
+  }
 });
 
 await test("reads numeric dates in the order the museum's country writes them", () => {
@@ -266,6 +324,13 @@ await test("accepts an explicitly stated closing date without inventing the open
     }).accepted.length,
     1,
   );
+});
+
+await test("accepts a closing date announced with closes or ends, with or without its weekday", () => {
+  for (const dateText of ["Closes Sunday, 3 January 2027", "Ends 3 January 2027", "Closes Sun, January 3, 2027"]) {
+    const result = validate({ startDate: null, dateText, dateEvidence: dateText });
+    assert.equal(result.accepted.length, 1, dateText);
+  }
 });
 
 await test("accepts SVMA's explicit US numeric dot dates without inventing day precision", () => {
@@ -505,6 +570,57 @@ await test("rejects a listing title paired with another exhibition's date quote"
   assert.ok(result.rejected[0]?.reasons.includes("title_not_in_date_evidence"));
 });
 
+await test("binds detail-page dates to the main exhibition section", () => {
+  const url = "https://museum.example/exhibitions/bay";
+  const title = "A View of the Bay";
+  const dates = "Closes Sunday, 3 January 2027";
+  const ownText = `${title} Book now Exhibition ${dates}`;
+  const candidate: ExhibitionCandidate = {
+    title,
+    url,
+    startDate: null,
+    endDate: "2027-01-03",
+    dateText: dates,
+    titleEvidence: title,
+    venueEvidence: "Example Art Museum",
+    dateEvidence: dates,
+    kind: "temporary_exhibition",
+    venueMatch: true,
+    datePrecision: "day",
+  };
+  const check = (text: string, singleShow?: { heading: string; text: string }, dateEvidence = dates) =>
+    validateExhibitions({
+      museum,
+      pages: [{ url, checkedAt: 1791579600000, text, sha256: "a".repeat(64), singleShow }],
+      candidates: [{ ...candidate, dateEvidence }],
+      asOfDate: "2026-10-09",
+    });
+  const page = `${title} | Example Art Museum\n${ownText}`;
+  const section = { heading: title, text: ownText };
+  for (const quote of [dates, `${title} ... ${dates}`, ownText]) {
+    assert.equal(check(page, section, quote).accepted.length, 1, quote);
+    assert.ok(
+      check(page, { ...section, heading: "Paper Worlds" }, quote).rejected[0]?.reasons.includes(
+        "title_not_in_date_evidence",
+      ),
+    );
+  }
+  assert.ok(check(page).rejected[0]?.reasons.includes("title_not_in_date_evidence"));
+  const undated = `${title} Dates to be announced.`;
+  const related = `Related exhibitions Paper Worlds Exhibition ${dates}`;
+  const withRelated = `${title} | Example Art Museum\n${undated} ${related}`;
+  for (const quote of [dates, `${title} ... ${dates}`, `${undated} ${related}`]) {
+    assert.ok(
+      check(withRelated, { heading: title, text: undated }, quote).rejected[0]?.reasons.includes(
+        "title_not_in_date_evidence",
+      ),
+    );
+  }
+  const deep = `${title} ${"About the exhibition. ".repeat(120)}Exhibition ${dates}`;
+  assert.equal(check(`${title} | Example Art Museum\n${deep}`, { heading: title, text: deep }).accepted.length, 1);
+  assert.ok(check(withRelated, { heading: "", text: "" }).rejected[0]?.reasons.includes("title_not_in_date_evidence"));
+});
+
 await test("rejects a quote spanning two exhibition cards despite containing the requested title", () => {
   const result = validate({
     dateText: "September 12, 2026 – January 3, 2027\nAnother Show\nOctober 1, 2026 – December 31, 2026",
@@ -552,6 +668,47 @@ await test("uses curated museum name aliases for official venue evidence", () =>
     ).accepted.length,
     1,
   );
+});
+
+await test("matches a long venue name whatever its spacing", () => {
+  const pushkin = { ...museum, venueNames: ["Государственный музей изобразительных искусств имени А. С. Пушкина"] };
+  const venueEvidence = "Государственный музей изобразительных искусств имени А.С. Пушкина";
+  assert.equal(
+    validate(
+      { venueEvidence },
+      { museum: pushkin, text: `${venueEvidence}\nA View of the Bay\nSeptember 12, 2026 – January 3, 2027` },
+    ).accepted.length,
+    1,
+  );
+});
+
+await test("accepts a short venue name only as a whole word", () => {
+  const withAliases = { ...museum, name: "Example Art Museum", venueNames: ["V&A", "Met"] };
+  const venue = (venueEvidence: string) =>
+    validate(
+      { venueEvidence },
+      { museum: withAliases, text: `${venueEvidence}\nA View of the Bay\nSeptember 12, 2026 – January 3, 2027` },
+    );
+  assert.equal(venue("V&A South Kensington").accepted.length, 1);
+  assert.equal(venue("The Met Fifth Avenue").accepted.length, 1);
+  assert.ok(venue("Kismet Hall").rejected[0]?.reasons.includes("venue_not_supported"));
+});
+
+await test("accepts short CJK venue names within prose without spaces", () => {
+  for (const [name, venueEvidence] of [
+    ["森美術館", "森美術館で開催"],
+    ["故宫", "故宫展览"],
+    ["리움", "리움에서 전시"],
+  ]) {
+    const result = validate(
+      { venueEvidence },
+      {
+        museum: { ...museum, venueNames: [name!] },
+        text: `${venueEvidence}\nA View of the Bay\nSeptember 12, 2026 – January 3, 2027`,
+      },
+    );
+    assert.equal(result.accepted.length, 1, name);
+  }
 });
 
 await test("requires a captured URL on a curated official source host", () => {

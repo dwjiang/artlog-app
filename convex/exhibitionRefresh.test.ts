@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
+import { capturePages, listingHash, listingText } from "./lib/exhibitionListings";
 import type { exhibitionSource } from "./lib/exhibitionSourceValidators";
 import { jsonResponse } from "./lib/labelFixtures";
 import { readSpend, seedDevice, seedMuseum } from "./lib/testFactories";
@@ -12,6 +13,7 @@ const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-10-09T19:00:00Z");
 const MODEL = "https://api.tokenfactory.nebius.com/v1/chat/completions";
 const TAVILY = "https://api.tavily.com/extract";
+const WIKIDATA = "https://www.wikidata.org/w/api.php";
 const BAY_AREA = "San Francisco Bay Area";
 // Readable listings carry more text than a JavaScript shell, so pad the fixture past that threshold.
 const VISIT_TEXT = "Plan your visit with timed tickets, accessibility services and member previews. ".repeat(25);
@@ -37,11 +39,27 @@ const TIDES_CLOSES = Date.parse("2026-11-01T06:59:59.999Z");
 type Reply = { status?: number; type?: string; body?: string };
 let web: Record<string, Reply>;
 let tavilyPages: Record<string, string>;
+let wikidataNames: Record<string, { labels?: Record<string, string>; aliases?: Record<string, string[]> }> | null;
 let answer: (request: { messages: { content: string }[] }) => Response;
 const fetchMock = vi.fn<typeof fetch>();
 
 const listing = (shows: string) =>
   `<html><head><title>Exhibitions | Verified Museum</title></head><body><nav>Visit</nav><main><h1>Exhibitions</h1>${shows}<p>${VISIT_TEXT}</p></main></body></html>`;
+
+const undatedShow = (url: string, title = "Tides of Light") => ({
+  ...TIDES.candidate(url),
+  title,
+  startDate: null,
+  endDate: null,
+  dateText: "",
+  titleEvidence: title,
+  venueEvidence: "Exhibitions | Verified Museum",
+  dateEvidence: title,
+  datePrecision: "unknown",
+});
+
+const showDetail = ({ title, dateText }: { title: string; dateText: string }) =>
+  `<html><head><title>${title} | Verified Museum</title></head><body><main><h1>${title}</h1><p>Verified Museum presents ${title}, ${dateText}.</p><p>${VISIT_TEXT}</p></main></body></html>`;
 
 function modelAnswer(candidates: unknown[]): Response {
   return jsonResponse({
@@ -60,11 +78,33 @@ beforeEach(() => {
   vi.stubEnv("TAVILY_API_KEY", "tvly-test");
   web = {};
   tavilyPages = {};
+  wikidataNames = {};
   answer = () => modelAnswer([]);
   fetchMock.mockReset();
   fetchMock.mockImplementation(async (input, init) => {
     const url = String(input);
     if (url === MODEL) return answer(JSON.parse(String(init?.body)));
+    if (url.startsWith(`${WIKIDATA}?`)) {
+      if (!wikidataNames) return new Response("", { status: 503 });
+      const names = wikidataNames;
+      const ids = new URL(url).searchParams.get("ids")!.split("|");
+      const entities = Object.fromEntries(
+        ids.map((id) => {
+          const entity = names[id];
+          if (!entity) return [id, { id, missing: "" }];
+          const labels = Object.entries(entity.labels ?? {}).map(([language, value]) => [
+            language,
+            { language, value },
+          ]);
+          const aliases = Object.entries(entity.aliases ?? {}).map(([language, values]) => [
+            language,
+            values.map((value) => ({ language, value })),
+          ]);
+          return [id, { id, labels: Object.fromEntries(labels), aliases: Object.fromEntries(aliases) }];
+        }),
+      );
+      return jsonResponse({ entities });
+    }
     if (url === TAVILY) {
       const { urls } = JSON.parse(String(init?.body)) as { urls: string[] };
       const results = urls.flatMap((page) =>
@@ -228,6 +268,318 @@ describe("exhibition listing refresh", () => {
 
     const [stored] = (await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW })).exhibitions;
     expect(stored?.viewingPeriods).toEqual([{ startDate: "2026-07-01", endDate: "2027-01-10" }]);
+  });
+
+  it("accepts a venue quote that uses one of the museum's Wikidata names in another language", async () => {
+    const t = harness();
+    const { museumId, url } = await listedMuseum(t, "rusmuseum.example", "country:RU");
+    await t.run((ctx) => ctx.db.patch("museums", museumId, { wikidataId: "Q211043" }));
+    wikidataNames = {
+      Q211043: { labels: { ru: "Государственный Русский музей" }, aliases: { ru: ["Русский музей"] } },
+    };
+    const show = "Русский музей представляет выставку «Стекло и камень», 30 апреля 2026 – 26 октября 2026.";
+    web[url] = { body: listing(`<p>${show}</p>`) };
+    answer = ({ messages }) => {
+      const prompt = JSON.parse(messages[1].content.split("DATA:\n")[1]);
+      if (!prompt.museum.venueNames.includes("Русский музей")) return modelAnswer([]);
+      return modelAnswer([
+        {
+          ...TIDES.candidate(url),
+          title: "Стекло и камень",
+          startDate: "2026-04-30",
+          endDate: "2026-10-26",
+          dateText: "30 апреля 2026 – 26 октября 2026",
+          titleEvidence: "Стекло и камень",
+          venueEvidence: "Русский музей представляет",
+          dateEvidence: "«Стекло и камень», 30 апреля 2026 – 26 октября 2026",
+        },
+      ]);
+    };
+
+    await readDue(t);
+
+    const catalog = await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW });
+    expect(catalog.exhibitions).toEqual([
+      expect.objectContaining({
+        title: "Стекло и камень",
+        viewingPeriods: [{ startDate: "2026-04-30", endDate: "2026-10-26" }],
+      }),
+    ]);
+  });
+
+  it("still reads a listing when Wikidata is unavailable, judging the venue by the museum's own name", async () => {
+    const t = harness();
+    const { museumId, url } = await listedMuseum(t, "museum.example");
+    await t.run((ctx) => ctx.db.patch("museums", museumId, { wikidataId: "Q1" }));
+    wikidataNames = null;
+    web[url] = { body: listing(TIDES.html) };
+    answer = () => modelAnswer([TIDES.candidate(url)]);
+
+    await readDue(t);
+
+    const catalog = await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW });
+    expect(catalog.exhibitions.map((show) => show.title)).toEqual(["Tides of Light"]);
+  });
+
+  it("retries localized venue evidence when Wikidata recovers without a listing change", async () => {
+    const t = harness();
+    const { museumId, url } = await listedMuseum(t, "museum.example");
+    const other = await listedMuseum(t, "other.example");
+    await t.run((ctx) => ctx.db.patch("museums", museumId, { wikidataId: "Q1" }));
+    web[url] = {
+      body: listing("<p>Русский музей presents Tides of Light, October 1 – October 31, 2026.</p>"),
+    };
+    web[other.url] = { body: listing(TIDES.html) };
+    answer = ({ messages }) =>
+      modelAnswer([
+        messages[1].content.includes(other.url)
+          ? TIDES.candidate(other.url)
+          : { ...TIDES.candidate(url), venueEvidence: "Русский музей" },
+      ]);
+    wikidataNames = null;
+
+    await readDue(t);
+
+    expect((await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW })).exhibitions).toHaveLength(0);
+    const row = (await refreshRow(t, museumId))!;
+    expect(row.failures).toBe(1);
+    expect(row.pageHash).toBeUndefined();
+    expect(row.dueAt).toBeGreaterThanOrEqual(NOW + DAY);
+    expect(row.dueAt).toBeLessThan(NOW + 2 * DAY);
+    expect((await refreshRow(t, other.museumId))?.failures).toBe(0);
+
+    wikidataNames = { Q1: { aliases: { ru: ["Русский музей"] } } };
+    vi.setSystemTime(row.dueAt);
+    await readDue(t);
+
+    const recovered = await t.query(api.exhibitions.atMuseum, { museumId, asOf: row.dueAt });
+    expect(recovered.exhibitions.map((show) => show.title)).toEqual(["Tides of Light"]);
+    expect((await refreshRow(t, museumId))?.failures).toBe(0);
+    expect(requested(url)).toHaveLength(2);
+  });
+
+  it.each(["dates", "ellipsis", "whole quote"])("rejects nearby related-show dates quoted as %s", async (quote) => {
+    const t = harness();
+    const { museumId, url } = await listedMuseum(t, "museum.example");
+    const showUrl = "https://museum.example/exhibitions/tides";
+    const body = "Tides of Light Dates to be announced. Related exhibitions Paper Worlds Until January 3, 2027";
+    web[url] = { body: listing('<a href="/exhibitions/tides">Tides of Light</a>') };
+    web[showUrl] = {
+      body: `<html><head><title>Tides of Light | Verified Museum</title></head><body><main>
+        <h1>Tides of Light</h1><p>Dates to be announced.</p>
+        <h2>Related exhibitions</h2><h3>Paper Worlds</h3><p>Until January 3, 2027</p>
+        <p>${VISIT_TEXT}</p></main></body></html>`,
+    };
+    const own = {
+      ...TIDES.candidate(showUrl),
+      startDate: null,
+      endDate: "2027-01-03",
+      dateText: "Until January 3, 2027",
+      dateEvidence:
+        quote === "dates"
+          ? "Until January 3, 2027"
+          : quote === "ellipsis"
+            ? "Tides of Light ... Until January 3, 2027"
+            : body,
+      venueEvidence: "Verified Museum",
+    };
+    answer = ({ messages }) => modelAnswer([messages[1].content.includes(showUrl) ? own : undatedShow(url)]);
+
+    await readDue(t);
+
+    expect((await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW })).exhibitions).toHaveLength(0);
+  });
+
+  it("reads the dates of a show the listing names without them from the show's own page", async () => {
+    const t = harness();
+    const { museumId, url } = await listedMuseum(t, "museum.example");
+    const showUrl = "https://museum.example/exhibitions/tides";
+    web[url] = { body: listing(`<article><a href="/exhibitions/tides"><h2>Tides of Light</h2></a></article>`) };
+    web[showUrl] = { body: showDetail(TIDES.candidate(showUrl)) };
+    const undated = undatedShow(url);
+    const ownDates = { ...TIDES.candidate(showUrl), dateEvidence: "October 1 – October 31, 2026" };
+    answer = (request) => modelAnswer([request.messages[1].content.includes(showUrl) ? ownDates : undated]);
+
+    await readDue(t);
+
+    const catalog = await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW });
+    expect(catalog.exhibitions).toEqual([
+      expect.objectContaining({
+        title: "Tides of Light",
+        sourceUrl: showUrl,
+        viewingPeriods: [{ startDate: "2026-10-01", endDate: "2026-10-31" }],
+      }),
+    ]);
+    expect(requested(showUrl)).toHaveLength(1);
+    expect(await readSpend(t)).toEqual({ tokenFactoryCalls: 2, tavilyCredits: 0 });
+  });
+
+  it("refreshes an extended exhibition when only its linked detail page changes", async () => {
+    const t = harness();
+    const { as } = await seedDevice(t);
+    const { museumId, url } = await listedMuseum(t, "museum.example");
+    const showUrl = "https://museum.example/exhibitions/tides";
+    web[url] = { body: listing('<a href="/exhibitions/tides">Tides of Light</a>') };
+    const cached = (await refreshRow(t, museumId))!;
+    const priorHash = await listingHash(await capturePages([{ url, text: listingText(web[url].body!) }], NOW));
+    await t.run((ctx) => ctx.db.patch("exhibitionRefreshes", cached._id, { pageHash: priorHash }));
+    let dated = { ...TIDES.candidate(showUrl), dateEvidence: "October 1 – October 31, 2026" };
+    web[showUrl] = { body: showDetail(dated) };
+    answer = ({ messages }) => modelAnswer([messages[1].content.includes(showUrl) ? dated : undatedShow(url)]);
+    await readDue(t);
+    const initial = await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW });
+    expect(initial.exhibitions).toHaveLength(1);
+
+    dated = {
+      ...dated,
+      endDate: "2026-11-30",
+      dateText: "October 1 – November 30, 2026",
+      dateEvidence: "October 1 – November 30, 2026",
+    };
+    web[showUrl] = { body: showDetail(dated) };
+    const later = NOW + 26 * DAY;
+    vi.setSystemTime(later);
+    await as.mutation(api.exhibitionRefresh.requestRegion, { region: BAY_AREA });
+    await runScheduled(t);
+
+    const catalog = await t.query(api.exhibitions.atMuseum, { museumId, asOf: later });
+    expect(catalog.exhibitions).toEqual([
+      expect.objectContaining({ viewingPeriods: [{ startDate: "2026-10-01", endDate: "2026-11-30" }] }),
+    ]);
+    expect(requested(showUrl)).toHaveLength(2);
+    expect((await refreshRow(t, museumId))?.failures).toBe(0);
+  });
+
+  it("retries a cached typography miss and imports dates from the detail page's own heading", async () => {
+    const t = harness();
+    const { museumId, url } = await listedMuseum(t, "museum.example");
+    const showUrl = `${url}/artist`;
+    const title = "An Artist's World";
+    web[url] = { body: listing('<a href="/exhibitions/artist">An Artist’s World</a>') };
+    web[showUrl] = {
+      body: `<title>An Artist’s World | Verified Museum</title><main><h1>An Artist’s World</h1>
+        <p>A temporary exhibition at Verified Museum.</p><h2><button>October 1 – October 31, 2026</button></h2>
+        <h2>Related exhibitions</h2><h3>Paper Worlds</h3><p>Until January 3, 2027</p></main>`,
+    };
+    const row = (await refreshRow(t, museumId))!;
+    // The unversioned parser cached this listing without following its curly-apostrophe link.
+    await t.run((ctx) =>
+      ctx.db.patch("exhibitionRefreshes", row._id, {
+        pageHash: "9296533e9f9963c9723eee51187a613a1f5a1850bffb14c26cb5c514c7fe814d",
+      }),
+    );
+    answer = ({ messages }) =>
+      modelAnswer([
+        messages[1].content.includes(showUrl)
+          ? {
+              ...TIDES.candidate(showUrl),
+              title,
+              titleEvidence: title,
+              venueEvidence: "Verified Museum",
+              dateEvidence: "October 1 – October 31, 2026",
+            }
+          : undatedShow(url, title),
+      ]);
+
+    await readDue(t);
+
+    const catalog = await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW });
+    expect(catalog.exhibitions).toEqual([
+      expect.objectContaining({
+        title,
+        sourceUrl: showUrl,
+        viewingPeriods: [{ startDate: "2026-10-01", endDate: "2026-10-31" }],
+      }),
+    ]);
+    expect(requested(showUrl)).toHaveLength(1);
+    expect((await refreshRow(t, museumId))?.pageHash).toBeUndefined();
+    expect((await refreshRow(t, museumId))?.failures).toBe(0);
+  });
+
+  describe.each([false, true])("when another detail page succeeds: %s", (anotherSucceeds) => {
+    it.each([503, 429, "network"] as const)("retries a detail page after %s", async (failure) => {
+      const t = harness();
+      const { museumId, url } = await listedMuseum(t, "museum.example");
+      const showUrl = "https://museum.example/exhibitions/tides";
+      const paperUrl = "https://museum.example/exhibitions/paper";
+      const tides = { ...TIDES.candidate(showUrl), dateEvidence: "October 1 – October 31, 2026" };
+      const paper = {
+        ...TIDES.candidate(paperUrl),
+        title: "Paper Worlds",
+        titleEvidence: "Paper Worlds",
+        venueEvidence: "Verified Museum",
+        dateEvidence: "October 1 – October 31, 2026",
+      };
+      web[url] = {
+        body: listing(
+          '<a href="/exhibitions/tides">Tides of Light</a>'
+            + (anotherSucceeds ? '<a href="/exhibitions/paper">Paper Worlds</a>' : ""),
+        ),
+      };
+      web[paperUrl] = { body: showDetail(paper) };
+      web[showUrl] = { status: typeof failure === "number" ? failure : 503 };
+      const fetchPage = fetchMock.getMockImplementation()!;
+      let unavailable = true;
+      fetchMock.mockImplementation((input, init) => {
+        if (unavailable && failure === "network" && String(input) === showUrl) {
+          return Promise.reject(new TypeError("fetch failed"));
+        }
+        return fetchPage(input, init);
+      });
+      answer = ({ messages }) => {
+        const { pages } = JSON.parse(messages[1].content.split("DATA:\n")[1]) as { pages: { url: string }[] };
+        return modelAnswer(
+          pages[0].url === url
+            ? [undatedShow(url), ...(anotherSucceeds ? [undatedShow(url, "Paper Worlds")] : [])]
+            : [tides, paper].filter((show) => pages.some((page) => page.url === show.url)),
+        );
+      };
+      await readDue(t);
+
+      const row = (await refreshRow(t, museumId))!;
+      expect(row.failures).toBe(1);
+      expect(row.pageHash).toBeUndefined();
+      expect(row.dueAt).toBeGreaterThanOrEqual(NOW + DAY);
+      expect(row.dueAt).toBeLessThan(NOW + 2 * DAY);
+      const partial = await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW });
+      expect(partial.exhibitions.map((show) => show.title)).toEqual(anotherSucceeds ? ["Paper Worlds"] : []);
+
+      unavailable = false;
+      web[showUrl] = { body: showDetail(tides) };
+      vi.setSystemTime(row.dueAt);
+      await readDue(t);
+
+      const recovered = await t.query(api.exhibitions.atMuseum, { museumId, asOf: row.dueAt });
+      expect(recovered.exhibitions.map((show) => show.title).sort()).toEqual(
+        anotherSucceeds ? ["Paper Worlds", "Tides of Light"] : ["Tides of Light"],
+      );
+      expect((await refreshRow(t, museumId))?.failures).toBe(0);
+      expect(requested(showUrl)).toHaveLength(2);
+    });
+  });
+
+  it.each(["robots", 401, 403, 451] as const)("treats a detail page's %s refusal as final", async (refusal) => {
+    const t = harness();
+    const { museumId, url } = await listedMuseum(t, "museum.example");
+    const showUrl = "https://museum.example/exhibitions/tides";
+    web[url] = { body: listing('<a href="/exhibitions/tides">Tides of Light</a>') };
+    if (refusal === "robots") {
+      web["https://museum.example/robots.txt"] = {
+        type: "text/plain",
+        body: "User-agent: artlog-bot\nDisallow: /exhibitions/tides",
+      };
+    } else {
+      web[showUrl] = { status: refusal };
+    }
+    answer = () => modelAnswer([undatedShow(url)]);
+    await readDue(t);
+
+    const row = (await refreshRow(t, museumId))!;
+    expect(row.failures).toBe(0);
+    expect(row.dueAt).toBe(row.checkedAt! + 30 * DAY);
+    expect(requested(showUrl)).toHaveLength(refusal === "robots" ? 0 : 1);
+    expect(requested(TAVILY)).toHaveLength(0);
+    expect(requested(MODEL)).toHaveLength(1);
   });
 
   it("honours robots.txt and refusals without asking Tavily to read the page", async () => {

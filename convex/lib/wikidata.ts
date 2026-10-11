@@ -95,7 +95,7 @@ export async function searchEntities(term: string, limit = 10): Promise<SearchHi
 export async function getEntities(
   ids: string[],
   props = "labels|claims",
-  languages = ["en"],
+  languages: string[] | "all" = ["en"],
   sitelinks: "languages" | "all" = "languages",
 ): Promise<Record<string, WikidataEntity>> {
   const unique = [...new Set(ids)];
@@ -105,8 +105,9 @@ export async function getEntities(
       action: "wbgetentities",
       ids: unique.slice(offset, offset + MAX_IDS).join("|"),
       props,
-      languages: languages.join("|"),
-      ...(sitelinks === "languages" && { sitefilter: languages.map((language) => `${language}wiki`).join("|") }),
+      ...(languages !== "all" && { languages: languages.join("|") }),
+      ...(sitelinks === "languages"
+        && languages !== "all" && { sitefilter: languages.map((language) => `${language}wiki`).join("|") }),
     })) as { entities?: Record<string, WikidataEntity> };
     for (const [id, entity] of Object.entries(json.entities ?? {})) {
       if (entity && typeof entity === "object" && entity.missing === undefined) {
@@ -212,6 +213,13 @@ export async function wikipediaLeadImages(titles: string[], language: string): P
 
 export function entityLabel(entity: WikidataEntity, language = "en"): string | undefined {
   return entity.labels?.[language]?.value;
+}
+
+/** Every label and alias the entity carries, in any language. */
+export function entityNames(entity: WikidataEntity): string[] {
+  const labels = Object.values(entity.labels ?? {}).map((label) => label.value);
+  const aliases = Object.values(entity.aliases ?? {}).flatMap((list) => list.map((alias) => alias.value));
+  return [...new Set([...labels, ...aliases])];
 }
 
 function values(entity: WikidataEntity, property: string): unknown[] {
