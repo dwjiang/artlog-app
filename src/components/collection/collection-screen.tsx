@@ -1,6 +1,6 @@
 import { useNetworkState } from "expo-network";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -22,6 +22,7 @@ export function CollectionScreen() {
 
 function CollectionSession() {
   const [attempt, setAttempt] = useState(0);
+  const [data, setData] = useState<ReturnType<typeof useCollectionData>>();
   const [mode, setMode] = useState<"collection" | "visits">("collection");
   const { view } = useLocalSearchParams<{ view?: string }>();
   useFocusEffect(
@@ -34,20 +35,38 @@ function CollectionSession() {
   const [editing, setEditing] = useState(false);
   const [search, setSearch] = useState("");
   return (
-    <OwnedCollection
-      key={attempt}
-      mode={mode}
-      setMode={setMode}
-      editing={editing}
-      setEditing={setEditing}
-      search={search}
-      setSearch={setSearch}
-      onRetry={() => setAttempt((value) => value + 1)}
-    />
+    <>
+      <CollectionDataReader key={attempt} onData={setData} />
+      {data && (
+        <OwnedCollection
+          data={data}
+          mode={mode}
+          setMode={setMode}
+          editing={editing}
+          setEditing={setEditing}
+          search={search}
+          setSearch={setSearch}
+          onRetry={() => setAttempt((value) => value + 1)}
+        />
+      )}
+    </>
   );
 }
 
+// Drizzle retains query errors until remount. Reset only its reader so recovery preserves the editor and visits.
+// Memoization keeps publishing data from triggering another read/render of this component through its parent.
+const CollectionDataReader = memo(function CollectionDataReader({
+  onData,
+}: {
+  onData: (data: ReturnType<typeof useCollectionData>) => void;
+}) {
+  const data = useCollectionData();
+  useEffect(() => onData(data), [data, onData]);
+  return null;
+});
+
 function OwnedCollection({
+  data,
   mode,
   setMode,
   editing,
@@ -56,6 +75,7 @@ function OwnedCollection({
   setSearch,
   onRetry,
 }: {
+  data: ReturnType<typeof useCollectionData>;
   mode: "collection" | "visits";
   setMode: (mode: "collection" | "visits") => void;
   editing: boolean;
@@ -64,7 +84,6 @@ function OwnedCollection({
   setSearch: (search: string) => void;
   onRetry: () => void;
 }) {
-  const data = useCollectionData();
   const network = useNetworkState();
   const wallPane = useRef<PaneRoom>(null);
   const visitsPane = useRef<PaneRoom>(null);
@@ -122,7 +141,8 @@ function OwnedCollection({
         works={data.works}
         visits={data.visits}
         collectionLoading={data.loading}
-        collectionError={data.error ? "Your collection could not load. Close the library and try again." : undefined}
+        collectionError={data.error ? "Your collection could not load. Try again." : undefined}
+        onCollectionRetry={onRetry}
         hiddenIds={data.hiddenIds}
         onEditingChange={setEditing}
         paneRef={wallPane}
@@ -141,6 +161,7 @@ function OwnedCollection({
         search={search}
         onSearchChange={setSearch}
         clearSearch={() => setSearch("")}
+        onRetry={onRetry}
       />
     </CollectionSection>
   );

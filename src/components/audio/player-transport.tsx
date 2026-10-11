@@ -213,7 +213,9 @@ function Transport({ view, onView, audio }: TransportProps & { audio: ReturnType
             audio.controller.setRate(rates[(rates.indexOf(audio.rate) + 1) % rates.length]);
           }}
         >
-          <Text style={styles.rate}>{speed}×</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit style={styles.rate}>
+            {speed}×
+          </Text>
         </TransportAction>
         <TransportAction
           label="Transcript"

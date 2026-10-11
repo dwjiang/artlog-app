@@ -7,22 +7,24 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState, EmptySymbol } from "@/components/empty-state";
 import { EmptyViewfinder } from "@/components/empty-state-art";
 import { LoadingRing } from "@/components/loading-ring";
-import { ThemedText } from "@/components/themed-text";
 import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 
-/** `notice` is the capture's own retry message, shown here because the camera overlay that normally carries it is not mounted. */
 export function CameraPermission({
   children,
   onImport,
-  notice,
+  importBusy = false,
+  importBusyLabel = "Importing…",
+  fallback,
   compact = false,
   loading = false,
   bottomInset = 0,
 }: {
   children: ReactNode;
   onImport?: () => void;
-  notice?: string;
+  importBusy?: boolean;
+  importBusyLabel?: string;
+  fallback?: ReactNode;
   compact?: boolean;
   loading?: boolean;
   bottomInset?: number;
@@ -53,6 +55,7 @@ export function CameraPermission({
       </>
     );
   }
+  if (fallback) return <>{fallback}</>;
   const invitation = (
     <EmptyState
       inset={false}
@@ -64,7 +67,19 @@ export function CameraPermission({
           : "Allow camera access in Settings, or choose a photo from your library."
       }
     >
-      <ActionStack textActions={onImport && <GalleryButton label="Import a photo" fullWidth onPress={onImport} />}>
+      <ActionStack
+        textActions={
+          onImport && (
+            <GalleryButton
+              label="Import a photo"
+              fullWidth
+              busy={importBusy}
+              busyLabel={importBusyLabel}
+              onPress={onImport}
+            />
+          )
+        }
+      >
         <GalleryButton
           label={canRequestPermission ? "Allow camera" : "Open Settings"}
           variant="filled"
@@ -73,11 +88,6 @@ export function CameraPermission({
           onPress={() => void openPermissions()}
         />
       </ActionStack>
-      {notice && (
-        <ThemedText themeColor="error" accessibilityRole="alert" style={{ textAlign: "center" }}>
-          {notice}
-        </ThemedText>
-      )}
     </EmptyState>
   );
   return compact ? (

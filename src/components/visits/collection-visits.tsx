@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import type { ReactElement, Ref } from "react";
+import { useState, type ReactElement, type Ref } from "react";
 import { View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -31,6 +31,7 @@ export function CollectionVisits({
   error,
   clearSearch,
   onSearchChange,
+  onRetry,
 }: {
   owner: string;
   visits: VisitSummary[];
@@ -42,10 +43,16 @@ export function CollectionVisits({
   error?: Error;
   clearSearch: () => void;
   onSearchChange: (value: string) => void;
+  onRetry: () => void;
 }) {
   const { mode, changeMode, error: preferenceError } = useVisitView(owner);
   const { fontScale } = useWindowDimensions();
-  const shown = searchVisitSummaries(visits, search);
+  const [loaded, setLoaded] = useState<{ owner: string; visits: VisitSummary[] }>();
+  if (!loading && !error && (loaded?.owner !== owner || loaded.visits !== visits)) {
+    setLoaded({ owner, visits });
+  }
+  const available = loading || error ? (loaded?.owner === owner ? loaded.visits : []) : visits;
+  const shown = searchVisitSummaries(available, search);
   if (!loading && !error && visits.length === 0 && !search.trim()) {
     return (
       <VisitTimeline
@@ -106,8 +113,8 @@ export function CollectionVisits({
   let message: ReactElement | undefined;
   if (error) {
     message = (
-      <VisitMessage action="Go to Scan" onAction={() => router.push("/scan")}>
-        Your visits could not load. Reopen Collection to try again.
+      <VisitMessage action="Try again" onAction={onRetry}>
+        Your visits could not load. Try again.
       </VisitMessage>
     );
   }
@@ -130,17 +137,21 @@ export function CollectionVisits({
       />
     );
   }
+  const showContent = !message || (!!mode && (loading || !!error) && available.length > 0);
   // Keep the native scroll view, header, and controls mounted across view changes, including the empty state above.
   return (
     <VisitTimeline
-      visits={mode === "list" && !message ? shown : []}
+      visits={mode === "list" && showContent ? shown : []}
       header={header}
       controls={controls}
       paneRef={paneRef}
       pane={mode}
       footer={
         mode === "globe" ? (
-          (message ?? <VisitGlobe visits={visits} onList={() => changeMode("list")} />)
+          <>
+            {message}
+            {showContent && <VisitGlobe visits={available} onList={() => changeMode("list")} />}
+          </>
         ) : (
           <>
             {message}

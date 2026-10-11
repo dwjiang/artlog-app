@@ -31,6 +31,7 @@ export function WallArtworkPicker({
   disabled,
   loading = false,
   error,
+  onRetry,
   onChange,
   onDismiss,
   onAdd,
@@ -44,6 +45,7 @@ export function WallArtworkPicker({
   disabled: boolean;
   loading?: boolean;
   error?: string;
+  onRetry?: () => void;
   onChange: (ids: string[]) => void;
   onDismiss: () => void;
   onAdd: () => void;
@@ -247,9 +249,12 @@ export function WallArtworkPicker({
             <>
               {loading && <LoadingRing accessibilityLabel="Loading artworks" />}
               {error && (
-                <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-                  {error}
-                </Text>
+                <View>
+                  <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+                    {error}
+                  </Text>
+                  {onRetry && <GalleryButton label="Try again" disabled={disabled} onPress={onRetry} />}
+                </View>
               )}
             </>
           }

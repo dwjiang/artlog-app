@@ -62,6 +62,7 @@ jest.mock("@/lib/observability", () => ({
 
 let identity: typeof import("./device-identity");
 let useDeviceIdentity: typeof identity.useDeviceIdentity;
+let ModuleConvexError: typeof ConvexError;
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -93,6 +94,7 @@ beforeEach(() => {
   // Each isolated module represents a fresh process; remounts within a test share its promises.
   jest.isolateModules(() => {
     jest.doMock("react", () => React);
+    ModuleConvexError = jest.requireActual<typeof import("convex/values")>("convex/values").ConvexError;
     identity = jest.requireActual<typeof import("./device-identity")>("./device-identity");
     ({ useDeviceIdentity } = identity);
   });
@@ -416,6 +418,21 @@ it.each(["sign-in", "registration"])("retries failed %s without needing a remoun
   expect(request).toHaveBeenCalledTimes(1);
   await act(() => jest.advanceTimersByTimeAsync(1000));
   expect(request).toHaveBeenCalledTimes(2);
+});
+
+it("waits for the server cooldown before retrying device registration", async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockRegister.mockRejectedValueOnce(
+    new ModuleConvexError({ code: "rate_limited", name: "registerDevice", retryAfter: 120_000 }),
+  );
+  await renderHook(useDeviceIdentity);
+  expect(mockRegister).toHaveBeenCalledTimes(1);
+
+  await act(() => jest.advanceTimersByTimeAsync(119_999));
+  expect(mockRegister).toHaveBeenCalledTimes(1);
+  await act(() => jest.advanceTimersByTimeAsync(1));
+  expect(mockRegister).toHaveBeenCalledTimes(2);
 });
 
 it("registers again after the anonymous session changes", async () => {

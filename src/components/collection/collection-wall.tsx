@@ -48,6 +48,7 @@ type CollectionWallProps = {
   visits?: LibraryVisit[];
   collectionLoading?: boolean;
   collectionError?: string;
+  onCollectionRetry?: () => void;
   hiddenIds?: string[];
   onEditingChange?: (editing: boolean) => void;
   header?: ReactElement;
@@ -65,6 +66,7 @@ export function CollectionWallContent({
   visits,
   collectionLoading,
   collectionError,
+  onCollectionRetry,
   hiddenIds = [],
   onEditingChange,
   wall,
@@ -361,6 +363,14 @@ export function CollectionWallContent({
               </View>
             </View>
           )}
+          {collectionError && (
+            <View style={styles.error}>
+              <Text accessibilityRole="alert" style={styles.caption}>
+                {collectionError}
+              </Text>
+              {onCollectionRetry && <GalleryButton label="Try again" disabled={blocked} onPress={onCollectionRetry} />}
+            </View>
+          )}
           {wall.error && (
             <View style={styles.error}>
               <Text accessibilityRole="alert" style={styles.caption}>
@@ -536,6 +546,7 @@ export function CollectionWallContent({
           disabled={blocked}
           loading={collectionLoading}
           error={collectionError}
+          onRetry={onCollectionRetry}
           onChange={setPicker}
           onDismiss={() => setPicker(undefined)}
           onAdd={() => {

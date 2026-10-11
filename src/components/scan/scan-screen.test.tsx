@@ -555,7 +555,19 @@ it("reveals an imported photo and reports its failure while camera access is den
   await render(<ScanScreen />);
   expect(screen.getByLabelText("Capture reveal")).toBeOnTheScreen();
   expect(screen.getByRole("alert")).toHaveTextContent(mockMessage);
-  expect(screen.getByRole("button", { name: "Import a photo" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Choose another photo" }));
+  expect(mockImport).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("button", { name: "Use camera" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Scan artwork" })).toBeNull();
+});
+
+it("keeps denied-camera imports visibly busy until identification finishes", async () => {
+  mockGranted = false;
+  mockCanRequest = false;
+  mockState = { phase: "processing", occupied: true, source: "library" };
+  await render(<ScanScreen />);
+  expect(screen.getByText("Identifying artwork")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Import a photo" })).toBeDisabled();
   expect(screen.queryByRole("button", { name: "Scan artwork" })).toBeNull();
 });
 
