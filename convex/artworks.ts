@@ -112,6 +112,11 @@ export const catalogArtwork = snapshotFields.extend({
   thumbnailUrl: v.optional(v.string()),
 });
 export type CatalogArtwork = Infer<typeof catalogArtwork>;
+export const catalogArtworkPage = v.object({
+  page: v.array(catalogArtwork),
+  cursor: v.union(v.string(), v.null()),
+  isDone: v.boolean(),
+});
 
 /** A catalog work as search and its page show it, from its first eligible object; null once it can't be shown. */
 export async function projectCatalogArtwork(ctx: QueryCtx, artwork: Doc<"artworks">): Promise<CatalogArtwork | null> {
@@ -138,28 +143,32 @@ export async function projectCatalogArtwork(ctx: QueryCtx, artwork: Doc<"artwork
 }
 
 /** Catalog works whose title or artist has every word of the query, best match first. */
+export async function searchArtworks(
+  ctx: QueryCtx,
+  query: string,
+  input: { cursor?: string | null; limit?: number },
+): Promise<Infer<typeof catalogArtworkPage>> {
+  const text = catalogSearchText(query);
+  const options = pagination(input);
+  if (!text) return { page: [], cursor: null, isDone: true };
+  const result = await ctx.db
+    .query("artworks")
+    .withSearchIndex("search_text", (q) => q.search("searchText", text))
+    .paginate(options);
+  const page = [];
+  for (const artwork of result.page) {
+    const shown = await projectCatalogArtwork(ctx, artwork);
+    if (shown) page.push(shown);
+  }
+  return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
+}
+
 export const search = query({
   args: { query: v.string(), ...pageArgs },
-  returns: v.object({
-    page: v.array(catalogArtwork),
-    cursor: v.union(v.string(), v.null()),
-    isDone: v.boolean(),
-  }),
+  returns: catalogArtworkPage,
   handler: async (ctx, input) => {
     await requireDevice(ctx);
-    const text = catalogSearchText(input.query);
-    const options = pagination(input);
-    if (!text) return { page: [], cursor: null, isDone: true };
-    const result = await ctx.db
-      .query("artworks")
-      .withSearchIndex("search_text", (q) => q.search("searchText", text))
-      .paginate(options);
-    const page = [];
-    for (const artwork of result.page) {
-      const shown = await projectCatalogArtwork(ctx, artwork);
-      if (shown) page.push(shown);
-    }
-    return { page, cursor: result.isDone ? null : result.continueCursor, isDone: result.isDone };
+    return searchArtworks(ctx, input.query, input);
   },
 });
 

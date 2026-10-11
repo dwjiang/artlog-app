@@ -301,7 +301,6 @@ export const commitReview = internalMutation({
         await patchContributionState(ctx, objectId, {});
         await bumpCounter(ctx, "objects", 1);
         await bumpCounter(ctx, "vectors", scans.length);
-        await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
         await bumpCounter(ctx, "descriptors", 1);
       }
       const placementId = await ctx.db.insert("placements", {

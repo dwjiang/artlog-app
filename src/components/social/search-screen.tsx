@@ -41,8 +41,8 @@ import { profileHref, tagHref } from "./tagged-text";
 const SHOWN = 5;
 const SHOWN_PEOPLE = 10;
 const SHOWN_ARTWORKS = 3;
-// One page past the shown rows tells Search whether "See all" has more to show.
-const ARTWORK_PAGE = 8;
+// Two spare rows stand in for hidden matches and tell Search whether "See all" has more.
+const ARTWORK_PAGE = SHOWN_ARTWORKS + 2;
 
 // The server rejects searches it can't run, so those never leave the phone.
 function peopleSearch(text: string) {
@@ -66,15 +66,15 @@ export function SearchScreen() {
   const { recent, remember, forget } = useRecentSearches();
   const [text, setText] = useState("");
   const query = text.trim();
-  const settled = useDebouncedValue(query, 200, "");
+  // Each settled value runs every search, so brief pauses while typing shouldn't settle.
+  const settled = useDebouncedValue(query, 300, "");
   const online = !session.offline;
   // A leading # asks for tags only, and a leading @ for people only.
   const tagPrefix = settled.replace(/^#/, "");
   const people = settled.startsWith("#") ? "" : peopleSearch(settled);
   const art = /^[#@]/.test(settled) || !catalogSearchText(settled) ? "" : settled;
-  const artists = useSocialQuery(api.artists.search, catalog.ready && art ? { query: art } : "skip", catalog.scope);
-  const artworks = useSocialQuery(
-    api.artworks.search,
+  const catalogResults = useSocialQuery(
+    api.catalog.search,
     catalog.ready && art ? { query: art, limit: ARTWORK_PAGE } : "skip",
     catalog.scope,
   );
@@ -115,8 +115,8 @@ export function SearchScreen() {
     remember({ kind: "artist", artist });
     router.push({ pathname: "/artist/[artistId]", params: { artistId: artist.artistId } });
   };
-  const artistResults = art ? (artists.data ?? []) : [];
-  const artworkPage = art ? artworks.data : undefined;
+  const artistResults = art ? (catalogResults.data?.artists ?? []) : [];
+  const artworkPage = art ? catalogResults.data?.artworks : undefined;
   const artworkResults = (artworkPage?.page ?? []).slice(0, SHOWN_ARTWORKS);
   const moreArtworks = !!artworkPage && (artworkPage.page.length > SHOWN_ARTWORKS || !artworkPage.isDone);
   const tagResults = settled && tagPrefix ? (tags.data ?? []).slice(0, SHOWN) : [];
@@ -125,9 +125,8 @@ export function SearchScreen() {
     settled !== query
     || (!!tagPrefix && tags.loading)
     || (!!people && profiles.loading)
-    || (!!art && (!catalog.ready || artists.loading || artworks.loading));
-  const searchError =
-    (!!tagPrefix && tags.error) || (!!people && profiles.error) || (!!art && (artists.error || artworks.error));
+    || (!!art && (!catalog.ready || catalogResults.loading));
+  const searchError = (!!tagPrefix && tags.error) || (!!people && profiles.error) || (!!art && catalogResults.error);
   const results = artistResults.length + artworkResults.length + tagResults.length + peopleResults.length;
   let content;
   let state;
@@ -273,7 +272,9 @@ export function SearchScreen() {
   } else {
     content = (
       <View style={styles.sections}>
-        {!!art && artists.error && <SearchFailure noun="artists" onRetry={artists.refresh} />}
+        {!!art && catalogResults.error && (
+          <SearchFailure noun="artists and artworks" onRetry={catalogResults.refresh} />
+        )}
         {artistResults.length > 0 && (
           <ListSection title="Artists">
             {artistResults.map((artist, index) => (
@@ -288,7 +289,6 @@ export function SearchScreen() {
             ))}
           </ListSection>
         )}
-        {!!art && artworks.error && <SearchFailure noun="artworks" onRetry={artworks.refresh} />}
         {(artworkResults.length > 0 || moreArtworks) && (
           <ListSection
             title="Artworks"

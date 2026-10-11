@@ -4,6 +4,8 @@ import { expect, it, vi } from "vitest";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import { newObjectCounters } from "./lib/objectCounters";
+import { patchObjectDetails } from "./lib/objectDetails";
 import { seedArtworkWithObject, seedDevice, seedMuseum } from "./lib/testFactories";
 import schema from "./schema";
 import { harness, type Harness } from "./test.helpers";
@@ -121,6 +123,131 @@ it("picks each artist's most-saved work with a picture as the avatar, monthly", 
   await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
   expect(await avatar()).toBe("https://museum.example/pond.jpg");
   vi.useRealTimers();
+});
+
+it("stores each artist's avatar for search and picks again once their works change", async () => {
+  vi.useFakeTimers();
+  const t = harness();
+  const { as } = await seedDevice(t);
+  const lilies = await seedWork(t, { artist: "Claude Monet" }, "https://museum.example/lilies.jpg");
+  await seedWork(t, { artist: "Georgia O’Keeffe", rightsStatus: "in_copyright" });
+  const covers = async () =>
+    Object.fromEntries(
+      (await t.run((ctx) => ctx.db.query("artists").collect())).map(({ name, coverArtworkId }) => [
+        name,
+        coverArtworkId,
+      ]),
+    );
+  const refresh = async () => {
+    await t.action(internal.artists.refreshCovers, {});
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+  };
+  await refresh();
+  expect(await covers()).toEqual({ "Claude Monet": lilies.artworkId, "Georgia O’Keeffe": null });
+  expect(await as.query(api.artists.search, { query: "keeffe" })).toEqual([
+    { artistId: expect.any(String), name: "Georgia O’Keeffe", workCount: 1 },
+  ]);
+
+  const early = await seedWork(t, { artist: "Georgia O’Keeffe" }, "https://museum.example/early.jpg");
+  expect((await covers())["Georgia O’Keeffe"]).toBeUndefined();
+  expect((await as.query(api.artists.search, { query: "keeffe" }))[0]?.coverUrl).toBe(
+    "https://museum.example/early.jpg",
+  );
+  await refresh();
+  expect(await covers()).toEqual({ "Claude Monet": lilies.artworkId, "Georgia O’Keeffe": early.artworkId });
+
+  // A stored avatar taken down stops showing at once; the next work with a picture stands in.
+  await seedWork(t, { artist: "Claude Monet" }, "https://museum.example/wheat.jpg");
+  await refresh();
+  await t.run((ctx) => ctx.db.patch("artworks", lilies.artworkId, { rightsStatus: "in_copyright" }));
+  expect((await as.query(api.artists.search, { query: "monet" }))[0]?.coverUrl).toBe(
+    "https://museum.example/wheat.jpg",
+  );
+  vi.useRealTimers();
+});
+
+it.each(["thumbnail", "rights"] as const)(
+  "rechecks a missing cover after an existing work's %s changes",
+  async (change) => {
+    vi.useFakeTimers();
+    try {
+      const t = harness({ transactionLimits: true });
+      const { as } = await seedDevice(t);
+      const work = await t.run((ctx) =>
+        seedArtworkWithObject(ctx, {
+          artwork: { rightsStatus: change === "rights" ? "in_copyright" : "public_domain" },
+          objectDetails: { thumbnailUrl: change === "thumbnail" ? undefined : "https://museum.example/work.jpg" },
+        }),
+      );
+      const refresh = async () => {
+        await t.action(internal.artists.refreshCovers, {});
+        await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+      };
+      await refresh();
+      expect((await t.run((ctx) => ctx.db.query("artists").first()))?.coverArtworkId).toBeNull();
+
+      await t.run((ctx) =>
+        change === "thumbnail"
+          ? patchObjectDetails(ctx, { _id: work.objectId }, { thumbnailUrl: "https://museum.example/work.jpg" })
+          : ctx.db.patch("artworks", work.artworkId, { rightsStatus: "public_domain" }),
+      );
+      await refresh();
+      expect((await t.run((ctx) => ctx.db.query("artists").first()))?.coverArtworkId).toBe(work.artworkId);
+      expect((await as.query(api.catalog.search, { query: "monet" })).artists[0]?.coverUrl).toBe(
+        "https://museum.example/work.jpg",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  },
+);
+
+it("finishes cover assignment across pages within transaction limits when works have multiple objects", async () => {
+  vi.useFakeTimers();
+  try {
+    const t = harness({ transactionLimits: true });
+    const venueId = await t.run((ctx) => seedMuseum(ctx));
+    for (let artist = 0; artist < 10; artist++) {
+      await t.run(async (ctx) => {
+        for (let work = 0; work < 12; work++) {
+          const key = `artist-${artist}-work-${work}`;
+          const artworkId = await ctx.db.insert("artworks", {
+            identityStatus: "established",
+            key,
+            title: key,
+            artist: `Painter ${artist}`,
+            rightsStatus: "public_domain",
+            multiplicity: "multiple",
+            enrichGeneration: 0,
+          });
+          for (let object = 0; object < 8; object++) {
+            const detailsId = await ctx.db.insert("objectDetails", { medium: "Etching" });
+            await ctx.db.insert("objects", {
+              identityStatus: "established",
+              key: `${key}-object-${object}`,
+              artworkId,
+              ownerId: venueId,
+              detailsId,
+              source: "corpus",
+              sourceId: `${key}-object-${object}`,
+              ...newObjectCounters,
+              reverted: false,
+            });
+          }
+        }
+      });
+    }
+    const pictured = await seedWork(t, { artist: "Last Painter" });
+
+    await t.action(internal.artists.refreshCovers, { phase: "assign" });
+    await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
+    const artists = await t.run((ctx) => ctx.db.query("artists").collect());
+    expect(artists).toHaveLength(11);
+    expect(artists.filter(({ coverArtworkId }) => coverArtworkId === null)).toHaveLength(10);
+    expect(artists.find(({ name }) => name === "Last Painter")?.coverArtworkId).toBe(pictured.artworkId);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it("lists an artist's shown works page by page and their details", async () => {

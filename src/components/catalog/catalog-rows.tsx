@@ -12,7 +12,7 @@ import type { SavedWork } from "@/db/schema";
 import type { api } from "../../../convex/_generated/api";
 
 export type CatalogArtwork = FunctionReturnType<typeof api.artworks.search>["page"][number];
-export type ArtistSummary = FunctionReturnType<typeof api.artists.search>[number];
+export type ArtistSummary = FunctionReturnType<typeof api.catalog.search>["artists"][number];
 
 const THUMBNAIL = 40;
 

@@ -72,21 +72,32 @@ export const acknowledge = internalMutation({
   args: { receipts: v.array(receipt), success: v.boolean() },
   returns: v.null(),
   handler: async (ctx, { receipts, success }) => {
+    let drainAt: number | undefined;
     for (const receipt of receipts) {
       const job = await ctx.db.get("vectorSyncJobs", receipt.id);
       if (!job || job.lease !== receipt.lease) continue;
       if (success) {
         await ctx.db.delete("vectorSyncJobs", job._id);
+        // A job queued for this record during the write waited on its lease.
+        const waiting = await ctx.db
+          .query("vectorSyncJobs")
+          .withIndex("by_recordId", (q) => q.eq("recordId", job.recordId))
+          .take(BATCH_SIZE);
+        if (waiting.some((other) => other.state === "pending")) drainAt = Date.now();
       } else {
+        const state = job.attempts >= 8 ? "failed" : "pending";
         // The write may have reached Pinecone: the lease keeps newer jobs for this record waiting.
-        await ctx.db.patch("vectorSyncJobs", job._id, { state: job.attempts >= 8 ? "failed" : "pending" });
+        await ctx.db.patch("vectorSyncJobs", job._id, { state });
+        // Newer jobs can arrive even after the last failure and must wake when its lease ends.
+        drainAt = Math.min(drainAt ?? job.availableAt, job.availableAt);
       }
     }
+    if (drainAt !== undefined) await ctx.scheduler.runAt(drainAt, internal.vectorSync.drain, {});
     return null;
   },
 });
 
-// Each claim chains the next page; records skipped behind a lease are revisited by the cron.
+// Each claim chains the next page; acknowledging a lease drains the jobs that waited behind it.
 export const drain = internalAction({
   args: drainArgs,
   returns: v.number(),
@@ -181,7 +192,6 @@ export const rebuild = internalMutation({
   handler: async (ctx, { cursor }) => {
     const page = await ctx.db.query("vectors").withIndex("by_creation_time").paginate({ cursor, numItems: BATCH_SIZE });
     for (const row of page.page) await queueVectorSync(ctx, row);
-    if (page.page.length > 0) await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
     return { queued: page.page.length, cursor: page.isDone ? null : page.continueCursor };
   },
 });

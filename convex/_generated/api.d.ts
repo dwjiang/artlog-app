@@ -16,6 +16,7 @@ import type * as artists from "../artists.js";
 import type * as artworkAlbums from "../artworkAlbums.js";
 import type * as artworks from "../artworks.js";
 import type * as auth from "../auth.js";
+import type * as catalog from "../catalog.js";
 import type * as checklists from "../checklists.js";
 import type * as collectionPhotos from "../collectionPhotos.js";
 import type * as collections from "../collections.js";
@@ -212,6 +213,7 @@ declare const fullApi: ApiFromModules<{
   artworkAlbums: typeof artworkAlbums;
   artworks: typeof artworks;
   auth: typeof auth;
+  catalog: typeof catalog;
   checklists: typeof checklists;
   collectionPhotos: typeof collectionPhotos;
   collections: typeof collections;

@@ -1,7 +1,6 @@
 import { ConvexError, v, type Infer } from "convex/values";
 
 import model from "../../shared/model/model-version.json";
-import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { bumpCounter } from "../ingest";
@@ -217,7 +216,6 @@ export async function publishContribution(
     ...archive,
   });
   await bumpCounter(ctx, "vectors", 1);
-  await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
   const source = anchor && earlier(anchor, row) ? anchor : row;
   await applyReference(ctx, object, source, object.provenance?.verifiedAccession ?? verifiedAccession(row));
   await ctx.db.patch("objects", object._id, {

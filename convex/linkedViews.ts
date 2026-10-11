@@ -125,7 +125,6 @@ export const commit = internalMutation({
       ...view.archive,
     });
     await bumpCounter(ctx, "vectors", 1);
-    await ctx.scheduler.runAfter(0, internal.vectorSync.drain, {});
     return null;
   },
 });

@@ -9,7 +9,8 @@ crons.interval("expire transient evidence", { hours: 1 }, internal.retention.exp
 crons.interval("expire scan vectors", { hours: 24 }, internal.scanEmbeddings.expire, {});
 crons.interval("expire unattached files", { hours: 1 }, internal.files.expire, {});
 
-crons.interval("retry Pinecone sync", { minutes: 1 }, internal.vectorSync.drain, {});
+// Queued jobs and failed writes schedule their own drains; this recovers jobs a crashed drain left leased.
+crons.interval("recover Pinecone sync", { hours: 1 }, internal.vectorSync.drain, {});
 crons.interval("read exhibition listings", { minutes: 15 }, internal.exhibitionRefresh.dispatch, {});
 
 crons.weekly("pick popular tags", { dayOfWeek: "monday", hourUTC: 9, minuteUTC: 17 }, internal.tags.refreshPopular, {});
