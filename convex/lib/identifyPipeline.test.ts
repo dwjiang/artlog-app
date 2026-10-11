@@ -250,3 +250,71 @@ it("requires visual verification and the same museum for a tentative candidate",
   entry.keypoints = undefined;
   expect(run([entry]).decision.best).toBeNull();
 });
+
+it.each([false, true])(
+  "keeps two independently confident artwork identities soft regardless of retrieval order (%s)",
+  (reverse) => {
+    const candidates = [candidate("original", 0.99, pair.ref), candidate("copy", 0.99, pair.ref)];
+    for (const entry of candidates) expect(run([entry]).decision.outcome).toBe("confident");
+    const result = run(reverse ? candidates.reverse() : candidates);
+    expect(result.decision.best?.probability).toBeGreaterThanOrEqual(DEFAULT_CALIBRATOR.thresholds.confident);
+    expect(result.decision.runnerUps[0].probability).toBeGreaterThanOrEqual(DEFAULT_CALIBRATOR.thresholds.confident);
+    expect(result.decision.outcome).toBe("soft");
+  },
+);
+
+it("keeps confidence when verified objects represent the same artwork identity", () => {
+  const first = candidate("first-object", 0.99, pair.ref);
+  const second = candidate("second-object", 0.99, pair.ref);
+  second.artwork._id = first.artwork._id;
+  second.object.artworkId = first.artwork._id;
+  const result = run([first, second]);
+  expect(result.decision.outcome).toBe("confident");
+});
+
+it("keeps ambiguous established artworks ahead of a tentative visitor identity", () => {
+  const visitor = candidate("visitor", 0.999, pair.ref);
+  visitor.object.identityStatus = "tentative";
+  visitor.object.ownerId = "museum" as Id<"museums">;
+  const result = run([candidate("original", 0.99, pair.ref), candidate("copy", 0.99, pair.ref), visitor]);
+  expect(result.decision.outcome).toBe("soft");
+  expect(result.decision.best?.candidate.object._id).toBe("original");
+  expect(result.decision.runnerUps.map((entry) => entry.candidate.object._id)).toContain("copy");
+});
+
+it("keeps confidence when another verified artwork falls below the confidence threshold", () => {
+  const result = run([candidate("correct", 0.99, pair.ref), candidate("weak-copy", 0.1, pair.ref)]);
+  expect(result.verifications.get("weak-copy" as Id<"objects">)?.verified).toBe(true);
+  expect(result.decision.runnerUps[0].probability).toBeLessThan(DEFAULT_CALIBRATOR.thresholds.confident);
+  expect(result.decision.outcome).toBe("confident");
+});
+
+it.each([0, 40])("requires geometry before suggesting a low-texture tentative artwork (%s keypoints)", (count) => {
+  const { ref } = makeSyntheticPair({ seed: 114, count });
+  const empty: OrbFeatures = { count: 0, descriptors: new Uint8Array(), keypoints: new Float32Array() };
+  const entry = candidate("visitor", 0.99, ref);
+  entry.object.identityStatus = "tentative";
+  entry.object.ownerId = "museum" as Id<"museums">;
+  const result = run([entry], undefined, empty);
+  expect(result.verifications.get(entry.object._id)?.verified).toBe(false);
+  expect(result.decision.outcome).toBe("miss");
+  expect(result.decision.best).toBeNull();
+});
+
+it("suggests a low-texture tentative artwork when its geometry verifies", () => {
+  const lowTexture = makeSyntheticPair({ seed: 115, count: 40 });
+  const entry = candidate("visitor", 0.99, lowTexture.ref);
+  entry.object.identityStatus = "tentative";
+  entry.object.ownerId = "museum" as Id<"museums">;
+  const result = run([entry], undefined, lowTexture.query);
+  expect(result.verifications.get(entry.object._id)?.verified).toBe(true);
+  expect(result.decision.outcome).toBe("soft");
+  expect(result.decision.best?.candidate.object._id).toBe(entry.object._id);
+});
+
+it("preserves the established low-texture confidence rule without query geometry", () => {
+  const empty: OrbFeatures = { count: 0, descriptors: new Uint8Array(), keypoints: new Float32Array() };
+  const result = run([candidate("established", 0.99, empty)], undefined, empty);
+  expect(result.verifications.get("established" as Id<"objects">)?.verified).toBe(false);
+  expect(result.decision.outcome).toBe("confident");
+});

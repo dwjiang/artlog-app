@@ -16,7 +16,8 @@ const COVER_SCAN = 12;
 const COVER_PAGE = 200;
 // Each artist can resolve 12 works × 8 objects plus proposal evidence; keep the batch below 4,096 reads.
 const ASSIGN_PAGE = 2;
-const SAVES_PAGE = 500;
+// Every distinct saved work can resolve eight objects and their proposal evidence in the same transaction.
+const SAVES_PAGE = 20;
 // One cover can resolve eight objects with proposal evidence; leave room for that and the remaining artists.
 const COVER_READ_RESERVE = 256;
 
@@ -206,15 +207,17 @@ export const tallyCovers = internalMutation({
     if (page.isDone && current) finished.push(current);
     for (const { artworkId, saves } of finished) {
       const artwork = await ctx.db.get("artworks", artworkId);
-      if (!artwork?.artistKey || !(await pictureOf(ctx, artworkId, artwork.artistKey))) continue;
+      if (!artwork?.artistKey) continue;
       const { artistKey } = artwork;
       const pick = await ctx.db
         .query("artistCovers")
         .withIndex("by_artistKey", (q) => q.eq("artistKey", artistKey))
         .first();
       // A tie keeps the work that comes first in the index, so unchanged saves pick the same avatar every month.
+      if (pick && saves <= pick.saves) continue;
+      if (!(await pictureOf(ctx, artworkId, artistKey))) continue;
       if (!pick) await ctx.db.insert("artistCovers", { artistKey, artworkId, saves });
-      else if (saves > pick.saves) await ctx.db.patch("artistCovers", pick._id, { artworkId, saves });
+      else await ctx.db.patch("artistCovers", pick._id, { artworkId, saves });
     }
     return { cursor: page.continueCursor, isDone: page.isDone, open: page.isDone ? null : current };
   },

@@ -247,3 +247,38 @@ it("checks a first play's guide against the research the render wrote, which the
     "Narration transcript is invalid.",
   );
 });
+
+it("replaces audio rejected by the player without invalidating another cached guide", async () => {
+  const generate = jest.fn(async () => generated);
+  const renderer = createNarrationRenderer(generate);
+  const first = await renderer.render(track);
+  const other = await createNarrationRenderer(async () => ({ ...generated, renderId: "render-2" })).render(track);
+
+  renderer.invalidate(first.renderId);
+  expect(await cachedNarrationUri(first.renderId)).toBeUndefined();
+  expect(mockFiles.has(first.uri.replace(".mp3", ".json"))).toBe(false);
+  expect(await cachedNarrationUri(other.renderId)).toBe(other.uri);
+  mockFetch.mockClear();
+  expect(await renderer.render(known)).toEqual({ ...first, facts: generated.facts, researchUpdatedAt: 5 });
+  expect(generate).toHaveBeenCalledTimes(2);
+  expect(mockFetch).toHaveBeenCalledTimes(1);
+});
+
+it("discards a cancelled download that finishes after a different guide is cached", async () => {
+  let finish!: (bytes: ArrayBuffer) => void;
+  const bytes = new Promise<ArrayBuffer>((resolve) => {
+    finish = resolve;
+  });
+  mockFetch.mockResolvedValueOnce({ ok: true, arrayBuffer: () => bytes });
+  const generate = jest.fn(async () => generated);
+  generate.mockResolvedValueOnce({ ...generated, renderId: "old-render" });
+  const renderer = createNarrationRenderer(generate);
+  const old = renderer.render(track);
+  await Promise.resolve();
+  await Promise.resolve();
+  const current = await renderer.render(track);
+  finish(new Uint8Array([9]).buffer);
+  await expect(old).rejects.toThrow("cancelled");
+  expect([...mockFiles.keys()]).toEqual([current.uri, current.uri.replace(".mp3", ".json")]);
+  expect((await renderer.render(known)).sentences).toEqual(current.sentences);
+});

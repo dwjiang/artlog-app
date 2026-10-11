@@ -14,6 +14,7 @@ from .verify import is_sane_quad, verify
     "matrix,expected",
     [
         (np.eye(3), True),
+        (np.array([[0, 0, 500], [0, -1, 512], [0.001, 0, 1]]), True),
         (np.diag([-1, 1, 1]), False),
         (np.diag([0.01, 0.01, 1]), False),
         (np.diag([5, 5, 1]), False),

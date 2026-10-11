@@ -398,6 +398,7 @@ it("bounds maximum-size artwork responses with continuation pages and revision-b
       limit: 50,
       cursor,
     });
+    expect(post.artworkCount).toBe(LIMITS.selectedSaves);
     expect(utf8Bytes(post.artworks.page)).toBeLessThanOrEqual(PAGE_BYTES);
     expect(post.artworks.page.length).toBeGreaterThan(0);
     seen.push(...post.artworks.page.map((x) => x.itemId));
@@ -611,6 +612,54 @@ it("publishes artworks in the chosen order and leads feed cards with the first t
   const [updated] = (await t.query(api.sharedVisits.listPublic, {})).page;
   expect(updated.artworks.page.map((item) => item.artwork.title)).toEqual(["Work 2", "Work 3", "Work 1"]);
 });
+
+it("serves complete counts and highlights for full posts within a 1,000-document read budget", async () => {
+  const t = harness({ transactionLimits: { documentsRead: 1_000 } });
+  const owner = await socialUser(t);
+  const drafts = [];
+  for (let i = 0; i < 16; i++) {
+    const draft = await socialVisit(t, owner, LIMITS.selectedSaves);
+    await t.run(async (ctx) => {
+      const publicationId = await ctx.db.insert("sharedVisits", {
+        audience: "public",
+        postId: crypto.randomUUID(),
+        profileId: owner.profileId,
+        visitId: draft.visit._id,
+        visitLocalId: draft.visit.localId,
+        visitedOn: draft.visit.visitedOn,
+        status: "active",
+        reflection: "",
+        publishedAt: 1,
+        updatedAt: 1,
+        publicationRevision: 1,
+      });
+      for (const [position, save] of draft.saves.entries()) {
+        await ctx.db.insert("sharedVisitItems", {
+          publicationId,
+          saveId: save.id,
+          saveLocalId: save.localId,
+          position,
+          highlighted: position < 3,
+        });
+      }
+    });
+    drafts.push(draft);
+  }
+
+  const feed = await t.query(api.sharedVisits.listPublic, { limit: 16 });
+  expect(feed.page).toHaveLength(16);
+  for (const post of feed.page) {
+    expect(post.artworkCount).toBe(LIMITS.selectedSaves);
+    expect(post.artworks.page.map((item) => item.artwork.title)).toEqual(["Work 0", "Work 1", "Work 2"]);
+    expect(post.artworks.cursor).not.toBeNull();
+  }
+
+  const hidden = await setVisitVisibility(t, owner, drafts[0].visit._id, "private");
+  const remaining = await t.query(api.sharedVisits.listPublic, { limit: 16 });
+  expect(remaining.page).toHaveLength(15);
+  expect(remaining.page.some((post) => post.postId === hidden.postId)).toBe(false);
+  await expect(t.query(api.sharedVisits.get, { postId: hidden.postId! })).rejects.toMatchObject(notFound);
+}, 30_000);
 
 it("names the museum on a shared visit artwork's page but not on the post", async () => {
   const t = harness();

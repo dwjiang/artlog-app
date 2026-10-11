@@ -17,9 +17,10 @@ import {
 } from "./lib/museumPicks";
 import { readObjectDetails } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
+import { eligibleObjectRecord } from "./lib/recognitionEligibility";
 
-// Four reads per placement keeps a page under a function's 4,096-read limit.
-const PAGE_SIZE = 800;
+// Live eligibility includes takedowns and up to seven proposal witnesses within the 4,096-read limit.
+const PAGE_SIZE = 200;
 const VENUES_PER_WRITE = 15;
 const POPULAR_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 const RECENT_SAVES_READ = 1000;
@@ -45,7 +46,7 @@ type Showable = { artwork: Doc<"artworks">; details: Doc<"objectDetails"> & { th
 /** An artwork Home can show: a live catalogue entry whose public-domain thumbnail we may display. */
 async function showable(ctx: QueryCtx, objectId: Id<"objects">): Promise<Showable | null> {
   const object = await ctx.db.get("objects", objectId);
-  if (!object || object.reverted || object.mergedInto) return null;
+  if (!object || !(await eligibleObjectRecord(ctx, object))) return null;
   const artwork = await ctx.db.get("artworks", object.artworkId);
   if (
     !artwork

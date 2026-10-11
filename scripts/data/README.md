@@ -317,6 +317,27 @@ metrics, and report together. Training does not install weights. See the
 [output contract](../../shared/calibrator/README.md) and
 [evaluation findings](../../docs/experiments/README.md#calibration).
 
+Feature manifests with an explicit incompatible `modelVersion` are rejected before training.
+Candidate rows record `candidateArtworkId`: two distinct artworks that both meet the confident
+threshold and eligibility rules soften the winning answer. Legacy rows without artwork IDs use
+object IDs, which conservatively treats multiple objects of one artwork as distinct; regenerate
+those rows before using their ambiguous-match counts to choose production thresholds.
+
+## Offline recognition evaluations
+
+The small offline ORB evaluation needs no model weights, network, or credentials:
+
+```sh
+uv run python -m pipeline.calibrator.evaluation --out ../../.context/orb-robustness.json
+```
+
+It uses the [committed CC0 painting](fixtures/README.md), three fixed seeds, mild/saturated glare, partial crops retaining
+75%, 50%, 25%, or 10% of image area, combined crop/glare, and unrelated noise/blank inputs. The
+report preserves pixel hashes and per-condition verified/missed/false-verified counts, plus a
+15/30/50-inlier threshold sweep. This single-reference synthetic workload measures Python/OpenCV
+ORB robustness only: it does not measure embedding retrieval, calibrated confident decisions,
+TypeScript RANSAC parity, look-alike artwork rejection, or real camera accuracy.
+
 ## Verification
 
 From `scripts/data/`:

@@ -3,7 +3,7 @@ import { verifyOrb, type VerifyResult } from "../../shared/orb/verify";
 import type { Doc, Id } from "../_generated/dataModel";
 import { decide, scoreCandidates, type Decision } from "./calibrator/calibrate";
 import type { GalleryRelation } from "./calibrator/features";
-import type { CalibratorConfig } from "./calibrator/weights";
+import { DEFAULT_CALIBRATOR, type CalibratorConfig } from "./calibrator/weights";
 import { effectiveObjectPenalty } from "./rejectionPenalty";
 
 const GALLERY_TTL_MS = 15 * 60_000;
@@ -14,6 +14,7 @@ export const MAX_CANDIDATES = 32;
 /** Everything scoring reads, so an offline package can ship these fields instead of whole documents. */
 export type PipelineCandidate = {
   object: Pick<Doc<"objects">, "_id" | "identityStatus" | "ownerId" | "calibratorPenalty" | "rejectionPenalty">;
+  artwork: Pick<Doc<"artworks">, "_id">;
   placement: Pick<Doc<"placements">, "venueId" | "gallery" | "onView"> | null;
   similarity: number;
   keypointCount: number | null;
@@ -90,7 +91,24 @@ function runPartition<T extends PipelineCandidate>(input: PipelineInput<T>): Pip
     }),
     input.config,
   );
-  return { decision: decide(scored, input.config), verifications };
+  const decision = decide(scored, input.config);
+  const { best } = decision;
+  if (
+    decision.outcome === "confident"
+    && best?.candidate.object.identityStatus === "established"
+    && scored.some(
+      (other) =>
+        other.candidate.artwork._id !== best.candidate.artwork._id
+        && other.eligibleForConfident
+        && other.probability >= (input.config ?? DEFAULT_CALIBRATOR).thresholds.confident,
+    )
+  ) {
+    // Geometry can verify copies of a composition without resolving their catalogue identity.
+    decision.outcome = "soft";
+    best.eligibleForConfident = false;
+    best.reasons.push("identity:ambiguous");
+  }
+  return { decision, verifications };
 }
 
 export function runPipeline<T extends PipelineCandidate>(input: PipelineInput<T>): PipelineResult<T> {
@@ -106,11 +124,15 @@ export function runPipeline<T extends PipelineCandidate>(input: PipelineInput<T>
     ),
   });
   const verifications = new Map([...established.verifications, ...tentative.verifications]);
-  if (established.decision.outcome === "confident") {
+  if (
+    established.decision.outcome === "confident"
+    || established.decision.best?.reasons.includes("identity:ambiguous")
+  ) {
     return { ...established, verifications };
   }
   const verified = [tentative.decision.best, ...tentative.decision.runnerUps].filter(
-    (c): c is NonNullable<typeof c> => !!c && c.eligibleForConfident,
+    (c): c is NonNullable<typeof c> =>
+      !!c && c.eligibleForConfident && tentative.verifications.get(c.candidate.object._id)?.verified === true,
   );
   const suggestion = decide(verified, input.config);
   if (suggestion.outcome === "miss") return { ...established, verifications };

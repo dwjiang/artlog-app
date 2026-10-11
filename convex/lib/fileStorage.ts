@@ -8,6 +8,7 @@ import { r2, UPLOAD_LIFETIME_SECONDS } from "./r2";
 
 type Reader = Pick<QueryCtx, "db"> | Pick<ActionCtx, "runQuery">;
 type Writer = MutationCtx | Pick<ActionCtx, "runMutation">;
+type PublicFileSource = { artworkId: Id<"artworks">; render: string } | { venueId: Id<"museums">; version: string };
 
 export const FILE_LEASE_MS = 24 * 60 * 60 * 1000;
 
@@ -93,11 +94,11 @@ export const fileStorage = {
     if (!file) return null;
     return withErrorReporting("files.get", () => r2.get(file._id));
   },
-  async getUrl(ctx: Reader, id: Id<"files">): Promise<string | null> {
+  async getUrl(ctx: Reader, id: Id<"files">, source?: PublicFileSource): Promise<string | null> {
     const file = await fileStorage.getMetadata(ctx, id);
     if (!file?.publicDownload) return null;
     // Reactive query results may be cached longer than a signed URL's lifetime.
-    return `${env.CONVEX_SITE_URL}/file?id=${encodeURIComponent(id)}`;
+    return `${env.CONVEX_SITE_URL}/file?${new URLSearchParams({ id, ...source })}`;
   },
   async delete(ctx: Writer, id: Id<"files">): Promise<void> {
     if ("db" in ctx) await queueFileDeletion(ctx, id);
