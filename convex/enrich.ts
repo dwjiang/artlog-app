@@ -1,5 +1,6 @@
 import { type Infer, v } from "convex/values";
 
+import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalQuery, type QueryCtx } from "./_generated/server";
 import { internalMutation } from "./functions";
@@ -112,6 +113,11 @@ export const claimBatch = internalMutation({
         enrichGeneration: artwork.enrichGeneration + 1,
       };
       await ctx.db.patch("artworks", artwork._id, fields);
+      // The batch reclaims its own stale claims after an hour; readers stop showing a dead run as writing then too.
+      await ctx.scheduler.runAfter(STALE_CLAIM_MS, internal.docent.expireClaim, {
+        artworkId: artwork._id,
+        generation: fields.enrichGeneration,
+      });
       artworks.push({ ...artwork, ...fields });
     }
     return { artworks, after: page.after };

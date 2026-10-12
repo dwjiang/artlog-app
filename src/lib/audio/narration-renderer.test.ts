@@ -1,3 +1,6 @@
+import { getNetworkStateAsync } from "expo-network";
+
+import { OfflineError, isNetworkError } from "@/lib/network-error";
 import { guideBodyFixture, guideFixture, openingFixture, researchFixture } from "@/shared/audio/guide-fixtures";
 
 import type { ListeningTrack } from "./narration";
@@ -6,6 +9,7 @@ import { cachedNarrationUri, createNarrationRenderer } from "./narration-rendere
 const mockFiles = new Map<string, Uint8Array>();
 const mockFetch = jest.fn();
 jest.mock("expo-crypto", () => ({ randomUUID: () => "download" }));
+jest.mock("expo-network", () => ({ getNetworkStateAsync: jest.fn() }));
 jest.mock("expo/fetch", () => ({
   fetch: (...args: unknown[]) => mockFetch(...args),
 }));
@@ -66,14 +70,45 @@ const generated = {
   facts: researchFixture,
   researchUpdatedAt: 5,
 };
+function body(...chunks: Uint8Array[]) {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+}
+const finished = (bytes = [73, 68, 51]) => ({ ok: true, body: body(new Uint8Array(bytes)) });
+// A download whose body arrives one chunk at a time, each after `delays[i]` ms, unless the request is aborted.
+function trickle(delays: number[], signal: AbortSignal) {
+  let sent = 0;
+  return {
+    ok: true,
+    body: new ReadableStream<Uint8Array>({
+      pull: (controller) =>
+        new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            controller.enqueue(new Uint8Array(1000).fill(1));
+            if (++sent === delays.length) controller.close();
+            resolve();
+          }, delays[sent]);
+          signal.addEventListener("abort", () => {
+            clearTimeout(timer);
+            reject(Object.assign(new Error("The operation was aborted."), { name: "AbortError" }));
+          });
+        }),
+    }),
+  };
+}
+// Lets pending promise chains, such as the connectivity check, run before the test acts.
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 beforeEach(() => {
   mockFiles.clear();
   mockFetch.mockReset();
-  mockFetch.mockResolvedValue({
-    ok: true,
-    arrayBuffer: async () => new Uint8Array([73, 68, 51]).buffer,
-  });
+  mockFetch.mockImplementation(async () => finished());
+  jest.mocked(getNetworkStateAsync).mockResolvedValue({ isConnected: true, isInternetReachable: true });
 });
+afterEach(() => jest.useRealTimers());
 
 it("finds already downloaded audio for duration lookup without generating or fetching it", async () => {
   const generate = jest.fn(async () => generated);
@@ -100,6 +135,7 @@ it("replays a known render offline without a backend or network request", async 
   expect(generate).toHaveBeenCalledWith({ artworkId: "work" });
   expect({ facts, researchUpdatedAt }).toEqual({ facts: generated.facts, researchUpdatedAt: 5 });
   generate.mockRejectedValue(new Error("Offline"));
+  jest.mocked(getNetworkStateAsync).mockResolvedValue({ isConnected: false, isInternetReachable: false });
   // A known render already belongs to the track's research, so the replay brings none.
   expect(await renderer.render(known)).toEqual(first);
   expect(generate).toHaveBeenCalledTimes(1);
@@ -122,9 +158,38 @@ it("plays speech that is still being generated from its playlist without downloa
   expect(await cachedNarrationUri("render-1")).toBeUndefined();
 });
 
-it("rejects a live transcript that omits the artwork introduction", async () => {
-  const renderer = createNarrationRenderer(async () => ({ ...generated, sentences: guideBodyFixture, live: true }));
-  await expect(renderer.render(track)).rejects.toThrow("Narration transcript is invalid.");
+it("plays the server's script when the queued track's opening is out of date", async () => {
+  // The track was queued before the work's date was corrected; the server writes from the current record.
+  const opening = "Claude Monet. Water Lilies. Circa 1916.";
+  const sentences = [{ sentence: opening, factIds: [], section: "hook" as const }, ...guideBodyFixture];
+  const live = { ...generated, sentences, live: true };
+  expect(await createNarrationRenderer(async () => live).render(track)).toEqual(live);
+  const rendered = await createNarrationRenderer(async () => ({ ...generated, sentences })).render(track);
+  expect(rendered.sentences).toEqual(sentences);
+  // The cached copy keeps its own opening, so a replay of the stale track does not ask the server again.
+  const generate = jest.fn(async () => generated);
+  expect((await createNarrationRenderer(generate).render(known)).sentences).toEqual(sentences);
+  expect(generate).not.toHaveBeenCalled();
+});
+
+it("trusts the server's content rules but rejects a script it cannot show", async () => {
+  const thin = [{ sentence: openingFixture, factIds: [], section: "hook" as const }, guideBodyFixture[0]];
+  const accepted = await createNarrationRenderer(async () => ({ ...generated, sentences: thin, live: true })).render(
+    track,
+  );
+  expect(accepted.sentences).toEqual(thin);
+  for (const sentences of [
+    [],
+    [{ sentence: openingFixture, factIds: [], section: "outro" }],
+    [{ sentence: 7, factIds: [], section: "hook" }],
+    [{ sentence: openingFixture, factIds: [1], section: "hook" }],
+    [{ sentence: openingFixture, section: "hook" }],
+    "not a script",
+  ]) {
+    const renderer = createNarrationRenderer(async () => ({ ...generated, sentences: sentences as never }));
+    await expect(renderer.render(track)).rejects.toThrow("Narration transcript is invalid.");
+  }
+  expect(mockFetch).not.toHaveBeenCalled();
 });
 
 it("skips the download when the server names a render that is already on disk", async () => {
@@ -154,10 +219,7 @@ it("does not save a failed or empty download as playable audio", async () => {
   const renderer = createNarrationRenderer(async () => generated);
   mockFetch.mockResolvedValueOnce({ ok: false });
   await expect(renderer.render(track)).rejects.toThrow("download failed");
-  mockFetch.mockResolvedValueOnce({
-    ok: true,
-    arrayBuffer: async () => new ArrayBuffer(0),
-  });
+  mockFetch.mockResolvedValueOnce({ ok: true, body: body() });
   await expect(renderer.render(track)).rejects.toThrow("empty");
   expect(mockFiles.size).toBe(0);
   expect((await renderer.render(track)).uri).toMatch(/\.mp3$/);
@@ -173,7 +235,7 @@ it("ignores a late server result after playback is cancelled", async () => {
   );
   const renderer = createNarrationRenderer(generate);
   const pending = renderer.render(track);
-  await Promise.resolve();
+  await settle();
   renderer.cancel();
   finish(generated);
   await expect(pending).rejects.toThrow("cancelled");
@@ -188,15 +250,6 @@ it("downloads a matching transcript again if the local transcript was corrupted"
   mockFiles.set(first.uri.replace(".mp3", ".json"), new TextEncoder().encode("invalid json"));
   expect((await renderer.render(known)).sentences).toEqual(generated.sentences);
   expect(generate).toHaveBeenCalledTimes(2);
-});
-
-it("rejects a server transcript that omits the artwork introduction", async () => {
-  const renderer = createNarrationRenderer(async () => ({
-    ...generated,
-    sentences: guideBodyFixture,
-  }));
-  await expect(renderer.render(track)).rejects.toThrow("transcript is invalid");
-  expect(mockFetch).not.toHaveBeenCalled();
 });
 
 it("replaces cached audio whose transcript lacks the required opening", async () => {
@@ -216,7 +269,7 @@ it("reports generation and download only while that work is happening, and skips
   });
   mockFetch.mockImplementationOnce(async () => {
     expect(onStage).toHaveBeenLastCalledWith("downloading");
-    return { ok: true, arrayBuffer: async () => new Uint8Array([1]).buffer };
+    return finished([1]);
   });
   const renderer = createNarrationRenderer(generate);
   await renderer.render(track, onStage);
@@ -239,13 +292,10 @@ it("does not report a download for live speech or a cancelled generation", async
   expect(onStage.mock.calls).toEqual([["generating"]]);
 });
 
-it("checks a first play's guide against the research the render wrote, which the track did not have", async () => {
+it("keeps the research a first play's render wrote, which the track did not have", async () => {
   const unresearched: ListeningTrack = { work: { ...track.work, facts: [] } };
   const rendered = await createNarrationRenderer(async () => generated).render(unresearched);
   expect(rendered).toMatchObject({ sentences: guideFixture, facts: researchFixture, researchUpdatedAt: 5 });
-  await expect(createNarrationRenderer(async () => ({ ...generated, facts: [] })).render(unresearched)).rejects.toThrow(
-    "Narration transcript is invalid.",
-  );
 });
 
 it("replaces audio rejected by the player without invalidating another cached guide", async () => {
@@ -265,20 +315,106 @@ it("replaces audio rejected by the player without invalidating another cached gu
 });
 
 it("discards a cancelled download that finishes after a different guide is cached", async () => {
-  let finish!: (bytes: ArrayBuffer) => void;
-  const bytes = new Promise<ArrayBuffer>((resolve) => {
-    finish = resolve;
+  let finish!: (bytes: Uint8Array) => void;
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    body: new ReadableStream<Uint8Array>({
+      start: (controller) => {
+        finish = (bytes) => {
+          controller.enqueue(bytes);
+          controller.close();
+        };
+      },
+    }),
   });
-  mockFetch.mockResolvedValueOnce({ ok: true, arrayBuffer: () => bytes });
   const generate = jest.fn(async () => generated);
   generate.mockResolvedValueOnce({ ...generated, renderId: "old-render" });
   const renderer = createNarrationRenderer(generate);
   const old = renderer.render(track);
-  await Promise.resolve();
-  await Promise.resolve();
+  await settle();
   const current = await renderer.render(track);
-  finish(new Uint8Array([9]).buffer);
+  finish(new Uint8Array([9]));
   await expect(old).rejects.toThrow("cancelled");
   expect([...mockFiles.keys()]).toEqual([current.uri, current.uri.replace(".mp3", ".json")]);
   expect((await renderer.render(known)).sentences).toEqual(current.sentences);
+});
+
+describe("downloading a finished guide on a slow connection", () => {
+  beforeEach(() => jest.useFakeTimers({ doNotFake: ["queueMicrotask", "nextTick"] }));
+
+  it("keeps a download that takes minutes while bytes keep arriving", async () => {
+    // About 1 MB at 260 kbit/s: a chunk every 8 s for over a minute.
+    mockFetch.mockImplementation(async (_uri: string, { signal }: { signal: AbortSignal }) =>
+      trickle(
+        Array.from({ length: 10 }, () => 8_000),
+        signal,
+      ),
+    );
+    const result = createNarrationRenderer(async () => generated).render(track);
+    await jest.advanceTimersByTimeAsync(80_000);
+    const rendered = await result;
+    expect(rendered.uri).toBe("file:///cache/narration/render-1.mp3");
+    expect(mockFiles.get(rendered.uri)).toHaveLength(10_000);
+  });
+
+  it("gives up as a connection failure once no bytes arrive for 30 seconds, keeping no partial file", async () => {
+    mockFetch.mockImplementation(async (_uri: string, { signal }: { signal: AbortSignal }) =>
+      trickle([1_000, 40_000], signal),
+    );
+    const outcome = createNarrationRenderer(async () => generated)
+      .render(track)
+      .catch((error: unknown) => error);
+    await jest.advanceTimersByTimeAsync(31_000);
+    const error = await outcome;
+    expect(error).toBeInstanceOf(Error);
+    expect(isNetworkError(error)).toBe(true);
+    expect(mockFiles.size).toBe(0);
+  });
+
+  it("gives up after a few minutes even while bytes keep trickling in", async () => {
+    mockFetch.mockImplementation(async (_uri: string, { signal }: { signal: AbortSignal }) =>
+      trickle(
+        Array.from({ length: 100 }, () => 20_000),
+        signal,
+      ),
+    );
+    const outcome = createNarrationRenderer(async () => generated)
+      .render(track)
+      .catch((error: unknown) => error);
+    await jest.advanceTimersByTimeAsync(180_000);
+    expect(isNetworkError(await outcome)).toBe(true);
+    expect(mockFiles.size).toBe(0);
+  });
+
+  it("treats a cancelled download as cancelled, not as a connection failure", async () => {
+    mockFetch.mockImplementation(async (_uri: string, { signal }: { signal: AbortSignal }) =>
+      trickle([10_000], signal),
+    );
+    const renderer = createNarrationRenderer(async () => generated);
+    const outcome = renderer.render(track).catch((error: unknown) => error);
+    await jest.advanceTimersByTimeAsync(1_000);
+    renderer.cancel();
+    const error = await outcome;
+    expect(error).toEqual(new Error("Narration cancelled."));
+    expect(isNetworkError(error)).toBe(false);
+  });
+});
+
+it("fails fast offline instead of waiting for the server, but still replays cached audio", async () => {
+  const generate = jest.fn(async () => generated);
+  const renderer = createNarrationRenderer(generate);
+  const first = await renderer.render(track);
+  jest.mocked(getNetworkStateAsync).mockResolvedValue({ isConnected: false, isInternetReachable: false });
+  await expect(renderer.render({ work: { ...track.work, artworkId: "other" as never } })).rejects.toBeInstanceOf(
+    OfflineError,
+  );
+  expect(generate).toHaveBeenCalledTimes(1);
+  expect((await renderer.render(known)).uri).toBe(first.uri);
+});
+
+it("asks the server when connectivity cannot be checked", async () => {
+  jest.mocked(getNetworkStateAsync).mockRejectedValue(new Error("Unavailable"));
+  const generate = jest.fn(async () => generated);
+  await createNarrationRenderer(generate).render(track);
+  expect(generate).toHaveBeenCalledTimes(1);
 });

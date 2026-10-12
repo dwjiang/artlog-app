@@ -16,14 +16,14 @@ afterEach(() => {
 const factSheet = [
   {
     id: "f1",
-    text: "Painted in 1916.",
+    text: "Monet painted this view of the pond in 1916.",
     sourceUrl: "https://www.metmuseum.org/art/1",
     sourceLabel: "The Met",
     sourceScore: 1,
   },
   {
     id: "f2",
-    text: "Acquired in 1959.",
+    text: "The museum acquired the painting at auction in 1959.",
     sourceUrl: "https://www.metmuseum.org/art/1",
     sourceLabel: "The Met",
     sourceScore: 1,
@@ -198,7 +198,7 @@ it.each([false, true])(
           factSheet: [
             {
               id: "f1",
-              text: "Painted in 1916.",
+              text: "Monet painted this view of the pond in 1916.",
               sourceUrl: "https://museum.example/1",
               sourceLabel: "Museum",
               sourceScore: 1,

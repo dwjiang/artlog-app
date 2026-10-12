@@ -39,8 +39,13 @@ export function retryDelayMs(retryAfter: string | null, now = Date.now()): numbe
   return 1000;
 }
 
-function modelError(reason: string, calls: number): ConvexError<{ code: string; reason: string; calls: number }> {
-  return new ConvexError({ code: "model_error", reason, calls });
+// `schema` names the call that failed, so a report tells a fact sheet from a review or a guide.
+function modelError(
+  reason: string,
+  calls: number,
+  schema: string,
+): ConvexError<{ code: string; reason: string; calls: number; schema: string }> {
+  return new ConvexError({ code: "model_error", reason, calls, schema });
 }
 
 function tokenUsage(json: unknown): TokenUsage | undefined {
@@ -50,23 +55,23 @@ function tokenUsage(json: unknown): TokenUsage | undefined {
     : undefined;
 }
 
-function parseCompletion<T>(json: unknown, parse: (value: unknown) => T | null, calls: number): T {
+function parseCompletion<T>(json: unknown, parse: (value: unknown) => T | null, calls: number, schema: string): T {
   const choice = (
     json as {
       choices?: { message?: { content?: unknown }; finish_reason?: unknown }[];
     }
   ).choices?.[0];
-  if (choice?.finish_reason === "length") throw modelError("truncated", calls);
+  if (choice?.finish_reason === "length") throw modelError("truncated", calls, schema);
   const content = choice?.message?.content;
-  if (typeof content !== "string") throw modelError("bad_response", calls);
+  if (typeof content !== "string") throw modelError("bad_response", calls, schema);
   let value: unknown;
   try {
     value = JSON.parse(content);
   } catch {
-    throw modelError("bad_json", calls);
+    throw modelError("bad_json", calls, schema);
   }
   const parsed = parse(value);
-  if (parsed === null) throw modelError("schema", calls);
+  if (parsed === null) throw modelError("schema", calls, schema);
   return parsed;
 }
 
@@ -112,21 +117,21 @@ export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJson
         maxBytes: MAX_RESPONSE_BYTES,
       });
     } catch {
-      throw modelError("fetch_failed", calls);
+      throw modelError("fetch_failed", calls, request.schemaName);
     }
     if (page.status === 429 || page.status >= 500) {
       if (calls < 2) {
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs(page.headers.get("retry-after"))));
         continue;
       }
-      throw modelError(`http_${page.status}`, calls);
+      throw modelError(`http_${page.status}`, calls, request.schemaName);
     }
-    if (page.status !== 200) throw modelError(`http_${page.status}`, calls);
+    if (page.status !== 200) throw modelError(`http_${page.status}`, calls, request.schemaName);
     let json: unknown;
     try {
       json = JSON.parse(page.body);
     } catch {
-      throw modelError("bad_response", calls);
+      throw modelError("bad_response", calls, request.schemaName);
     }
     const usage = tokenUsage(json);
     // Tokens are what the bill counts and the spend table only counts calls; one line per answer,
@@ -135,6 +140,6 @@ export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJson
       "tokenFactory usage",
       JSON.stringify({ model: request.model, schema: request.schemaName, ...usage, ms: Date.now() - started, calls }),
     );
-    return { value: parseCompletion(json, request.parse, calls), calls, usage };
+    return { value: parseCompletion(json, request.parse, calls, request.schemaName), calls, usage };
   }
 }

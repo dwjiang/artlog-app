@@ -190,6 +190,7 @@ import type * as spend from "../spend.js";
 import type * as suggestions from "../suggestions.js";
 import type * as sync from "../sync.js";
 import type * as tags from "../tags.js";
+import type * as titleBackfill from "../titleBackfill.js";
 import type * as vectorArchives from "../vectorArchives.js";
 import type * as vectorSync from "../vectorSync.js";
 import type * as venueChanges from "../venueChanges.js";
@@ -387,6 +388,7 @@ declare const fullApi: ApiFromModules<{
   suggestions: typeof suggestions;
   sync: typeof sync;
   tags: typeof tags;
+  titleBackfill: typeof titleBackfill;
   vectorArchives: typeof vectorArchives;
   vectorSync: typeof vectorSync;
   venueChanges: typeof venueChanges;

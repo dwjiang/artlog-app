@@ -5,7 +5,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from ..normalize import ArtworkRecord, ObjectRecord, PlacementRecord, RecordTriple, clean, year
+from ..normalize import (
+    UNTITLED,
+    ArtworkRecord,
+    ObjectRecord,
+    PlacementRecord,
+    RecordTriple,
+    clean,
+    year,
+)
 from ..owner_map import CMA_KEY
 from ..polite_http import PoliteClient
 from .fetch import write_json
@@ -116,7 +124,7 @@ def iter_records(rows: Iterable[dict]) -> Iterator[RecordTriple]:
         accession = clean(row.get("accession_number"))
         artwork = ArtworkRecord(
             key=key,
-            title=clean(row.get("title")) or "Untitled",
+            title=clean(row.get("title")) or UNTITLED,
             artist=clean(creator.split(" (", 1)[0]) if creator else "Unknown artist",
             date=clean(row.get("creation_date")),
             yearStart=year(row.get("creation_date_earliest")),

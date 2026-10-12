@@ -110,6 +110,37 @@ it("resumes the current guide and shows its remaining time", async () => {
   expect(mockOpenPlayer).toHaveBeenCalledTimes(1);
 });
 
+it("resumes a paused live guide whose length is not known yet, without a remaining time", async () => {
+  mockAudio = { ...mockAudio, current: track, phase: "ready", position: 40, duration: 0 };
+  mockController.progressFor.mockReturnValue({ position: 40, duration: 0 });
+  await renderActions();
+  expect(screen.getByText("AI-generated voice")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Resume audio guide" }));
+  expect(mockController.toggle).toHaveBeenCalledTimes(1);
+});
+
+it("offers to resume a stopped live guide from its saved position", async () => {
+  mockCachedDuration = 95;
+  mockController.progressFor.mockReturnValue({ position: 40, duration: 0 });
+  await renderActions();
+  expect(screen.getByText("AI-generated voice")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Resume audio guide" }));
+  expect(mockController.play).toHaveBeenCalledTimes(1);
+});
+
+it("resumes a saved guide with its remaining time, and starts over once it was finished", async () => {
+  mockController.progressFor.mockReturnValue({ position: 30, duration: 90 });
+  const view = await render(
+    <ListenActions artworkId={artworkId} title="Water Lilies" artist="Claude Monet" scanId="scan-1" />,
+  );
+  expect(screen.getByText("1:00 left · AI-generated voice")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Resume audio guide" })).toBeOnTheScreen();
+  mockController.progressFor.mockReturnValue({ position: 90, duration: 90 });
+  await view.rerender(<ListenActions artworkId={artworkId} title="Water Lilies" artist="Claude Monet" />);
+  expect(screen.getByRole("button", { name: "Play audio guide" })).toBeOnTheScreen();
+  expect(screen.getByText("1:30 · AI-generated voice")).toBeOnTheScreen();
+});
+
 it("opens a playing guide without interrupting it", async () => {
   mockAudio = {
     ...mockAudio,

@@ -17,7 +17,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 
 export function ArtworkEnrichment({ artworkId }: { artworkId: Id<"artworks"> }) {
   const enrichment = useArtworkEnrichment(artworkId);
-  const docentWriting = useArtworkResearch(artworkId);
+  const research = useArtworkResearch(artworkId);
   if (!enrichment) return null;
   if (enrichment instanceof Error) {
     return (
@@ -30,9 +30,15 @@ export function ArtworkEnrichment({ artworkId }: { artworkId: Id<"artworks"> }) 
   const { docent, factSheet, narration, narrationFacts, narrationWriting } = enrichment;
   return (
     <>
-      {(!!docent?.length || docentWriting) && (
+      {(!!docent?.length || research.status) && (
         <Section title="About this work" report={docent?.length ? { kind: "docent", artworkId } : undefined}>
-          <DocentSection docent={docent} factSheet={factSheet} status={docentWriting ? "writing" : undefined} />
+          <DocentSection
+            docent={docent}
+            factSheet={factSheet}
+            status={research.status}
+            onRetry={research.retry}
+            waitWhileWriting
+          />
         </Section>
       )}
       {!!narration?.length && (

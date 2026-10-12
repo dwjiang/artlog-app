@@ -1,6 +1,6 @@
 import { getNetworkStateAsync } from "expo-network";
 
-import { convexErrorCode } from "@/lib/network-error";
+import { OfflineError, convexErrorCode, isBackendError, isNetworkError } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 
@@ -20,20 +20,23 @@ async function reportRemotePlaybackFailure(message: string) {
 }
 
 function preparationError(error: unknown) {
+  if (error instanceof OfflineError) return "Couldn’t prepare narration while offline.";
+  if (isNetworkError(error)) return "Couldn’t prepare narration. Check your connection.";
   switch (convexErrorCode(error)) {
     case "narration_busy":
-    case "spend_cap":
     case "rate_limited":
       return "Narration is busy. Try again shortly.";
-    case "narration_not_configured":
-    case "narration_provider_failed":
-    case "model_error":
-    case "narration_unavailable":
-      return "Narration is unavailable right now.";
-    default:
-      return "Couldn’t prepare narration. Check your connection.";
+    case "spend_cap":
+      return "Narration is paused for today.";
+    case "device_banned":
+      return "Narration isn’t available on this phone.";
   }
+  return isBackendError(error) ? "Narration is unavailable right now." : "Couldn’t prepare narration.";
 }
+
+// A guide that finishes preparing this long after the tap, such as one requested just before the connection
+// dropped, waits for the listener instead of starting on its own.
+const LATE_RENDER_MS = 2 * 60_000;
 
 export type Playback = {
   currentTime: number;
@@ -237,6 +240,7 @@ export class ListeningController {
       availableDuration: 0,
       waiting,
     });
+    const requestedAt = Date.now();
     try {
       await this.dependencies.configure();
       if (generation !== this.generation) return;
@@ -244,6 +248,11 @@ export class ListeningController {
         if (generation === this.generation) this.update({ preparationStage: stage });
       });
       if (generation !== this.generation) return;
+      if (Date.now() - requestedAt > LATE_RENDER_MS && this.desiredPlaying) {
+        this.desiredPlaying = false;
+        this.update({ waiting: true });
+      }
+      const local = rendered.uri.startsWith("file:");
       const player = this.dependencies.create(rendered.uri);
       this.player = player;
       this.awaitingLength = rendered.live === true;
@@ -258,11 +267,20 @@ export class ListeningController {
       let finished = false;
       this.loadTimeout = setTimeout(() => {
         if (generation === this.generation && !started) {
+          if (local) reportError(new Error("Narration load timed out"), "narration.playback");
+          else void reportRemotePlaybackFailure("Narration load timed out");
           this.fail("Couldn’t load audio.");
         }
       }, 15000);
       const { facts = track.work.facts, researchUpdatedAt = track.work.researchUpdatedAt } = rendered;
-      const current = { ...track, work: { ...track.work, facts, researchUpdatedAt, renderId: rendered.renderId } };
+      // A script opens with its uncited label line, written from the work's record when it was scripted; a track
+      // queued before that record changed carries the old line.
+      const [first] = rendered.sentences;
+      const opening = first?.section === "hook" && first.factIds.length === 0 ? first.sentence : track.work.opening;
+      const current = {
+        ...track,
+        work: { ...track.work, facts, researchUpdatedAt, opening, renderId: rendered.renderId },
+      };
       const resume =
         saved?.text === researchKey(current) && saved.script === JSON.stringify(rendered.sentences) ? saved : undefined;
       position = resume && (resume.duration === 0 || resume.position < resume.duration - 0.5) ? resume.position : 0;
@@ -277,7 +295,6 @@ export class ListeningController {
       const onStatus = (status: Playback) => {
         if (generation !== this.generation) return;
         if (status.playbackState === "failed" || status.playbackState === "error" || status.error) {
-          const local = rendered.uri.startsWith("file:");
           if (local) {
             try {
               this.dependencies.invalidate?.(rendered.renderId);
@@ -352,6 +369,12 @@ export class ListeningController {
         if (status.didJustFinish && !finished) {
           finished = true;
           clearInterval(this.progressWatch);
+          // A live playlist can end before AVPlayer reports its length, and a finished player cannot play
+          // again; where it ended is the length, so the guide counts as finished and Play renders it anew.
+          if (!(this.state.duration > 0)) {
+            this.update({ duration: Math.max(status.currentTime, this.state.position) });
+            this.remember();
+          }
           const next = this.state.queue[0];
           if (next) {
             void this.play(next);
@@ -367,7 +390,7 @@ export class ListeningController {
     } catch (error) {
       if (generation !== this.generation) return;
       // The backend reports its own failures; this covers the download, the transcript check and the player.
-      if (!convexErrorCode(error)) {
+      if (!isBackendError(error) && !isNetworkError(error)) {
         reportError(error, "narration.prepare", { data: { artworkId: track.work.artworkId } });
       }
       this.fail(preparationError(error));

@@ -14,9 +14,7 @@
             "evidence": {
               "type": "string"
             },
-            "comparison": {
-              "type": "string"
-            },
+            "comparison": { "type": "string", "minLength": 1 },
             "relation": {
               "type": "string",
               "enum": ["same_artwork", "other", "uncertain"]

@@ -5,7 +5,15 @@ from collections.abc import Iterable, Iterator
 from datetime import UTC, date, datetime
 from pathlib import Path
 
-from ..normalize import ArtworkRecord, ObjectRecord, PlacementRecord, RecordTriple, clean, year
+from ..normalize import (
+    UNTITLED,
+    ArtworkRecord,
+    ObjectRecord,
+    PlacementRecord,
+    RecordTriple,
+    clean,
+    year,
+)
 from ..owner_map import ATENEUM_KEY, FNG_KEY, KIASMA_KEY, SINEBRYCHOFF_KEY
 from ..polite_http import PoliteClient
 from .fetch import write_json
@@ -176,7 +184,7 @@ def iter_records(rows: Iterable[dict], *, today: date) -> Iterator[RecordTriple]
             title=clean(title.get("en"))
             or clean(title.get("fi"))
             or clean(title.get("sv"))
-            or "Untitled",
+            or UNTITLED,
             artist=artist_name(row.get("people") or []),
             date=display,
             yearStart=start,

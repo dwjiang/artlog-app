@@ -38,6 +38,8 @@ it.each([
   new ConvexError({ code: "spend_cap" }),
   new Error("Unable to download a file: The Internet connection appears to be offline."),
   new Error("Unable to upload a file: Network request failed"),
+  new Error("fetch failed: The Internet connection appears to be offline."),
+  new Error("fetch failed: The request timed out."),
   new ConvexError({ code: "no_venue_site" }),
   new ConvexError({ code: "identity_unresolved" }),
   new ConvexError({ code: "album_full" }),

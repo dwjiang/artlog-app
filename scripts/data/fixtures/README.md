@@ -3,7 +3,8 @@
 - `factsheet-schema.json` and `docent-schema.json` — the response contracts the
   enrichment job and the Token Factory evaluations share. Enrichment tests compare
   the current Python schemas with them; the live fact-sheet schema additionally
-  sets `maxItems` from the sources sent.
+  sets `maxItems` from the sources sent, and the live docent schema limits
+  `fact_ids` to the sheet's ids with an `enum`.
 
 - `met-sample.csv`, `met-images-sample.json`, `aic-sample.json`, and
   `wikidata-artworks-sample.json` — synthetic corpus metadata using

@@ -49,6 +49,12 @@ function descendants(node: Node): DefaultTreeAdapterTypes.Element[] {
 const attribute = (node: DefaultTreeAdapterTypes.Element, name: string) =>
   node.attrs.find((a) => a.name === name)?.value;
 
+// Commons source rows link each identifier to its Wikidata property page ("Property:P4610", the Art
+// Institute ID), which documents the identifier for every artwork rather than describing this one.
+const WIKI_NAMESPACE =
+  /^https:\/\/[^/]*\b(?:wikidata|wikipedia|wikimedia|wikisource|wikiquote)\.org\/wiki\/(?:Property|Special|Help|Template|Category|Commons|File|User|Wikidata|Wikipedia|Portal|Talk|Lexeme|EntitySchema|Module|MediaWiki|Project)(?:_talk)?:/i;
+export const wikiNamespacePage = (url: string) => WIKI_NAMESPACE.test(url);
+
 export function commonsReferences(html: string, referenceUrl: string): ArtworkReference[] {
   return descendants(parseFragment(html))
     .filter((node) => ["fileinfotpl_src", "fileinfotpl_art_references"].includes(attribute(node, "id") ?? ""))
@@ -58,7 +64,7 @@ export function commonsReferences(html: string, referenceUrl: string): ArtworkRe
       return descendants(row).flatMap((node) => {
         const url = node.tagName === "a" ? attribute(node, "href") : undefined;
         // Only explicit external citations, never navigation, creator links or file licensing links.
-        return url?.startsWith("https://") ? [{ url, referenceUrl }] : [];
+        return url?.startsWith("https://") && !wikiNamespacePage(url) ? [{ url, referenceUrl }] : [];
       });
     });
 }

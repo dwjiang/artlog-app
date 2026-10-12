@@ -1,6 +1,6 @@
 import pytest
 
-from .normalize import ArtworkRecord, ObjectRecord, merge_records, qid, year
+from .normalize import UNTITLED, ArtworkRecord, ObjectRecord, merge_records, qid, year
 
 
 def triple(source, rights="public_domain", **fields):
@@ -89,6 +89,6 @@ def test_merge_rejects_conflicting_artwork_metadata_from_the_same_source_key():
 def test_missing_wikidata_labels_do_not_erase_known_museum_metadata():
     museum = triple("met")
     wd = triple("wikidata")
-    wd = (wd[0].model_copy(update={"title": "Q1", "artist": "Unknown artist"}), wd[1], None)
+    wd = (wd[0].model_copy(update={"title": UNTITLED, "artist": "Unknown artist"}), wd[1], None)
     result = merge_records([museum, wd])[0][0]
     assert result.title == "met" and result.artist == "Painter"

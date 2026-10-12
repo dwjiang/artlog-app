@@ -16,14 +16,14 @@ const docent = [
 const factSheet = [
   {
     id: "f1",
-    text: "Painted in 1916.",
+    text: "Monet painted this canvas in 1916, during the years he devoted to his water garden.",
     sourceUrl: "https://www.wikidata.org/wiki/Q1",
     sourceLabel: "Wikidata",
     sourceScore: 0.8,
   },
   {
     id: "f2",
-    text: "The pond is at Giverny.",
+    text: "The pond is at Giverny, where Monet had a Japanese bridge built over the water lilies.",
     sourceUrl: "https://museum.example/lilies",
     sourceLabel: "Test Museum",
     sourceScore: 1,
@@ -54,6 +54,7 @@ it("returns docent sentences, source chips and the public-domain thumbnail to a 
   expect(await as.query(api.artworks.enrichment, { artworkId })).toEqual({
     docent,
     docentWriting: false,
+    docentStatus: "ready",
     docentGeneration: 0,
     narrationWriting: false,
     narrationAvailable: true,
@@ -77,6 +78,7 @@ it("omits the thumbnail for in-copyright works and reverted objects, and returns
   ).toEqual({
     rightsStatus: "in_copyright",
     docentWriting: false,
+    docentStatus: "writing",
     docentGeneration: 0,
     narrationWriting: false,
     narrationAvailable: true,
@@ -86,6 +88,7 @@ it("omits the thumbnail for in-copyright works and reverted objects, and returns
   expect(await as.query(api.artworks.enrichment, { artworkId: reverted.artworkId })).toEqual({
     rightsStatus: "public_domain",
     docentWriting: false,
+    docentStatus: "writing",
     docentGeneration: 0,
     narrationWriting: false,
     narrationAvailable: true,

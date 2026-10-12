@@ -6,6 +6,8 @@ import pytest
 from pipeline.enrich.providers import SpendCap, Usage
 from pipeline.enrich.run import EnrichmentSettings, run
 
+FACT = {"id": "f1", "text": "The artist painted the harbor outdoors at dawn."}
+
 
 @pytest.fixture
 def rig(monkeypatch):
@@ -56,7 +58,7 @@ def rig(monkeypatch):
     provider = Mock(usage=Usage())
     gatherer = Mock()
     gatherer.gather.return_value = [{"url": "https://metmuseum.org/art/1", "text": "Source"}]
-    monkeypatch.setattr("pipeline.enrich.run.factsheet.generate", Mock(return_value=[{"id": "f1"}]))
+    monkeypatch.setattr("pipeline.enrich.run.factsheet.generate", Mock(return_value=[FACT]))
     monkeypatch.setattr(
         "pipeline.enrich.run.docent.generate",
         Mock(
@@ -217,13 +219,13 @@ def test_release_failure_does_not_abandon_remaining_claims(rig):
 
 def test_cached_sheet_rewrite_needs_no_search_budget(rig):
     rig.artworks[0]["factSheetUpdatedAt"] = 1
-    rig.contents["id0"] = {"factSheet": [{"id": "cached-fact"}]}
+    rig.contents["id0"] = {"factSheet": [{**FACT, "id": "cached-fact"}]}
     summary = execute(rig, artwork_key="met:1")
     assert summary.written == 1
     rig.gatherer.gather.assert_not_called()
     assert all(c.kwargs == {"cached": True} for c in rig.provider.check_budget.call_args_list)
     assert "factSheet" not in rig.calls("docent:writeEnrichment")[0]
-    assert rig.outputs[0]["factSheet"] == [{"id": "cached-fact"}]
+    assert rig.outputs[0]["factSheet"] == [{**FACT, "id": "cached-fact"}]
 
 
 def test_cached_sheet_without_content_is_rebuilt(rig):
@@ -298,7 +300,7 @@ def test_fact_sheet_budget_applies_after_reference_review(rig, monkeypatch, rela
             for i in range(2)
         ]
     }
-    sheet = Mock(return_value=[{"id": "f1"}])
+    sheet = Mock(return_value=[FACT])
     monkeypatch.setattr("pipeline.enrich.run.factsheet.generate", sheet)
     assert execute(rig, artwork_key="art:0").written == 1
     sources = sheet.call_args.args[1]
@@ -316,3 +318,51 @@ def test_all_references_rejected_releases_claim_without_a_fact_sheet_call(rig, m
     assert (summary.failed, summary.written) == (1, 0)
     sheet.assert_not_called()
     assert rig.calls("enrich:releaseClaim") == [{"artworkId": "id0", "generation": 7}]
+
+
+def test_catalogue_lines_alone_write_no_docent_and_are_not_a_failure(rig, monkeypatch):
+    label = [{"id": "f1", "text": "Inception: 1889"}, {"id": "f2", "text": "Oil on canvas."}]
+    monkeypatch.setattr("pipeline.enrich.run.factsheet.generate", Mock(return_value=label))
+    prose = Mock(side_effect=AssertionError("Catalogue lines must not produce prose"))
+    monkeypatch.setattr("pipeline.enrich.run.docent.generate", prose)
+    summary = execute(rig, artwork_key="art:0")
+    assert (summary.no_prose, summary.failed, summary.written) == (1, 0, 0)
+    assert not rig.calls("docent:writeEnrichment")
+    assert rig.calls("enrich:releaseClaim") == [{"artworkId": "id0", "generation": 7}]
+    assert rig.outputs[0]["unwritten"] == "no_prose"
+
+
+def test_accepted_references_follow_the_museums_own_text_in_the_budget(rig, monkeypatch):
+    owner = {
+        "url": "https://museum.example/work",
+        "label": "Museum",
+        "score": 1.0,
+        "firstParty": True,
+        "referenceUrl": "https://www.wikidata.org/wiki/Q1",
+        "text": "The museum's own entry.",
+    }
+    cited = {
+        "url": "https://auction.example/1",
+        "label": "Auction",
+        "score": 0.9,
+        "referenceUrl": "https://www.wikidata.org/wiki/Q1",
+        "text": "A cited lot description.",
+    }
+    article = {
+        "url": "https://en.wikipedia.org/wiki/Harbor",
+        "label": "Wikipedia",
+        "score": 0.7,
+        "text": "The artist painted the harbor outdoors.",
+    }
+    monkeypatch.setattr(
+        "pipeline.enrich.run.review_references",
+        Mock(return_value=([cited, owner, article], [])),
+    )
+    sheet = Mock(return_value=[FACT])
+    monkeypatch.setattr("pipeline.enrich.run.factsheet.generate", sheet)
+    assert execute(rig, artwork_key="art:0").written == 1
+    assert [s["url"] for s in sheet.call_args.args[1]] == [
+        owner["url"],
+        article["url"],
+        cited["url"],
+    ]

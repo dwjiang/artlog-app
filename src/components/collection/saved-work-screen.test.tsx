@@ -13,6 +13,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { SavedWorkScreen } from "./saved-work-screen";
 
 jest.mock("@/lib/audio/use-listening");
+jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("@/lib/audio/use-cached-narration-duration", () => ({
   useCachedNarrationDuration: () => undefined,
 }));
@@ -363,6 +364,35 @@ it("starts the written story for a saved work that has none, showing loading lin
   expect(research).toHaveBeenCalledTimes(1);
   expect(getFunctionName(research.mock.calls[0][0])).toBe("artworks:research");
   expect(research.mock.calls[0][1]).toEqual({ artworkId: "artwork-1" });
+});
+
+it("offers Try again when the saved work's story run ends without one, and starts it again", async () => {
+  const research = jest.spyOn(client, "mutation").mockResolvedValue(true);
+  results.set("artworks:enrichment", {
+    rightsStatus: "public_domain",
+    docentGeneration: 1,
+    docentWriting: true,
+    narrationAvailable: true,
+  });
+  await render(detail("lilies"));
+  expect(await screen.findByLabelText("Loading artwork information…")).toBeOnTheScreen();
+  await act(() => {
+    results.set("artworks:enrichment", {
+      rightsStatus: "public_domain",
+      docentGeneration: 1,
+      docentWriting: false,
+      docentStatus: "failed",
+      narrationAvailable: true,
+    });
+    for (const listener of listeners) listener();
+  });
+  expect(screen.getByText("Couldn’t load background information for this work.")).toBeOnTheScreen();
+  expect(research).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(research).toHaveBeenCalledTimes(1);
+  expect(getFunctionName(research.mock.calls[0][0])).toBe("artworks:research");
+  expect(research.mock.calls[0][1]).toEqual({ artworkId: "artwork-1", retry: true });
+  expect(screen.getByLabelText("Loading artwork information…")).toBeOnTheScreen();
 });
 
 it("skips the enrichment query for a work saved without an artwork", async () => {

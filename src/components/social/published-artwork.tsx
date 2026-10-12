@@ -62,7 +62,7 @@ function PublishedStory({
   artwork: SharedArtwork["artwork"];
   story: NonNullable<SharedArtwork["enrichment"]>;
 }) {
-  const writing = useArtworkResearch(story.artworkId);
+  const research = useArtworkResearch(story.artworkId);
   return (
     <ArtworkStory
       artworkId={story.artworkId}
@@ -71,7 +71,9 @@ function PublishedStory({
       date={artwork.date}
       docent={story.docent}
       factSheet={story.factSheet}
-      status={writing ? "writing" : undefined}
+      status={research.status}
+      onRetry={research.retry}
+      waitWhileWriting
       report={{ kind: "docent", artworkId: story.artworkId }}
     />
   );

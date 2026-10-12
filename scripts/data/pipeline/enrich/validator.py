@@ -11,10 +11,36 @@ def normalize(text: str) -> str:
     return WHITESPACE.sub(" ", text).strip(" ")
 
 
-# Quote marks, case and spacing vary between a page and its copy; the words must not
-# (shared/audio/guide.ts normalizePassage).
+QUOTE_MARKS = re.compile(
+    "[\"'\u2018\u2019\u201a\u201b\u201c\u201d\u201e\u201f\u00ab\u00bb\u2039\u203a\u00b4`\u02bc]"
+)
+# NFKD strips accents; these letters have no separate accent to strip.
+FOLDED = str.maketrans(
+    {
+        "ø": "o",
+        "æ": "ae",
+        "œ": "oe",
+        "ß": "ss",
+        "ł": "l",
+        "đ": "d",
+        "ð": "d",
+        "þ": "th",
+        "ı": "i",
+        "×": "x",
+    }
+)
+DASHES = re.compile("[\u2010-\u2015-]+")
+
+
+# Typography varies between a page and its copy: quote marks, accents, dash and hyphen styles, case
+# and spacing. The words must not (shared/audio/guide.ts normalizePassage). Quote marks go first:
+# NFKD would split an acute accent typed as an apostrophe ("Monet´s") into a space.
 def source_passage(text: str) -> str:
-    return normalize(re.sub(r"[\"'‘’“”]", "", unicodedata.normalize("NFKC", text).lower()))
+    decomposed = unicodedata.normalize("NFKD", QUOTE_MARKS.sub("", text))
+    plain = "".join(
+        c for c in decomposed if c != "\u00ad" and not unicodedata.category(c).startswith("M")
+    )
+    return normalize(DASHES.sub(" ", plain.lower().translate(FOLDED)))
 
 
 def validate(sentences: list[dict], fact_ids_on_sheet: set[str]) -> list[dict]:
@@ -35,5 +61,8 @@ def validate(sentences: list[dict], fact_ids_on_sheet: set[str]) -> list[dict]:
         ):
             continue
         seen.add(sentence)
+        # A sentence copied from a caption has no full stop, and the paragraph would run on without one.
+        if not re.search(r"[.!?…][\"'”’)]*$", sentence):
+            sentence += "."
         kept.append({"sentence": sentence, "factIds": fact_ids})
     return kept

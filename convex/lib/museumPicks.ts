@@ -11,7 +11,8 @@ export const DAILY_JITTER = 3;
 const PAINTING_MEDIUM = /\b(oil|tempera|acrylic|canvas|panel)\b/i;
 const GENERIC_ARTIST =
   /^(unknown|anonymous|unidentified)\b|\b(workshop|school|circle|follower|manner) of\b|\b(painter|artist)$/i;
-const UNLABELED_TITLE = /^Q\d+$/;
+// Corpus works Wikidata had no label for were titled by their item ID; "Untitled" is every source's placeholder.
+const UNLABELED_TITLE = /^(?:Q\d+|untitled)$/i;
 // Lower Wikidata item IDs favor individually documented paintings over bulk museum imports.
 const EARLY_WIKIDATA_ITEM = 12_000_000;
 
@@ -28,7 +29,7 @@ export type PickCandidate = {
 
 /** The catalogue's guess at how worth seeking out a work is, or null when it cannot be shown at all. */
 export function pickPrior(work: PickCandidate): number | null {
-  if (UNLABELED_TITLE.test(work.title)) return null;
+  if (UNLABELED_TITLE.test(work.title.trim())) return null;
   let score = 0;
   if (work.wikidataId) score += Number(work.wikidataId.slice(1)) < EARLY_WIKIDATA_ITEM ? 6 : 1;
   if (work.onView) score += 2;

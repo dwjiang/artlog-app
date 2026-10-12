@@ -126,6 +126,20 @@ describe("while the backend is still writing", () => {
     expect(screen.getByLabelText("Loading artwork information…")).toBeOnTheScreen();
   });
 
+  it("keeps writing past a minute when the backend ends stale runs itself", async () => {
+    const view = await render(<DocentSection title="About this work" status="writing" waitWhileWriting />);
+    await act(() => {
+      jest.advanceTimersByTime(DOCENT_WAIT_MS * 5);
+    });
+    expect(screen.getByLabelText("Loading artwork information…")).toBeOnTheScreen();
+    expect(mockToast).not.toHaveBeenCalled();
+    const onRetry = jest.fn(async () => {});
+    await view.rerender(<DocentSection title="About this work" status="failed" onRetry={onRetry} waitWhileWriting />);
+    expect(screen.getByText("Couldn’t load background information for this work.")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: DOCENT_RETRY }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps one toast when a stalled run then fails on the server", async () => {
     const onRetry = jest.fn(async () => {});
     const view = await render(<DocentSection title="About this work" status="writing" onRetry={onRetry} />);
@@ -189,7 +203,7 @@ describe("after a failed run", () => {
 
   it("says plainly when a work has no background information, without a toast", async () => {
     await render(<DocentSection title="About this work" status="unavailable" docent={[]} />);
-    expect(screen.getByText("Background information isn’t available for this work yet.")).toBeOnTheScreen();
+    expect(screen.getByText("Background information isn’t available for this work.")).toBeOnTheScreen();
     expect(screen.queryByLabelText("Loading artwork information…")).toBeNull();
     expect(mockToast).not.toHaveBeenCalled();
   });

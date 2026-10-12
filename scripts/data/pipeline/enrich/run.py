@@ -13,6 +13,7 @@ from pipeline.convex_writer import ConvexWriter
 from pipeline.polite_http import PoliteClient
 
 from . import docent, factsheet
+from .factsheet import is_catalogue_line
 from .prompts import PROMPT_VERSION
 from .providers import Providers, SpendCap
 from .references import review_references
@@ -47,6 +48,7 @@ class RunSummary:
     release_failures: int = 0
     generated_sentences: int = 0
     kept_sentences: int = 0
+    no_prose: int = 0
     stopped: str | None = None
 
 
@@ -145,7 +147,15 @@ def run(
                     if not cached and not sources:
                         raise ValueError("No admissible source text; leaving artwork retryable")
                     sources, conflicts = review_references(provider, sources, current)
-                    sources = trim_sources(sources)
+                    # The museum's own text and uncited sources come first; accepted references
+                    # follow them in the same budget (convex/docent.ts).
+                    catalogue = trim_sources(
+                        [s for s in sources if not s.get("referenceUrl") or s.get("firstParty")]
+                    )
+                    references = [
+                        s for s in sources if s.get("referenceUrl") and not s.get("firstParty")
+                    ]
+                    sources = catalogue + trim_sources(catalogue + references)[len(catalogue) :]
                     if not cached and not sources and not conflicts:
                         raise ValueError("No admissible source text; leaving artwork retryable")
                     facts = (
@@ -159,8 +169,11 @@ def run(
                     )
                     if not facts and not conflicts:
                         raise ValueError("No grounded facts; leaving artwork retryable")
+                    # Catalogue lines alone make a label, not a story, so the work goes without one.
+                    # The app settles such research; this job cannot, so a later run reads it again.
+                    no_prose = not conflicts and all(is_catalogue_line(f["text"]) for f in facts)
                     sentences, generated = (
-                        ([], 0) if conflicts else docent.generate(provider, facts)
+                        ([], 0) if conflicts or no_prose else docent.generate(provider, facts)
                     )
                     summary.generated_sentences += generated
                     summary.kept_sentences += len(sentences)
@@ -176,9 +189,13 @@ def run(
                         "generatedSentences": generated,
                         "dryRun": dry_run,
                     }
-                    if not sentences and not conflicts:
+                    if not sentences and not conflicts and not no_prose:
                         raise ValueError("All docent sentences dropped; leaving artwork retryable")
-                    if dry_run:
+                    if no_prose:
+                        summary.no_prose += 1
+                        result["written"] = False
+                        result["unwritten"] = "no_prose"
+                    elif dry_run:
                         summary.previewed += 1
                         result["written"] = False
                     else:

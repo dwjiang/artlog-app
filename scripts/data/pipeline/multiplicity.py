@@ -3,7 +3,7 @@ import unicodedata
 from collections import defaultdict
 from collections.abc import Iterable
 
-from .normalize import ArtworkRecord
+from .normalize import UNTITLED, ArtworkRecord
 
 
 def normalized(value: str) -> str:
@@ -16,10 +16,11 @@ def apply_multiplicity(
     artworks = list(artworks)
     groups = defaultdict(set)
     for row in artworks:
+        # Works titled only "Untitled" share no identifying title with one another.
         if (
             row.wikidataId
             and "Unknown artist" not in row.artist.split("; ")
-            and row.title != row.wikidataId
+            and normalized(row.title) != normalized(UNTITLED)
         ):
             groups[(normalized(row.artist), normalized(row.title))].add(row.wikidataId)
     result = []

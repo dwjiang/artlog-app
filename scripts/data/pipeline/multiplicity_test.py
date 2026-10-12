@@ -36,3 +36,9 @@ def test_partial_corpus_and_museum_only_rows_remain_unknown():
     museum = ArtworkRecord(key="met:1", title="Work", artist="Artist", rightsStatus="public_domain")
     result = apply_multiplicity([museum, artwork("Q1")], version_items=set(), complete=False)
     assert all(row.multiplicity == "unknown" for row in result)
+
+
+def test_untitled_works_by_one_artist_are_not_taken_for_copies_of_one_work():
+    rows = [artwork("Q1", title="Untitled"), artwork("Q2", title="untitled")]
+    result = apply_multiplicity(rows, version_items=set(), complete=True)
+    assert [row.multiplicity for row in result] == ["unknown", "unknown"]

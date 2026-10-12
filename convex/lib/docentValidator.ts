@@ -18,7 +18,8 @@ export function validateDocent(sentences: DocentSentence[], sheetIds: ReadonlySe
     }
     if (seen.has(sentence)) continue;
     seen.add(sentence);
-    kept.push({ sentence, factIds });
+    // A sentence copied from a caption has no full stop, and the paragraph would run on without one.
+    kept.push({ sentence: /[.!?…]["'”’)]*$/.test(sentence) ? sentence : `${sentence}.`, factIds });
   }
   return kept;
 }

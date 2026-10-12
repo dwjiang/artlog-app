@@ -6,7 +6,16 @@ import time
 from collections.abc import Callable, Iterator
 from pathlib import Path
 
-from ..normalize import ArtworkRecord, ObjectRecord, PlacementRecord, RecordTriple, clean, qid, year
+from ..normalize import (
+    UNTITLED,
+    ArtworkRecord,
+    ObjectRecord,
+    PlacementRecord,
+    RecordTriple,
+    clean,
+    qid,
+    year,
+)
 from ..owner_map import MET_KEY
 from ..polite_http import PoliteClient, parse_retry_after
 from ..rights import from_source_flag
@@ -160,7 +169,7 @@ def iter_records(path: Path, *, get_object: Callable[[str], dict]) -> Iterator[R
             artwork = ArtworkRecord(
                 key=key,
                 wikidataId=qid(row["Object Wikidata URL"]),
-                title=clean(row["Title"]) or "Untitled",
+                title=clean(row["Title"]) or UNTITLED,
                 artist=clean(row["Artist Display Name"]) or "Unknown artist",
                 artistId=qid(row["Artist Wikidata URL"]),
                 date=clean(row["Object Date"]),
