@@ -76,6 +76,10 @@ export function AccountSection() {
       </>
     );
   }
+  const appleConfirmation =
+    account.provider === "apple"
+      ? " Apple will then ask you to confirm, so Artlog stops using your Apple Account."
+      : "";
   return (
     <>
       {account.email && (
@@ -122,7 +126,7 @@ export function AccountSection() {
           onPress={() =>
             confirmDelete(
               "Delete account?",
-              "Your profile, posts and collection will be erased from Artlog and this iPhone, and your other devices will be signed out. This can’t be undone.",
+              `Your profile, posts and collection will be erased from Artlog and this iPhone, and your other devices will be signed out.${appleConfirmation} This can’t be undone.`,
               "Delete account",
             )
           }

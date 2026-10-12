@@ -91,6 +91,12 @@ it.each(["schema", "bad_json", "fetch_failed"])("tags the %s failure reason", as
   expect(event.tags).toMatchObject({ error_code: "model_error", reason });
 });
 
+it.each(["invalid_client", "invalid_grant"])("tags Apple's %s revocation rejection", async (reason) => {
+  await reportBackendError(new ConvexError({ code: "apple_revoke_failed", reason }), "accounts.revoke_apple");
+  const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
+  expect(event.tags).toMatchObject({ error_code: "apple_revoke_failed", reason });
+});
+
 it("names the research failure and the catalog work it left without a guide", async () => {
   const artworkId = "jd7artwork" as Id<"artworks">;
   await reportBackendError(new ConvexError({ code: "research_failed", reason: "prose_rejected" }), "docent.ensure", {

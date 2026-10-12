@@ -20,6 +20,12 @@ not establish semantic grounding; see [the evaluation limits](../experiments/REA
 Leave `DEMO_BOT_JWKS` and `FLAG_DEMO_ACTIVITY` unset unless demo activity on
 production was explicitly requested; see [demo activity](../demo-activity.md).
 
+Account deletion revokes Sign in with Apple with a Sign in with Apple key whose
+primary App ID is `app.artlog.ios`: set `APPLE_TEAM_ID=J4UW2CVVY4`, `APPLE_KEY_ID`,
+and `APPLE_PRIVATE_KEY` (`npx convex env set APPLE_PRIVATE_KEY --from-file AuthKey_<id>.p8`).
+Without them, deletion still completes and Sentry reports `apple_unconfigured`
+under `accounts.revoke_apple`.
+
 Authentication uses independent `JWT_PRIVATE_KEY` and `JWKS`. Runtime providers
 require `NEBIUS_API_KEY`, `TAVILY_API_KEY`, and `OPENAI_API_KEY`. Without the OpenAI
 key, narration reports `narration_not_configured`; shared-text moderation uses

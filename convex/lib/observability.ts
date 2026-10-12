@@ -109,6 +109,8 @@ const diagnosticCodes = new Set([
   "page_unavailable",
   "attest_unconfigured",
   "apple_unconfigured",
+  "apple_revoke_failed",
+  "apple_account_mismatch",
   "google_unconfigured",
   "orb_file_missing",
   "vector_payload_missing",
@@ -231,7 +233,7 @@ export async function reportBackendError(
     const safeCode = code && diagnosticCodes.has(code) ? code : undefined;
     const safeReason =
       reason
-      && /^(http_[45]\d\d|bad_response|bad_json|schema|truncated|timeout|network|fetch_failed|invalid_output|sources_unavailable|no_facts|prose_rejected|catalogue_only|first_segment_timeout)$/.test(
+      && /^(http_[45]\d\d|bad_response|bad_json|schema|truncated|timeout|network|fetch_failed|invalid_output|sources_unavailable|no_facts|prose_rejected|catalogue_only|first_segment_timeout|invalid_client|invalid_grant)$/.test(
         reason,
       )
         ? reason

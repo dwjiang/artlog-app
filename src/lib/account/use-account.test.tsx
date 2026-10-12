@@ -26,6 +26,7 @@ let mockAccount: {
   linked: boolean;
   deviceCount: number;
   accountId?: string;
+  provider?: "apple" | "google";
   scope?: string;
 };
 
@@ -287,8 +288,47 @@ it("deletes on the server, then erases this iPhone while identity setup waits, a
   );
   expect(order).toEqual([...order].sort((a, b) => a - b));
   expect(mockMutation).toHaveBeenCalledWith("accounts:deleteAccount", {});
+  expect(mockApple).not.toHaveBeenCalled();
   expect(mockNavigate).toHaveBeenCalledWith("/");
   expect(result.current.error).toBeUndefined();
+});
+
+describe("deleting an Apple account", () => {
+  beforeEach(() => {
+    mockAccount = { linked: true, deviceCount: 1, accountId: "account", provider: "apple", scope: "account-scope" };
+  });
+
+  it("asks Apple for a fresh authorization code first and sends it with the deletion", async () => {
+    mockApple.mockResolvedValueOnce({ authorizationCode: "fresh-code", user: "apple-user" });
+    const { result } = await renderHook(useAccount);
+    await act(() => result.current.deleteAccount());
+    expect(mockApple).toHaveBeenCalledWith(undefined);
+    expect(mockMutation).toHaveBeenCalledWith("accounts:deleteAccount", { appleAuthorizationCode: "fresh-code" });
+    expect(mockApple.mock.invocationCallOrder[0]).toBeLessThan(mockClaim.mock.invocationCallOrder[0]);
+    expect(mockErase).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the account when the Apple prompt is cancelled", async () => {
+    mockApple.mockRejectedValueOnce({ code: "ERR_REQUEST_CANCELED" });
+    const { result } = await renderHook(useAccount);
+    await act(() => result.current.deleteAccount());
+    expect(mockMutation).not.toHaveBeenCalledWith("accounts:deleteAccount", expect.anything());
+    expect(mockErase).not.toHaveBeenCalled();
+    expect(mockReportError).not.toHaveBeenCalled();
+    expect(result.current.error).toBeUndefined();
+    expect(result.current.busy).toBe(false);
+  });
+
+  it("still deletes, reporting a warning, when Apple can't provide a code", async () => {
+    const failure = Object.assign(new Error("No Apple Account"), { code: "ERR_REQUEST_UNKNOWN" });
+    mockApple.mockRejectedValueOnce(failure);
+    const { result } = await renderHook(useAccount);
+    await act(() => result.current.deleteAccount());
+    expect(mockReportError).toHaveBeenCalledWith(failure, "auth.apple_revocation_code", { level: "warning" });
+    expect(mockMutation).toHaveBeenCalledWith("accounts:deleteAccount", { appleAuthorizationCode: undefined });
+    expect(mockErase).toHaveBeenCalledTimes(1);
+    expect(result.current.error).toBeUndefined();
+  });
 });
 
 it("keeps this iPhone's data and resumes identity setup when the server deletion fails", async () => {
