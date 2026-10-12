@@ -47,7 +47,12 @@
           "imageWidth": 96
         }
       ],
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Artlog doesn’t use Face ID."
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -69,6 +74,7 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Artlog uses your location to find nearby museums.",
+          "motionUsagePermission": "Artlog doesn’t use your motion or fitness activity.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false
         }

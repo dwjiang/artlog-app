@@ -1,6 +1,6 @@
 export type LegalDocument = {
   title: string;
-  updated: string;
+  updated?: string;
   intro: string[];
   sections: { heading: string; paragraphs: string[] }[];
 };
@@ -17,7 +17,7 @@ const CONTACT = `Questions or requests: email ${EMAIL}, or open Settings → Sen
 // Every statement here describes current app and backend behavior; update it with any change to what leaves the phone.
 const privacy: LegalDocument = {
   title: "Privacy Policy",
-  updated: "October 7, 2026",
+  updated: "October 12, 2026",
   intro: [
     "This policy explains what Artlog collects, how it’s used and shared, and the choices you have. Artlog is made by Daniel Jiang (“we”, “us”).",
     "Artlog doesn’t show ads, sell your information or track you across other companies’ apps and websites.",
@@ -69,7 +69,7 @@ const privacy: LegalDocument = {
         "After signing in, you can create a profile with a username, a name and an optional bio and photo. Profiles are public: anyone can find them, including people without an account.",
         "A posted visit shows your profile, the museum, the date, your reflection, the artworks and the photos you select, to the audience you choose: only you, friends or everyone. Anyone can see public visits and your public wall. Opening an artwork you’ve shared shows its title, artist, date, medium and museum. Your notes are never shared.",
         "We store friends, likes, comments and in-app notifications to show them to the people involved. Notifications are deleted after 30 days. Friend suggestions come from mutual friends, likes, and the artworks and museums you have in common with what other people have shared.",
-        "Automated tools, including a service provider’s AI, check the comments, reflections and profile bios you share for harmful content before others can see them.",
+        "Automated tools, including OpenAI’s moderation service, check the comments, reflections and profile bios you share for harmful content before others can see them.",
         "Leaderboards show your profile and your number of saved artworks and visits. New profiles appear on the global leaderboard; you can change this in Settings → Leaderboards.",
       ],
     },
@@ -82,14 +82,14 @@ const privacy: LegalDocument = {
     {
       heading: "Crash reports",
       paragraphs: [
-        "When the app or our servers hit an error, a report goes to Sentry with technical details such as the error, your device model and your iOS and app versions. Reports leave out photos, notes, location and the content of your requests. The app also records how long screens and requests take. An automated job on GitHub sends these reports to OpenAI’s coding tools to analyze them and suggest fixes.",
+        "When the app or our servers hit an error, a report goes to Sentry with technical details such as the error, your device model and your iOS and app versions. Reports leave out photos, notes, location and the content of your requests. The app also records how long screens and requests take.",
       ],
     },
     {
       heading: "Service providers",
       paragraphs: [
-        "These providers run parts of Artlog for us and use your information only to provide their service:",
-        "Convex hosts Artlog’s servers and database. Cloudflare stores backed-up photos, profile photos, shared index crops, fingerprints and audio. Pinecone searches artwork fingerprints. Nebius runs the AI models that read label text and write guides. Tavily searches the web for artwork information. OpenAI turns guides into narration and helps analyze crash reports. Sentry receives crash reports, and GitHub runs the job that analyzes them. Apple provides Sign in with Apple, App Attest and Maps search. Google provides Google sign-in.",
+        "These providers run parts of Artlog for us. They use your information only to provide their service and must give it the same or equal protection as this policy does:",
+        "Convex hosts Artlog’s servers and database. Cloudflare stores backed-up photos, profile photos, shared index crops, fingerprints and audio. Pinecone searches artwork fingerprints. Nebius runs the AI models that read label text and write guides. Tavily searches the web for artwork information. OpenAI turns guides into narration and checks shared text for harmful content. Sentry receives crash reports. Expo delivers push notifications. Apple provides Sign in with Apple, App Attest and Maps search. Google provides Google sign-in.",
         "To look up artworks, our servers also send label details such as the title and artist, but nothing about you, to Wikidata, Wikipedia, Wikimedia Commons, the Art Institute of Chicago and museum websites. The app also loads artwork images and information directly from museums, Wikimedia and other public sources, which see your iPhone’s IP address as any website would.",
         "We may disclose information when the law requires it or to protect Artlog and its users. If Artlog changes ownership, this policy continues to apply to your information.",
       ],
@@ -243,7 +243,26 @@ const terms: LegalDocument = {
   ],
 };
 
-export const legalDocuments = { privacy, terms };
+const support: LegalDocument = {
+  title: "Artlog Support",
+  intro: [CONTACT],
+  sections: [
+    {
+      heading: "Deleting your data",
+      paragraphs: [
+        "Open the Collection tab and tap the gear to reach Settings. If you’re signed in, tap your name, then Delete account. Without an account, tap Your collection, then Delete my data.",
+      ],
+    },
+    {
+      heading: "Reporting and blocking",
+      paragraphs: [
+        "Tap ••• on a post or profile to report it or block the person. Touch and hold a comment to report it. We review reports within 24 hours.",
+      ],
+    },
+  ],
+};
+
+export const legalDocuments = { privacy, terms, support };
 
 const escapeHtml = (text: string) =>
   text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
@@ -255,7 +274,7 @@ export function renderLegalPage({ title, updated, intro, sections }: LegalDocume
   return renderPage(
     title,
     `<h1>${escapeHtml(title)}</h1>
-<p class="updated">Last updated ${escapeHtml(updated)}</p>
+${updated ? `<p class="updated">Last updated ${escapeHtml(updated)}</p>` : ""}
 ${paragraphs(intro)}
 ${sections.map(({ heading, paragraphs: texts }) => `<h2>${escapeHtml(heading)}</h2>${paragraphs(texts)}`).join("\n")}`,
   );
@@ -301,7 +320,7 @@ nav { margin-top: 40px; padding-top: 16px; border-top: 1px solid #DCE1E8; }
 <body>
 <main>
 ${body}
-<nav><a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a> · <a href="/licenses">Open source licenses</a></nav>
+<nav><a href="/support">Support</a> · <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a> · <a href="/licenses">Open source licenses</a></nav>
 </main>
 </body>
 </html>

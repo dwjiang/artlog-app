@@ -17,4 +17,5 @@ function page(html: string) {
 
 export const privacy = httpAction(async () => page(renderLegalPage(legalDocuments.privacy)));
 export const terms = httpAction(async () => page(renderLegalPage(legalDocuments.terms)));
+export const support = httpAction(async () => page(renderLegalPage(legalDocuments.support)));
 export const licenses = httpAction(async () => page(renderLicensesPage(notices)));

@@ -7,6 +7,7 @@ import { harness } from "./test.helpers";
 it.each([
   ["/privacy", "Privacy Policy", "Identifying art"],
   ["/terms", "Terms of Service", "Governing law"],
+  ["/support", "Artlog Support", "Deleting your data"],
 ])("serves %s as a public web page", async (path, title, heading) => {
   const response = await harness().fetch(path);
   expect(response.status).toBe(200);
