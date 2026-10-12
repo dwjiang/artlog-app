@@ -318,6 +318,7 @@ export function ScanResult({ active }: { active: boolean }) {
           <View accessible style={styles.resultText}>
             <Text style={styles.cardTitle}>Washington Crossing the Delaware</Text>
             <Text style={styles.cardDetail}>Emanuel Leutze · 1851</Text>
+            <Text style={styles.cardDetail}>AI-generated voice</Text>
           </View>
           <View style={styles.storyControl}>
             <GalleryIconButton

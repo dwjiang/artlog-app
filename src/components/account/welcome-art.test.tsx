@@ -85,6 +85,11 @@ it("keeps the story gray and silent until Play is pressed, then lights each word
   expectRead(WORDS);
 });
 
+it("says the story's voice is AI-generated", async () => {
+  await render(<ScanResult active />);
+  expect(screen.getByText("AI-generated voice")).toBeOnTheScreen();
+});
+
 it("pauses the voice where it is, and replays from the start once finished", async () => {
   await render(<ScanResult active />);
   await fireEvent.press(screen.getByRole("button", { name: "Play story" }));

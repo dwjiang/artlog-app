@@ -1,6 +1,6 @@
 # Legal pages and disclosures
 
-The Convex HTTP router serves `/privacy`, `/terms`, and third-party notices from
+The Convex HTTP router serves `/privacy`, `/terms`, `/support`, and third-party notices from
 [legal.ts](../convex/legal.ts). Policy text and provider disclosures live in
 [legalPages.ts](../convex/lib/legalPages.ts).
 
