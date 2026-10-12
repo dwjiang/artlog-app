@@ -52,12 +52,13 @@ function Transport({ view, onView, audio }: TransportProps & { audio: ReturnType
   const position = scrubbing ? draft : audio.position;
   const queue = view === "queue" || view === "saved";
   const section = timeline && sectionAt(timeline, position);
-  function seek(...args: Parameters<typeof audio.controller.seek>) {
+  // A function declaration here compiles to a renamed, block-scoped copy (React Compiler 1.0), so callers throw.
+  const seek = (...args: Parameters<typeof audio.controller.seek>) => {
     const current = audio.controller.snapshot();
     if (current.current === audio.current && current.renderId === audio.renderId) {
       void audio.controller.seek(...args);
     }
-  }
+  };
   return (
     <View style={styles.container}>
       <View style={styles.status}>
