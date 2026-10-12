@@ -845,6 +845,23 @@ it("retries once naming the sentence whose evidence span is not verbatim, then s
   expect((await readSpend(t))?.tokenFactoryCalls).toBe(2);
 });
 
+it("speaks an overlong script without its last story sentences instead of paying for a rewrite", async () => {
+  const { t, fetcher, render } = await setup();
+  const extra = (word: string) => ({
+    sentence: `Look ${word} at the lilies resting on the pond and the reflections of the garden around them today.`,
+    fact_ids: ["f1"],
+    support: supportFor.f1,
+  });
+  const extras = ["again", "closely", "slowly"].map(extra);
+  // The fixture's 172 words and three 19-word story sentences run past the 225-word cap; one sentence goes.
+  const sections = { ...sectionedGuide(script), story: [...script.slice(3, 9), ...extras] };
+  fetcher.mockResolvedValueOnce(Response.json({ choices: [{ message: { content: JSON.stringify(sections) } }] }));
+  const takeaway = guideFixture.at(-1)!;
+  const kept = extras.slice(0, 2).map(({ sentence, fact_ids }) => ({ sentence, factIds: fact_ids, section: "story" }));
+  expect((await render()).sentences).toEqual([...guideFixture.slice(0, -1), ...kept, takeaway]);
+  expect((await readSpend(t))?.tokenFactoryCalls).toBe(1);
+});
+
 it("retries a script that stalled at the token cap with sections that may end after one sentence", async () => {
   const { t, fetcher, render } = await setup();
   fetcher.mockResolvedValueOnce(

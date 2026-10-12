@@ -143,6 +143,11 @@ export function narratable(research: readonly { text: string }[]): boolean {
   return research.length >= 2 && research.reduce((words, fact) => words + wordCount(fact.text), 0) >= 25;
 }
 
+const SENTENCE_END = /[.!?…]["'”’)]*$/;
+// A sentence copied from a caption, or written without a full stop, would run on into the next one.
+export const closeSentence = (sentence: string) =>
+  !sentence || SENTENCE_END.test(sentence) ? sentence : `${sentence}.`;
+
 export type GuideLine = {
   sentence: string;
   fact_ids: string[];
@@ -171,7 +176,7 @@ export function parseGuideLines(value: unknown): GuideLine[] | null {
         return null;
       }
       lines.push({
-        sentence: entry.sentence,
+        sentence: closeSentence(entry.sentence.replaceAll(/\s+/g, " ").trim()),
         fact_ids: entry.fact_ids,
         support: entry.support,
         section,
@@ -219,12 +224,17 @@ const CROSS_REFERENCE = new RegExp(
 
 type Evidence = Map<string, readonly string[]>;
 
+// An elided word ("qu'en", "l'autel", "dell'arte") reads as one word once its apostrophe is dropped, so a
+// span starting or ending inside it would not match whole words; each text is also read with the elision split.
+const ELISION = /(?<=\p{L})['’ʼ´](?=\p{L})/gu;
+const readings = (text: string) => [text, text.replaceAll(ELISION, " ")];
+
 // Each fact as printed and as read aloud, without its cross-references.
 function evidenceOf(facts: readonly { id: string; text: string }[]): Evidence {
   return new Map(
     facts.map((fact) => [
       fact.id,
-      [normalizePassage(fact.text), normalizePassage(fact.text.replaceAll(CROSS_REFERENCE, " "))],
+      [fact.text, fact.text.replaceAll(CROSS_REFERENCE, " ")].flatMap(readings).map(normalizePassage),
     ]),
   );
 }
@@ -249,9 +259,11 @@ function quotes(texts: readonly string[], passage: string): boolean {
 
 function grounded(line: GuideLine, evidence: Evidence): boolean {
   const cited = line.fact_ids.flatMap((id) => evidence.get(id) ?? []);
-  const { span, clauses } = supportParts(line.support);
-  if (span.length >= 8 && quotes(cited, span)) return true;
-  return clauses.some((clause) => clause.length >= 8) && clauses.every((clause) => quotes(cited, clause));
+  return readings(line.support).some((support) => {
+    const { span, clauses } = supportParts(support);
+    if (span.length >= 8 && quotes(cited, span)) return true;
+    return clauses.some((clause) => clause.length >= 8) && clauses.every((clause) => quotes(cited, clause));
+  });
 }
 
 // A sentence is grounded only if the model can point at the evidence: its support span, or else every
@@ -269,12 +281,15 @@ export function citeQuotedFacts(lines: GuideLine[], facts: readonly { id: string
   const quoting = (passage: string) => [...evidence].find(([, texts]) => quotes(texts, passage))?.[0];
   return lines.map((line) => {
     if (grounded(line, evidence)) return line;
-    const { span, clauses } = supportParts(line.support);
-    const whole = span.length >= 8 ? quoting(span) : undefined;
-    const ids = whole ? [whole] : clauses.map(quoting);
-    if (!clauses.some((clause) => clause.length >= 8) && !whole) return line;
-    if (ids.some((id) => id === undefined)) return line;
-    return { ...line, fact_ids: [...new Set([...line.fact_ids, ...(ids as string[])])] };
+    for (const support of readings(line.support)) {
+      const { span, clauses } = supportParts(support);
+      const whole = span.length >= 8 ? quoting(span) : undefined;
+      const ids = whole ? [whole] : clauses.map(quoting);
+      if (!clauses.some((clause) => clause.length >= 8) && !whole) continue;
+      if (ids.some((id) => id === undefined)) continue;
+      return { ...line, fact_ids: [...new Set([...line.fact_ids, ...(ids as string[])])] };
+    }
+    return line;
   });
 }
 
@@ -357,15 +372,14 @@ export function guideBodyProblems(value: unknown, factIds: ReadonlySet<string>):
       continue;
     }
     const sentence = entry.sentence.replaceAll(/\s+/g, " ").trim();
-    // Braces, brackets and tags never belong in speech; they mean JSON or markup leaked into a sentence,
-    // and a sentence without closing punctuation was cut off mid-thought.
+    // Braces, brackets and tags never belong in speech; they mean JSON or markup leaked into a sentence.
     if (!sentence || sentence.length > 500) {
       problems.push(`"${sentence}" is empty or too long.`);
     } else if (seen.has(sentence)) {
       problems.push(`"${sentence}" is repeated.`);
     } else if (/[{}[\]<>]|\bfact_ids\b/.test(sentence.replaceAll(EDITORIAL_INSERT, ""))) {
       problems.push(`"${sentence}" contains braces, brackets, tags or ids; write it as speech.`);
-    } else if (!/[.!?…]["'”’)]*$/.test(sentence)) {
+    } else if (!SENTENCE_END.test(sentence)) {
       problems.push(`"${sentence}" does not end with punctuation.`);
     }
     seen.add(sentence);
@@ -380,6 +394,27 @@ export function guideBodyProblems(value: unknown, factIds: ReadonlySet<string>):
   }
   if (text.length > 3500) problems.push("The script is longer than 3500 characters.");
   return problems;
+}
+
+// The full shape allows fifteen sentences, which can run past the word cap. Rather than pay for a rewrite, an overlong
+// stop loses its last story sentences, then its last look sentences, down to each section's minimum.
+export function fitWordCap<T extends { sentence: string; section: GuideSection }>(lines: T[], factCount: number): T[] {
+  const shape = guideShape(factCount);
+  const kept = [...lines];
+  const words = () =>
+    kept
+      .map((line) => line.sentence.trim())
+      .join(" ")
+      .split(/\s+/).length;
+  for (const section of ["story", "look"] as const) {
+    while (words() > GUIDE_MAX_WORDS && kept.filter((line) => line.section === section).length > shape[section][0]) {
+      kept.splice(
+        kept.findLastIndex((line) => line.section === section),
+        1,
+      );
+    }
+  }
+  return kept;
 }
 
 export function validateGuideBody(value: unknown, factIds: ReadonlySet<string>): GuideSentence[] | null {
