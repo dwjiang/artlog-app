@@ -2,6 +2,7 @@ import { ConvexError, v, type Infer } from "convex/values";
 
 import {
   citeQuotedFacts,
+  fitWordCap,
   GUIDE_MODEL,
   GUIDE_PROMPT,
   guideBodyProblems,
@@ -431,7 +432,11 @@ async function authorScript(
           .join(", ")}. Copy the words exactly or cut the sentence.`,
     );
     if (problems.length > 0) return null;
-    const body = lines.map(({ sentence, fact_ids, section }) => ({ sentence, factIds: fact_ids, section }));
+    const body = fitWordCap(lines, ids.length).map(({ sentence, fact_ids, section }) => ({
+      sentence,
+      factIds: fact_ids,
+      section,
+    }));
     problems = guideBodyProblems(body, factIds);
     if (problems.length > 0) return null;
     const guide = validateGuide([{ sentence: opening, factIds: [], section: "hook" }, ...body], factIds, opening);

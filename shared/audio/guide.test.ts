@@ -1,5 +1,6 @@
 import {
   citeQuotedFacts,
+  fitWordCap,
   guideBodyProblems,
   guideOpening,
   GUIDE_SECTIONS,
@@ -290,6 +291,30 @@ it.each(["notable", "cannot", "noté"])("does not ground an invented negation in
   expect(unsupportedLines(lines, facts)).toEqual(lines);
 });
 
+it("matches a span that starts or ends inside an elided word, but not one with a changed word", () => {
+  const facts = [
+    {
+      id: "f1",
+      text: "Il est attesté qu'en 1344, le polyptyque était déjà placé sur l'autel principal de la cathédrale de Florence.",
+    },
+    { id: "f2", text: "The polyptych was restored in 1994." },
+  ];
+  const line = (support: string, factIds = ["f1"]) => ({
+    sentence: "By 1344 it stood on the high altar of Florence Cathedral.",
+    fact_ids: factIds,
+    support,
+    section: "story" as const,
+  });
+  const verbatim = "en 1344, le polyptyque était déjà placé sur l'autel principal de la cathédrale de Florence";
+  expect(unsupportedLines([line(verbatim)], facts)).toEqual([]);
+  expect(
+    unsupportedLines([line("Il est attesté qu’en 1344, le polyptyque était déjà placé sur l’autel")], facts),
+  ).toEqual([]);
+  expect(unsupportedLines([line("autel principal de la cathédrale de Florence")], facts)).toEqual([]);
+  expect(unsupportedLines([line(verbatim.replace("1344", "1345"))], facts)).toHaveLength(1);
+  expect(citeQuotedFacts([line(verbatim, ["f2"])], facts)[0].fact_ids).toEqual(["f2", "f1"]);
+});
+
 it("reads a copy the same whatever its typography: accents, folded letters, dashes, hyphens and quote marks", () => {
   expect(normalizePassage("Musée de l’Orangerie")).toBe(normalizePassage("Musee de l'Orangerie"));
   expect(normalizePassage("Hammershøi’s Straße, Læsø, Łódź, 73 × 93 cm")).toBe(
@@ -419,6 +444,38 @@ it("reads the script only as hook, look, story and takeaway sections of cited se
   ]) {
     expect(parseGuideLines(value)).toBeNull();
   }
+});
+
+it("closes a sentence the writer left without a full stop", () => {
+  const lines = parseGuideLines({
+    hook: [{ sentence: "Look at the lilies on the pond ", fact_ids: ["f1"], support: "water lilies" }],
+    look: [{ sentence: "Do you see the garden?", fact_ids: ["f1"], support: "water lilies" }],
+    story: [{ sentence: "He called it “a pond.”", fact_ids: ["f1"], support: "water lilies" }],
+    takeaway: [],
+  });
+  expect(lines?.map((line) => line.sentence)).toEqual([
+    "Look at the lilies on the pond.",
+    "Do you see the garden?",
+    "He called it “a pond.”",
+  ]);
+});
+
+it("fits an overlong stop to the word cap by dropping its last story, then look, sentences down to each minimum", () => {
+  const line = (section: "hook" | "look" | "story" | "takeaway", words = 20) => ({
+    sentence: `${"word ".repeat(words - 1)}end.`,
+    section,
+  });
+  const lines = (looks: number, stories: number, words = 20) => [
+    line("hook", words),
+    ...Array.from({ length: looks }, () => line("look", words)),
+    ...Array.from({ length: stories }, () => line("story", words)),
+    line("takeaway", words),
+  ];
+  // Fifteen facts ask for the full shape: at least two look and six story sentences.
+  expect(fitWordCap(lines(3, 7), 15)).toEqual(lines(3, 6));
+  expect(fitWordCap(lines(4, 6), 15)).toEqual(lines(3, 6));
+  expect(fitWordCap(lines(2, 6), 15)).toEqual(lines(2, 6));
+  expect(fitWordCap(lines(2, 6, 30), 15)).toEqual(lines(2, 6, 30));
 });
 
 it("gives the guide only prose research, never catalogue lines", () => {

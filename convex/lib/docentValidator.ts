@@ -1,3 +1,4 @@
+import { closeSentence } from "../../shared/audio/guide";
 import type { DocentSentence } from "./validators";
 
 // Shared with the Python enrichment job through shared/docent/fixtures/docent-validator.json.
@@ -18,8 +19,7 @@ export function validateDocent(sentences: DocentSentence[], sheetIds: ReadonlySe
     }
     if (seen.has(sentence)) continue;
     seen.add(sentence);
-    // A sentence copied from a caption has no full stop, and the paragraph would run on without one.
-    kept.push({ sentence: /[.!?…]["'”’)]*$/.test(sentence) ? sentence : `${sentence}.`, factIds });
+    kept.push({ sentence: closeSentence(sentence), factIds });
   }
   return kept;
 }
