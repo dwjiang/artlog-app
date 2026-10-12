@@ -52,6 +52,7 @@ import type * as legal from "../legal.js";
 import type * as lib_agreement from "../lib/agreement.js";
 import type * as lib_albumMedia from "../lib/albumMedia.js";
 import type * as lib_appAttest from "../lib/appAttest.js";
+import type * as lib_appleRevocation from "../lib/appleRevocation.js";
 import type * as lib_appleToken from "../lib/appleToken.js";
 import type * as lib_artic from "../lib/artic.js";
 import type * as lib_artists from "../lib/artists.js";
@@ -249,6 +250,7 @@ declare const fullApi: ApiFromModules<{
   "lib/agreement": typeof lib_agreement;
   "lib/albumMedia": typeof lib_albumMedia;
   "lib/appAttest": typeof lib_appAttest;
+  "lib/appleRevocation": typeof lib_appleRevocation;
   "lib/appleToken": typeof lib_appleToken;
   "lib/artic": typeof lib_artic;
   "lib/artists": typeof lib_artists;

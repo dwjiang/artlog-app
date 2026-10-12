@@ -31,6 +31,9 @@ type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
   readonly APPLE_BUNDLE_ID: string | undefined;
+  readonly APPLE_KEY_ID: string | undefined;
+  readonly APPLE_PRIVATE_KEY: string | undefined;
+  readonly APPLE_TEAM_ID: string | undefined;
   readonly APP_ATTEST_ALLOW_DEV: string | undefined;
   readonly APP_ATTEST_APP_ID: string | undefined;
   readonly APP_ATTEST_REQUIRED: string | undefined;

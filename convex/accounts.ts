@@ -4,13 +4,15 @@ import { stableStringify } from "../shared/attestation/stable-stringify";
 import type { JournalOwner } from "../shared/journal/contracts";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { query, type MutationCtx } from "./_generated/server";
+import { internalAction, query, type MutationCtx } from "./_generated/server";
 import { withdrawContributionCrop } from "./contributionRemoval";
 import { requireAttestedWrite } from "./devices";
 import { internalMutation, mutation } from "./functions";
+import { revokeAppleAuthorization } from "./lib/appleRevocation";
 import { requireDevice } from "./lib/auth";
 import { deleteUnreferencedCollectionPhotos, deleteUnreferencedPhoto } from "./lib/collectionPhotos";
 import { deleteAuthAccountBatch, retireDevice } from "./lib/deviceRetirement";
+import { withErrorReporting } from "./lib/observability";
 import { deviceScope, ownerForDevice, requireClaimComplete } from "./lib/ownership";
 import { deleteSavedRecognition } from "./lib/savedRecognition";
 import { clearAttributionBatch, purgeSaveMediaBatch, purgeSocialBatch } from "./lib/socialCleanup";
@@ -112,9 +114,9 @@ export const unlink = mutation({
 });
 
 export const deleteAccount = mutation({
-  args: {},
+  args: { appleAuthorizationCode: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, { appleAuthorizationCode }) => {
     const device = await requireDevice(ctx);
     const account = device.accountId ? await ctx.db.get("accounts", device.accountId) : null;
     // A guest's automatically created identity is its account.
@@ -155,6 +157,22 @@ export const deleteAccount = mutation({
     await ctx.scheduler.runAfter(0, internal.accounts.purgeJournal, {
       accountId: account._id,
     });
+    if (account.provider === "apple" && appleAuthorizationCode) {
+      await ctx.scheduler.runAfter(0, internal.accounts.revokeApple, {
+        authorizationCode: appleAuthorizationCode,
+        appleUserId: account.providerUserId,
+      });
+    }
+    return null;
+  },
+});
+
+// Deletion has already committed, so a failed revocation only leaves a failed job and, on production, a Sentry event.
+export const revokeApple = internalAction({
+  args: { authorizationCode: v.string(), appleUserId: v.string() },
+  returns: v.null(),
+  handler: async (_ctx, { authorizationCode, appleUserId }) => {
+    await withErrorReporting("accounts.revoke_apple", () => revokeAppleAuthorization(authorizationCode, appleUserId));
     return null;
   },
 });
@@ -277,6 +295,7 @@ export const me = query({
     linked: v.boolean(),
     deviceCount: v.number(),
     accountId: v.union(v.id("accounts"), v.null()),
+    provider: v.union(accountProvider, v.null()),
     email: v.union(v.string(), v.null()),
     hasProfile: v.boolean(),
     scope: v.string(),
@@ -301,6 +320,7 @@ export const me = query({
           ).length
         : 0,
       accountId: account?._id ?? null,
+      provider: account?.provider ?? null,
       email: account?.email ?? null,
       hasProfile: !!profile,
       scope: deviceScope(device, await ownerForDevice(ctx, device)),

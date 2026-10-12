@@ -2,6 +2,7 @@ import { decodeJwt, exportPKCS8, generateKeyPair } from "jose";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
+import { revokeAppleAuthorization } from "./lib/appleRevocation";
 import { verifyAppleIdentityToken } from "./lib/appleToken";
 import { fileStorage } from "./lib/fileStorage";
 import { verifyGoogleIdentityToken } from "./lib/googleToken";
@@ -10,6 +11,7 @@ import { seedDevice, seedJournalVisit, seedMuseum, seedScan } from "./lib/testFa
 import { harness, type Harness } from "./test.helpers";
 
 vi.mock("./lib/appleToken", () => ({ verifyAppleIdentityToken: vi.fn<typeof verifyAppleIdentityToken>() }));
+vi.mock("./lib/appleRevocation", () => ({ revokeAppleAuthorization: vi.fn<typeof revokeAppleAuthorization>() }));
 vi.mock("./lib/googleToken", () => ({ verifyGoogleIdentityToken: vi.fn<typeof verifyGoogleIdentityToken>() }));
 let privateKey: string;
 beforeAll(async () => {
@@ -24,6 +26,7 @@ beforeEach(() => {
     email: "me@example.com",
   });
   vi.mocked(verifyGoogleIdentityToken).mockResolvedValue({ sub: "google-user", email: "me@example.com" });
+  vi.mocked(revokeAppleAuthorization).mockReset();
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -274,6 +277,7 @@ it("links idempotently and reports two devices without exposing the Apple subjec
   expect(me).toMatchObject({
     linked: true,
     deviceCount: 2,
+    provider: "apple",
     email: "me@example.com",
   });
   expect(me).not.toHaveProperty("providerUserId");
@@ -336,6 +340,48 @@ it("deleting an account retires every device and removes its Apple auth associat
   expect(await t.run((ctx) => ctx.db.query("authAccounts").collect())).toHaveLength(0);
   expect((await other.as.query(api.devices.me, {}))?.deviceId).toBe(other.deviceId);
   expect(await other.as.query(api.devices.sessionRevoked, {})).toBe(false);
+});
+
+it("revokes Sign in with Apple with the fresh code after deletion commits, keeping the deletion if Apple fails", async () => {
+  vi.useFakeTimers();
+  // convex-test logs the failed job.
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    vi.mocked(revokeAppleAuthorization).mockRejectedValue(new Error("Apple unavailable"));
+    const t = harness();
+    const { a } = await pair(t);
+    await a.as.mutation(api.accounts.deleteAccount, { appleAuthorizationCode: "fresh-code" });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(revokeAppleAuthorization).toHaveBeenCalledExactlyOnceWith("fresh-code", "apple-user");
+    expect(await t.run((ctx) => ctx.db.query("accounts").collect())).toHaveLength(0);
+    const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(jobs.find((job) => job.name === "accounts:revokeApple")?.state.kind).toBe("failed");
+  } finally {
+    logged.mockRestore();
+    vi.useRealTimers();
+  }
+});
+
+it("asks Apple to revoke nothing without a fresh code or for a Google account", async () => {
+  vi.useFakeTimers();
+  try {
+    const t = harness();
+    const { a } = await pair(t);
+    await a.as.mutation(api.accounts.deleteAccount, {});
+    const google = await seedDevice(t);
+    await googleSignIn(google);
+    await link(google, "google-user", "google");
+    const { scope } = await google.as.query(api.accounts.me, {});
+    while (!(await google.as.mutation(api.journalClaims.resume, { scope })).complete) {}
+    await google.as.mutation(api.accounts.deleteAccount, { appleAuthorizationCode: "fresh-code" });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(revokeAppleAuthorization).not.toHaveBeenCalled();
+    expect(await t.run((ctx) => ctx.db.query("accounts").collect())).toHaveLength(0);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it("keeps interrupted claims linked until they can finish without stranding parents", async () => {

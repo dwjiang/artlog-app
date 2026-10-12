@@ -21,6 +21,21 @@ import { googleSignIn, googleSignInAvailable } from "./google-sign-in";
 import { anonymousOwner, switchOwner } from "./owner-store";
 import { offerProfileSetup } from "./profile-setup-offer";
 
+const isCancellation = (cause: unknown) =>
+  !!cause && typeof cause === "object" && "code" in cause && cause.code === "ERR_REQUEST_CANCELED";
+
+// Revoking Sign in with Apple needs a fresh authorization code. Cancelling keeps the account; any other
+// failure still deletes it and leaves Artlog in the person's Sign in with Apple apps.
+async function appleRevocationCode(): Promise<string | undefined> {
+  try {
+    return (await AppleAuthentication.signInAsync()).authorizationCode ?? undefined;
+  } catch (cause) {
+    if (isCancellation(cause)) throw cause;
+    reportError(cause, "auth.apple_revocation_code", { level: "warning" });
+    return undefined;
+  }
+}
+
 export function useAccount() {
   const ready = useDeviceReady();
   const account = useQuery(api.accounts.me, ready ? {} : "skip");
@@ -57,7 +72,7 @@ export function useAccount() {
         if (name === "auth.apple_sign_in" || name === "auth.google_sign_in") playSuccessHaptic();
       }
     } catch (cause) {
-      if (!(cause && typeof cause === "object" && "code" in cause && cause.code === "ERR_REQUEST_CANCELED")) {
+      if (!isCancellation(cause)) {
         playErrorHaptic();
         reportError(cause, name);
         setError(socialErrorMessage(cause) ?? "Couldn’t update your account. Check your connection and try again.");
@@ -127,10 +142,11 @@ export function useAccount() {
   // Guests and accounts alike: the server forgets this identity, then the phone continues as a fresh install.
   const deleteAccount = () =>
     perform("auth.delete_account", async () => {
+      const appleAuthorizationCode = account?.provider === "apple" ? await appleRevocationCode() : undefined;
       if (account?.accountId) await completeJournalClaim(account);
       suspendDeviceIdentity();
       try {
-        await convex.mutation(api.accounts.deleteAccount, {});
+        await convex.mutation(api.accounts.deleteAccount, { appleAuthorizationCode });
         await endSession();
         await eraseLocalData();
       } finally {
