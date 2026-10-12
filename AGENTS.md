@@ -10,6 +10,10 @@ tied to an event or release phase.
 
 - At the start of each session, read `.agents/skills/i-have-adhd/SKILL.md`
   and apply it by default to user-facing responses.
+- Match each claim's strength to its evidence. Name the sample or eval behind a
+  number, label unchecked causes, what-ifs, and predictions as inferences,
+  and say "never", "none", "all", or "by design" only after checking. When
+  shortening a reply, cut words, not these qualifiers.
 
 ## Maintaining agent docs
 
