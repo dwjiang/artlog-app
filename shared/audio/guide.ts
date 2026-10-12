@@ -145,7 +145,8 @@ export function narratable(research: readonly { text: string }[]): boolean {
 
 const SENTENCE_END = /[.!?…]["'”’)]*$/;
 // A sentence copied from a caption, or written without a full stop, would run on into the next one.
-export const closeSentence = (sentence: string) => (SENTENCE_END.test(sentence) ? sentence : `${sentence}.`);
+export const closeSentence = (sentence: string) =>
+  !sentence || SENTENCE_END.test(sentence) ? sentence : `${sentence}.`;
 
 export type GuideLine = {
   sentence: string;

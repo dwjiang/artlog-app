@@ -460,6 +460,17 @@ it("closes a sentence the writer left without a full stop", () => {
   ]);
 });
 
+it.each(["", "        ", "\t \n\r"])("rejects a guide containing a blank sentence: %j", (sentence) => {
+  const script = guideBodyFixture.map((line, index) => ({
+    sentence: index === 1 ? sentence : line.sentence,
+    fact_ids: line.factIds,
+    support: "water lilies",
+  }));
+  const lines = parseGuideLines(sectionedGuide(script))!;
+  const body = lines.map(({ sentence, fact_ids, section }) => ({ sentence, factIds: fact_ids, section }));
+  expect(validateGuide([guideFixture[0], ...body], ids, openingFixture)).toBeNull();
+});
+
 it("fits an overlong stop to the word cap by dropping its last story, then look, sentences down to each minimum", () => {
   const line = (section: "hook" | "look" | "story" | "takeaway", words = 20) => ({
     sentence: `${"word ".repeat(words - 1)}end.`,
