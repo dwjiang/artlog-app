@@ -24,7 +24,7 @@ export function CatalogArtworkScreen({ artworkId }: { artworkId: Id<"artworks"> 
   const artwork = useSocialQuery(api.artworks.get, catalog.ready ? { artworkId } : "skip", catalog.scope);
   const enrichment = useArtworkEnrichment(artworkId);
   const story = enrichment instanceof Error ? undefined : enrichment;
-  const writing = useArtworkResearch(artworkId);
+  const research = useArtworkResearch(artworkId);
 
   if (!catalog.ready && catalog.offline) {
     return <State title="You’re offline." detail="Connect to open this artwork." icon="wifi.slash" />;
@@ -85,7 +85,9 @@ export function CatalogArtworkScreen({ artworkId }: { artworkId: Id<"artworks"> 
         date={work.date}
         docent={story?.docent}
         factSheet={story?.factSheet}
-        status={writing ? "writing" : undefined}
+        status={research.status}
+        onRetry={research.retry}
+        waitWhileWriting
         report={{ kind: "docent", artworkId }}
       />
     </ScrollView>

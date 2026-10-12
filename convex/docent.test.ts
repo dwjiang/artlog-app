@@ -4,6 +4,7 @@ import { guideOpening, guideResearch } from "../shared/audio/guide";
 import { guideBodyFixture, sectionedGuide } from "../shared/audio/guide-fixtures";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { docentStatusOf } from "./docent";
 import { patchArtworkContent, readArtworkContent } from "./lib/artworkContent";
 import { speechMp3 } from "./lib/hls.fixtures";
 import { completion, jsonResponse } from "./lib/labelFixtures";
@@ -594,10 +595,23 @@ describe("docent.ensure", () => {
     expect((await artwork())?.factSheet?.map(({ sourceUrl }) => sourceUrl)).toEqual([PAGE, WIKIDATA_PAGE]);
   });
 
-  it("keeps the run retryable when one source's fact-sheet call fails", async () => {
+  it("writes the research without a lesser source whose fact-sheet call fails, and reports it", async () => {
     const { artwork, ensure } = await fixture();
     routes.push((url, init) =>
       url.href === TOKEN_FACTORY && factSheetSource(init) === SEARCH_HIT
+        ? new Response("refused", { status: 400 })
+        : undefined,
+    );
+    everything();
+    await ensure();
+    expect((await artwork())?.factSheet?.map(({ sourceUrl }) => sourceUrl)).not.toContain(SEARCH_HIT);
+    expect((await artwork())?.docent?.en?.length).toBeGreaterThan(0);
+  });
+
+  it("keeps the run retryable when the museum's own page cannot be read into facts", async () => {
+    const { artwork, ensure } = await fixture();
+    routes.push((url, init) =>
+      url.href === TOKEN_FACTORY && factSheetSource(init) === PAGE
         ? new Response("refused", { status: 400 })
         : undefined,
     );
@@ -613,7 +627,7 @@ describe("docent.ensure", () => {
     const factSheet = [
       {
         id: "f1",
-        text: "Painted in 1889.",
+        text: "Vincent van Gogh painted Wheat Field with Cypresses in 1889.",
         sourceUrl: PAGE,
         sourceLabel: "The Met",
         sourceScore: 1,
@@ -679,7 +693,6 @@ describe("research failure reports", () => {
       "prose_rejected",
       () => models(facts, [{ sentence: "This sentence cites an unknown fact.", fact_ids: ["missing"] }]),
     ],
-    ["catalogue-only research", "narration_unavailable", "catalogue_only", () => models([facts[2]])],
   ])("names the artwork whose %s left it without an audio guide", async (_case, code, reason, respond) => {
     const { work, ensure } = await fixture();
     page(PAGE, ownerPage);
@@ -692,6 +705,22 @@ describe("research failure reports", () => {
         tags: expect.objectContaining({ error_code: code, reason, artwork_id: work.artworkId }),
       }),
     ]);
+  });
+
+  it("settles catalogue-only research without a filler story or a report", async () => {
+    const { ensure, artwork } = await fixture();
+    page(PAGE, ownerPage);
+    wikidata();
+    tavily();
+    models([facts[2]]);
+    await ensure();
+    expect(reports()).toEqual([]);
+    expect(await artwork()).toMatchObject({
+      docentNoSources: true,
+      factSheet: [expect.objectContaining({ text: facts[2].text })],
+    });
+    expect((await artwork())?.docent).toBeUndefined();
+    expect(modelCalls("docent")).toEqual([]);
   });
 
   it("names the artwork whose every source failed", async () => {
@@ -944,7 +973,13 @@ it.each(["reclaimed", "invalidated", "review", "retired", "identity"])(
 
 it("shares a single research pass between independent docent and audio scripts", async () => {
   const { t, work, ensure, artwork } = await fixture();
-  everything();
+  page(PAGE, ownerPage);
+  wikidata();
+  tavily();
+  // Enough prose for a short stop: the guide needs two facts and twenty-five words of them.
+  const asylum =
+    "Van Gogh painted this wheat field with cypresses in late June 1889 while at the asylum in Saint-Rémy.";
+  models([...facts, { text: asylum, sourceUrl: PAGE }]);
   await ensure();
   const researched = await artwork();
   vi.stubEnv("OPENAI_API_KEY", "speech-test");
@@ -955,7 +990,11 @@ it("shares a single research pass between independent docent and audio scripts",
             guideBodyFixture.map(({ sentence, factIds }) => ({
               sentence,
               fact_ids: factIds,
-              support: researched!.factSheet!.find((fact) => fact.id === factIds[0])!.text.slice(0, 30),
+              support: researched!
+                .factSheet!.find((fact) => fact.id === factIds[0])!
+                .text.split(" ")
+                .slice(0, 5)
+                .join(" "),
             })),
           ),
         )
@@ -979,7 +1018,7 @@ it("shares a single research pass between independent docent and audio scripts",
   expect((await artwork())?.docent).toEqual(researched?.docent);
   expect(calls(TAVILY)).toHaveLength(2);
   expect(JSON.parse(modelCalls("audioGuide")[0].messages[1].content).research).toEqual(
-    guideResearch(researched!.factSheet!),
+    guideResearch(researched!.factSheet!).map(({ id, text }) => ({ id, text })),
   );
 });
 
@@ -1111,6 +1150,85 @@ it.each([
 );
 
 describe("reference attribution review", () => {
+  it.each(
+    ["none", "catalogue", "prose"].flatMap((remaining) =>
+      ["outage", "unquoted evidence", "missing row"].map((failure) => ({ remaining, failure })),
+    ),
+  )("recovers from a review $failure with $remaining remaining research", async ({ remaining, failure }) => {
+    vi.useFakeTimers();
+    try {
+      const t = harness();
+      const { deviceId, as } = await seedDevice(t);
+      const { artworkId } = await t.run((ctx) =>
+        seedArtworkWithObject(ctx, { artwork: { title: "Harbor", artist: "Artist", wikidataId: "Q1" } }),
+      );
+      const citation = "https://auction.example/lot/1";
+      const referenceFact = "The artist painted the harbor outdoors during a summer spent along the northern coast.";
+      const catalogueFact =
+        remaining === "prose" ? "The painting was first shown in a village exhibition." : "Label: Harbor";
+      let reviewAvailable = false;
+      routes.push((url, init) => {
+        if (url.href.startsWith(WIKIDATA)) {
+          return jsonResponse({
+            entities: {
+              Q1: {
+                id: "Q1",
+                ...(remaining === "catalogue" ? { labels: { en: { value: "Harbor" } } } : {}),
+                ...(remaining === "prose" ? { sitelinks: { enwiki: { title: "Harbor" } } } : {}),
+                claims: { P170: [{ references: [{ snaks: { P854: [{ datavalue: { value: citation } }] } }] }] },
+              },
+            },
+          });
+        }
+        if (url.hostname === "en.wikipedia.org") {
+          return jsonResponse({ query: { pages: [{ extract: catalogueFact }] } });
+        }
+        if (url.href === "https://api.tavily.com/extract") {
+          return jsonResponse({ results: [{ url: citation, raw_content: referenceFact }], usage: { credits: 1 } });
+        }
+        if (url.href !== TOKEN_FACTORY) return undefined;
+        const body = JSON.parse(String(init?.body));
+        const { input } = JSON.parse(body.messages[1].content);
+        if (body.response_format.json_schema.name === "referenceReview") {
+          if (!reviewAvailable && failure === "outage") return new Response("Review unavailable", { status: 400 });
+          return completion({
+            reviews:
+              !reviewAvailable && failure === "missing row"
+                ? []
+                : input.references.map((source: { source: string }) => ({
+                    source: source.source,
+                    relation: "same_artwork",
+                    evidence: !reviewAvailable ? "Invented evidence not found on this page." : referenceFact,
+                    comparison: "The object details agree.",
+                    conflicts: [],
+                  })),
+          });
+        }
+        if (body.response_format.json_schema.name === "factSheet") {
+          return completion([{ text: input.source.url === citation ? referenceFact : catalogueFact }]);
+        }
+        return completion([{ sentence: reviewAvailable ? referenceFact : catalogueFact, fact_ids: ["f1"] }]);
+      });
+      tavily({ results: [], usage: { credits: 1 } });
+      await t.action(internal.docent.ensure, { artworkId, deviceId });
+      const work = await readArtwork(t, artworkId);
+      expect(work?.docentNoSources).toBeUndefined();
+      expect(work?.docent?.en).toEqual(
+        remaining === "prose" ? [{ sentence: catalogueFact, factIds: ["f1"] }] : undefined,
+      );
+      if (remaining === "prose") return;
+      expect(work?.docentFailedAt).toBeDefined();
+      expect(work?.factSheet).toBeUndefined();
+      reviewAvailable = true;
+      expect(await as.mutation(api.artworks.research, { artworkId, retry: true })).toBe(true);
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      expect((await readArtwork(t, artworkId))?.docent?.en).toEqual([{ sentence: referenceFact, factIds: ["f1"] }]);
+      expect(modelCalls("referenceReview")).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("holds conflicting research and narration until an operator replaces the sheet", async () => {
     const t = harness();
     const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx, { artwork: { artist: "Marten van Cleve" } }));
@@ -1313,8 +1431,11 @@ it.each(["other", "same_artwork"])(
     expect(sources.reduce((sum, source) => sum + source.text.length, 0)).toBe(
       relation === "other" ? article.length : 40_000,
     );
+    // Accepted references share what is left of the budget after the catalogue prose, never displacing it.
     expect(sources.map(({ url }) => url)).toEqual(
-      relation === "other" ? ["https://en.wikipedia.org/wiki/Harbor"] : references.map(({ url }) => url),
+      relation === "other"
+        ? ["https://en.wikipedia.org/wiki/Harbor"]
+        : ["https://en.wikipedia.org/wiki/Harbor", ...references.map(({ url }) => url)],
     );
     expect((await readArtwork(t, artworkId))?.docent?.en).toHaveLength(1);
   },
@@ -1515,5 +1636,139 @@ describe("docent for confirmed scan details", () => {
     await expect(
       user.as.mutation(api.scans.confirm, { scanId: pending, source: "manual", fields: { title: "Too soon" } }),
     ).rejects.toMatchObject({ data: { code: "invalid_scan" } });
+  });
+});
+
+describe("story states", () => {
+  it.each([2, 4])("respects a cap of %i calls when a non-English draft needs rewriting", async (cap) => {
+    const { t, work, artwork, spend, ensure } = await fixture();
+    await t.run(async (ctx) => {
+      await patchArtworkContent(
+        ctx,
+        { _id: work.artworkId },
+        {
+          factSheet: [{ id: "f1", text: facts[0].text, sourceUrl: PAGE, sourceLabel: "Museum", sourceScore: 1 }],
+        },
+      );
+      await ctx.db.patch("artworks", work.artworkId, { factSheetUpdatedAt: 1 });
+    });
+    vi.stubEnv("DAILY_TOKEN_FACTORY_CALL_CAP", String(cap));
+    let requests = 0;
+    routes.push((url) => {
+      if (url.href !== TOKEN_FACTORY) return undefined;
+      if (++requests === 1) return new Response("Busy", { status: 429, headers: { "retry-after": "0" } });
+      return completion([
+        {
+          sentence:
+            requests === 2
+              ? "Vincent van Gogh dipinse questo campo di grano nel 1889 con il cielo."
+              : "Vincent van Gogh painted this wheat field in 1889.",
+          fact_ids: ["f1"],
+        },
+      ]);
+    });
+    await ensure();
+    expect(requests).toBe(cap === 2 ? 2 : 3);
+    expect(await spend()).toMatchObject({ tokenFactoryCalls: requests });
+    const stored = await artwork();
+    expect(stored?.factSheet).toHaveLength(1);
+    expect(Boolean(stored?.docentFailedAt)).toBe(cap === 2);
+    expect(stored?.docent?.en).toEqual(
+      cap === 2 ? undefined : [{ sentence: "Vincent van Gogh painted this wheat field in 1889.", factIds: ["f1"] }],
+    );
+  });
+
+  it("translates unspaced research instead of settling it as catalogue-only", async () => {
+    const { t, work, artwork, ensure } = await fixture();
+    const text = "この作品は、画家が庭の池に映る光を長年観察して描いた連作の一つです。";
+    await t.run(async (ctx) => {
+      await patchArtworkContent(
+        ctx,
+        { _id: work.artworkId },
+        {
+          factSheet: [{ id: "f1", text, sourceUrl: PAGE, sourceLabel: "Museum", sourceScore: 1 }],
+        },
+      );
+      await ctx.db.patch("artworks", work.artworkId, { factSheetUpdatedAt: 1 });
+    });
+    models([], [{ sentence: "The artist studied reflections in the garden pond for this series.", fact_ids: ["f1"] }]);
+    await ensure();
+    expect((await artwork())?.docent?.en).toHaveLength(1);
+    expect((await artwork())?.docentNoSources).toBeUndefined();
+  });
+
+  it("writes the story in English when the first draft copies a foreign-language source", async () => {
+    const { artwork, ensure } = await fixture();
+    page(PAGE, ownerPage);
+    wikidata();
+    tavily();
+    let drafts = 0;
+    routes.push((url, init) => {
+      if (url.href !== TOKEN_FACTORY || JSON.parse(String(init?.body)).model !== DOCENT_MODEL) return undefined;
+      drafts++;
+      return completion(
+        drafts === 1
+          ? [{ sentence: "Vincent van Gogh dipinse questo campo di grano nel 1889 con il cielo.", fact_ids: ["f1"] }]
+          : [{ sentence: "Vincent van Gogh painted this wheat field in 1889.", fact_ids: ["f1"] }],
+      );
+    });
+    models();
+    await ensure();
+    expect(drafts).toBe(2);
+    expect((await artwork())?.docent?.en).toEqual([
+      { sentence: "Vincent van Gogh painted this wheat field in 1889.", factIds: ["f1"] },
+    ]);
+    const retry = JSON.parse(modelCalls("docent")[1].messages[1].content);
+    expect(retry.previousAttemptProblems).toContain("not in English");
+  });
+
+  it("stops showing a crashed run as writing once its claim expires", async () => {
+    vi.useFakeTimers();
+    try {
+      const { t, work, artwork } = await fixture();
+      const { as } = await seedDevice(t);
+      expect(await t.mutation(internal.docent.claim, { artworkId: work.artworkId })).toEqual(expect.any(Number));
+      expect(await as.query(api.artworks.enrichment, { artworkId: work.artworkId })).toMatchObject({
+        docentWriting: true,
+      });
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+      await t.finishInProgressScheduledFunctions();
+      expect(await artwork()).not.toHaveProperty("enrichClaimedAt");
+      expect(await artwork()).toHaveProperty("docentFailedAt");
+      expect(await as.query(api.artworks.enrichment, { artworkId: work.artworkId })).toMatchObject({
+        docentWriting: false,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("waits an hour before an open retries a failed run, but Try again asks at once", async () => {
+    vi.useFakeTimers();
+    try {
+      const { t, work } = await fixture();
+      const { as } = await seedDevice(t);
+      await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { docentFailedAt: Date.now() }));
+      expect(await as.mutation(api.artworks.research, { artworkId: work.artworkId })).toBe(false);
+      expect(await as.mutation(api.artworks.research, { artworkId: work.artworkId, retry: true })).toBe(true);
+      await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { enrichClaimedAt: undefined }));
+      await vi.advanceTimersByTimeAsync(61 * 60 * 1000);
+      expect(await as.mutation(api.artworks.research, { artworkId: work.artworkId })).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows research that found nothing as unavailable and does not search again on every scan", async () => {
+    const { t, work } = await fixture();
+    await t.run((ctx) =>
+      ctx.db.patch("artworks", work.artworkId, { docentNoSources: true, docentFailedAt: Date.now() }),
+    );
+    const stored = await t.run((ctx) => ctx.db.get("artworks", work.artworkId));
+    expect(docentStatusOf(stored!, null)).toBe("unavailable");
+    expect(await t.mutation(internal.docent.claim, { artworkId: work.artworkId })).toBeNull();
+    // An explicit retry clears the failure time, and with it the wait.
+    await t.run((ctx) => ctx.db.patch("artworks", work.artworkId, { docentFailedAt: undefined }));
+    expect(await t.mutation(internal.docent.claim, { artworkId: work.artworkId })).toEqual(expect.any(Number));
   });
 });

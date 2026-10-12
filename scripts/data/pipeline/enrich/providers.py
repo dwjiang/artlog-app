@@ -123,7 +123,14 @@ class Providers:
         return data
 
     def chat(
-        self, *, stage: str, system: str, inputs: list[dict] | dict, schema: dict, max_tokens: int
+        self,
+        *,
+        stage: str,
+        system: str,
+        inputs: list[dict] | dict,
+        schema: dict,
+        max_tokens: int,
+        previous_attempt_problems: str | None = None,
     ):
         model = (
             self.settings.fact_sheet_model
@@ -160,9 +167,15 @@ class Providers:
                         "role": "user",
                         # The grammar carries the schema; json_object mode has none, so its prompt does.
                         "content": json.dumps(
-                            {"input": inputs, "schema": request_schema}
-                            if fallback
-                            else {"input": inputs}
+                            {
+                                "input": inputs,
+                                **({"schema": request_schema} if fallback else {}),
+                                **(
+                                    {"previousAttemptProblems": previous_attempt_problems}
+                                    if previous_attempt_problems
+                                    else {}
+                                ),
+                            }
                         ),
                     },
                 ],

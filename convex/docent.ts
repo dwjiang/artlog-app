@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 
-import { guideResearch } from "../shared/audio/guide";
+import { isCatalogueLine } from "../shared/audio/guide";
 import referenceReview from "../shared/sources/reference-review.json";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -11,7 +11,7 @@ import { requireDevice } from "./lib/auth";
 import {
   DOCENT_MAX_TOKENS,
   DOCENT_PROMPT,
-  DOCENT_SCHEMA,
+  docentSchema,
   FACT_SHEET_MAX_TOKENS,
   FACT_SHEET_PROMPT,
   buildFactSheet,
@@ -21,6 +21,8 @@ import {
   factsPerSource,
   parseDocent,
   parseFactSheet,
+  writtenInEnglish,
+  type SourceDoc,
 } from "./lib/docentPrompts";
 import { gatherSources, trimSources } from "./lib/docentSources";
 import { validateDocent } from "./lib/docentValidator";
@@ -47,15 +49,26 @@ import schema from "./schema";
 // A scan's claim blocks concurrent generation for ten minutes; the batch job (enrich.claimBatch)
 // reclaims after an hour.
 export const CLAIM_MS = 10 * 60 * 1000;
+// A failed run waits out the docent's hourly limit before an open or a play retries it; "Try again" asks at once.
+export const FAILED_RESEARCH_RETRY_MS = 60 * 60 * 1000;
+// A search that found nothing usable is repeated at most this often, and only when the work is scanned or
+// opened again; "Try again" asks at once.
+const NO_SOURCES_RETRY_MS = 30 * 24 * 60 * 60 * 1000;
 // Each chatJson call is retried at most once; linked references add one review call.
 // Owner pages add several thousand input tokens, so the timeout allows for longer research inputs.
 const MODEL_TIMEOUT_MS = 20_000;
 
-export async function clearDocent(ctx: MutationCtx, artwork: Doc<"artworks">): Promise<void> {
-  await patchArtworkContent(ctx, artwork, { docent: undefined });
+export async function clearDocent(
+  ctx: MutationCtx,
+  artwork: Doc<"artworks">,
+  { includeResearch = false } = {},
+): Promise<void> {
+  await patchArtworkContent(ctx, artwork, { docent: undefined, ...(includeResearch ? { factSheet: undefined } : {}) });
   await ctx.db.patch("artworks", artwork._id, {
+    ...(includeResearch ? { factSheetUpdatedAt: undefined } : {}),
     docentUpdatedAt: undefined,
     docentNoSources: undefined,
+    docentFailedAt: undefined,
     enrichClaimedAt: undefined,
     enrichGeneration: artwork.enrichGeneration + 1,
   });
@@ -63,7 +76,7 @@ export async function clearDocent(ctx: MutationCtx, artwork: Doc<"artworks">): P
 
 export function docentStatusOf(artwork: Doc<"artworks">, content: ArtworkContentFields | null): DocentStatus {
   if (content?.docent?.en?.length) return "ready";
-  if (artwork.factSheetNeedsReview) return "unavailable";
+  if (artwork.factSheetNeedsReview || artwork.docentNoSources) return "unavailable";
   return artwork.docentFailedAt === undefined ? "writing" : "failed";
 }
 
@@ -116,6 +129,13 @@ export const claim = internalMutation({
     if (artwork.enrichClaimedAt !== undefined && artwork.enrichClaimedAt > now - CLAIM_MS) {
       return null;
     }
+    if (
+      artwork.docentNoSources
+      && artwork.docentFailedAt !== undefined
+      && artwork.docentFailedAt > now - NO_SOURCES_RETRY_MS
+    ) {
+      return null;
+    }
     const generation = artwork.enrichGeneration + 1;
     await ctx.db.patch("artworks", artworkId, {
       enrichClaimedAt: now,
@@ -123,7 +143,21 @@ export const claim = internalMutation({
       docentFailedAt: undefined,
       docentNoSources: undefined,
     });
+    await ctx.scheduler.runAfter(CLAIM_MS, internal.docent.expireClaim, { artworkId, generation });
     return generation;
+  },
+});
+
+// A run that crashed or timed out never released its claim; readers would show the work as being written forever.
+export const expireClaim = internalMutation({
+  args: { artworkId: v.id("artworks"), generation: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { artworkId, generation }) => {
+    const artwork = await ctx.db.get("artworks", artworkId);
+    if (artwork?.enrichGeneration === generation && artwork.enrichClaimedAt !== undefined) {
+      await ctx.db.patch("artworks", artworkId, { enrichClaimedAt: undefined, docentFailedAt: Date.now() });
+    }
+    return null;
   },
 });
 
@@ -138,7 +172,6 @@ export const saveResearch = internalMutation({
       || artwork.identityStatus !== "established"
       || artwork.factSheetNeedsReview
       || artwork.enrichGeneration !== generation
-      || artwork.enrichClaimedAt === undefined
       || factSheet.length === 0
     ) {
       return false;
@@ -162,11 +195,12 @@ export const writeEnrichment = internalMutation({
   handler: async (ctx, { artworkId, generation, factSheet, docentEn, researchConflicts }) => {
     const artwork = await ctx.db.get("artworks", artworkId);
     if (!artwork) throw new ConvexError({ code: "artwork_not_found" });
+    // The generation names the run: a newer claim or an invalidation advances it, while an expired claim
+    // (`expireClaim`) only stops showing the run as writing, so a slow run's research still lands.
     if (
       artwork.identityStatus !== "established"
       || artwork.factSheetNeedsReview
       || artwork.enrichGeneration !== generation
-      || artwork.enrichClaimedAt === undefined
     ) {
       return false;
     }
@@ -248,13 +282,7 @@ export const invalidateDocent = internalMutation({
   handler: async (ctx, { artworkId, includeResearch }) => {
     const artwork = await ctx.db.get("artworks", artworkId);
     if (artwork) {
-      await clearDocent(ctx, artwork);
-      if (includeResearch) {
-        await patchArtworkContent(ctx, artwork, { factSheet: undefined });
-        await ctx.db.patch("artworks", artworkId, {
-          factSheetUpdatedAt: undefined,
-        });
-      }
+      await clearDocent(ctx, artwork, { includeResearch });
     }
     return null;
   },
@@ -268,7 +296,7 @@ function configuredModels(): Models | null {
   return factSheet && docent ? { factSheet, docent } : null;
 }
 
-type DocentTarget = Pick<Doc<"artworks">, "title" | "artist" | "date" | "wikidataId">;
+type DocentTarget = Pick<Doc<"artworks">, "title" | "artist" | "date" | "wikidataId" | "yearStart" | "yearEnd">;
 type DocentContext = {
   cachedFactSheet?: FactSheetEntry[];
   pageUrl?: string;
@@ -279,12 +307,14 @@ type Generated = {
   docentEn: DocentSentence[];
   researchConflicts?: ResearchConflict[];
 };
-// Why a run wrote nothing. Only "no_sources", a successful search that found nothing, is permanent.
-type Unwritten = "no_sources" | "sources_unavailable" | "no_facts" | "prose_rejected";
+// Why a run wrote nothing. Research that found nothing to say ("no_sources", or catalogue lines alone) is settled;
+// failures, facts the model failed to copy and rejected prose stay retryable.
+type Unwritten = "no_sources" | "sources_unavailable" | "no_facts" | "no_prose" | "prose_rejected";
+const settled = (reason: Unwritten) => reason === "no_sources" || reason === "no_prose";
 
-// Empty search results are expected; other failures leave the written docent retryable.
+// Empty and label-only research are expected; other failures leave the written docent retryable.
 async function reportUnwritten(reason: Unwritten, operation: string, artworkId?: Id<"artworks">) {
-  if (reason === "no_sources") return;
+  if (reason === "no_sources" || reason === "no_prose") return;
   await reportBackendError(new ConvexError({ code: "research_failed", reason }), operation, { artworkId });
 }
 
@@ -297,121 +327,163 @@ async function generate(
   saveResearch: (factSheet: FactSheetEntry[]) => Promise<boolean>,
 ): Promise<Generated | Unwritten | null> {
   const cached = context.cachedFactSheet?.length ? context.cachedFactSheet : undefined;
-  let sources: Awaited<ReturnType<typeof gatherSources>> | undefined;
+  let gathered: Awaited<ReturnType<typeof gatherSources>> | undefined;
   if (!cached) {
-    // Checked before the search so a blocked model run does not spend a Tavily credit for nothing.
-    await ctx.runQuery(internal.spend.assertCap, { kind: "tokenFactory" });
-    sources = await gatherSources(ctx, {
+    // Checked before the search so a blocked model run does not spend a Tavily credit for nothing: the
+    // least a run needs is one fact-sheet call and the docent, each possibly sent twice.
+    await ctx.runQuery(internal.spend.assertCap, { kind: "tokenFactory", amount: 4 });
+    gathered = await gatherSources(ctx, {
       artwork,
       owner: context.owner,
       pageUrl: context.pageUrl,
       accession: context.accession,
     });
-    if (sources.sources.length === 0) return sources.failures > 0 ? "sources_unavailable" : "no_sources";
+    if (gathered.sources.length === 0) return gathered.failures > 0 ? "sources_unavailable" : "no_sources";
   }
-  const hasReferences = sources?.sources.some((source) => source.referenceUrl);
+  const sources = gathered?.sources ?? [];
+  let sourcesUnavailable = (gathered?.failures ?? 0) > 0;
+  const reviewed = sources.filter((source) => source.referenceUrl);
   // A fact-sheet call per source, the docent and any reference review; chatJson may send each request twice.
-  const reserved = 2 * (sources ? sources.sources.length + (hasReferences ? 2 : 1) : 1);
+  const reserved = 2 * (cached ? 1 : sources.length + (reviewed.length > 0 ? 2 : 1));
   const day = await reserveSpend(ctx, "tokenFactory", reserved);
-  let calls = 0;
+  const reservations = [{ day, reserved, actual: 0 }];
   // Counts every request sent, including those of a call that failed.
-  const counted = async <T>(request: Promise<ChatJsonResponse<T>>): Promise<T> => {
+  const counted = async <T>(request: Promise<ChatJsonResponse<T>>, reservation = reservations[0]): Promise<T> => {
     try {
       const response = await request;
-      calls += response.calls;
+      reservation.actual += response.calls;
       return response.value;
     } catch (error) {
-      if (error instanceof ConvexError && typeof error.data.calls === "number") calls += error.data.calls;
+      if (error instanceof ConvexError && typeof error.data.calls === "number") reservation.actual += error.data.calls;
       throw error;
     }
   };
+  const maxFacts = factsPerSource(sources);
+  const extract = (read: SourceDoc[]) =>
+    Promise.allSettled(
+      read.map((source) =>
+        counted(
+          chatJson({
+            model: models.factSheet,
+            system: FACT_SHEET_PROMPT,
+            user: factSheetUser(source, artwork),
+            schemaName: "factSheet",
+            schema: factSheetSchema(maxFacts),
+            maxTokens: FACT_SHEET_MAX_TOKENS,
+            parse: parseFactSheet,
+            timeoutMs: MODEL_TIMEOUT_MS,
+          }),
+        ),
+      ),
+    );
   try {
-    if (hasReferences) {
-      const review = await counted(
-        chatJson({
-          model: models.factSheet,
-          system: referenceReview.prompt,
-          user: JSON.stringify({ input: referenceReviewInput(sources!.sources, artwork) }),
-          schemaName: "referenceReview",
-          schema: referenceReviewSchema(sources!.sources),
-          maxTokens: 2048,
-          parse: (value) => {
-            try {
-              return applyReferenceReview(value, sources!.sources);
-            } catch {
-              return null;
-            }
-          },
-          timeoutMs: MODEL_TIMEOUT_MS,
-        }),
-      );
-      if (review.conflicts.length > 0) return { docentEn: [], researchConflicts: review.conflicts };
-      sources!.sources = review.sources;
-      if (sources!.sources.length === 0) return sources!.failures > 0 ? "sources_unavailable" : "no_sources";
-    }
     let factSheet = cached;
     if (!factSheet) {
-      const read = trimSources(sources!.sources);
-      const maxFacts = factsPerSource(read);
-      const extracted = await Promise.allSettled(
-        read.map((source) =>
-          counted(
+      // The museum's own text and uncited sources need no review, so they are read while the review runs.
+      const catalogue = trimSources(sources.filter((source) => !source.referenceUrl || source.firstParty));
+      const catalogueFacts = extract(catalogue);
+      let accepted: SourceDoc[] = [];
+      if (reviewed.length > 0) {
+        try {
+          const review = await counted(
             chatJson({
               model: models.factSheet,
-              system: FACT_SHEET_PROMPT,
-              user: factSheetUser(source, artwork),
-              schemaName: "factSheet",
-              schema: factSheetSchema(maxFacts),
-              maxTokens: FACT_SHEET_MAX_TOKENS,
-              parse: parseFactSheet,
+              system: referenceReview.prompt,
+              user: JSON.stringify({ input: referenceReviewInput(sources, artwork) }),
+              schemaName: "referenceReview",
+              schema: referenceReviewSchema(sources),
+              maxTokens: 2048,
+              parse: (value) => applyReferenceReview(value, sources, artwork),
               timeoutMs: MODEL_TIMEOUT_MS,
             }),
-          ),
-        ),
+          );
+          if (review.incomplete) {
+            sourcesUnavailable = true;
+            await reportBackendError(
+              new ConvexError({ code: "model_error", reason: "schema", schema: "referenceReview" }),
+              "docent.referenceReview",
+            );
+          }
+          if (review.conflicts.length > 0) {
+            await catalogueFacts;
+            return { docentEn: [], researchConflicts: review.conflicts };
+          }
+          accepted = review.sources.filter((source) => source.referenceUrl && !source.firstParty);
+        } catch (error) {
+          if (skipped(error)) throw error;
+          // An unreadable review leaves its references out; the catalogue research stands on its own.
+          sourcesUnavailable = true;
+          await reportBackendError(error, "docent.referenceReview");
+        }
+      }
+      // Re-trimming the trimmed catalogue changes nothing, so the references follow it in the same budget.
+      const references = trimSources([...catalogue, ...accepted]).slice(catalogue.length);
+      const read = [...catalogue, ...references];
+      if (read.length === 0) return sourcesUnavailable ? "sources_unavailable" : "no_sources";
+      const extracted = [...(await catalogueFacts), ...(await extract(references))];
+      // A source that runs out of tokens stalled on its required first fact and has nothing to give. Any other
+      // failure of the museum's own text fails the run, since a retry may read it; a lesser source is left out
+      // rather than costing the work its story, unless no source gave facts at all.
+      const failed = extracted.flatMap((result, index) =>
+        result.status === "rejected"
+        && !(result.reason instanceof ConvexError && result.reason.data.reason === "truncated")
+          ? [{ error: result.reason as unknown, source: read[index] }]
+          : [],
       );
-      // A source that runs out of tokens stalled on its required first fact and has nothing to give. Any
-      // other failure fails the run: a sheet missing that source would be cached, and a retry may succeed.
-      const failed = extracted.find(
-        (result) =>
-          result.status === "rejected"
-          && !(result.reason instanceof ConvexError && result.reason.data.reason === "truncated"),
-      );
-      if (failed?.status === "rejected") throw failed.reason;
+      const gaveFacts = extracted.some((result) => result.status === "fulfilled" && result.value.length > 0);
+      const essential = failed.find(({ source }) => source.firstParty || !gaveFacts);
+      if (essential) throw essential.error;
+      sourcesUnavailable ||= failed.length > 0;
+      for (const { error } of failed) await reportBackendError(error, "docent.factSheet");
       factSheet = buildFactSheet(
         extracted.map((result) => (result.status === "fulfilled" ? result.value : [])),
         read,
       );
     }
     if (factSheet.length === 0) return "no_facts";
+    const hasProse = factSheet.some((fact) => !isCatalogueLine(fact.text));
+    // Caching only label rows after an outage would prevent the next attempt from reading the missing sources.
+    if (!hasProse && sourcesUnavailable) return "sources_unavailable";
     // Validated research survives an independent prose failure and can already feed the audio guide.
     if (!cached && !(await saveResearch(factSheet))) return null;
-    const prose = await counted(
-      chatJson({
-        model: models.docent,
-        system: DOCENT_PROMPT,
-        user: docentUser(factSheet),
-        schemaName: "docent",
-        schema: DOCENT_SCHEMA,
-        maxTokens: DOCENT_MAX_TOKENS,
-        parse: parseDocent,
-        timeoutMs: MODEL_TIMEOUT_MS,
-      }),
-    );
-    const docentEn = validateDocent(
-      prose.map(({ sentence, fact_ids }) => ({
-        sentence,
-        factIds: fact_ids,
-      })),
-      new Set(factSheet.map((fact) => fact.id)),
-    );
+    // Catalogue lines alone make a label, not a story; the work goes without one rather than show filler.
+    if (!hasProse) return "no_prose";
+    const factIds = factSheet.map((fact) => fact.id);
+    const write = async (previousAttemptProblems?: string) => {
+      let reservation = reservations[0];
+      if (previousAttemptProblems) {
+        reservation = { day: await reserveSpend(ctx, "tokenFactory", 2), reserved: 2, actual: 0 };
+        reservations.push(reservation);
+      }
+      const prose = await counted(
+        chatJson({
+          model: models.docent,
+          system: DOCENT_PROMPT,
+          user: docentUser(factSheet, previousAttemptProblems),
+          schemaName: "docent",
+          schema: docentSchema(factIds),
+          maxTokens: DOCENT_MAX_TOKENS,
+          parse: parseDocent,
+          timeoutMs: MODEL_TIMEOUT_MS,
+        }),
+        reservation,
+      );
+      return validateDocent(
+        prose.map(({ sentence, fact_ids }) => ({ sentence, factIds: fact_ids })),
+        new Set(factIds),
+      );
+    };
+    let docentEn = await write();
+    // Facts copied from another language's page pull a small model into that language.
+    if (docentEn.length > 0 && !writtenInEnglish(docentEn.map(({ sentence }) => sentence).join(" "))) {
+      docentEn = await write("The sentences were not in English. Write them in English, translating the facts.");
+      if (!writtenInEnglish(docentEn.map(({ sentence }) => sentence).join(" "))) return "prose_rejected";
+    }
     return docentEn.length > 0 ? { docentEn } : "prose_rejected";
   } finally {
-    await ctx.runMutation(internal.spend.reconcile, {
-      kind: "tokenFactory",
-      day,
-      reserved,
-      actual: calls,
-    });
+    for (const reservation of reservations) {
+      await ctx.runMutation(internal.spend.reconcile, { kind: "tokenFactory", ...reservation });
+    }
   }
 }
 
@@ -450,22 +522,11 @@ export async function researchArtwork(ctx: ActionCtx, artworkId: Id<"artworks">,
         accession: context.accession,
         owner: context.owner,
       },
-      async (factSheet) => {
-        const saved = await ctx.runMutation(internal.docent.saveResearch, { artworkId, generation, factSheet });
-        // Catalogue lines can feed written prose, but cannot support an audio guide.
-        if (saved && guideResearch(factSheet).length === 0) {
-          await reportBackendError(
-            new ConvexError({ code: "narration_unavailable", reason: "catalogue_only" }),
-            "docent.ensure",
-            { artworkId },
-          );
-        }
-        return saved;
-      },
+      (factSheet) => ctx.runMutation(internal.docent.saveResearch, { artworkId, generation, factSheet }),
     );
     if (!result) return;
     if (typeof result === "string") {
-      noSources = result === "no_sources";
+      noSources = settled(result);
       await reportUnwritten(result, "docent.ensure", artworkId);
       return;
     }
@@ -543,6 +604,7 @@ export const claimScan = internalMutation({
     await ctx.db.patch("scans", scanId, {
       confirmed: { ...confirmed, docentClaimedAt: now, docentFailedAt: undefined },
     });
+    await ctx.scheduler.runAfter(CLAIM_MS, internal.docent.expireScanClaim, { scanId, generation, claimedAt: now });
     const { fields } = confirmed;
     const flow = scan.labelFlow;
     // The verifier's Wikidata item and museum page name the label it read, so edits to the work drop them.
@@ -565,6 +627,20 @@ export const claimScan = internalMutation({
       accession: fields.accession,
       owner,
     };
+  },
+});
+
+export const expireScanClaim = internalMutation({
+  args: { scanId: v.id("scans"), generation: v.number(), claimedAt: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { scanId, generation, claimedAt }) => {
+    const confirmed = (await ctx.db.get("scans", scanId))?.confirmed;
+    if (confirmed?.generation === generation && confirmed.docentClaimedAt === claimedAt) {
+      await ctx.db.patch("scans", scanId, {
+        confirmed: { ...confirmed, docentClaimedAt: undefined, docentFailedAt: Date.now() },
+      });
+    }
+    return null;
   },
 });
 
@@ -658,7 +734,7 @@ export const ensureForScan = internalAction({
       );
       if (!result) return null;
       if (typeof result === "string") {
-        unavailable = result === "no_sources";
+        unavailable = settled(result);
         await reportUnwritten(result, "docent.ensureForScan");
         return null;
       }

@@ -55,6 +55,8 @@ class SourceDoc(TypedDict):
     score: float
     text: str
     referenceUrl: NotRequired[str]
+    # The museum's own catalogue text: a review may flag its attribution or date, but never drops it.
+    firstParty: NotRequired[bool]
 
 
 def host(url: str) -> str:
@@ -140,6 +142,14 @@ def links_to_artwork(text: str, page_url: str, anchors: set[str]) -> bool:
 
 # Search and reference pages as plain prose so verbatim copies match (convex/lib/docentSources.ts).
 def plain_markdown(text: str) -> str:
+    # Footnote markers ("1916.[[1]](…#cite_note-1)", "[2]", "[citation needed]") sit inside sentences
+    # a copy drops them from.
+    text = re.sub(
+        r"\[\[(?:\d+|[a-z])\]\]\((?:[^()]|\([^()]*\))*\)|\[(?:\d+|[a-z]|citation needed|note \d+)\](?!\()",
+        "",
+        text,
+        flags=re.IGNORECASE | re.ASCII,
+    )
     text = re.sub(r"!\[[^\]]*\]\((?:[^()]|\([^()]*\))*\)", "", text)
     text = re.sub(r"\[([^\]]*)\]\((?:[^()]|\([^()]*\))*\)", r"\1", text)
     text = re.sub(r"^#{1,6}[ \t]+", "", text, flags=re.MULTILINE)
@@ -252,12 +262,54 @@ def trim_sources(sources: list[SourceDoc]) -> list[SourceDoc]:
     return trimmed
 
 
+# Each block, such as a label-value row, stays on its own line (convex/lib/pageExtract.ts pageText).
+BLOCKS = [
+    "address",
+    "article",
+    "blockquote",
+    "dd",
+    "div",
+    "dl",
+    "dt",
+    "figcaption",
+    "figure",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hr",
+    "li",
+    "main",
+    "ol",
+    "p",
+    "pre",
+    "section",
+    "table",
+    "td",
+    "th",
+    "tr",
+    "ul",
+]
+
+
 def page_text(html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
-    for element in soup.select("script,style,nav,header,footer,aside,form,noscript,svg"):
+    # Site chrome, scripts and footnote markers ("Water Lilies<sup>3</sup>") are not readable text.
+    for element in soup.select(
+        "script,style,nav,header,footer,aside,form,noscript,svg,sup,template"
+    ):
         element.decompose()
-    body = soup.find("main") or soup.find("article") or soup
-    return re.sub(r"\s+", " ", body.get_text(" ", strip=True)).strip()[:MAX_CHARS]
+    body = soup.find("main") or soup.find("article") or soup.find("body") or soup
+    for br in body.find_all("br"):
+        br.replace_with("\n")
+    for block in body.find_all(BLOCKS):
+        block.insert_before("\n")
+        block.insert_after("\n")
+    # Inline tags join without a space so a quoted sentence reads as it does on the page.
+    lines = (re.sub(r"\s+", " ", line).strip() for line in body.get_text("").split("\n"))
+    return "\n".join(line for line in lines if line)[:MAX_CHARS]
 
 
 # The REST summary endpoint is under Wikipedia's robots-disallowed /api/ prefix; the article's
@@ -432,7 +484,7 @@ class SourceGatherer:
         references = []
         commons_file = None
 
-        def add(url, label, text, score=None):
+        def add(url, label, text, score=None, *, first_party=False):
             score = source_score(url, owner_hosts) if score is None else score
             # One source per page, whatever language or tracking parameter search found it under.
             key = source_identity(url)
@@ -449,6 +501,8 @@ class SourceGatherer:
                     score=previous["score"] if previous else score,
                     text=text.strip()[:MAX_CHARS],
                 )
+                if first_party or (previous and previous.get("firstParty")):
+                    sources[key]["firstParty"] = True
 
         owner_object = collection_object(page_url) if page_url else None
         qid = artwork.get("wikidataId")
@@ -471,13 +525,27 @@ class SourceGatherer:
         if page_url and urlsplit(page_url).scheme == "http":
             page_url = urlsplit(page_url)._replace(scheme="https").geturl()
         # The venue's own page is canonical once the host check passes (convex/lib/docentSources.ts).
+        blocked_owner_page = None
         if page_url and owner:
             try:
                 hosts = frozenset(owner_hosts)
                 response = self.http.get(page_url, allowed_hosts=hosts)
                 response.raise_for_status()
-                add(str(response.url), owner["name"], page_text(response.text), score=1.0)
+                add(
+                    str(response.url),
+                    owner["name"],
+                    page_text(response.text),
+                    score=1.0,
+                    first_party=True,
+                )
             except (httpx.HTTPError, RetryLater, RobotsDisallowed, ValueError, KeyError) as error:
+                # Museum bot protection (403, or 429 at the Met) refuses our fetcher but not the
+                # extractor, which is asked once the search has had its chance to return the page.
+                if isinstance(error, httpx.HTTPStatusError) and error.response.status_code in (
+                    403,
+                    429,
+                ):
+                    blocked_owner_page = page_url
                 log.warning("Owner page unavailable: %s", error)
         if qid:
             try:
@@ -555,6 +623,7 @@ class SourceGatherer:
                         f"https://www.artic.edu/artworks/{artic_id}",
                         "Art Institute of Chicago",
                         text,
+                        first_party=True,
                     )
             except (httpx.HTTPError, RetryLater, RobotsDisallowed, ValueError, KeyError) as error:
                 log.warning("Art Institute API unavailable: %s", error)
@@ -626,6 +695,15 @@ class SourceGatherer:
                     search_sources(query, fallback=True)
                 except (httpx.HTTPError, RuntimeError) as error:
                     log.warning("Fallback search unavailable: %s", error)
+        if blocked_owner_page and source_identity(blocked_owner_page) not in sources:
+            try:
+                for result in self.extract([blocked_owner_page]):
+                    text = result.get("raw_content")
+                    text = plain_markdown(text).strip() if isinstance(text, str) else ""
+                    if len(text) >= 80:
+                        add(blocked_owner_page, owner["name"], text, score=1.0, first_party=True)
+            except (httpx.HTTPError, RuntimeError, ValueError) as error:
+                log.warning("Owner page extraction unavailable: %s", error)
         if isinstance(commons_file, str):
             reference_url = "https://commons.wikimedia.org/wiki/File:" + quote(
                 commons_file.replace(" ", "_"), safe=""
@@ -652,10 +730,14 @@ class SourceGatherer:
                     text = result.get("raw_content")
                     text = plain_markdown(text).strip() if isinstance(text, str) else ""
                     if reference and len(text) >= 80:
+                        cited = SCORES["domains"]["wikidata.org"]
+                        own = source_score(reference["url"], owner_hosts)
                         sources[source_identity(reference["url"])] = {
                             **reference,
                             "label": host(reference["url"]),
-                            "score": SCORES["domains"]["wikidata.org"],
+                            # A citation vouches for identity, not for quality: a cited auction
+                            # listing keeps its own low score.
+                            "score": min(cited, cited if own is None else own),
                             "text": text[:MAX_CHARS],
                         }
             except (httpx.HTTPError, RuntimeError, ValueError) as error:

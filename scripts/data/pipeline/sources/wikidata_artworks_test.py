@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from .wikidata_artworks import fetch_artworks
+from .wikidata_artworks import artwork_title, fetch_artworks
 
 
 def binding(qid, **values):
@@ -466,3 +466,102 @@ def test_other_flat_works_must_be_public_domain_and_prints_are_multiples():
     assert by_id["Q1"][1].medium is None
     # The drawing's artist fails the fixture's public-domain age cutoff.
     assert "Q8" not in by_id
+
+
+def named(qid, **names):
+    """A metadata row whose `names` give fields as (text, language) literals."""
+    row = binding(qid, image="http://commons.wikimedia.org/wiki/Special:FilePath/one.jpg")
+    for field, (text, language) in names.items():
+        row[field] = {
+            "type": "literal",
+            "value": text,
+            **({"xml:lang": language} if language else {}),
+        }
+    return row
+
+
+@pytest.mark.parametrize(
+    ("labels", "titles", "expected"),
+    [
+        # An English label wins; English readers see the multilingual label when there is none.
+        (
+            [("Winter at Kronborg", "en"), ("Vinter", "da")],
+            [("Helsingør mod Kronborg, vinter", "da")],
+            "Winter at Kronborg",
+        ),
+        ([("Kronborg in Winter", "en-gb"), ("Kronborg", "mul")], [], "Kronborg"),
+        ([("Kronborg", "mul"), ("Hiver", "fr")], [("Vinter", "da")], "Kronborg"),
+        # Then the work's title claim, in English when it has one.
+        (
+            [("Vinter", "da")],
+            [("Helsingør mod Kronborg, vinter", "da"), ("Elsinore toward Kronborg", "en")],
+            "Elsinore toward Kronborg",
+        ),
+        (
+            [("Hiver", "fr")],
+            [("Helsingør mod Kronborg, vinter", "da")],
+            "Helsingør mod Kronborg, vinter",
+        ),
+        # Then a label in any language, the same way every time.
+        ([("Vinter", "sv"), ("Hiver", "fr"), ("Inverno", "it")], [], "Hiver"),
+        ([("Hiver", "fr"), ("Kronborg in Winter", "en-gb")], [], "Kronborg in Winter"),
+        ([("Vinter", "sv"), ("Vinter i Helsingør", "da")], [], "Vinter i Helsingør"),
+        # Never the item ID, which the label service returns for an item without a label.
+        ([("Q103036181", "")], [], "Untitled"),
+        ([(" ", "da")], [], "Untitled"),
+        ([], [], "Untitled"),
+    ],
+)
+def test_titles_prefer_english_labels_then_title_claims_then_any_label(labels, titles, expected):
+    assert artwork_title("Q103036181", labels, titles) == expected
+
+
+def test_an_unlabeled_item_takes_its_title_claim_and_never_its_id():
+    from ..owner_map import OwnerMap
+    from .wikidata_artworks import iter_records
+
+    source = [
+        named("Q103036181", title=("Helsingør mod Kronborg, vinter", "da")),
+        named("Q2", nameAny=("Vinter", "nb")),
+        named("Q3"),
+        # Snapshots fetched with the label service name unlabeled items by their ID.
+        named("Q4", itemLabel=("Q4", "")),
+        named("Q5", itemLabel=("Hiver", "fr")),
+    ]
+    records = iter_records(source, owners=OwnerMap(set()), current_year=2026)
+    assert {artwork.wikidataId: artwork.title for artwork, _, _ in records} == {
+        "Q103036181": "Helsingør mod Kronborg, vinter",
+        "Q2": "Vinter",
+        "Q3": "Untitled",
+        "Q4": "Untitled",
+        "Q5": "Hiver",
+    }
+
+
+def test_an_unlabeled_artist_is_unknown_and_never_named_by_their_id():
+    from ..owner_map import OwnerMap
+    from .wikidata_artworks import iter_records
+
+    def by(qid, artist, **names):
+        return named(qid, **names) | {
+            "artist": {"value": f"http://www.wikidata.org/entity/{artist}"}
+        }
+
+    source = [
+        by("Q1", "Q10", artistName=("Thomas Fearnley", "en")),
+        by("Q2", "Q20", artistAny=("Tómas Fearnley", "is")),
+        by("Q2", "Q20", artistAny=("Thomas Fearnley", "nb")),
+        by("Q3", "Q30"),
+        # Snapshots fetched with the label service name unlabeled artists by their ID.
+        by("Q4", "Q40", artistLabel=("Q40", "")),
+        by("Q5", "Q10", artistName=("Thomas Fearnley", "en")),
+        by("Q5", "Q50", artistLabel=("Q50", "")),
+    ]
+    records = iter_records(source, owners=OwnerMap(set()), current_year=2026)
+    assert {artwork.wikidataId: artwork.artist for artwork, _, _ in records} == {
+        "Q1": "Thomas Fearnley",
+        "Q2": "Tómas Fearnley",
+        "Q3": "Unknown artist",
+        "Q4": "Unknown artist",
+        "Q5": "Thomas Fearnley; Unknown artist",
+    }

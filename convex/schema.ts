@@ -121,6 +121,10 @@ export default defineSchema({
     sentences: v.optional(v.array(guideSentence)),
     // HLS segments of the speech as it streams in; dropped a while after the whole file is stored.
     segments: v.optional(v.array(v.object({ storageId: v.id("files"), duration: v.number() }))),
+    // Renders whose script failed validation for this research and opening, and when the last one did; after
+    // two, plays stop paying for the same failure until either changes or the failure ages out.
+    scriptFailures: v.optional(v.number()),
+    scriptFailedAt: v.optional(v.number()),
   }).index("by_artworkId", ["artworkId"]),
   narrationFailures: defineTable({
     ...audioReportEvidence.fields,

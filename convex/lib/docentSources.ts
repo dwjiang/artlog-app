@@ -199,13 +199,20 @@ function linksToArtwork(text: string, pageUrl: string, anchors: Set<string>): bo
 // model gets plain prose: quotes must be copied verbatim, and a copy that drops `*` or `[text](url)`
 // would not match.
 function plainMarkdown(text: string): string {
-  return text
-    .replaceAll(/!\[[^\]]*\]\((?:[^()]|\([^()]*\))*\)/g, "")
-    .replaceAll(/\[([^\]]*)\]\((?:[^()]|\([^()]*\))*\)/g, "$1")
-    .replaceAll(/^#{1,6}[ \t]+/gm, "")
-    .replaceAll(/(\*{1,3})(?=\S)([^*\n]+?)(?<=\S)\1/g, "$2")
-    .replaceAll(/(?<![\w_])(_{1,3})(?=\S)([^_\n]+?)(?<=\S)\1(?![\w_])/g, "$2")
-    .replaceAll(/\n{3,}/g, "\n\n");
+  return (
+    text
+      // Footnote markers ("1916.[[1]](…#cite_note-1)", "[2]", "[citation needed]") sit inside sentences a copy drops them from.
+      .replaceAll(
+        /\[\[(?:\d+|[a-z])\]\]\((?:[^()]|\([^()]*\))*\)|\[(?:\d+|[a-z]|citation needed|note \d+)\](?!\()/gi,
+        "",
+      )
+      .replaceAll(/!\[[^\]]*\]\((?:[^()]|\([^()]*\))*\)/g, "")
+      .replaceAll(/\[([^\]]*)\]\((?:[^()]|\([^()]*\))*\)/g, "$1")
+      .replaceAll(/^#{1,6}[ \t]+/gm, "")
+      .replaceAll(/(\*{1,3})(?=\S)([^*\n]+?)(?<=\S)\1/g, "$2")
+      .replaceAll(/(?<![\w_])(_{1,3})(?=\S)([^_\n]+?)(?<=\S)\1(?![\w_])/g, "$2")
+      .replaceAll(/\n{3,}/g, "\n\n")
+  );
 }
 
 function identityText(value: string): string {
@@ -285,30 +292,28 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
   let failures = 0;
   const ownerHosts = input.owner ? venueHosts(input.owner) : [];
   const titles = new Set([input.artwork.title]);
+  let blockedOwnerPage: string | undefined;
+  const readOwnerPage = (url: string, text: string) => {
+    if (!input.owner || text.length < MIN_PAGE_CHARS) return;
+    sources.push({ url, label: input.owner.name, score: 1, text: text.slice(0, MAX_SOURCE_CHARS), firstParty: true });
+  };
   if (input.pageUrl && input.owner) {
+    let pageUrl: URL | undefined;
     try {
-      const pageUrl = new URL(input.pageUrl);
+      pageUrl = new URL(input.pageUrl);
       if (pageUrl.protocol === "http:") pageUrl.protocol = "https:";
       const page = await fetchVenuePage(pageUrl.href, ownerHosts);
-      const text = pageText(page.html, MAX_SOURCE_CHARS);
-      if (text.length >= MIN_PAGE_CHARS) {
-        sources.push({
-          url: page.url,
-          label: input.owner.name,
-          score: 1,
-          text,
-        });
-      }
+      readOwnerPage(page.url, pageText(page.html, MAX_SOURCE_CHARS));
     } catch (error) {
-      if (!(error instanceof ConvexError && error.data.code === "qr_host_not_allowed")) {
-        failures++;
-      }
-      // Museum bot protection is an expected refusal; the search sources below remain usable.
-      if (
-        !(error instanceof ConvexError && error.data.code === "page_unavailable" && error.data.reason === "http_403")
-      ) {
-        await reportBackendError(error, "docent.ownerPage");
-      }
+      // Museum bot protection (403, or 429 at the Met) refuses our fetcher but not the extractor, which is
+      // asked once the search has had its chance to return the same page.
+      const blocked =
+        error instanceof ConvexError
+        && error.data.code === "page_unavailable"
+        && (error.data.reason === "http_403" || error.data.reason === "http_429");
+      if (blocked && pageUrl) blockedOwnerPage = pageUrl.href;
+      else if (!(error instanceof ConvexError && error.data.code === "qr_host_not_allowed")) failures++;
+      if (!blocked) await reportBackendError(error, "docent.ownerPage");
       console.warn("Owner page unavailable for the fact sheet", error);
     }
   }
@@ -393,6 +398,7 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
           label: "Art Institute of Chicago",
           score: sourceScore(url) ?? 0,
           text: text.slice(0, MAX_SOURCE_CHARS),
+          firstParty: true,
         });
       }
     } catch (error) {
@@ -465,6 +471,15 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       );
     }
   }
+  const ownerPageFound = sources.some(
+    (source) => blockedOwnerPage && sourceIdentity(source.url) === sourceIdentity(blockedOwnerPage),
+  );
+  if (blockedOwnerPage && !ownerPageFound) {
+    const extracted = await extractWithCredit(ctx, [blockedOwnerPage]);
+    const text = extracted?.results[0]?.text;
+    if (text) readOwnerPage(blockedOwnerPage, plainMarkdown(text).trim());
+    else failures++;
+  }
   if (commonsFile) {
     const referenceUrl = `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(commonsFile.replaceAll(" ", "_"))}`;
     try {
@@ -492,7 +507,8 @@ export async function gatherSources(ctx: ActionCtx, input: SourceInput): Promise
       sources.push({
         ...reference,
         label: bareHost(result.url),
-        score: wikidataScore(),
+        // A citation vouches for identity, not for quality: a cited auction listing keeps its own low score.
+        score: Math.min(wikidataScore(), sourceScore(result.url, ownerHosts) ?? wikidataScore()),
         text: text.slice(0, MAX_SOURCE_CHARS),
       });
     }

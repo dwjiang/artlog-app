@@ -6,7 +6,7 @@ import { pageArgs, pagination } from "../shared/journal/contracts";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { query, type QueryCtx } from "./_generated/server";
-import { CLAIM_MS } from "./docent";
+import { CLAIM_MS, docentStatusOf, FAILED_RESEARCH_RETRY_MS } from "./docent";
 import { internalMutation, mutation } from "./functions";
 import { artistByKey, artworkSearchFields } from "./lib/artists";
 import { readArtworkContent } from "./lib/artworkContent";
@@ -14,8 +14,16 @@ import { requireDevice } from "./lib/auth";
 import { narrationEntry, renderedNarration, scriptCurrent } from "./lib/narrationCache";
 import { readObjectDetails } from "./lib/objectDetails";
 import { eligibleObjectRecord } from "./lib/recognitionEligibility";
-import { docentSentence, factChip, guideSentence, rightsStatus, snapshotFields, toFactChip } from "./lib/validators";
-import { narrationResearch } from "./narration";
+import {
+  docentSentence,
+  docentStatus,
+  factChip,
+  guideSentence,
+  rightsStatus,
+  snapshotFields,
+  toFactChip,
+} from "./lib/validators";
+import { narrationResearch, scriptFailed } from "./narration";
 import { joinCandidate } from "./scans";
 
 // Artwork-level enrichment for a saved work: the snapshot never changes, this can.
@@ -26,6 +34,8 @@ export const enrichment = query({
     v.object({
       docent: v.optional(v.array(docentSentence)),
       docentWriting: v.boolean(),
+      // Whether a missing story failed (retryable) or cannot be written (no sources, held for review).
+      docentStatus,
       docentGeneration: v.number(),
       factSheet: v.optional(v.array(factChip)),
       // A play can narrate the work, researching it first when it has never been researched.
@@ -68,9 +78,10 @@ export const enrichment = query({
     return {
       docent: content?.docent?.en,
       docentWriting: !content?.docent?.en && artwork.enrichClaimedAt !== undefined && !artwork.factSheetNeedsReview,
+      docentStatus: docentStatusOf(artwork, content),
       docentGeneration: artwork.enrichGeneration,
       factSheet: content?.factSheet?.map(toFactChip),
-      narrationAvailable: research !== "unavailable",
+      narrationAvailable: research !== "unavailable" && !(entry && scriptFailed(entry, artwork)),
       narrationFacts: narrationFacts.length > 0 ? narrationFacts.map(toFactChip) : undefined,
       narrationResearchUpdatedAt: narrationFacts.length > 0 ? artwork.factSheetUpdatedAt : undefined,
       narrationRenderId: rendered?.renderId,
@@ -187,21 +198,25 @@ export const get = query({
   },
 });
 
-// Opening a work starts missing research. Successful empty research isn't repeated; temporary failures can
-// retry on later opens, subject to the docent's per-device limit and daily spend cap. True when a run starts.
+// Opening a work starts missing research. Successful empty research isn't repeated; a failed run waits before an
+// open retries it, but "Try again" (`retry`) asks at once. Runs stay subject to the per-device limit and daily spend
+// cap. True when a run starts.
+
 export const research = mutation({
-  args: { artworkId: v.id("artworks") },
+  args: { artworkId: v.id("artworks"), retry: v.optional(v.boolean()) },
   returns: v.boolean(),
-  handler: async (ctx, { artworkId }) => {
+  handler: async (ctx, { artworkId, retry }) => {
     const device = await requireDevice(ctx);
     const artwork = await ctx.db.get("artworks", artworkId);
+    const now = Date.now();
     if (
       !artwork
       || artwork.retiredAt
       || artwork.identityStatus !== "established"
       || artwork.factSheetNeedsReview
       || artwork.docentNoSources
-      || (artwork.enrichClaimedAt !== undefined && artwork.enrichClaimedAt > Date.now() - CLAIM_MS)
+      || (artwork.enrichClaimedAt !== undefined && artwork.enrichClaimedAt > now - CLAIM_MS)
+      || (!retry && artwork.docentFailedAt !== undefined && artwork.docentFailedAt > now - FAILED_RESEARCH_RETRY_MS)
     ) {
       return false;
     }

@@ -58,13 +58,10 @@ export function ListenActions({
   const another = !!scanId && !!audio.current && audio.current.work.artworkId !== artworkId;
   const queued = audio.queue.some((item) => item.work.artworkId === artworkId);
   const savedProgress = audio.controller.progressFor(track);
-  const remaining =
-    same && audio.duration
-      ? Math.max(0, audio.duration - audio.position)
-      : savedProgress
-        ? Math.max(0, savedProgress.duration - savedProgress.position)
-        : undefined;
-  const resume = remaining !== undefined && remaining > 0 && (same ? audio.position > 0 : !!savedProgress?.position);
+  const progress = same ? { position: audio.position, duration: audio.duration } : savedProgress;
+  // A guide paused while still streaming has no length yet, so it resumes without a remaining time.
+  const remaining = progress?.duration ? Math.max(0, progress.duration - progress.position) : undefined;
+  const resume = !!progress && progress.position > 0 && (remaining === undefined || remaining > 0);
   const preparing = same && audio.phase === "loading";
   const duration = durationLabel(
     resume ? remaining : same && audio.duration ? audio.duration : savedProgress?.duration || cachedDuration,

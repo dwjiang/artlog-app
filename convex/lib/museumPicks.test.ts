@@ -30,8 +30,11 @@ describe("pickPrior", () => {
     }
   });
 
-  it("leaves out Wikidata entries that never got a title", () => {
+  it("leaves out works without a title", () => {
     expect(pickPrior({ ...painting, title: "Q114453254", wikidataId: "Q114453254" })).toBeNull();
+    expect(pickPrior({ ...painting, title: "Untitled" })).toBeNull();
+    expect(pickPrior({ ...painting, title: "untitled " })).toBeNull();
+    expect(pickPrior({ ...painting, title: "Untitled (Blue)" })).not.toBeNull();
   });
 });
 

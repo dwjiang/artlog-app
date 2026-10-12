@@ -23,6 +23,7 @@ export function ArtworkStory({
   factSheet,
   status,
   onRetry,
+  waitWhileWriting,
   report,
   children,
 }: {
@@ -38,6 +39,7 @@ export function ArtworkStory({
   factSheet?: FactChip[];
   status?: DocentStatus;
   onRetry?: () => Promise<unknown>;
+  waitWhileWriting?: boolean;
   report?: ContentReportTarget;
   children?: ReactNode;
 }) {
@@ -49,6 +51,7 @@ export function ArtworkStory({
         factSheet={factSheet}
         status={status}
         onRetry={onRetry}
+        waitWhileWriting={waitWhileWriting}
         report={report}
       />
       {artworkId && (

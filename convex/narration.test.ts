@@ -1,8 +1,10 @@
 import { afterEach, expect, it, vi } from "vitest";
 
+import { guideShape } from "../shared/audio/guide";
 import { guideBodyFixture, guideFixture, researchFixture, sectionedGuide } from "../shared/audio/guide-fixtures";
 import { SPEECH_MODEL, SPEECH_VOICE } from "../shared/audio/speech";
 import { api, internal } from "./_generated/api";
+import * as docent from "./docent";
 import { patchArtworkContent } from "./lib/artworkContent";
 import { fileStorage } from "./lib/fileStorage";
 import { FRAME_BYTES, speechMp3 } from "./lib/hls.fixtures";
@@ -33,7 +35,7 @@ const script = guideBodyFixture.map(({ sentence, factIds }) => ({
 const spokenBytes = speechMp3(250);
 const speech = (body: BodyInit = spokenBytes) => new Response(body, { headers: { "Content-Type": "audio/mpeg" } });
 // Speech that pauses after its first segment until released, then finishes or drops the connection.
-function heldSpeech(ending: "finish" | "fail" = "finish") {
+function heldSpeech(ending: "finish" | "fail" = "finish", firstFrames = 100) {
   let release!: () => void;
   const held = new Promise<void>((resolve) => (release = resolve));
   let pulls = 0;
@@ -42,7 +44,7 @@ function heldSpeech(ending: "finish" | "fail" = "finish") {
     cancel,
     async pull(controller) {
       if (pulls++ === 0) {
-        controller.enqueue(spokenBytes.subarray(0, 100 * FRAME_BYTES));
+        controller.enqueue(spokenBytes.subarray(0, firstFrames * FRAME_BYTES));
         return;
       }
       await held;
@@ -50,7 +52,7 @@ function heldSpeech(ending: "finish" | "fail" = "finish") {
         controller.error(new Error("Connection reset"));
         return;
       }
-      controller.enqueue(spokenBytes.subarray(100 * FRAME_BYTES));
+      controller.enqueue(spokenBytes.subarray(firstFrames * FRAME_BYTES));
       controller.close();
     },
   });
@@ -105,6 +107,7 @@ async function setup({ researched = true } = {}) {
   return { t, ...device, artworkId, fetcher, rows, files, render, args: { artworkId } };
 }
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
@@ -214,6 +217,33 @@ it.each(["invalidated", "held for review"])(
   },
 );
 
+it("starts writing the guide once the research is saved, while the written docent is still drafted", async () => {
+  const { t, as, args, fetcher } = await setup({ researched: false });
+  answerResearch(fetcher);
+  const answer = fetcher.getMockImplementation()!;
+  let releaseDocent!: () => void;
+  const docentHeld = new Promise<void>((resolve) => (releaseDocent = resolve));
+  let guideWhileDrafting = false;
+  let drafting = false;
+  fetcher.mockImplementation(async (url, init) => {
+    const model = url.includes("tokenfactory") ? JSON.parse(String(init?.body)).model : undefined;
+    if (model === DOCENT_MODEL) {
+      drafting = true;
+      await docentHeld;
+      drafting = false;
+    }
+    if (model === "nvidia/Nemotron-3-Ultra-550b-a55b") {
+      guideWhileDrafting = drafting;
+      releaseDocent();
+    }
+    return answer(url, init);
+  });
+  expect((await as.action(api.narration.render, args)).sentences).toEqual(guideFixture);
+  await t.finishInProgressScheduledFunctions();
+  expect(guideWhileDrafting).toBe(true);
+  expect(await t.run((ctx) => ctx.db.get("artworks", args.artworkId))).toHaveProperty("docentUpdatedAt");
+});
+
 it("waits for research already in flight, such as a scan's, instead of starting another", async () => {
   vi.useFakeTimers();
   const { t, as, args, artworkId, fetcher } = await setup({ researched: false });
@@ -228,6 +258,35 @@ it("waits for research already in flight, such as a scan's, instead of starting 
   await vi.advanceTimersByTimeAsync(3000);
   expect((await waiting).sentences).toEqual(guideFixture);
   expect(searches(fetcher)).toBe(0);
+});
+
+it("waits for another research run when it loses the claim after reading missing research", async () => {
+  vi.useFakeTimers();
+  const { t, as, args, artworkId, fetcher } = await setup({ researched: false });
+  // Another listener claims between this request's read and its claim attempt.
+  vi.spyOn(docent, "researchArtwork").mockImplementationOnce(async (ctx, id) => {
+    await ctx.runMutation(internal.docent.claim, { artworkId: id });
+  });
+  let settled = false;
+  const waiting = as.action(api.narration.render, args).then(
+    (value) => {
+      settled = true;
+      return value;
+    },
+    (error: unknown) => {
+      settled = true;
+      return error;
+    },
+  );
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(settled).toBe(false);
+  expect(fetcher).not.toHaveBeenCalled();
+  await t.run(async (ctx) => {
+    await patchArtworkContent(ctx, { _id: artworkId }, { factSheet: researchFixture });
+    await ctx.db.patch("artworks", artworkId, { enrichClaimedAt: undefined, factSheetUpdatedAt: 5 });
+  });
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(await waiting).toMatchObject({ sentences: guideFixture });
 });
 
 it("tells a first play there is no guide when its research finds nothing to cite, then stops offering one", async () => {
@@ -284,7 +343,10 @@ it("streams Shimmer with the museum instructions as a live playlist, then shares
   expect(JSON.parse(options.body as string).instructions).toContain("museum guide");
   const authoring = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
   expect(authoring.model).toBe("nvidia/Nemotron-3-Ultra-550b-a55b");
-  expect(JSON.parse(authoring.messages[1].content).research).toEqual(researchFixture);
+  // Source names and URLs never reach the writer.
+  expect(JSON.parse(authoring.messages[1].content).research).toEqual(
+    researchFixture.map(({ id, text }) => ({ id, text })),
+  );
   expect((await readSpend(t))?.tokenFactoryCalls).toBe(1);
   expect(JSON.stringify(first)).not.toContain("test-only-secret");
 });
@@ -512,6 +574,111 @@ it("cancels speech after a segment upload fails and keeps its script for retry",
   expect(fetcher.mock.calls.filter(([url]) => url.includes("tokenfactory"))).toHaveLength(1);
 });
 
+it.each(["first byte", "stream idle"])("reports a speech %s timeout and releases its claim", async (stage) => {
+  vi.useFakeTimers();
+  const { t, as, args, fetcher, rows } = await setup();
+  vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+  await as.mutation(internal.narration.claim, { ...args, claim: "timed-out" });
+  await t.run(async (ctx) => {
+    const entry = (await ctx.db.query("narrationAudio").take(1))[0];
+    await ctx.db.patch("narrationAudio", entry._id, { sentences: guideFixture });
+  });
+  fetcher.mockImplementation(async (url, init) => {
+    if (url.includes("ingest.sentry.io")) return new Response("{}", { status: 200 });
+    const aborted = () => Object.assign(new Error("Aborted"), { name: "AbortError" });
+    if (stage === "first byte") {
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(aborted()));
+      });
+    }
+    return speech(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(spokenBytes.subarray(0, 100 * FRAME_BYTES));
+          init?.signal?.addEventListener("abort", () => controller.error(aborted()));
+        },
+      }),
+    );
+  });
+  const speaking = t.action(internal.narration.speak, { ...args, claim: "timed-out", input: "Private test script." });
+  await vi.advanceTimersByTimeAsync(21_000);
+  await speaking;
+  expect((await rows())[0]).toMatchObject({ sentences: guideFixture });
+  expect((await rows())[0].claim).toBeUndefined();
+  expect((await rows())[0].segments).toBeUndefined();
+  const reports = fetcher.mock.calls.filter(([url]) => url.includes("ingest.sentry.io"));
+  expect(reports).toHaveLength(1);
+  const event = JSON.parse(String(reports[0][1]?.body).split("\n")[2]);
+  expect(event.tags).toMatchObject({
+    operation: "narration.speak",
+    error_code: "narration_provider_failed",
+    reason: "timeout",
+  });
+  expect(JSON.stringify(event)).not.toContain("Private test script");
+});
+
+it("cancels speech immediately when a later upload fails before an earlier upload finishes", async () => {
+  const { t, as, args, fetcher, rows, files } = await setup();
+  const held = heldSpeech("finish", 200);
+  fetcher.mockResolvedValueOnce(completion()).mockResolvedValueOnce(held.response);
+  let release!: () => void;
+  const first = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.mocked(r2.put)
+    .mockImplementationOnce(() => first)
+    .mockRejectedValueOnce(new Error("Second segment failed"));
+  const playing = as.action(api.narration.render, args).catch((error: unknown) => error);
+  try {
+    await vi.waitFor(() => expect(held.cancel).toHaveBeenCalledOnce());
+  } finally {
+    release();
+    held.release();
+    await playing;
+    await t.finishInProgressScheduledFunctions();
+  }
+  expect(await playing).toMatchObject({ data: { code: "narration_provider_failed" } });
+  expect((await rows())[0]).toMatchObject({ sentences: guideFixture });
+  expect((await rows())[0].claim).toBeUndefined();
+  expect(await files()).toEqual([]);
+});
+
+it("settles pending uploads before releasing a failed speech stream's claim", async () => {
+  const { t, as, args, fetcher, rows } = await setup();
+  const held = heldSpeech("fail");
+  fetcher.mockResolvedValueOnce(completion()).mockResolvedValueOnce(held.response);
+  let release!: () => void;
+  let uploading!: () => void;
+  const started = new Promise<void>((resolve) => {
+    uploading = resolve;
+  });
+  const stored = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.mocked(r2.put).mockImplementationOnce(() => {
+    uploading();
+    return stored;
+  });
+  const playing = as.action(api.narration.render, args).catch((error: unknown) => error);
+  await started;
+  held.release();
+  let finished = false;
+  const speaking = t.finishInProgressScheduledFunctions().then(() => {
+    finished = true;
+  });
+  try {
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(finished).toBe(false);
+  } finally {
+    release();
+    await speaking;
+    await playing;
+  }
+  expect((await rows())[0].claim).toBeUndefined();
+  expect((await rows())[0].segments).toBeUndefined();
+});
+
 it("keeps cut-off speech private for a day, then deletes unreported segments", async () => {
   const { t, as, args, fetcher, rows, files } = await setup();
   const held = heldSpeech("fail");
@@ -582,13 +749,52 @@ it("takes over a shared generation once its owner releases it instead of waiting
   expect(fetcher).toHaveBeenCalledTimes(2);
 });
 
-it("reports a listener left waiting behind a generation that never speaks, naming the artwork", async () => {
+it("stops showing a crashed render's transcript as being written once its lease ends, unless renewed", async () => {
+  vi.useFakeTimers();
+  const { t, as, args } = await setup();
+  await as.mutation(internal.narration.claim, { ...args, claim: "crashed" });
+  const writing = async () => (await as.query(api.artworks.enrichment, args))?.narrationWriting;
+  expect(await writing()).toBe(true);
+  await vi.advanceTimersByTimeAsync(100_000);
+  await as.mutation(internal.narration.renewClaim, { ...args, claim: "crashed" });
+  await vi.advanceTimersByTimeAsync(81_000);
+  await t.finishInProgressScheduledFunctions();
+  expect(await writing()).toBe(true);
+  await vi.advanceTimersByTimeAsync(100_000);
+  await t.finishInProgressScheduledFunctions();
+  expect(await writing()).toBe(false);
+});
+
+it("does not pay for research again on a play within an hour of a failed run", async () => {
+  const { t, as, args, artworkId, fetcher } = await setup({ researched: false });
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { docentFailedAt: Date.now() }));
+  expect(await as.query(api.artworks.enrichment, args)).toMatchObject({ narrationAvailable: false });
+  await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
+    data: { code: "narration_unavailable" },
+  });
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("takes over a generation whose owner stopped renewing its claim", async () => {
+  vi.useFakeTimers();
+  const { as, args, fetcher } = await setup();
+  expect((await as.mutation(internal.narration.claim, { ...args, claim: "stuck" })).owned).toBe(true);
+  const waiting = as.action(api.narration.render, args);
+  await vi.advanceTimersByTimeAsync(179_000);
+  expect(fetcher).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(5000);
+  expect((await waiting).sentences).toEqual(guideFixture);
+});
+
+it("reports a listener left waiting behind a generation that keeps its claim without speaking, naming the artwork", async () => {
   vi.useFakeTimers();
   const { as, args, artworkId, fetcher } = await setup();
   vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
   expect((await as.mutation(internal.narration.claim, { ...args, claim: "stuck" })).owned).toBe(true);
   const waiting = as.action(api.narration.render, args).catch((error: unknown) => error);
-  await vi.advanceTimersByTimeAsync(121_000);
+  await vi.advanceTimersByTimeAsync(100_000);
+  await as.mutation(internal.narration.renewClaim, { ...args, claim: "stuck" });
+  await vi.advanceTimersByTimeAsync(100_000);
   expect(await waiting).toMatchObject({ data: { code: "narration_busy" } });
   const [url, init] = fetcher.mock.calls.at(-1) as unknown as [string, RequestInit];
   expect(url).toContain("ingest.sentry.io");
@@ -632,10 +838,10 @@ it("retries once naming the sentence whose evidence span is not verbatim, then s
   const retry = request(1);
   expect(retry.messages[1].content).toContain("lilies float serenely");
   expect(retry.messages[1].content).toContain("not verbatim");
-  // Neither call reasons; thin research asks for a five-sentence story.
+  // Neither call reasons; two facts ask for the short stop's story.
   expect(request(0).chat_template_kwargs).toEqual({ enable_thinking: false });
   expect(retry.chat_template_kwargs).toEqual({ enable_thinking: false });
-  expect(retry.response_format.json_schema.schema.properties.story.minItems).toBe(5);
+  expect(retry.response_format.json_schema.schema.properties.story.minItems).toBe(guideShape(2).story[0]);
   expect((await readSpend(t))?.tokenFactoryCalls).toBe(2);
 });
 
@@ -652,7 +858,7 @@ it("retries a script that stalled at the token cap with sections that may end af
   const retry = request(1);
   const { properties } = retry.response_format.json_schema.schema;
   expect(["hook", "look", "story", "takeaway"].map((section) => properties[section].minItems)).toEqual([1, 1, 1, 1]);
-  expect(properties.story.maxItems).toBe(7);
+  expect(properties.story.maxItems).toBe(guideShape(2).story[1]);
   expect(JSON.parse(retry.messages[1].content)).not.toHaveProperty("previousAttemptProblems");
   expect((await readSpend(t))?.tokenFactoryCalls).toBe(2);
 });
@@ -664,10 +870,10 @@ it("asks for the thin-research length, not the full one, when a script from thin
   const retry = JSON.parse(
     JSON.parse((fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string).messages[1].content,
   );
-  expect(retry.previousAttemptProblems).toContain("90 to 225 words after the opening");
+  expect(retry.previousAttemptProblems).toContain("words after the opening; it needs 40 to 225");
 });
 
-it("rejects invented citations before generating speech and releases the claim for retry", async () => {
+it("rejects invented citations before generating speech and lets one more play try again", async () => {
   const { as, args, fetcher, rows } = await setup();
   fetcher.mockResolvedValueOnce(
     completion([
@@ -691,7 +897,26 @@ it("rejects invented citations before generating speech and releases the claim f
     data: { code: "model_error" },
   });
   expect(fetcher).toHaveBeenCalledTimes(2);
-  expect(await rows()).toHaveLength(0);
+  expect((await rows()).map((row) => [row.claim, row.scriptFailures])).toEqual([[undefined, 1]]);
+  expect((await as.action(api.narration.render, args)).sentences).toEqual(guideFixture);
+});
+
+it("stops paying for a script that failed on two plays of the same research until the research changes", async () => {
+  const { t, as, args, artworkId, fetcher, rows } = await setup();
+  const tiny = () => completion(script.slice(0, 1));
+  for (let play = 0; play < 2; play++) {
+    fetcher.mockResolvedValueOnce(tiny()).mockResolvedValueOnce(tiny());
+    await expect(as.action(api.narration.render, args)).rejects.toMatchObject({ data: { code: "model_error" } });
+  }
+  expect(fetcher).toHaveBeenCalledTimes(4);
+  expect((await rows())[0].scriptFailures).toBe(2);
+  await expect(as.action(api.narration.render, args)).rejects.toMatchObject({
+    data: { code: "narration_unavailable" },
+  });
+  expect(fetcher).toHaveBeenCalledTimes(4);
+  expect(await as.query(api.artworks.enrichment, args)).toMatchObject({ narrationAvailable: false });
+  await t.run((ctx) => ctx.db.patch("artworks", artworkId, { factSheetUpdatedAt: 6 }));
+  expect(await as.query(api.artworks.enrichment, args)).toMatchObject({ narrationAvailable: true });
   expect((await as.action(api.narration.render, args)).sentences).toEqual(guideFixture);
 });
 
@@ -727,7 +952,9 @@ it("refuses a tiny script instead of synthesizing another ten-second guide", asy
     data: { code: "model_error" },
   });
   expect(fetcher).toHaveBeenCalledTimes(2);
-  expect(await rows()).toHaveLength(0);
+  expect((await rows()).map((row) => [row.sentences, row.segments, row.storageId])).toEqual([
+    [undefined, undefined, undefined],
+  ]);
 });
 
 it.each([

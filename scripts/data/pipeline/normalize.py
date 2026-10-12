@@ -6,6 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .rights import RightsStatus, merge_rights
 
+# Every source's title for a work it has no title for.
+UNTITLED = "Untitled"
+
 
 class Record(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -104,7 +107,7 @@ def merge_records(
         fields = {}
         for candidate in reversed(candidates):
             incoming = candidate.row()
-            if fields.get("title") and candidate.title == candidate.wikidataId:
+            if fields.get("title") and candidate.title == UNTITLED:
                 incoming.pop("title")
             if fields.get("artist") and candidate.artist == "Unknown artist":
                 incoming.pop("artist")

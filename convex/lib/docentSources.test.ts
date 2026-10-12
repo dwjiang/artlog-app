@@ -53,11 +53,50 @@ afterEach(() => vi.restoreAllMocks());
 it("uses search evidence when a museum blocks the optional owner page without reporting an app failure", async () => {
   vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
   const result = await gatherSources({} as ActionCtx, input);
+  // Search returned the blocked page itself, so nothing is missing and nothing is extracted twice.
   expect(result).toMatchObject({
-    failures: 1,
+    failures: 0,
     sources: [{ url: pageUrl, text: "Painting\nVerified museum description" }],
   });
   expect(reportBackendError).not.toHaveBeenCalled();
+  expect(extractWithCredit).not.toHaveBeenCalled();
+});
+
+it.each(["http_403", "http_429"])(
+  "reads an owner page the museum blocks (%s) through the extractor when search misses it",
+  async (reason) => {
+    vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason }));
+    vi.mocked(searchWithCredit).mockResolvedValue({ results: [], images: [] });
+    const text =
+      "The painting shows the museum's garden pond in early summer light, painted outdoors over several weeks.";
+    vi.mocked(extractWithCredit).mockResolvedValueOnce({
+      results: [{ url: pageUrl, text: `**${text}**` }],
+      failures: 0,
+    });
+    const result = await gatherSources({} as ActionCtx, input);
+    expect(result.failures).toBe(0);
+    expect(result.sources).toEqual([expect.objectContaining({ url: pageUrl, score: 1, firstParty: true, text })]);
+    expect(reportBackendError).not.toHaveBeenCalled();
+  },
+);
+
+it("drops footnote markers from search text so a copied sentence still matches", async () => {
+  vi.mocked(fetchVenuePage).mockRejectedValue(new ConvexError({ code: "page_unavailable", reason: "http_403" }));
+  vi.mocked(searchWithCredit).mockResolvedValue({
+    images: [],
+    results: [
+      {
+        url: pageUrl,
+        title: "Painting",
+        content:
+          "It was painted in 1916.[[1]](https://en.wikipedia.org/wiki/X#cite_note-1) It hangs in Paris.[2][citation needed]",
+        score: 1,
+        images: [],
+      },
+    ],
+  });
+  const { sources } = await gatherSources({} as ActionCtx, input);
+  expect(sources[0].text).toBe("Painting\nIt was painted in 1916. It hangs in Paris.");
 });
 
 it("keeps a blocked source retryable if search provides no usable evidence", async () => {
@@ -98,7 +137,7 @@ it.each(["https://www.artic.edu/artworks/16568", "https://www.artic.edu/artworks
       pageUrl: ownerUrl,
     });
     expect(result.sources.map(({ url }) => url)).toEqual([matchingUrl, articleUrl]);
-    expect(result.failures).toBe(1);
+    expect(result.failures).toBe(0);
   },
 );
 

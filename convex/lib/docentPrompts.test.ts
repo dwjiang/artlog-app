@@ -1,6 +1,13 @@
 import { expect, it } from "vitest";
 
-import { buildFactSheet, factSheetSchema, factsPerSource, parseFactSheet } from "./docentPrompts";
+import {
+  buildFactSheet,
+  docentSchema,
+  factSheetSchema,
+  factsPerSource,
+  parseFactSheet,
+  writtenInEnglish,
+} from "./docentPrompts";
 
 const museum = {
   url: "https://museum.example/work",
@@ -30,6 +37,58 @@ it("allows typographic quote changes without accepting a changed claim", () => {
   const source = { ...museum, text: "He called it “a summer landscape.”" };
   expect(buildFactSheet([['He called it "a summer landscape."']], [source])).toHaveLength(1);
   expect(buildFactSheet([['He called it "a winter landscape."']], [source])).toHaveLength(0);
+});
+
+it("keeps a copy that differs from its source only by accents or a fixed typo, in the source's words", () => {
+  const source = {
+    ...museum,
+    text: "In this depiction of his sister, Julie Fréderique Lemmen, the artist captured her biting personality. The painter may have chosen these scenes fo their felicitous overtones.",
+  };
+  const accent =
+    "In this depiction of his sister, Julie Frédérique Lemmen, the artist captured her biting personality.";
+  const typo = "The painter may have chosen these scenes for their felicitous overtones.";
+  expect(buildFactSheet([[accent, typo]], [source]).map(({ text }) => text)).toEqual([
+    accent,
+    "The painter may have chosen these scenes fo their felicitous overtones.",
+  ]);
+  // A changed number or a second change is a different claim, not a typo.
+  expect(buildFactSheet([["The painter may have chosen 12 scenes for their felicitous overtones."]], [source])).toEqual(
+    [],
+  );
+  expect(buildFactSheet([["The painter may have chosen those scenes for their joyful overtones."]], [source])).toEqual(
+    [],
+  );
+});
+
+it("ranks prose ahead of catalogue lines and captions for the sheet's places", () => {
+  const wikidata = { url: "https://www.wikidata.org/wiki/Q1", label: "Wikidata", score: 0.8, text: "Inception: 1889" };
+  const article = {
+    url: "https://en.wikipedia.org/wiki/Work",
+    label: "Wikipedia",
+    score: 0.7,
+    text: "The cypresses were painted in thick strokes during his stay at the asylum.",
+  };
+  const sheet = buildFactSheet([["Inception: 1889"], [article.text]], [wikidata, article]);
+  expect(sheet.map(({ text }) => text)).toEqual([article.text, "Inception: 1889"]);
+});
+
+it("asks for English prose citing only the sheet's facts, and recognises prose copied in another language", () => {
+  const schema = docentSchema(["f1", "f2"]);
+  expect(schema.items.properties.fact_ids).toEqual({
+    type: "array",
+    minItems: 1,
+    items: { type: "string", enum: ["f1", "f2"] },
+  });
+  expect(writtenInEnglish("Josefa de Óbidos painted this around 1670, and it hangs in the museum in Lisbon.")).toBe(
+    true,
+  );
+  expect(
+    writtenInEnglish(
+      "San Giuseppe col Bambino è un dipinto della pittrice Josefa de Óbidos realizzato all'incirca nel 1670 e conservato nel Museo.",
+    ),
+  ).toBe(false);
+  // Accented function words count as well: "è", "était", "är", "på".
+  expect(writtenInEnglish("Il quadro è bello, Monet était là, tavlan är på museet.")).toBe(false);
 });
 
 it("caps each source's facts, allowing more when few prose sources share the sheet", () => {

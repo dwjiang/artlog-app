@@ -1,3 +1,4 @@
+import copy
 import json
 import re
 from types import SimpleNamespace
@@ -156,10 +157,14 @@ def test_each_source_respects_fact_bounds_after_schema_fallback(factory, fact_co
         assert {fact["sourceUrl"] for fact in result} == {source["url"] for source in sources}
         assert provider.parse_failures == 0
     else:
+        # A lesser source answering out of bounds is left out; the others still make the sheet.
+        result = factsheet.generate(provider, sources, artwork)
+        assert {fact["sourceUrl"] for fact in result} == {sources[0]["url"], sources[2]["url"]}
+        assert provider.parse_failures == 1
+        # The museum's own text failing the same way keeps the artwork retryable instead.
+        sources[1]["firstParty"] = True
         with pytest.raises(ValueError, match="1 to 8 facts"):
             factsheet.generate(provider, sources, artwork)
-        assert provider.parse_failures == 1
-        assert provider.usage.token_factory_calls == 3
 
 
 def test_a_source_that_runs_out_of_tokens_is_dropped_and_the_others_kept(factory):
@@ -248,12 +253,17 @@ def test_versioned_system_prompts_match_convex():
 
 @pytest.mark.parametrize(
     "schema,filename",
-    [(prompts.fact_sheet_schema(8), "factsheet"), (prompts.DOCENT_SCHEMA, "docent")],
+    [(prompts.fact_sheet_schema(8), "factsheet"), (prompts.docent_schema(["f1", "f2"]), "docent")],
 )
 def test_schemas_match_the_evaluated_model_contract(schema, filename):
     retained = json.loads((REPO_ROOT / f"scripts/data/fixtures/{filename}-schema.json").read_text())
-    # The retained contract leaves the cap open; the live schema sets it from the sources sent.
-    assert {k: v for k, v in schema.items() if k != "maxItems"} == retained
+    # The retained contracts leave per-call bounds open: the live fact-sheet schema caps the facts
+    # from the sources sent, and the live docent schema names the sheet's own ids.
+    live = copy.deepcopy(schema)
+    live.pop("maxItems", None)
+    if filename == "docent":
+        assert live["items"]["properties"]["fact_ids"]["items"].pop("enum") == ["f1", "f2"]
+    assert live == retained
 
 
 def test_reference_extraction_reserves_two_credits_and_keeps_partial_success(factory):
@@ -280,3 +290,63 @@ def test_reference_extraction_reserves_two_credits_and_keeps_partial_success(fac
         "spend:reconcile", {"kind": "tavily", "day": "2026-09-11", "reserved": 2, "actual": 0}
     )
     assert provider.usage.tavily_credits == 0
+
+
+def test_prose_copied_in_another_language_is_written_again_in_english(factory):
+    italian = [
+        {
+            "sentence": "Il dipinto della pittrice è conservato nel museo di Lisbona.",
+            "fact_ids": ["f1"],
+        }
+    ]
+    english = [{"sentence": "The painting is kept in the museum in Lisbon.", "fact_ids": ["f1"]}]
+    requests = []
+
+    def respond(request):
+        requests.append(json.loads(request.content))
+        return completion(italian if len(requests) == 1 else english)
+
+    provider = factory(respond)
+    facts = [{"id": "f1", "text": "Il dipinto è conservato nel museo di Lisbona."}]
+    kept, generated = docent.generate(provider, facts)
+    assert kept == [{"sentence": english[0]["sentence"], "factIds": ["f1"]}]
+    assert generated == 2
+    assert requests[0]["response_format"]["json_schema"]["schema"] == prompts.docent_schema(["f1"])
+    assert json.loads(requests[1]["messages"][1]["content"]) == {
+        "input": facts,
+        "previousAttemptProblems": prompts.ENGLISH_RETRY,
+    }
+
+
+def test_prose_still_not_in_english_after_one_retry_is_dropped(factory):
+    italian = [
+        {
+            "sentence": "Il dipinto della pittrice è conservato nel museo di Lisbona.",
+            "fact_ids": ["f1"],
+        }
+    ]
+    provider = factory(lambda _: completion(italian))
+    assert docent.generate(provider, [{"id": "f1", "text": "Il dipinto."}]) == ([], 2)
+    assert provider.usage.token_factory_calls == 2
+
+
+def test_mirrored_word_lists_and_patterns_match_their_typescript_sources():
+    from pipeline.enrich import references
+
+    prompts_ts = (REPO_ROOT / "convex/lib/docentPrompts.ts").read_text()
+    for name, words in (
+        ("ENGLISH_WORDS", prompts.ENGLISH_STOPWORDS),
+        ("OTHER_WORDS", prompts.OTHER_STOPWORDS),
+    ):
+        assert re.search(rf'const {name} = new Set\(\s*"([^"]+)"', prompts_ts)[1] == words
+    guide = (REPO_ROOT / "shared/audio/guide.ts").read_text()
+    catalogue = re.search(r"const CATALOGUE_LINE =\s*/(.*?)/i;", guide)[1]
+    assert catalogue == factsheet.CATALOGUE_LINE.pattern
+    assert f"const MIN_PROSE_WORDS = {factsheet.MIN_PROSE_WORDS};" in guide
+    assert f"const MAX_CAPTION_WORDS = {factsheet.MAX_CAPTION_WORDS};" in guide
+    artwork_references = (REPO_ROOT / "convex/lib/artworkReferences.ts").read_text()
+    namespace = re.search(r"const WIKI_NAMESPACE =\s*/(.*)/i;", artwork_references)[1]
+    assert namespace.replace("\\/", "/") == references.WIKI_NAMESPACE.pattern
+    review = (REPO_ROOT / "convex/lib/referenceReview.ts").read_text()
+    for name in ("REVIEW_CATALOGUE_CHARS", "REVIEW_REFERENCE_CHARS"):
+        assert f"const {name} = {getattr(references, name)};" in review

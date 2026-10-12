@@ -1,6 +1,7 @@
 import { ConvexError } from "convex/values";
 import { getNetworkStateAsync } from "expo-network";
 
+import { OfflineError } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 import { openingFixture, researchFixture } from "@/shared/audio/guide-fixtures";
@@ -343,6 +344,71 @@ it("shows a retryable error on synthesis failure without dropping the remaining 
   controller.dispose();
 });
 
+it.each([
+  ["narration_not_configured", "Narration is unavailable right now."],
+  ["model_unconfigured", "Narration is unavailable right now."],
+  ["narration_provider_failed", "Narration is unavailable right now."],
+  ["narration_busy", "Narration is busy. Try again shortly."],
+  ["rate_limited", "Narration is busy. Try again shortly."],
+  ["spend_cap", "Narration is paused for today."],
+  ["device_banned", "Narration isn’t available on this phone."],
+])("explains a %s failure from the backend without reporting it again", async (code, message) => {
+  const { controller, deps } = setup();
+  deps.render.mockRejectedValueOnce(new ConvexError({ code }));
+  await controller.play(track("a"));
+  expect(showErrorToast).toHaveBeenCalledWith(message, expect.any(Function), { quiet: true });
+  expect(reportError).not.toHaveBeenCalled();
+  controller.dispose();
+});
+
+it.each([
+  [
+    "an unexpected server error",
+    new Error("[CONVEX A(narration:render)] [Request ID: 1] Server Error\n  Called by client"),
+  ],
+  [
+    "an action timeout",
+    new Error("[CONVEX A(narration:render)] [Request ID: 2] Your request timed out\n  Called by client"),
+  ],
+])("does not blame the connection for %s, which the backend reports", async (_name, error) => {
+  const { controller, deps } = setup();
+  deps.render.mockRejectedValueOnce(error);
+  await controller.play(track("a"));
+  expect(showErrorToast).toHaveBeenCalledWith("Narration is unavailable right now.", expect.any(Function), {
+    quiet: true,
+  });
+  expect(reportError).not.toHaveBeenCalled();
+  controller.dispose();
+});
+
+it.each([
+  ["a lost action connection", new Error("[CONVEX A(narration:render)] Connection lost while action was in flight")],
+  ["a download timeout", new Error("fetch failed: The request timed out.")],
+])("asks the listener to check the connection after %s, without reporting it", async (_name, error) => {
+  const { controller, deps } = setup();
+  deps.render.mockRejectedValueOnce(error);
+  await controller.play(track("a"));
+  expect(showErrorToast).toHaveBeenCalledWith(
+    "Couldn’t prepare narration. Check your connection.",
+    expect.any(Function),
+    { quiet: true },
+  );
+  expect(reportError).not.toHaveBeenCalled();
+  controller.dispose();
+});
+
+it("says a guide needs a connection when the phone is offline", async () => {
+  const { controller, deps } = setup();
+  deps.render.mockRejectedValueOnce(new OfflineError());
+  await controller.play(track("a"));
+  expect(controller.snapshot().phase).toBe("error");
+  expect(showErrorToast).toHaveBeenCalledWith("Couldn’t prepare narration while offline.", expect.any(Function), {
+    quiet: true,
+  });
+  expect(reportError).not.toHaveBeenCalled();
+  controller.dispose();
+});
+
 it("reports an unavailable narration in a toast whose Retry replays the failed track", async () => {
   const { controller, deps } = setup();
   deps.render.mockRejectedValueOnce(new ConvexError({ code: "narration_not_configured" }));
@@ -364,6 +430,7 @@ it("reports a narration that failed on the phone with its artwork, leaving backe
   deps.render.mockRejectedValueOnce(invalid);
   await controller.play(track("a"));
   expect(reportError).toHaveBeenCalledWith(invalid, "narration.prepare", { data: { artworkId: "a" } });
+  expect(showErrorToast).toHaveBeenCalledWith("Couldn’t prepare narration.", expect.any(Function), { quiet: true });
   jest.mocked(reportError).mockClear();
   deps.render.mockRejectedValueOnce(new ConvexError({ code: "narration_provider_failed" }));
   await controller.play(track("b"));
@@ -772,6 +839,25 @@ it("stops monitoring once streamed narration finishes", async () => {
   controller.dispose();
 });
 
+it("takes a live guide's length from where it ended when the player never reported one, so Play starts it again", async () => {
+  jest.useFakeTimers();
+  const { controller, deps, players } = setup();
+  deps.render.mockResolvedValue(liveAudio as never);
+  await controller.play(track("a"));
+  const player = players.at(-1)!;
+  player.emit({ duration: 0 });
+  await Promise.resolve();
+  player.emit({ duration: 0, currentTime: 58, didJustFinish: true });
+  expect(controller.snapshot()).toMatchObject({ playing: false, position: 58, duration: 58 });
+  // A finished guide is not resumable at its end; the next play starts it from the beginning.
+  expect(controller.progressFor(track("a"))).toMatchObject({ position: 58, duration: 58 });
+  deps.render.mockClear();
+  controller.toggle();
+  await Promise.resolve();
+  expect(deps.render).toHaveBeenCalledTimes(1);
+  controller.dispose();
+});
+
 it("tracks real preparation stages and clears them when playback is ready", async () => {
   const { controller, deps, players } = setup();
   deps.render.mockImplementationOnce(async (_track, onStage) => {
@@ -1034,4 +1120,105 @@ it("keeps native speed at 1× while live speech is unfinished before restoring t
   expect(player.setPlaybackRate).toHaveBeenCalledTimes(1);
   expect(player.setPlaybackRate).toHaveBeenCalledWith(1.5);
   controller.dispose();
+});
+
+it("follows the opening its script was spoken with when the work was corrected after being queued", async () => {
+  const { controller, deps, play } = setup();
+  const queued = track("a");
+  const opening = "Artist. a. Circa 1916.";
+  deps.render.mockResolvedValueOnce({
+    uri: "file:///audio.mp3",
+    renderId: "corrected",
+    duration: 100,
+    sentences: [
+      { sentence: opening, factIds: [], section: "hook" },
+      { sentence: "A spoken guide.", factIds: ["f1"], section: "hook" },
+    ],
+  });
+  const player = await play(queued);
+  player.emit({ currentTime: 30 });
+  expect(controller.snapshot().current?.work).toMatchObject({ opening, renderId: "corrected" });
+  // The work's page now builds its track from the corrected record.
+  const corrected = { work: { ...queued.work, opening, renderId: "corrected" } };
+  expect(controller.progressFor(corrected)?.position).toBe(30);
+  controller.dispose();
+});
+
+it("keeps the track's opening when the script does not start with one", async () => {
+  const { controller, play } = setup();
+  await play(track("a"));
+  expect(controller.snapshot().current?.work.opening).toBe(openingFixture);
+  controller.dispose();
+});
+
+it("leaves a guide paused and ready when it finishes preparing long after the tap", async () => {
+  jest.useFakeTimers({ doNotFake: ["queueMicrotask", "nextTick"] });
+  const { controller, deps, players } = setup();
+  let finish!: () => void;
+  deps.render.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = () => resolve(liveAudio);
+      }),
+  );
+  const pending = controller.play(track("a"));
+  await jest.advanceTimersByTimeAsync(121_000);
+  finish();
+  await pending;
+  const player = players.at(-1)!;
+  player.emit({ duration: 0 });
+  await Promise.resolve();
+  expect(controller.snapshot()).toMatchObject({ phase: "ready", playing: false, waiting: true });
+  expect(player.play).not.toHaveBeenCalled();
+  controller.toggle();
+  expect(player.play).toHaveBeenCalledTimes(1);
+  controller.dispose();
+});
+
+it("still plays a guide that takes a while to prepare", async () => {
+  jest.useFakeTimers({ doNotFake: ["queueMicrotask", "nextTick"] });
+  const { controller, deps, players } = setup();
+  let finish!: () => void;
+  deps.render.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = () => resolve(liveAudio);
+      }),
+  );
+  const pending = controller.play(track("a"));
+  await jest.advanceTimersByTimeAsync(90_000);
+  finish();
+  await pending;
+  players.at(-1)!.emit({ duration: 0 });
+  await Promise.resolve();
+  expect(players.at(-1)!.play).toHaveBeenCalledTimes(1);
+  controller.dispose();
+});
+
+describe("audio that never finishes loading", () => {
+  beforeEach(() => jest.useFakeTimers());
+
+  it("reports a cached file once, without the work or its text", async () => {
+    const { controller, deps } = setup();
+    await controller.play(track("a"));
+    await jest.advanceTimersByTimeAsync(15_000);
+    expect(controller.snapshot().phase).toBe("error");
+    expect(showErrorToast).toHaveBeenCalledWith("Couldn’t load audio.", expect.any(Function), { quiet: true });
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError).toHaveBeenCalledWith(new Error("Narration load timed out"), "narration.playback");
+    await jest.advanceTimersByTimeAsync(60_000);
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(deps.render).toHaveBeenCalledTimes(1);
+    controller.dispose();
+  });
+
+  it("reports a stream that never loads while the phone is online", async () => {
+    const { controller, deps } = setup();
+    deps.render.mockResolvedValueOnce(liveAudio);
+    await controller.play(track("a"));
+    await jest.advanceTimersByTimeAsync(15_000);
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError).toHaveBeenCalledWith(new Error("Narration load timed out"), "narration.playback");
+    controller.dispose();
+  });
 });

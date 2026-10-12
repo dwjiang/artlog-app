@@ -10,6 +10,14 @@ it("reads only the artwork's source and reference cells, including encoded IDs",
   ]);
 });
 
+it("skips the Wikidata property pages that Commons links beside each identifier", () => {
+  const html = `<table><tr><td id="fileinfotpl_src">Source</td><td><a href="https://www.artic.edu/artworks/111670">Art Institute</a> <a href="https://www.wikidata.org/wiki/Property:P4610">Art Institute of Chicago artwork ID</a> <a href="https://www.wikidata.org/wiki/Q20268582">Q20268582</a> <a href="https://commons.wikimedia.org/wiki/Category:Paintings">Category</a></td></tr></table>`;
+  expect(commonsReferences(html, "https://commons.wikimedia.org/wiki/File:A.jpg").map((r) => r.url)).toEqual([
+    "https://www.artic.edu/artworks/111670",
+    "https://www.wikidata.org/wiki/Q20268582",
+  ]);
+});
+
 it("follows statement reference URLs, not arbitrary URL-valued claims", () => {
   expect(
     wikidataReferences({

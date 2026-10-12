@@ -1,7 +1,15 @@
 from collections.abc import Iterable, Iterator
 from typing import Literal
 
-from ..normalize import ArtworkRecord, ObjectRecord, PlacementRecord, RecordTriple, clean, year
+from ..normalize import (
+    UNTITLED,
+    ArtworkRecord,
+    ObjectRecord,
+    PlacementRecord,
+    RecordTriple,
+    clean,
+    year,
+)
 from ..owner_map import AIC_KEY
 from ..rights import from_copyright_notice, from_source_flag
 
@@ -25,7 +33,7 @@ def iter_records(
             rights = from_copyright_notice(row.get("copyright_notice"))
         artwork = ArtworkRecord(
             key=key,
-            title=clean(row.get("title")) or "Untitled",
+            title=clean(row.get("title")) or UNTITLED,
             artist=clean(row.get("artist_title")) or "Unknown artist",
             artistId=f"aic:{row['artist_id']}" if row.get("artist_id") is not None else None,
             date=clean(row.get("date_display")),

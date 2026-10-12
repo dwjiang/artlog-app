@@ -1,8 +1,14 @@
 import {
+  citeQuotedFacts,
+  guideBodyProblems,
   guideOpening,
   GUIDE_SECTIONS,
   guideResearch,
   guideSchema,
+  guideShape,
+  guideWordFloor,
+  narratable,
+  normalizePassage,
   parseGuideLines,
   unsupportedLines,
   validateGuide,
@@ -217,11 +223,49 @@ it("lets a span skip a catalogue aside in parentheses or between dashes, but not
       [
         line("After a trip to Venice in late 1908—one that allowed him to look at his paintings with 'a clearer eye'"),
         line("After a trip to Venice in late 1908—Monet was ready."),
+        line("After a trip to Venice in late 1908 one that allowed him to look at his paintings with 'a clearer eye'"),
+        line(
+          "After a trip to Venice in late 1908 -- one that allowed him to look at his paintings with 'a clearer eye' -- Monet",
+        ),
       ],
       facts,
     ),
   ).toEqual([]);
-  expect(unsupportedLines([line("After a trip to Rome in late 1908—Monet was ready.")], facts)).toHaveLength(1);
+  expect(
+    unsupportedLines(
+      [
+        line("After a trip to Rome in late 1908—Monet was ready."),
+        line("After a trip to Venice in 1908 one that allowed him"),
+      ],
+      facts,
+    ),
+  ).toHaveLength(2);
+});
+
+it("drops only a cross-reference without a mark where it was cut", () => {
+  const facts = [{ id: "f1", text: "The painting was (wrongly) attributed to Monet (figs. 3–4) in 1910." }];
+  const line = (support: string) => ({
+    sentence: "It was attributed to Monet.",
+    fact_ids: ["f1"],
+    support,
+    section: "story" as const,
+  });
+  expect(unsupportedLines([line("The painting was (wrongly) attributed to Monet in 1910.")], facts)).toEqual([]);
+  expect(unsupportedLines([line("The painting was attributed to Monet in 1910.")], facts)).toHaveLength(1);
+});
+
+it("matches a span that drops accents, and ignores a stray mark but not a stray number", () => {
+  const facts = [
+    { id: "f1", text: "He made them for his murals at the Musée de l’Orangerie in Paris between 1914 and 1926." },
+  ];
+  const line = (support: string) => ({
+    sentence: "They led to his murals in Paris.",
+    fact_ids: ["f1"],
+    support,
+    section: "story" as const,
+  });
+  expect(unsupportedLines([line("his murals at the Musee de l'Orangerie in Paris. /")], facts)).toEqual([]);
+  expect(unsupportedLines([line("his murals at the Musee de l'Orangerie in Paris. 2")], facts)).toHaveLength(1);
 });
 
 it.each(["(not)", "—not—", "–not–"])("rejects an invented short negation inside %s", (negation) => {
@@ -244,6 +288,97 @@ it.each(["notable", "cannot", "noté"])("does not ground an invented negation in
     section: "story" as const,
   }));
   expect(unsupportedLines(lines, facts)).toEqual(lines);
+});
+
+it("reads a copy the same whatever its typography: accents, folded letters, dashes, hyphens and quote marks", () => {
+  expect(normalizePassage("Musée de l’Orangerie")).toBe(normalizePassage("Musee de l'Orangerie"));
+  expect(normalizePassage("Hammershøi’s Straße, Læsø, Łódź, 73 × 93 cm")).toBe(
+    "hammershois strasse, laeso, lodz, 73 x 93 cm",
+  );
+  expect(normalizePassage("in 1888–89, near‑abstract")).toBe(normalizePassage("in 1888-89, near-abstract"));
+  expect(normalizePassage("«Monet´s» „garden“ ‹pond› sea­scape")).toBe("monets garden pond seascape");
+});
+
+it("matches the dash, hyphen and cross-reference styles a copy may use, but never part of a word", () => {
+  const line = (support: string, text: string) =>
+    unsupportedLines([{ sentence: "He went.", fact_ids: ["f1"], support, section: "story" }], [{ id: "f1", text }]);
+  expect(line("He worked on it in 1888-89 at Arles", "He worked on it in 1888–89 at Arles.")).toEqual([]);
+  expect(line("He worked on it in 1888–99 at Arles", "He worked on it in 1888-89 at Arles.")).toHaveLength(1);
+  const venice = "After a trip to Venice in late 1908—one that allowed him to look at his paintings";
+  expect(line("After a trip to Venice in late 1908 - one that allowed him to look", venice)).toEqual([]);
+  for (const reference of ["(cat. no. 45)", "(see fig. 3 and cat. 45)", "(figure 3)", "[cat. 45]", "(pl. IV)", "[3]"]) {
+    const text = `The series ${reference} was begun in 1903 at Giverny.`;
+    expect(line("The series was begun in 1903 at Giverny", text)).toEqual([]);
+  }
+  expect(line("calls the canvas not", "The critic calls the canvas notable for its color.")).toHaveLength(1);
+});
+
+it("cites the facts a joined span quotes, but leaves an invented clause unsupported", () => {
+  const facts = [
+    { id: "f1", text: "I have destroyed some . . . Some I recommence." },
+    { id: "f2", text: "These struggles had already forced Monet to twice postpone exhibiting this series of works." },
+  ];
+  const joined = {
+    sentence: "He destroyed canvases and twice delayed the show.",
+    fact_ids: ["f2"],
+    support: "I have destroyed some . . . These struggles had already forced Monet to twice postpone exhibiting",
+    section: "story" as const,
+  };
+  const [cited] = citeQuotedFacts([joined], facts);
+  expect(cited.fact_ids).toEqual(["f2", "f1"]);
+  expect(unsupportedLines([cited], facts)).toEqual([]);
+  const invented = { ...joined, support: "I have destroyed some. He burned them all in the garden." };
+  expect(citeQuotedFacts([invented], facts)).toEqual([invented]);
+});
+
+it.each([
+  ["この作品では画家は庭の池に浮かぶ睡蓮と水面の反射を描いています。", "庭の池に浮かぶ睡蓮と水面の反射"],
+  ["这幅画描绘了花园池塘中的睡莲和水面上的倒影。", "花园池塘中的睡莲和水面上的倒影"],
+  ["この作品はフィンセントファンゴッホが描いた絵画です。", "フィンセントファンゴッホ"],
+  ["この作品は𠮷田博が庭の池を描いた絵画です。", "𠮷田博が庭の池を描いた"],
+  ["制作年は1889年で、作者はVincent van Goghです。", "1889年で、作者はVincent van Gogh"],
+])("grounds exact excerpts within unspaced prose and repairs their citations: %s", (text, support) => {
+  const facts = [
+    { id: "f1", text },
+    { id: "f2", text: "A separate passage." },
+  ];
+  const line = { sentence: "Look at the painting.", fact_ids: ["f1"], support, section: "look" as const };
+  expect(unsupportedLines([line], facts)).toEqual([]);
+  const [repaired] = citeQuotedFacts([{ ...line, fact_ids: ["f2"] }], facts);
+  expect(repaired.fact_ids).toEqual(["f2", "f1"]);
+  expect(unsupportedLines([repaired], facts)).toEqual([]);
+});
+
+it.each([
+  ["作者はVincent van Goghです。", "incent van Gogh"],
+  ["作者はVincent van Goghです。", "Vincent van Gog"],
+  ["制作年は1889年で画家は庭の池を描いています。", "889年で画家は庭の池を描いています"],
+  ["この作品では画家は庭の池に浮かぶ睡蓮を描いています。", "庭の池に浮かぶ蓮睡"],
+])("rejects partial Latin words, numbers and reordered characters in unspaced prose: %s", (text, support) => {
+  const facts = [{ id: "f1", text }];
+  const line = { sentence: "Look at the painting.", fact_ids: ["f1"], support, section: "look" as const };
+  expect(unsupportedLines([line], facts)).toEqual([line]);
+  const uncited = { ...line, fact_ids: [] };
+  expect(citeQuotedFacts([uncited], facts)).toEqual([uncited]);
+});
+
+it("narrates only research with two prose facts and twenty-five words of them", () => {
+  const fact = (text: string) => ({ text });
+  expect(narratable([fact("Seascene with boat listing amidst wild waves, 3 figures on the deck.")])).toBe(false);
+  expect(
+    narratable([
+      fact("It was made in England, Great Britain in 1911."),
+      fact("Seascene with boat listing amidst wild waves, 3 figures on the deck, a broken mast and damaged sail."),
+    ]),
+  ).toBe(true);
+  expect(narratable([fact("A short caption of six words."), fact("Another short caption of six words.")])).toBe(false);
+});
+
+it("never speaks a Wikidata id as a title or artist", () => {
+  expect(guideOpening({ title: "Q103036181", artist: "Thomas Fearnley", date: "1833" })).toBe(
+    "Thomas Fearnley. Dated 1833.",
+  );
+  expect(guideOpening({ title: "Leeds Woods", artist: "Q704868", date: "1888" })).toBe("Leeds Woods. Dated 1888.");
 });
 
 it("retains supported short fragments and ignores empty fragments", () => {
@@ -295,6 +430,12 @@ it("gives the guide only prose research, never catalogue lines", () => {
     "Provenance: The artist; sold to the museum, 1930.",
     "Inventory number: 1993.132",
     " Movement : Impressionism",
+    "Oil on canvas.",
+    "Helsingør mod Kronborg, vinter",
+    "Medium Oil on canvas on board",
+    "Artist James HUCK (Scottish, b.1875, d.1940)",
+    "Gift of J. Pierpont Morgan, 1907",
+    "Overall: 21 3/4 × 33 7/8 in. (55.2 × 86 cm)",
   ];
   const prose = [
     "JUDITH BARTER: Well, he was riding around in the country one day.",
@@ -308,32 +449,106 @@ it("gives the guide only prose research, never catalogue lines", () => {
   expect(guideResearch(facts).map((fact) => fact.text)).toEqual(prose);
 });
 
-it("accepts a guide only inside the 100 to 225 word band, or from 90 words when research is thin", () => {
+it.each([
+  [
+    "この作品は、画家が庭の池に映る光を長年観察して描いた連作の一つです。",
+    "画家は季節や時刻によって変わる水面の色を何度も描き続けました。",
+  ],
+  [
+    "这幅画描绘了花园池塘中的睡莲以及水面上不断变化的光线和倒影。",
+    "画家多年观察池塘中季节与光线的变化，并在这组作品中反复描绘同一景色。",
+  ],
+])("keeps substantial unspaced research available for translation and narration: %s", (...texts) => {
+  const facts = texts.map((text, index) => ({ ...researchFixture[0], id: `f${index + 1}`, text }));
+  expect(guideResearch(facts)).toEqual(facts);
+  expect(narratable(guideResearch(facts))).toBe(true);
+});
+
+it("keeps short unspaced captions out while recognizing sentence punctuation", () => {
+  const prose = "この絵は庭の池を描いています。";
+  const facts = ["神奈川沖浪裏", "油彩、画布。", prose].map((text) => ({ ...researchFixture[0], text }));
+  expect(guideResearch(facts).map(({ text }) => text)).toEqual([prose]);
+  expect(narratable(guideResearch(facts))).toBe(false);
+});
+
+it("accepts a guide inside a word band whose floor shrinks with thin research", () => {
   const extra = (count: number) =>
     Array.from({ length: count }, (_, index) => ({
       sentence: `Extra sentence ${index + 1} about the lilies resting on the pond and the reflections of the garden around them.`,
       factIds: ["f1"],
       section: "story" as const,
     }));
-  // The first five fixture sentences run 85 words; the short line brings them to 92.
-  const short = { sentence: "One more lily rests near the edge.", factIds: ["f1"], section: "takeaway" as const };
+  expect([1, 2, 4, 7, 8, 20].map(guideWordFloor)).toEqual([30, 40, 60, 90, 100, 100]);
+  // The fixture sentences run 22, 38, 54, 70, 85 and 102 words cumulatively.
   expect(validateGuideBody(guideBodyFixture.slice(0, 6), richIds)).toHaveLength(6);
   expect(validateGuideBody(guideBodyFixture.slice(0, 5), richIds)).toBeNull();
-  expect(validateGuideBody([...guideBodyFixture.slice(0, 5), short], richIds)).toBeNull();
-  expect(validateGuideBody([...guideBodyFixture.slice(0, 5), short], ids)).toHaveLength(6);
-  expect(validateGuideBody(guideBodyFixture.slice(0, 5), ids)).toBeNull();
+  expect(validateGuideBody(guideBodyFixture.slice(0, 2), ids)).toBeNull();
+  expect(validateGuideBody(guideBodyFixture.slice(0, 3), ids)).toHaveLength(3);
   expect(validateGuideBody([...guideBodyFixture, ...extra(2)], richIds)).toHaveLength(12);
   expect(validateGuideBody([...guideBodyFixture, ...extra(3)], richIds)).toBeNull();
 });
 
-it("asks for the thread and quote first, then short hook, look, story and takeaway sentences", () => {
-  const full = guideSchema(richIds.size);
-  const thin = guideSchema(ids.size);
+it("tells the writer which rule a script broke", () => {
+  expect(guideBodyProblems(guideBodyFixture.slice(0, 5), richIds)).toEqual([
+    "The script has 85 words after the opening; it needs 100 to 225.",
+  ]);
+  expect(
+    guideBodyProblems([...guideBodyFixture.slice(0, 6), { ...guideBodyFixture[1], section: "story" }], richIds),
+  ).toEqual([`"${guideBodyFixture[1].sentence}" is repeated.`]);
+});
+
+it("keeps an editor's insertion inside a quote but not a citation", () => {
+  const quoted = (sentence: string) => [
+    ...guideBodyFixture.slice(0, 6),
+    { sentence, factIds: ["f1"], section: "story" },
+  ];
+  expect(validateGuideBody(quoted("Monet wrote that ‘[t]he light changes constantly.’"), richIds)).toHaveLength(7);
+  expect(validateGuideBody(quoted("He called it ‘my [most] beautiful canvas.’"), richIds)).toHaveLength(7);
+  expect(validateGuideBody(quoted("The garden [f1] appears twice."), richIds)).toBeNull();
+  expect(validateGuideBody(quoted("The garden [citation needed] appears twice."), richIds)).toBeNull();
+});
+
+it("shapes the stop to its research: about two sentences a fact, the full shape from eight facts", () => {
+  const sizes = (factCount: number) => {
+    const shape = guideShape(factCount);
+    return GUIDE_SECTIONS.map((section) => shape[section]);
+  };
+  expect(sizes(2)).toEqual([
+    [1, 1],
+    [1, 2],
+    [1, 2],
+    [1, 1],
+  ]);
+  expect(sizes(4)).toEqual([
+    [1, 2],
+    [2, 4],
+    [2, 4],
+    [1, 2],
+  ]);
+  expect(sizes(7)).toEqual([
+    [1, 2],
+    [2, 4],
+    [5, 7],
+    [1, 2],
+  ]);
+  expect(sizes(8)).toEqual([
+    [1, 2],
+    [2, 4],
+    [6, 7],
+    [1, 2],
+  ]);
+});
+
+it("asks for the thread and quote first, then short hook, look, story and takeaway sentences citing real facts", () => {
+  const full = guideSchema([...richIds]);
+  const thin = guideSchema([...ids]);
   expect(Object.keys(full.properties)).toEqual(["thread", "quote", "hook", "look", "story", "takeaway"]);
   expect(full.required).toEqual(["thread", "quote", "hook", "look", "story", "takeaway"]);
   expect(full.properties.story.minItems).toBe(6);
-  expect(thin.properties.story.minItems).toBe(5);
-  const relaxed = guideSchema(richIds.size, { relaxed: true });
+  expect([thin.properties.story.minItems, thin.properties.story.maxItems]).toEqual([1, 2]);
+  expect(thin.properties.story.items.properties.fact_ids.items.enum).toEqual(["f1", "f2"]);
+  expect(thin.properties.quote.anyOf[0].properties?.fact_id.enum).toEqual(["f1", "f2"]);
+  const relaxed = guideSchema([...richIds], { relaxed: true });
   expect(GUIDE_SECTIONS.map((section) => relaxed.properties[section].minItems)).toEqual([1, 1, 1, 1]);
   expect(relaxed.properties.story.maxItems).toBe(full.properties.story.maxItems);
   expect(full.properties.look.items.properties.sentence.maxLength).toBe(140);

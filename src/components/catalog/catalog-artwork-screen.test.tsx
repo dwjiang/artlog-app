@@ -10,6 +10,8 @@ let mockOffline = false;
 let mockArtwork: unknown;
 let mockEnrichment: unknown;
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush, back: mockBack }) }));
+jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
+jest.mock("@/lib/ui/toast", () => ({ showErrorToast: jest.fn() }));
 jest.mock("convex/react", () => ({ ...jest.requireActual("convex/react"), useMutation: () => mockResearch }));
 jest.mock("@/lib/audio/use-listening");
 jest.mock("@/lib/audio/use-cached-narration-duration", () => ({ useCachedNarrationDuration: () => undefined }));
@@ -84,17 +86,40 @@ it("researches a work nobody has scanned once, showing loading lines until the r
   await act(async () => {});
   expect(mockResearch).toHaveBeenCalledTimes(1);
   expect(mockResearch).toHaveBeenCalledWith({ artworkId });
-  expect(screen.queryByText("Background information isn’t available for this work yet.")).toBeNull();
+  expect(screen.queryByText("Background information isn’t available for this work.")).toBeNull();
   // The audio guide waits for a play; only the written story is researched on open.
   expect(screen.getByRole("button", { name: "Play audio guide" })).toBeOnTheScreen();
 
-  // The run claims the work, then ends without finding sources.
+  // The run claims the work, then ends without finding sources, so nothing more can be researched.
   mockEnrichment = { ...(mockEnrichment as object), docentWriting: true, docentGeneration: 1 };
   await view.rerender(<CatalogArtworkScreen artworkId={artworkId} />);
-  mockEnrichment = { ...(mockEnrichment as object), docentWriting: false };
+  mockEnrichment = {
+    ...(mockEnrichment as object),
+    docentWriting: false,
+    docentStatus: "unavailable",
+    narrationAvailable: false,
+  };
   await view.rerender(<CatalogArtworkScreen artworkId={artworkId} />);
-  expect(screen.getByText("Background information isn’t available for this work yet.")).toBeOnTheScreen();
+  expect(screen.getByText("Background information isn’t available for this work.")).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   expect(mockResearch).toHaveBeenCalledTimes(1);
+});
+
+it("offers Try again when a run ends without its story, and researches again from it", async () => {
+  mockEnrichment = { ...told, docent: undefined, factSheet: undefined, narrationFacts: undefined };
+  const view = await render(<CatalogArtworkScreen artworkId={artworkId} />);
+  await act(async () => {});
+  mockEnrichment = { ...(mockEnrichment as object), docentWriting: true, docentGeneration: 1 };
+  await view.rerender(<CatalogArtworkScreen artworkId={artworkId} />);
+  // The backend failed the run, or released its claim once it went stale.
+  mockEnrichment = { ...(mockEnrichment as object), docentWriting: false, docentStatus: "failed" };
+  await view.rerender(<CatalogArtworkScreen artworkId={artworkId} />);
+  expect(screen.getByText("Couldn’t load background information for this work.")).toBeOnTheScreen();
+  expect(mockResearch).toHaveBeenCalledTimes(1);
+  await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+  expect(mockResearch).toHaveBeenCalledTimes(2);
+  expect(mockResearch).toHaveBeenLastCalledWith({ artworkId, retry: true });
+  expect(screen.getByLabelText("Loading artwork information…")).toBeOnTheScreen();
 });
 
 it.each(["before", "after"])(
@@ -110,10 +135,15 @@ it.each(["before", "after"])(
     mockEnrichment = { ...told, docent: undefined, factSheet: undefined, narrationFacts: undefined };
     const view = await render(<CatalogArtworkScreen artworkId={artworkId} />);
     if (order === "after") await act(async () => resolveResearch(true));
-    mockEnrichment = { ...(mockEnrichment as object), docentGeneration: 1 };
+    mockEnrichment = {
+      ...(mockEnrichment as object),
+      docentGeneration: 1,
+      docentStatus: "unavailable",
+      narrationAvailable: false,
+    };
     await view.rerender(<CatalogArtworkScreen artworkId={artworkId} />);
     if (order === "before") await act(async () => resolveResearch(true));
-    expect(screen.getByText("Background information isn’t available for this work yet.")).toBeOnTheScreen();
+    expect(screen.getByText("Background information isn’t available for this work.")).toBeOnTheScreen();
     expect(screen.queryByRole("progressbar", { name: "Loading artwork information…" })).toBeNull();
     expect(mockResearch).toHaveBeenCalledTimes(1);
   },

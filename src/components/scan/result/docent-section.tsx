@@ -30,6 +30,8 @@ export type DocentSectionProps = {
   /** The backend's progress on this artwork's sentences; omitted where nothing is being written. */
   status?: DocentStatus;
   onRetry?: () => Promise<unknown>;
+  /** The backend ends a stale run itself, so `writing` holds for as long as it says instead of timing out. */
+  waitWhileWriting?: boolean;
   /** Offered at the end of the title while there are sentences to report. */
   report?: ContentReportTarget;
 };
@@ -67,16 +69,24 @@ export function citeDocent(docent: DocentSentence[], factSheet: FactChip[] = [])
 }
 
 /** Cited docent prose: one paragraph with numbered markers, then the numbered sources. */
-export function DocentSection({ docent, factSheet, title, status, onRetry, report }: DocentSectionProps) {
+export function DocentSection({
+  docent,
+  factSheet,
+  title,
+  status,
+  onRetry,
+  waitWhileWriting,
+  report,
+}: DocentSectionProps) {
   // A retry restarts the wait and remounts the failed state, so each attempt gets its own toast.
   const [attempt, setAttempt] = useState(0);
   const [stalled, setStalled] = useState(false);
   const writing = status === "writing";
   useEffect(() => {
-    if (!writing) return;
+    if (!writing || waitWhileWriting) return;
     const timer = setTimeout(() => setStalled(true), DOCENT_WAIT_MS);
     return () => clearTimeout(timer);
-  }, [writing, attempt]);
+  }, [writing, waitWhileWriting, attempt]);
   const retry =
     onRetry
     && (async () => {
@@ -100,7 +110,7 @@ export function DocentSection({ docent, factSheet, title, status, onRetry, repor
       ) : writing ? (
         <ParagraphSkeleton />
       ) : (
-        <ThemedText themeColor="textSecondary">Background information isn’t available for this work yet.</ThemedText>
+        <ThemedText themeColor="textSecondary">Background information isn’t available for this work.</ThemedText>
       )}
     </View>
   );

@@ -9,6 +9,8 @@ from pipeline.enrich.sources import (
     SourceGatherer,
     about_work,
     links_to_artwork,
+    page_text,
+    plain_markdown,
     source_identity,
     source_score,
     trim_sources,
@@ -316,6 +318,42 @@ def test_owner_page_is_canonical_regardless_of_domain_score():
         )
     assert source_score("https://www.sfmoma.org/artwork/1") == 0.95
     assert [(s["label"], s["score"], s["text"]) for s in sources] == [("SFMOMA", 1.0, "Wall label")]
+    # The museum's own text is never dropped by a reference review.
+    assert sources[0]["firstParty"] is True
+
+
+def test_page_text_joins_inline_tags_keeps_blocks_and_drops_footnotes():
+    html = """<html><body><nav>Menu</nav><main>
+      <p>He painted <em>Water Lilies</em>, one of (<i>Nymph&eacute;as</i>) his series&rsquo; last works<sup>3</sup>.</p>
+      <dl><dt>Medium</dt><dd>Oil on canvas</dd></dl><script>track()</script>
+    </main><footer>Contact</footer></body></html>"""
+    assert page_text(html) == (
+        "He painted Water Lilies, one of (Nymphéas) his series’ last works.\nMedium\nOil on canvas"
+    )
+
+
+@pytest.mark.parametrize("status", [403, 429])
+def test_blocked_owner_page_is_read_through_the_extractor_when_search_misses_it(status):
+    text = "The painting shows the museum's garden pond in early summer light, painted outdoors."
+    extract = Mock(
+        return_value=[{"url": "https://www.metmuseum.org/art/1", "raw_content": f"**{text}**"}]
+    )
+    with PoliteClient(
+        user_agent="test",
+        robots=False,
+        transport=httpx.MockTransport(lambda _: httpx.Response(status)),
+    ) as http:
+        sources = SourceGatherer(http, lambda _, domains: [], extract=extract).gather(
+            {"title": "Test", "artist": "Artist"},
+            {
+                "pageUrl": "https://www.metmuseum.org/art/1",
+                "owner": {"name": "The Met", "website": "https://www.metmuseum.org"},
+            },
+        )
+    extract.assert_called_once_with(["https://www.metmuseum.org/art/1"])
+    assert [(s["label"], s["score"], s["text"], s.get("firstParty")) for s in sources] == [
+        ("The Met", 1.0, text, True)
+    ]
 
 
 def test_owner_redirect_is_rejected_before_fetching_another_host():
@@ -604,6 +642,7 @@ def test_chicago_work_finds_its_wikidata_item_and_reads_the_api_text():
         ),
         ("https://www.wikidata.org/wiki/Q18713076", "Label: The Bedroom"),
     ]
+    assert [source.get("firstParty", False) for source in sources] == [True, False]
     assert 'wdt:P4610 "28560"' in queries[0]
 
 
@@ -937,3 +976,47 @@ def test_rejected_references_cannot_displace_catalogue_research():
     accepted, conflicts = review_references(provider, sources, {})
     assert not conflicts
     assert [s["text"] for s in trim_sources(accepted)] == [article]
+
+
+def test_footnote_markers_leave_search_text_so_a_copied_sentence_still_matches():
+    text = (
+        "He painted it in 1916.[[1]](https://en.wikipedia.org/wiki/Work#cite_note-1) It hangs in"
+        " Paris.[2] Its owner[citation needed] lent it[note 3] in 1920[a]. See [the museum]"
+        "(https://museum.example/work)."
+    )
+    assert plain_markdown(text) == (
+        "He painted it in 1916. It hangs in Paris. Its owner lent it in 1920. See the museum."
+    )
+
+
+def test_a_citation_vouches_for_identity_not_quality():
+    citations = ["https://auction.example/lot/1", "https://fr.wikipedia.org/wiki/Carnaval"]
+    entity = {
+        "id": "Q1",
+        "claims": {
+            "P170": [
+                {"references": [{"snaks": {"P854": [{"datavalue": {"value": url}}]}}]}
+                for url in citations
+            ]
+        },
+    }
+
+    def respond(request):
+        if request.url.host == "www.wikidata.org":
+            return httpx.Response(200, json={"entities": {"Q1": entity}})
+        raise AssertionError(request.url)
+
+    extract = Mock(
+        return_value=[
+            {"url": url, "raw_content": f"{url} describes the lot. " * 4} for url in citations
+        ]
+    )
+    with PoliteClient(
+        user_agent="test", robots=False, transport=httpx.MockTransport(respond)
+    ) as http:
+        sources = SourceGatherer(http, Mock(return_value=[]), extract=extract).gather(
+            {"title": "Carnival and Lent", "artist": "Marten van Cleve", "wikidataId": "Q1"}, {}
+        )
+    scores = {source["url"]: source["score"] for source in sources if source.get("referenceUrl")}
+    # Below the admission threshold a page keeps the citation's score; a scored page keeps its own.
+    assert scores == {citations[0]: 0.8, citations[1]: 0.7}

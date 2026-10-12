@@ -128,24 +128,124 @@ def test_accepts_exact_excerpts_within_unspaced_prose(text, evidence, field, con
         ("この星月夜の制作年は1889年です。", "月星夜"),
     ],
 )
-def test_rejects_partial_words_numbers_and_reordered_characters_in_unspaced_prose(text, evidence):
+def test_leaves_out_a_reference_quoted_with_partial_words_numbers_or_reordered_characters(
+    text, evidence
+):
     row = {**ROW, "evidence": evidence, "conflicts": []}
-    with pytest.raises(ValueError, match="Invalid reference review"):
-        review_references(
-            Mock(chat=Mock(return_value={"reviews": [row]})), [{**SOURCE, "text": text}], {}
-        )
+    assert review_references(
+        Mock(chat=Mock(return_value={"reviews": [row]})), [{**SOURCE, "text": text}], {}
+    ) == ([], [])
 
 
 @pytest.mark.parametrize(
-    "rows",
+    "value",
     [
-        [],
-        [ROW, ROW],
-        [{**ROW, "evidence": "Invented passage"}],
-        [{**ROW, "evidence": "ollower of Pieter Brueg"}],
-        [{**ROW, "conflicts": [{"field": "date", "text": "Made in 1612"}]}],
+        None,
+        {"reviews": []},
+        {"reviews": [{**ROW, "evidence": "Invented passage"}]},
+        {"reviews": [{**ROW, "evidence": "ollower of Pieter Brueg"}]},
+        {"reviews": [{**ROW, "conflicts": [{"field": "date", "text": "Made in 1612"}]}]},
+        {
+            "reviews": [
+                {**ROW, "conflicts": [{"field": "title", "text": ROW["conflicts"][0]["text"]}]}
+            ]
+        },
     ],
 )
-def test_invalid_reviews_fail_closed(rows):
-    with pytest.raises(ValueError):
-        review_references(Mock(chat=Mock(return_value={"reviews": rows})), [SOURCE], {})
+def test_leaves_out_a_reference_whose_review_is_missing_or_ungrounded(value):
+    assert review_references(Mock(chat=Mock(return_value=value)), [SOURCE], {}) == ([], [])
+
+
+def test_an_unreadable_review_leaves_out_only_the_references():
+    catalogue = {**SOURCE, "url": "https://museum.example/work", "referenceUrl": None}
+    provider = Mock(chat=Mock(side_effect=ValueError("Invalid or truncated model JSON")))
+    assert review_references(provider, [SOURCE, catalogue], {}) == ([catalogue], [])
+
+
+def test_reads_each_row_on_its_own():
+    second = {**SOURCE, "url": "https://auction.example/2", "text": "Another lot. Oil on panel."}
+    rows = [
+        {**ROW, "conflicts": []},
+        {**ROW, "conflicts": []},
+        {"source": "s2", "relation": "same_artwork", "evidence": "invented", "conflicts": []},
+    ]
+    provider = Mock(chat=Mock(return_value={"reviews": rows}))
+    assert review_references(provider, [SOURCE, second], {}) == ([SOURCE], [])
+
+
+def test_never_drops_the_museums_own_page_but_still_flags_its_attribution():
+    owner = {**SOURCE, "url": "https://museum.example/work", "firstParty": True}
+    uncertain = {**ROW, "relation": "uncertain", "conflicts": []}
+    assert review_references(
+        Mock(chat=Mock(return_value={"reviews": [uncertain]})), [owner], {}
+    ) == ([owner], [])
+    _, conflicts = review_references(Mock(chat=Mock(return_value={"reviews": [ROW]})), [owner], {})
+    assert len(conflicts) == 1
+
+
+AGREEING = [
+    ("date", "Dated 1840", {"artist": "Baijnath", "yearStart": 1840, "yearEnd": 1840}),
+    ("date", "ca. 1700–1710", {"artist": "Unknown artist", "yearStart": 1705, "yearEnd": 1705}),
+    ("date", "c. 1695", {"artist": "Unknown artist", "yearStart": 1700, "yearEnd": 1700}),
+    ("date", "18th century", {"artist": "Unknown artist", "date": "1765"}),
+    ("date", "1898–03", {"artist": "Unknown artist", "yearStart": 1900, "yearEnd": 1900}),
+    ("date", "1698–02", {"artist": "Unknown artist", "date": "1701"}),
+    ("date", "1900", {"artist": "Unknown artist", "date": "1898–03"}),
+    ("artist", "Unknown", {"artist": "Baijnath"}),
+    ("artist", "Anonymous", {"artist": "Baijnath"}),
+    ("artist", "Vincent van Gogh (1853–1890)", {"artist": "Vincent van Gogh"}),
+]
+DISAGREEING = [
+    ("date", "1916", {"artist": "Pierre Bonnard", "yearStart": 1939, "yearEnd": 1939}),
+    ("date", "1898–03", {"artist": "Unknown artist", "yearStart": 1820, "yearEnd": 1820}),
+    ("date", "1698–02", {"artist": "Unknown artist", "date": "1620"}),
+    ("date", "Edo period", {"artist": "Unknown artist", "yearStart": 1700, "yearEnd": 1700}),
+    ("artist", "Follower of Pieter Brueghel II", {"artist": "Pieter Brueghel II"}),
+]
+
+
+@pytest.mark.parametrize(("field", "text", "target"), AGREEING + DISAGREEING)
+def test_drops_only_conflicts_that_agree_with_the_work(field, text, target):
+    page = {**SOURCE, "text": f"Object record. {text}. Oil on panel."}
+    row = {**ROW, "evidence": "Object record", "conflicts": [{"field": field, "text": text}]}
+    sources, conflicts = review_references(
+        Mock(chat=Mock(return_value={"reviews": [row]})), [page], target
+    )
+    assert sources == [page]
+    assert len(conflicts) == (0 if (field, text, target) in AGREEING else 1)
+
+
+def test_review_reads_the_top_of_each_page_and_only_what_identifies_a_reference():
+    provider = Mock(chat=Mock(return_value={"reviews": []}))
+    catalogue = {
+        "url": "https://museum.example/work",
+        "label": "Museum",
+        "score": 1,
+        "text": "c" * 9000,
+    }
+    reference = {**SOURCE, "text": "r" * 9000}
+    review_references(provider, [catalogue, reference], {"title": "Work", "artist": "Artist"})
+    sent = provider.chat.call_args.kwargs["inputs"]
+    assert sent["catalogue"] == [{"url": catalogue["url"], "text": "c" * 2500}]
+    assert sent["references"] == [
+        {
+            "source": "s2",
+            "url": SOURCE["url"],
+            "label": SOURCE["label"],
+            "referenceUrl": SOURCE["referenceUrl"],
+            "text": "r" * 6000,
+        }
+    ]
+
+
+def test_commons_references_skip_wiki_namespace_pages():
+    html = (
+        '<table><tr><td id="fileinfotpl_src">Source</td><td>'
+        '<a href="https://www.wikidata.org/wiki/Property:P4610">Art Institute ID</a>'
+        '<a href="https://commons.wikimedia.org/wiki/Category:Paintings">Paintings</a>'
+        '<a href="https://www.artic.edu/artworks/27992">27992</a>'
+        "</td></tr></table>"
+    )
+    assert commons_references(html, SOURCE["referenceUrl"]) == [
+        {"url": "https://www.artic.edu/artworks/27992", "referenceUrl": SOURCE["referenceUrl"]}
+    ]

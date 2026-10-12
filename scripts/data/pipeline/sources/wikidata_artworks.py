@@ -8,6 +8,7 @@ from pathlib import Path
 
 import httpx
 
+from ..normalize import UNTITLED, clean
 from ..wikidata import sparql
 from .fetch import write_json
 
@@ -59,8 +60,51 @@ MULTIPLE_CLASSES = {
 }
 
 
+PUBLISHED_TITLE = "P1476"
+UNKNOWN_ARTIST = "Unknown artist"
+# Wikidata shows English readers the multilingual ("mul") label when there is no English one;
+# regional English ("en-" variants) and the label service's former fallbacks follow.
+LANGUAGE_ORDER = ("en", "mul", "en-", "fr", "de", "es", "it")
+
+
 def _classes(values: Iterable[str]) -> str:
     return " ".join(f"wd:{value}" for value in values)
+
+
+def _language_rank(language: str) -> tuple[int, str]:
+    order = "en-" if language.startswith("en-") else language
+    if order in LANGUAGE_ORDER:
+        return LANGUAGE_ORDER.index(order), language
+    return len(LANGUAGE_ORDER), language
+
+
+def _best_name(entity: str, names: Iterable[tuple[str, str]]) -> str | None:
+    """The first (text, language) name in `_language_rank` order, never the entity's own ID, which
+    the label service returns for unlabeled entities."""
+    usable = [
+        (_language_rank(language), text)
+        for name, language in names
+        if (text := clean(name)) and text != entity
+    ]
+    return min(usable)[1] if usable else None
+
+
+def artwork_title(
+    entity: str, labels: Iterable[tuple[str, str]], titles: Iterable[tuple[str, str]]
+) -> str:
+    """An English or multilingual label, then a title (P1476) claim, then a label in any language."""
+    labels = list(labels)
+    english = [(name, language) for name, language in labels if language in ("en", "mul")]
+    return (
+        _best_name(entity, english)
+        or _best_name(entity, titles)
+        or _best_name(entity, labels)
+        or UNTITLED
+    )
+
+
+def artist_name(entity: str, labels: Iterable[tuple[str, str]]) -> str:
+    return _best_name(entity, labels) or UNKNOWN_ARTIST
 
 
 def census_queries(current_year: int) -> list[str]:
@@ -96,12 +140,37 @@ def census_queries(current_year: int) -> list[str]:
 def metadata_query(qids: list[str]) -> str:
     from ..wikidata import _values
 
-    return f"""SELECT ?item ?itemLabel ?cls ?image ?artist ?artistLabel ?death ?inception
-      ?location ?copyright ?collection ?accession ?directAccession ?series ?versionOf WHERE {{
+    # Titles and other-language labels are asked for only when they can win (see `artwork_title`),
+    # so the dozens of labels famous works carry do not multiply their rows.
+    return f"""SELECT ?item ?nameEn ?title ?nameAny ?cls ?image ?artist ?artistName ?artistAny
+      ?death ?inception ?location ?copyright ?collection ?accession ?directAccession ?series
+      ?versionOf WHERE {{
       VALUES ?item {{ {_values(qids)} }}
       VALUES ?cls {{ wd:{PAINTING} {_classes(FLAT_CLASSES)} }}
       ?item wdt:P31 ?cls; wdt:P18 ?image .
-      OPTIONAL {{ ?item wdt:P170 ?artist . OPTIONAL {{ ?artist wdt:P570 ?death }} }}
+      OPTIONAL {{ ?item rdfs:label ?en . FILTER(LANG(?en) = "en") }}
+      OPTIONAL {{ ?item rdfs:label ?mul . FILTER(LANG(?mul) = "mul") }}
+      BIND(COALESCE(?en, ?mul) AS ?nameEn)
+      OPTIONAL {{
+        ?item wdt:{PUBLISHED_TITLE} ?title .
+        FILTER NOT EXISTS {{ ?item rdfs:label ?english . FILTER(LANG(?english) IN ("en", "mul")) }}
+      }}
+      OPTIONAL {{
+        ?item rdfs:label ?nameAny .
+        FILTER NOT EXISTS {{ ?item rdfs:label ?english . FILTER(LANG(?english) IN ("en", "mul")) }}
+        FILTER NOT EXISTS {{ ?item wdt:{PUBLISHED_TITLE} ?published }}
+      }}
+      OPTIONAL {{
+        ?item wdt:P170 ?artist .
+        OPTIONAL {{ ?artist wdt:P570 ?death }}
+        OPTIONAL {{ ?artist rdfs:label ?artistEn . FILTER(LANG(?artistEn) = "en") }}
+        OPTIONAL {{ ?artist rdfs:label ?artistMul . FILTER(LANG(?artistMul) = "mul") }}
+        BIND(COALESCE(?artistEn, ?artistMul) AS ?artistName)
+        OPTIONAL {{
+          ?artist rdfs:label ?artistAny .
+          FILTER NOT EXISTS {{ ?artist rdfs:label ?named . FILTER(LANG(?named) IN ("en", "mul")) }}
+        }}
+      }}
       OPTIONAL {{ ?item wdt:P571 ?inception }}
       OPTIONAL {{ ?item wdt:P276 ?location }}
       OPTIONAL {{ ?item wdt:P6216 ?copyright }}
@@ -114,7 +183,6 @@ def metadata_query(qids: list[str]) -> str:
       OPTIONAL {{ ?item wdt:P217 ?directAccession }}
       OPTIONAL {{ ?item wdt:P179 ?series }}
       OPTIONAL {{ ?item wdt:P144 ?versionOf }}
-      SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en,mul,fr,de,es,it". }}
     }}"""
 
 
@@ -259,11 +327,14 @@ def fetch_artworks(
 def iter_records(bindings, *, owners, current_year=None):
     from urllib.parse import quote, unquote, urlsplit
 
-    from ..normalize import ArtworkRecord, ObjectRecord, PlacementRecord, clean, qid, year
+    from ..normalize import ArtworkRecord, ObjectRecord, PlacementRecord, qid, year
     from ..rights import from_wikidata
 
     grouped = defaultdict(list)
     unknown = defaultdict(set)
+    labels = defaultdict(set)
+    titles = defaultdict(set)
+    artist_labels = defaultdict(lambda: defaultdict(set))
     for binding in bindings:
         unknown_fields = {
             key
@@ -273,7 +344,7 @@ def iter_records(bindings, *, owners, current_year=None):
         if qid(binding.get("artist", {}).get("value")) == ANONYMOUS_CREATOR_ID:
             unknown_fields.add("artist")
         if "artist" in unknown_fields:
-            unknown_fields.add("artistLabel")
+            unknown_fields.update(("artistName", "artistAny", "artistLabel"))
         values = {
             key: entry["value"] for key, entry in binding.items() if key not in unknown_fields
         }
@@ -281,6 +352,18 @@ def iter_records(bindings, *, owners, current_year=None):
         if entity:
             grouped[entity].append(values)
             unknown[entity].update(unknown_fields)
+            # Snapshots from label-service queries carry itemLabel and artistLabel, which are the
+            # entity's ID when it has no label.
+            fields = {"nameEn": labels, "nameAny": labels, "itemLabel": labels, "title": titles}
+            for field, names in fields.items():
+                if field in values:
+                    names[entity].add((values[field], binding[field].get("xml:lang", "")))
+            if artist := values.get("artist"):
+                for field in ("artistName", "artistAny", "artistLabel"):
+                    if field in values:
+                        artist_labels[entity][artist].add(
+                            (values[field], binding[field].get("xml:lang", ""))
+                        )
     for entity, rows in sorted(grouped.items()):
 
         def values(field, data=rows):
@@ -337,14 +420,16 @@ def iter_records(bindings, *, owners, current_year=None):
         inceptions = values("inception")
         years = [date for date in (year(value) for value in inceptions) if date is not None]
         series = sorted({series_id for value in values("series") if (series_id := qid(value))})
-        artist_labels = values("artistLabel")
+        artist_names = {
+            artist_name(qid(artist), artist_labels[entity][artist]) for artist in artists
+        }
         if "artist" in unknown[entity]:
-            artist_labels = sorted(set(artist_labels) | {"Unknown artist"})
+            artist_names.add(UNKNOWN_ARTIST)
         artwork = ArtworkRecord(
             key=key,
             wikidataId=entity,
-            title=next(iter(values("itemLabel")), entity),
-            artist="; ".join(artist_labels) or "Unknown artist",
+            title=artwork_title(entity, labels[entity], titles[entity]),
+            artist="; ".join(sorted(artist_names)) or UNKNOWN_ARTIST,
             artistId=qid(artists[0])
             if len(artists) == 1 and "artist" not in unknown[entity]
             else None,

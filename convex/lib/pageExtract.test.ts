@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { graphPage, jsonLdPage, metaPage, plainPage } from "./labelFixtures";
-import { decodeEntities, extractPage, hasArtworkMetadata } from "./pageExtract";
+import { decodeEntities, extractPage, hasArtworkMetadata, pageText } from "./pageExtract";
 
 describe("page extraction", () => {
   it("reads a schema.org VisualArtwork node before any meta fallback", () => {
@@ -70,8 +70,16 @@ describe("page extraction", () => {
   });
 
   it("decodes named, decimal and hex entities and leaves unknown ones alone", () => {
-    expect(decodeEntities("Caf&eacute; &amp; &#8220;Bar&#x201D; &ndash; &bogus;")).toBe(
-      "Caf&eacute; & “Bar” – &bogus;",
+    expect(decodeEntities("Caf&eacute; &amp; &#8220;Bar&#x201D; &ndash; &bogus;")).toBe("Café & “Bar” – &bogus;");
+  });
+
+  it("reads a page's main text as written: inline tags joined, blocks on their own lines, footnotes dropped", () => {
+    const html = `<html><body><nav>Menu</nav><main>
+      <p>He painted <em>Water Lilies</em>, one of (<i>Nymph&eacute;as</i>) his series&rsquo; last works<sup>3</sup>.</p>
+      <dl><dt>Medium</dt><dd>Oil on canvas</dd></dl><script>track()</script>
+    </main><footer>Contact</footer></body></html>`;
+    expect(pageText(html)).toBe(
+      "He painted Water Lilies, one of (Nymphéas) his series’ last works.\nMedium\nOil on canvas",
     );
   });
 

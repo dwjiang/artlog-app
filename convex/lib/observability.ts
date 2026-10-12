@@ -136,14 +136,15 @@ const TIMEOUT_MS = 1500;
 let cached: { dsn: string; transport: Transport } | undefined;
 const reported = new WeakSet<object>();
 
-function errorData(error: unknown): { code?: string; reason?: string } {
+function errorData(error: unknown): { code?: string; reason?: string; schema?: string } {
   if (!(error instanceof ConvexError) || !error.data || typeof error.data !== "object") {
     return {};
   }
-  const { code, reason } = error.data as Record<string, unknown>;
+  const { code, reason, schema } = error.data as Record<string, unknown>;
   return {
     code: typeof code === "string" ? code : undefined,
     reason: typeof reason === "string" ? reason : undefined,
+    schema: typeof schema === "string" ? schema : undefined,
   };
 }
 
@@ -218,7 +219,7 @@ export async function reportBackendError(
     // Only the production deployment sets a DSN, so every other deployment stays silent.
     const dsn = env.SENTRY_DSN;
     if (!dsn) return null;
-    const { code, reason } = errorData(error);
+    const { code, reason, schema } = errorData(error);
     if ((code && expectedCodes.has(code)) || (error instanceof Error && error.name === "AbortError")) {
       return null;
     }
@@ -251,6 +252,8 @@ export async function reportBackendError(
         operation,
         ...(safeCode ? { error_code: safeCode } : {}),
         ...(safeReason ? { reason: safeReason } : {}),
+        // Model schema names are code identifiers, never user content.
+        ...(schema && /^[A-Za-z]{1,40}$/.test(schema) ? { model_schema: schema } : {}),
         ...(context.artworkId ? { artwork_id: context.artworkId } : {}),
       },
       exception: {

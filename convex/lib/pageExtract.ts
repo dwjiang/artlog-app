@@ -1,3 +1,5 @@
+import { parse, type DefaultTreeAdapterTypes } from "parse5";
+
 import { personMatches } from "./textMatch";
 
 export type PageFields = {
@@ -29,6 +31,24 @@ const NAMED_ENTITIES: Record<string, string> = {
   ndash: "–",
   mdash: "—",
   hellip: "…",
+  lsquo: "‘",
+  rsquo: "’",
+  ldquo: "“",
+  rdquo: "”",
+  laquo: "«",
+  raquo: "»",
+  times: "×",
+  eacute: "é",
+  egrave: "è",
+  agrave: "à",
+  aacute: "á",
+  ccedil: "ç",
+  ouml: "ö",
+  uuml: "ü",
+  auml: "ä",
+  oslash: "ø",
+  aring: "å",
+  szlig: "ß",
 };
 const ARTWORK_TYPES = new Set(["visualartwork", "painting"]);
 const TITLE_SEPARATOR = /\s+[|\-–—]\s+|\s*\|\s*/;
@@ -121,15 +141,87 @@ export function visibleText(html: string): string {
   ).replaceAll(/\s+/g, " ");
 }
 
-const BOILERPLATE = /<(script|style|noscript|nav|header|footer|aside|form|svg)\b[\s\S]*?<\/\1>/gi;
+type HtmlNode = DefaultTreeAdapterTypes.ChildNode;
+
+// Site chrome, scripts and footnote markers ("Water Lilies<sup>3</sup>") are not part of the readable text.
+const SKIPPED = new Set([
+  "script",
+  "style",
+  "noscript",
+  "template",
+  "nav",
+  "header",
+  "footer",
+  "aside",
+  "form",
+  "svg",
+  "sup",
+]);
+const BLOCKS = new Set([
+  "address",
+  "article",
+  "blockquote",
+  "br",
+  "dd",
+  "div",
+  "dl",
+  "dt",
+  "figcaption",
+  "figure",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "hr",
+  "li",
+  "main",
+  "ol",
+  "p",
+  "pre",
+  "section",
+  "table",
+  "td",
+  "th",
+  "tr",
+  "ul",
+]);
+
+// Inline tags join without a space so a quoted sentence reads as it does on the page, and each block, such as a
+// label-value row, stays on its own line. The parser decodes every entity.
+function readable(nodes: HtmlNode[], lines: string[]): void {
+  for (const node of nodes) {
+    if (node.nodeName === "#text") lines[lines.length - 1] += (node as DefaultTreeAdapterTypes.TextNode).value;
+    if (!("tagName" in node) || SKIPPED.has(node.tagName)) continue;
+    const block = BLOCKS.has(node.tagName);
+    if (block) lines.push("");
+    readable(node.tagName === "template" ? [] : node.childNodes, lines);
+    if (block) lines.push("");
+  }
+}
+
+function find(nodes: HtmlNode[], tags: readonly string[]): DefaultTreeAdapterTypes.Element | undefined {
+  for (const node of nodes) {
+    if (!("tagName" in node)) continue;
+    if (tags.includes(node.tagName)) return node;
+    const found = find(node.childNodes, tags);
+    if (found) return found;
+  }
+  return undefined;
+}
 
 // Readable page text for the fact-sheet model: the main content region without site chrome.
 export function pageText(html: string, maxChars = 6000): string {
-  const region =
-    /<(main|article)\b[^>]*>([\s\S]*?)<\/\1>/i.exec(html)?.[2]
-    ?? /<body\b[^>]*>([\s\S]*?)<\/body>/i.exec(html)?.[1]
-    ?? html;
-  return visibleText(region.replace(BOILERPLATE, " ")).trim().slice(0, maxChars);
+  const document = parse(html);
+  const region = find(document.childNodes, ["main", "article"]) ?? find(document.childNodes, ["body"]);
+  const lines = [""];
+  readable(region ? region.childNodes : document.childNodes, lines);
+  return lines
+    .map((line) => line.replaceAll(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+    .slice(0, maxChars);
 }
 
 function splitTitle(value: string): string[] {

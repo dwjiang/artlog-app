@@ -1,15 +1,34 @@
 import { ConvexError } from "convex/values";
 
+// Fetch and iOS URL loading messages for a failed connection, as opposed to a failed server or request.
+const TRANSPORT_FAILURE =
+  /^(?:Network request failed|Network request timed out|Failed to fetch|Load failed|The Internet connection appears to be offline|The request timed out|The network connection was lost|Could not connect to the server|A server with the specified hostname could not be found|A data connection is not currently allowed|International roaming is currently off)\.?$/i;
+
 /** Transport failures: the request never reached the server or its reply never arrived. */
 export function isNetworkError(error: unknown): boolean {
   if (error instanceof ConvexError || !(error instanceof Error)) return false;
-  const message = error.message.replace(/^Unable to (?:download|upload) a file:\s*/, "");
+  // Native transfers and expo/fetch prefix the URL loading error with their own context.
+  const message = error.message.replace(/^(?:Unable to (?:download|upload) a file|fetch failed):\s*/, "");
   return (
-    /^(Network request failed|Network request timed out|Failed to fetch|Load failed|The Internet connection appears to be offline\.?)$/i.test(
-      message,
-    )
+    TRANSPORT_FAILURE.test(message)
     || /^(?:\[CONVEX A\([^\n]+\)\] )?Connection lost while action was in flight(?:\n  Called by client)?$/.test(message)
   );
+}
+
+/** The backend answered with this failure, so reporting it is the backend’s job. */
+export function isBackendError(error: unknown): boolean {
+  return (
+    error instanceof ConvexError
+    || (error instanceof Error && /^\[CONVEX [AMQ]\(/.test(error.message) && !isNetworkError(error))
+  );
+}
+
+/** The phone had no connection, so the request was not attempted. */
+export class OfflineError extends Error {
+  constructor() {
+    super("The Internet connection appears to be offline.");
+    this.name = "OfflineError";
+  }
 }
 
 export function convexErrorCode(error: unknown): string | undefined {
