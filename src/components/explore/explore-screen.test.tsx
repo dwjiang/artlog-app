@@ -1,10 +1,13 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import * as Notifications from "expo-notifications";
 import type { ReactNode } from "react";
+import { Linking } from "react-native";
 
-import { toggleWantToSee } from "@/lib/explore/plans";
 import { chooseCity } from "@/lib/explore/use-explore";
+import { offerNotifications } from "@/lib/notifications/offer";
+import * as toast from "@/lib/ui/toast";
 
-import { regions } from "./__fixtures__/catalog";
+import { bayArea, regions } from "./__fixtures__/catalog";
 import { ExhibitionListScreen } from "./exhibition-list-screen";
 import { ExhibitionScreen } from "./exhibition-screen";
 import { ExploreScreen } from "./explore-screen";
@@ -13,8 +16,15 @@ import { WantToSeeScreen } from "./want-to-see-screen";
 
 const mockPush = jest.fn();
 const mockRefresh = jest.fn();
+const mockSavedRefresh = jest.fn();
 const mockOpenBrowser = jest.fn(async (_url: string) => undefined);
 const mockRequestRegion = jest.fn(async (_args: { region: string }) => null);
+const mockSetWantToSee = jest.fn(async (_args: { exhibitionId: string; saved: boolean }) => null);
+let mockSaved: string[] | Error | undefined;
+let mockFriendSaves: unknown[];
+let mockOwner: string;
+let mockServerScope: string | undefined;
+let mockExhibitionReminders: boolean;
 let mockParams: { timing?: string } = {};
 let mockFix: { lat: number; lng: number } | undefined;
 let mockOffline = false;
@@ -41,12 +51,30 @@ jest.mock("@/lib/settings/use-measurement-units", () => ({
   useMeasurementUnits: () => ({ units: "imperial", failed: false }),
 }));
 jest.mock("@/lib/social/use-query-refresh", () => ({
-  useQueryBatchRefresh: () => ({ refreshing: false, refresh: mockRefresh }),
+  useQueryBatchRefresh: (query: unknown) => ({
+    refreshing: false,
+    refresh:
+      jest.requireActual("convex/server").getFunctionName(query) === "wantToSee:mine" ? mockSavedRefresh : mockRefresh,
+  }),
 }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
+jest.mock("@/lib/account/owner-store", () => ({
+  useLocalOwner: () => mockOwner,
+  useServerScope: () => mockServerScope,
+}));
+jest.mock("@/lib/notifications/preferences", () => ({
+  getNotificationPreferences: async () => ({ exhibitionReminders: mockExhibitionReminders }),
+}));
+jest.mock("@/lib/notifications/offer", () => ({
+  ...jest.requireActual("@/lib/notifications/offer"),
+  offerNotifications: jest.fn(),
+}));
 jest.mock("convex/react", () => ({
-  useMutation: () => mockRequestRegion,
+  useMutation: (mutation: unknown) =>
+    jest.requireActual("convex/server").getFunctionName(mutation) === "wantToSee:set"
+      ? { withOptimisticUpdate: () => mockSetWantToSee }
+      : mockRequestRegion,
   useQueries: (
     requests: Record<
       string,
@@ -64,6 +92,10 @@ jest.mock("convex/react", () => ({
         let data;
         if (name === "exhibitions:regions") {
           data = mockRegions;
+        } else if (name === "wantToSee:mine") {
+          data = mockSaved;
+        } else if (name === "wantToSee:friends") {
+          data = mockFriendSaves;
         } else if (name === "exhibitions:inRegion") {
           data =
             args.region === mockEmptyRegion
@@ -101,13 +133,33 @@ jest.mock("@expo/ui/swift-ui", () => {
   };
 });
 
+const permission = (status: number) => ({ status: "", granted: status === 2, ios: { status } }) as never;
+const orchard = bayArea.exhibitions.find((show) => show.exhibitionId === "orchard")!.viewingPeriods[0];
+const tides = bayArea.exhibitions.find((show) => show.exhibitionId === "tides")!.viewingPeriods[0];
+/** 9 AM on a fixture date, `back` days earlier, as a reminder names it. */
+function reminderDay(date: string, back = 0, options: Intl.DateTimeFormatOptions = { weekday: "long" }) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", { ...options, month: "short", day: "numeric" }).format(
+    new Date(year, month - 1, day - back, 9),
+  );
+}
+
 const card = (title: string) => screen.queryByRole("button", { name: new RegExp(`^${title}, .*(Museum|Tate)`) });
 
 beforeEach(() => {
   mockPush.mockClear();
   mockRefresh.mockClear();
+  mockSavedRefresh.mockClear();
   mockOpenBrowser.mockClear();
   mockRequestRegion.mockClear();
+  mockSetWantToSee.mockClear();
+  jest.mocked(offerNotifications).mockClear();
+  mockSaved = [];
+  mockFriendSaves = [];
+  mockOwner = "device:test";
+  mockServerScope = "device:test:0";
+  mockExhibitionReminders = true;
+  jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(0));
   mockParams = {};
   mockFix = undefined;
   mockOffline = false;
@@ -117,6 +169,8 @@ beforeEach(() => {
   mockCached = new Map();
   chooseCity("");
 });
+
+afterEach(() => jest.restoreAllMocks());
 
 describe("Explore", () => {
   // A city picked from the menu holds for the app session, so this picks the one the other tests open on.
@@ -268,6 +322,12 @@ describe("Exhibition", () => {
     expect(screen.getByRole("header", { name: "Harbour Drawings" })).toBeOnTheScreen();
   });
 
+  it("still opens a show that has closed, saying when it closed", async () => {
+    await render(<ExhibitionScreen exhibitionId="ended" />);
+    expect(screen.getByRole("header", { name: "Last Light" })).toBeOnTheScreen();
+    expect(screen.getByText(/^Closed [A-Z][a-z]{2} \d{1,2}$/)).toBeOnTheScreen();
+  });
+
   it("gives the dates the museum lists and opens its page for the show", async () => {
     await render(<ExhibitionScreen exhibitionId="collection" />);
     expect(screen.getByRole("header", { name: "Collection in Focus" })).toBeOnTheScreen();
@@ -289,39 +349,207 @@ it("opens a museum outside the browsing city and keeps its shows through locatio
 });
 
 describe("Want to see", () => {
+  it("disables saving during the guest merge and resumes once the account is ready", async () => {
+    mockSaved = ["tides"];
+    const view = await render(<ExploreScreen />);
+    expect(screen.getByRole("button", { name: "Remove Tides of Memory from Want to see" })).toBeEnabled();
+
+    mockServerScope = undefined;
+    await view.rerender(<ExploreScreen />);
+    const saving = screen.getByRole("button", { name: "Want to see Tides of Memory" });
+    expect(saving).toBeDisabled();
+    await fireEvent.press(saving);
+    expect(mockSetWantToSee).not.toHaveBeenCalled();
+    await view.rerender(<ExhibitionScreen exhibitionId="tides" />);
+    expect(screen.getByRole("button", { name: "Want to see" })).toBeDisabled();
+    await view.rerender(<WantToSeeScreen />);
+    expect(screen.getByRole("progressbar", { name: "Loading exhibitions…" })).toBeOnTheScreen();
+    expect(screen.queryByText("Nothing saved yet.")).toBeNull();
+
+    mockOwner = "account:test";
+    mockServerScope = "account:test:1";
+    await view.rerender(<WantToSeeScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Remove Tides of Memory from Want to see" }));
+    expect(mockSetWantToSee).toHaveBeenCalledWith({ exhibitionId: "tides", saved: false });
+  });
+
+  it("disables save controls until their saved state is known", async () => {
+    mockSaved = undefined;
+    const view = await render(<ExploreScreen />);
+    expect(screen.getByRole("button", { name: "Want to see Tides of Memory" })).toBeDisabled();
+    await view.rerender(<ExhibitionScreen exhibitionId="tides" />);
+    expect(screen.getByRole("button", { name: "Want to see" })).toBeDisabled();
+    expect(mockSetWantToSee).not.toHaveBeenCalled();
+  });
+
+  it("waits for saved IDs before showing an empty list", async () => {
+    mockSaved = undefined;
+    const view = await render(<WantToSeeScreen />);
+    expect(screen.getByRole("progressbar", { name: "Loading exhibitions…" })).toBeOnTheScreen();
+    expect(screen.queryByText("Nothing saved yet.")).toBeNull();
+
+    mockSaved = ["collection"];
+    await view.rerender(<WantToSeeScreen />);
+    expect(screen.getByRole("button", { name: /^Collection in Focus, Until/ })).toBeOnTheScreen();
+  });
+
+  it("offers a retry for a failed saved-list query", async () => {
+    mockSaved = new Error("Saved list failed");
+    const view = await render(<WantToSeeScreen />);
+    expect(screen.getByText("Couldn’t load exhibitions.")).toBeOnTheScreen();
+    expect(screen.queryByText("Nothing saved yet.")).toBeNull();
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+    expect(mockSavedRefresh).toHaveBeenCalledTimes(1);
+    expect(mockRefresh).not.toHaveBeenCalled();
+
+    mockSaved = [];
+    await view.rerender(<WantToSeeScreen />);
+    expect(screen.getByText("Nothing saved yet.")).toBeOnTheScreen();
+  });
+
+  it("shows the offline state when saved IDs cannot load", async () => {
+    mockOffline = true;
+    await render(<WantToSeeScreen />);
+    expect(screen.getByText("You’re offline.")).toBeOnTheScreen();
+    expect(screen.queryByText("Nothing saved yet.")).toBeNull();
+  });
+
   it("shows saved exhibitions beyond the backend's per-query limit", async () => {
-    const saved = [...Array.from({ length: 100 }, (_, index) => `removed-${index}`), "harbour"];
-    await act(() => saved.forEach(toggleWantToSee));
+    mockSaved = [...Array.from({ length: 100 }, (_, index) => `removed-${index}`), "harbour"];
     await render(<WantToSeeScreen />);
     expect(screen.getByRole("button", { name: /^Harbour Drawings, Ends/ })).toBeOnTheScreen();
-    await act(() => saved.forEach(toggleWantToSee));
   });
 
   it("keeps saved shows from multiple cities after changing the browse city", async () => {
-    await act(() => {
-      toggleWantToSee("tides");
-      toggleWantToSee("harbour");
-    });
+    mockSaved = ["tides", "harbour"];
     await render(<WantToSeeScreen />);
     expect(screen.getByRole("button", { name: /^Tides of Memory, Ends/ })).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: /^Harbour Drawings, Ends/ })).toBeOnTheScreen();
     await act(() => chooseCity("country:GB"));
     expect(screen.getByRole("button", { name: /^Tides of Memory, Ends/ })).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: /^Harbour Drawings, Ends/ })).toBeOnTheScreen();
-    await act(() => {
-      toggleWantToSee("tides");
-      toggleWantToSee("harbour");
-    });
+  });
+
+  it("keeps closed shows under their own heading after the rest", async () => {
+    mockSaved = ["ended", "tides"];
+    await render(<WantToSeeScreen />);
+    expect(screen.getByRole("header", { name: "Closed" })).toBeOnTheScreen();
+    const rows = screen.getAllByRole("button", { name: /^(Tides of Memory|Last Light), / });
+    expect(rows[0]).toHaveAccessibleName(/^Tides of Memory, Ends/);
+    expect(rows[1]).toHaveAccessibleName(/^Last Light, Closed [A-Z][a-z]{2} \d{1,2}, Oakland Museum of California$/);
+    expect(screen.getByRole("button", { name: "Remove Last Light from Want to see" })).toBeOnTheScreen();
   });
 
   it("lists saved shows until they are removed", async () => {
-    await render(<WantToSeeScreen />);
+    const view = await render(<WantToSeeScreen />);
     expect(screen.getByText("Nothing saved yet.")).toBeOnTheScreen();
 
-    await act(() => toggleWantToSee("collection"));
-    expect(screen.getByRole("button", { name: /^Collection in Focus, Until/ })).toBeOnTheScreen();
-
+    mockSaved = ["collection"];
+    await view.rerender(<WantToSeeScreen />);
     await fireEvent.press(screen.getByRole("button", { name: "Remove Collection in Focus from Want to see" }));
+    expect(mockSetWantToSee).toHaveBeenCalledWith({ exhibitionId: "collection", saved: false });
+
+    mockSaved = [];
+    await view.rerender(<WantToSeeScreen />);
     expect(screen.getByText("Nothing saved yet.")).toBeOnTheScreen();
+  });
+
+  it("says when a saved show's first reminder comes", async () => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(2));
+    const showToast = jest.spyOn(toast, "showToast");
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see Tides of Memory" }));
+    await waitFor(() =>
+      expect(showToast).toHaveBeenLastCalledWith(
+        `Saved. You’ll get a reminder ${reminderDay(tides.endDate, 7)}, a week before it closes.`,
+      ),
+    );
+
+    await fireEvent.press(screen.getByRole("checkbox", { name: "Opening soon" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see Orchard Light" }));
+    await waitFor(() =>
+      expect(showToast).toHaveBeenLastCalledWith(
+        `Saved. You’ll get a reminder ${reminderDay(orchard.startDate!)}, when it opens.`,
+      ),
+    );
+    expect(offerNotifications).not.toHaveBeenCalled();
+  });
+
+  it("waits for the save to succeed before promising a reminder", async () => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(2));
+    let finish!: (value: null) => void;
+    mockSetWantToSee.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)));
+    const showToast = jest.spyOn(toast, "showToast");
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see Tides of Memory" }));
+    await act(async () => {});
+    expect(showToast).not.toHaveBeenCalled();
+
+    await act(() => finish(null));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith(expect.stringMatching(/^Saved\./)));
+  });
+
+  it.each([0, 2])("keeps a failed save's retry instead of confirming it with permission %s", async (status) => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(status));
+    mockSetWantToSee.mockRejectedValueOnce(new Error("Save failed"));
+    const showToast = jest.spyOn(toast, "showToast");
+    const showErrorToast = jest.spyOn(toast, "showErrorToast");
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see Tides of Memory" }));
+    await act(async () => {});
+
+    expect(showErrorToast).toHaveBeenCalledWith("Couldn’t update Want to see.", expect.any(Function));
+    expect(showToast).not.toHaveBeenCalled();
+    expect(offerNotifications).not.toHaveBeenCalled();
+    await act(() => showErrorToast.mock.lastCall![1]!());
+    expect(mockSetWantToSee).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([0, 1, 2])("respects the reminder opt-out with system permission %s", async (status) => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(status));
+    mockExhibitionReminders = false;
+    const showToast = jest.spyOn(toast, "showToast");
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see Tides of Memory" }));
+    expect(mockSetWantToSee).toHaveBeenLastCalledWith({ exhibitionId: "tides", saved: true });
+    await act(async () => {});
+    expect(showToast).not.toHaveBeenCalled();
+    expect(offerNotifications).not.toHaveBeenCalled();
+  });
+
+  it("points a save to Settings when notifications are off", async () => {
+    jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(1));
+    const openSettings = jest.spyOn(Linking, "openSettings").mockResolvedValue();
+    const showToast = jest.spyOn(toast, "showToast");
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see Tides of Memory" }));
+    await waitFor(() =>
+      expect(showToast).toHaveBeenLastCalledWith("Saved. Turn on notifications to get reminders.", expect.anything()),
+    );
+    showToast.mock.lastCall![1]!.onPress();
+    expect(openSettings).toHaveBeenCalled();
+  });
+
+  it("saves any show from its card, offering notifications for its reminders", async () => {
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("checkbox", { name: "Opening soon" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see Orchard Light" }));
+    expect(mockSetWantToSee).toHaveBeenLastCalledWith({ exhibitionId: "orchard", saved: true });
+    expect(offerNotifications).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /^Remind me/ })).toBeNull();
+  });
+
+  it("shows which friends want to see a show once signed in", async () => {
+    mockFriendSaves = [
+      { exhibitionId: "tides", friend: { profileId: "maya", name: "Maya", avatar: "vermeer" }, savedAt: 2 },
+      { exhibitionId: "tides", friend: { profileId: "sam", name: "Sam", avatar: "vermeer" }, savedAt: 1 },
+    ];
+    await render(<ExploreScreen />);
+    expect(screen.queryByRole("header", { name: "Friends want to see" })).toBeNull();
+
+    mockOwner = "account:test";
+    await render(<ExploreScreen />);
+    expect(screen.getByRole("header", { name: "Friends want to see" })).toBeOnTheScreen();
+    expect(card("Tides of Memory")).toHaveAccessibleName(/Maya and Sam want to see it$/);
   });
 });

@@ -3,14 +3,14 @@ import { StyleSheet, View } from "react-native";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, Spacing } from "@/constants/theme";
-import { exhibitionStatus, friendNames, isUpcoming } from "@/lib/explore/exhibition-timing";
+import { exhibitionStatus, friendNames } from "@/lib/explore/exhibition-timing";
 import type { Exhibition, ExploreMuseum } from "@/lib/explore/types";
 
 import { ExhibitionStatusLine } from "./exhibition-status";
 import { ExploreImage } from "./explore-image";
 import { openExhibition } from "./explore-routes";
 import { FriendStack } from "./friend-stack";
-import { ReminderButton } from "./plan-buttons";
+import { WantToSeeButton } from "./want-to-see-button";
 
 const CARD_WIDTH = 216;
 
@@ -48,7 +48,7 @@ export function ExhibitionCard({
         </View>
         <FriendStack friends={exhibition.friends} size={20} avatars={2} />
       </MotionPressable>
-      {isUpcoming(exhibition, today) && <ReminderButton exhibition={exhibition} overlay />}
+      <WantToSeeButton exhibition={exhibition} overlay />
     </View>
   );
 }

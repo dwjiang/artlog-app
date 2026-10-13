@@ -386,6 +386,15 @@ export default defineSchema({
   // Request slots belong to the fetch host, including robots and redirects, across every refresh worker.
   exhibitionFetchHosts: defineTable({ host: v.string(), nextAt: v.number() }).index("by_host", ["host"]),
 
+  // Shows each journal owner wants to see. Friends of an account with a profile see its saves.
+  exhibitionSaves: defineTable({
+    owner: journalOwner,
+    exhibitionId: v.id("exhibitions"),
+    savedAt: v.number(),
+  })
+    .index("by_owner_exhibitionId", ["owner", "exhibitionId"])
+    .index("by_owner_savedAt", ["owner", "savedAt"]),
+
   // When Explore last showed each region; recently shown regions have their listings read on schedule.
   exploreRegionViews: defineTable({
     region: v.string(),

@@ -29,10 +29,11 @@ const regions = [
 ];
 const place = { city: { id: "sf-bay-area", name: "San Francisco Bay Area" }, cities: [], today: "2026-10-09" };
 
-it("reads each show's current or next viewing period and drops shows that closed before today", () => {
+it("reads each show's current or next viewing period, or its last one once it has closed", () => {
   const shows = exploreData(catalog, place, undefined, undefined).exhibitions;
   expect(shows.map(({ id, startsOn, endsOn }) => ({ id, startsOn, endsOn }))).toEqual([
     { id: "on-view", startsOn: "2026-09-01", endsOn: "2026-10-09" },
+    { id: "ended-locally", startsOn: "2026-09-01", endsOn: "2026-10-08" },
     { id: "closing-only", startsOn: undefined, endsOn: "2026-12-01" },
     { id: "between-periods", startsOn: "2026-10-20", endsOn: "2026-12-11" },
   ]);
@@ -42,7 +43,7 @@ it("reads each show's current or next viewing period and drops shows that closed
     image: { uri: "https://museumca.org/media/on-view.jpg", label: "on-view" },
     friends: [],
   });
-  expect(shows[1].image).toBeUndefined();
+  expect(shows[2].image).toBeUndefined();
 });
 
 it("measures museums from the phone in the person's units once both are known", () => {

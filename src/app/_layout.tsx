@@ -26,6 +26,7 @@ import { PhotoMaintenance } from "@/lib/files/photo-maintenance-lifecycle";
 import { limitImageCache } from "@/lib/image-cache";
 import { installationStorage } from "@/lib/installation-storage";
 import { MuseumDownloadLifecycle } from "@/lib/museum-downloads/use-museum-downloads";
+import { ExhibitionReminderSync } from "@/lib/notifications/exhibition-reminder-sync";
 import { NotificationResponder } from "@/lib/notifications/notification-responder";
 import { PushRegistration } from "@/lib/notifications/push-registration";
 import { VisitReminderSync } from "@/lib/notifications/visit-reminder-sync";
@@ -73,6 +74,7 @@ function AppContent() {
         <VenueResolver />
         <VisitActivitySync />
         <VisitReminderSync />
+        <ExhibitionReminderSync />
         <PushRegistration />
         <WidgetProvider>
           <ThemeProvider value={navigationTheme}>

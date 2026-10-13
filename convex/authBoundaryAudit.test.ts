@@ -13,6 +13,20 @@ it("keeps device, account and catalog reads inaccessible to anonymous and unregi
   const { artworkId } = await t.run((ctx) => seedArtworkWithObject(ctx));
   const artistId = await t.run(async (ctx) => (await ctx.db.query("artists").first())!._id);
   const venueId = await t.run((ctx) => seedMuseum(ctx));
+  const exhibitionId = await t.run((ctx) =>
+    ctx.db.insert("exhibitions", {
+      museumId: venueId,
+      region: "US",
+      titleKey: "show",
+      finalEndAt: 0,
+      title: "Show",
+      sourceUrl: "https://museum.example/show",
+      sourceSha256: "a".repeat(64),
+      checkedAt: 0,
+      timeZone: "UTC",
+      viewingPeriods: [],
+    }),
+  );
   for (const [caller, code] of [
     [t, "unauthenticated"],
     [user.as, "device_not_registered"],
@@ -27,11 +41,15 @@ it("keeps device, account and catalog reads inaccessible to anonymous and unregi
       () => caller.query(api.artists.works, { artistId }),
       () => caller.query(api.catalog.search, { query: "Monet" }),
       () => caller.query(api.museumPicks.forVenue, { venueId, day: "2026-10-10" }),
+      () => caller.query(api.wantToSee.mine, {}),
     ];
     for (const read of reads) await expect(read()).rejects.toMatchObject({ data: { code } });
     await expect(caller.mutation(api.accounts.unlink, {})).rejects.toMatchObject({ data: { code } });
     await expect(caller.mutation(api.accounts.deleteAccount, {})).rejects.toMatchObject({ data: { code } });
     await expect(caller.mutation(api.artworks.research, { artworkId })).rejects.toMatchObject({ data: { code } });
+    await expect(caller.mutation(api.wantToSee.set, { exhibitionId, saved: true })).rejects.toMatchObject({
+      data: { code },
+    });
   }
 }, 15_000);
 

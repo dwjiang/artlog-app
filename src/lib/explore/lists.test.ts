@@ -21,6 +21,7 @@ const data: ExploreData = {
   museums: [museum("far", 12_500), museum("near", 950), museum("empty", 4800)],
   exhibitions: [
     show("closed", "2026-06-01", "2026-10-03", ["Maya", "Sam", "Jonah"]),
+    show("closed-earlier", "2026-05-01", "2026-09-01"),
     show("two-later", "2026-09-12", "2027-01-18", ["Maya", "Sam"]),
     show("two-sooner", "2026-10-17", "2026-12-28", ["Maya", "Priya"], "far"),
     show("four", "2026-07-03", "2026-10-12", ["Maya", "Jonah", "Sam", "Priya"]),
@@ -40,12 +41,13 @@ it("orders museums nearest first, or by name without a location", () => {
   expect(nearbyMuseums(unplaced).map((place) => place.id)).toEqual(["Art Institute", "MCA", "Wrightwood"]);
 });
 
-it("lists saved shows that are still on or ahead, closing soonest first", () => {
-  expect(ids(savedExhibitions(data, new Set(["closed", "upcoming", "two-later", "four"])))).toEqual([
-    "four",
-    "two-later",
-    "upcoming",
-  ]);
+it("lists saved shows still on or ahead, closing soonest first, then closed ones, most recent first", () => {
+  const { current, closed } = savedExhibitions(
+    data,
+    new Set(["closed-earlier", "closed", "upcoming", "two-later", "four"]),
+  );
+  expect(ids(current)).toEqual(["four", "two-later", "upcoming"]);
+  expect(ids(closed)).toEqual(["closed", "closed-earlier"]);
 });
 
 it("lists a museum's running shows by closing date, then its upcoming ones", () => {

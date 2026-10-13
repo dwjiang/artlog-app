@@ -18,6 +18,7 @@ const rows: { preference: NotificationPreference; label: string }[] = [
   { preference: "mentions", label: "Mentions" },
   { preference: "companions", label: "Visits you’re added to" },
   { preference: "visitReminders", label: "Visit reminders" },
+  { preference: "exhibitionReminders", label: "Exhibition reminders" },
 ];
 
 export function NotificationPreferences() {
@@ -66,7 +67,7 @@ export function NotificationPreferences() {
           <GroupedFooter tone={failed ? "destructive" : "muted"}>
             {failed
               ? "Your notification settings could not load."
-              : "A visit reminder comes 3 hours after your last save while a visit is still open."}
+              : "A visit reminder comes 3 hours after your last save while a visit is still open. Exhibition reminders come on opening day and a week before the last day of each show in Want to see."}
           </GroupedFooter>
         }
       >

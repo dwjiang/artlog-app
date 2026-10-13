@@ -39,6 +39,7 @@ jest.mock("@/lib/museum-downloads/use-museum-downloads", () => ({
 jest.mock("@/lib/venue/use-venue", () => ({ VenueResolver: () => null }));
 jest.mock("@/lib/widgets/visit-activity-sync", () => ({ VisitActivitySync: () => null }));
 jest.mock("@/lib/notifications/visit-reminder-sync", () => ({ VisitReminderSync: () => null }));
+jest.mock("@/lib/notifications/exhibition-reminder-sync", () => ({ ExhibitionReminderSync: () => null }));
 jest.mock("@/lib/notifications/push-registration", () => ({ PushRegistration: () => null }));
 jest.mock("@/lib/widgets/widget-provider", () => ({
   WidgetProvider: ({ children }: PropsWithChildren) => children,

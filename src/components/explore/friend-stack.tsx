@@ -32,7 +32,7 @@ export function FriendStack({
               { borderWidth: border, borderRadius: ring / 2, marginLeft: index === 0 ? 0 : -size * 0.4 },
             ]}
           >
-            <ProfileAvatar name={friend.name} avatar={friend.avatar} size={size} />
+            <ProfileAvatar name={friend.name} photoUrl={friend.photoUrl} avatar={friend.avatar} size={size} />
           </View>
         ))}
       </View>
