@@ -191,16 +191,18 @@ export const getArtwork = query({
   returns: v.object({
     ...sharedVisitCard.fields,
     artwork: artworkDetail,
+    profileId: v.id("profiles"),
     enrichment: v.optional(publicArtworkStory),
   }),
   handler: async (ctx, { postId, itemId }) => {
     const profile = await optionalProfile(ctx);
-    const { item, save } = await requireSharedVisitItem(ctx, postId, itemId, profile?._id);
+    const { publication, item, save } = await requireSharedVisitItem(ctx, postId, itemId, profile?._id);
     const album = await projectVisitAlbum(ctx, item, save, postId);
     const enrichment = await projectArtworkStory(ctx, save);
     return {
       ...album,
       artwork: projectArtworkDetail(album.artwork, save),
+      profileId: publication.profileId,
       ...(enrichment ? { enrichment } : {}),
     };
   },

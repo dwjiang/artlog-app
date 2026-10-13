@@ -34,12 +34,12 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
   const result = shared ? visit : wall;
   const { data } = result;
   const unavailable = invalid || data === null || convexErrorCode(result.error) === "not_found";
-  const owner = wall.data?.profileId;
+  const owner = data?.profileId;
   const { scrollRef, headingRef, measureHeading, onScroll } = useScrollTitle(data?.artwork.title ?? "");
   return (
     <>
       {owner && session.status !== "loading" && owner !== session.profileId && (
-        <ReportToolbar kind="wallItem" id={itemId} />
+        <ReportToolbar kind={shared ? "sharedVisit" : "wallItem"} id={shared ? postId! : itemId} />
       )}
       <ScrollView
         ref={scrollRef}

@@ -81,9 +81,7 @@ function ChooserSheet({
     () => view.options[0] && venueOptionKey(view.options[0]),
   );
   const coordinates = useOptionCoordinates(picking ? options : []);
-  // Settings lists location only once iOS has asked, so a permission never answered is asked for here instead.
   const [location, requestLocation] = Location.useForegroundPermissions();
-  const askable = location?.canAskAgain !== false;
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<{
     query: string;
@@ -128,6 +126,20 @@ function ChooserSheet({
     },
     [prompted, declinePrompt],
   );
+  // Settings lists location only once iOS has asked, and Allow Once lapses when Artlog quits, so iOS asks here, straight
+  // away: a custom ask beside "Continue without a museum" would be a skippable pre-prompt, which 5.1.1(iv) rejects.
+  const asked = useRef(false);
+  const asking = status === "denied" && location?.canAskAgain !== false && !failure;
+  useEffect(() => {
+    if (status !== "denied" || !location?.canAskAgain || asked.current) return;
+    asked.current = true;
+    void requestLocation()
+      .then((answer) => (answer.granted ? resolve() : undefined))
+      .catch((cause: unknown) => {
+        reportError(cause, "venue.request-location", { level: "warning" });
+        setFailure("Could not ask for location.");
+      });
+  }, [status, location, requestLocation, resolve]);
 
   async function choose(option: VenueOption) {
     if (pending.current) return;
@@ -169,16 +181,6 @@ function ChooserSheet({
     }
   }
 
-  function allowLocation() {
-    setFailure(undefined);
-    void requestLocation()
-      .then((answer) => (answer.granted ? resolve() : undefined))
-      .catch((cause: unknown) => {
-        reportError(cause, "venue.request-location", { level: "warning" });
-        setFailure("Could not ask for location.");
-      });
-  }
-
   function notHere() {
     pending.current?.abort();
     answered.current = true;
@@ -189,7 +191,8 @@ function ChooserSheet({
   const emptyDetail = keepVisit
     ? "Search by museum or city, or keep your current visit."
     : "Search by museum or city. You can also keep scanning without a museum.";
-  const nearbyEmpty = !searching && status !== "locating" && options.length === 0;
+  const locating = status === "locating" || asking;
+  const nearbyEmpty = !searching && !locating && options.length === 0;
   const endsVisit = starts && visit ? `Your visit to ${visit.venueName} ends when a new one starts.` : undefined;
   const leaveButton = (
     <GalleryButton
@@ -343,26 +346,21 @@ function ChooserSheet({
             ))}
           </ListSection>
         )
-      ) : status === "locating" ? (
+      ) : locating ? (
         <LoadingRing accessibilityLabel="Locating your museum" />
       ) : options.length === 0 ? (
         <EmptyState
           inset={false}
           title={status === "denied" ? "Location access is off." : "No nearby museums found."}
           detail={
-            status !== "denied"
-              ? emptyDetail
-              : `Allow location${askable ? "" : " in Settings"} to find nearby museums. ${emptyDetail}`
+            status !== "denied" ? emptyDetail : `Allow location in Settings to find nearby museums. ${emptyDetail}`
           }
           visual={<EmptyMap />}
         >
           <ActionStack
             textActions={
               <>
-                {status === "denied" && askable && (
-                  <GalleryButton label="Allow location" fullWidth onPress={allowLocation} />
-                )}
-                {status === "denied" && !askable && (
+                {status === "denied" && (
                   <GalleryButton
                     label="Open Settings"
                     fullWidth

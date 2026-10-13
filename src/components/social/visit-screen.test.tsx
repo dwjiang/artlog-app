@@ -3,7 +3,7 @@ import { ConvexError } from "convex/values";
 import { ActionSheetIOS } from "react-native";
 
 import { Gallery } from "@/constants/theme";
-import type { SharedArtwork, SharedVisit } from "@/lib/social/types";
+import type { SharedVisit } from "@/lib/social/types";
 
 import { VisitScreen } from "./visit-screen";
 
@@ -56,7 +56,7 @@ jest.mock("expo-image", () => ({
   },
 }));
 
-const artwork = (id: string, title: string, artist = "Claude Monet"): SharedArtwork => ({
+const artwork = (id: string, title: string, artist = "Claude Monet"): SharedVisit["artworks"]["page"][number] => ({
   itemId: id as never,
   artwork: {
     title,
