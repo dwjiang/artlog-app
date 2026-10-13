@@ -8,6 +8,7 @@ import { Gallery, Spacing } from "@/constants/theme";
 import type { useAccount } from "@/lib/account/use-account";
 import { isOffline } from "@/lib/network-state";
 
+import { LegalNotice } from "./legal-notice";
 import { ProviderSignInButton, SIGN_IN_BUTTON_HEIGHT } from "./provider-sign-in-button";
 
 type SignInState = Pick<
@@ -64,6 +65,7 @@ export function SignInActions({ state }: { state: SignInState }) {
           {state.error}
         </Text>
       )}
+      <LegalNotice />
     </View>
   );
 }
