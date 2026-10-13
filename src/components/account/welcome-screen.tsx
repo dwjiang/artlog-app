@@ -35,11 +35,11 @@ import { useLocalOwner } from "@/lib/account/owner-store";
 import { profileSetupRoute, takeProfileSetupOffer } from "@/lib/account/profile-setup-offer";
 import { signInContexts } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
-import { openLegalPage } from "@/lib/legal-links";
 import { reportError } from "@/lib/observability";
 import { shownPicture, useProfilePictureDraft } from "@/lib/social/profile-picture";
 import { LIMITS } from "@/shared/journal/limits";
 
+import { LegalNotice } from "./legal-notice";
 import { SignInActions } from "./sign-in-actions";
 import { useWelcomeAccess, type AccessStep } from "./welcome-access";
 import { AccessArt, NameArt, SavedPhotoTile, ScanResult, SignInArt, WelcomeArt } from "./welcome-art";
@@ -165,17 +165,7 @@ export function WelcomeScreen() {
           actions={
             <>
               <GalleryButton label="Get started" fullWidth variant="filled" onPress={advance} />
-              <Text type="small" themeColor="textSecondary" style={styles.legal}>
-                By continuing, you agree to our{" "}
-                <Text accessibilityRole="link" style={styles.legalLink} onPress={() => void openLegalPage("terms")}>
-                  Terms of Service
-                </Text>{" "}
-                and acknowledge our{" "}
-                <Text accessibilityRole="link" style={styles.legalLink} onPress={() => void openLegalPage("privacy")}>
-                  Privacy Policy
-                </Text>
-                .
-              </Text>
+              <LegalNotice />
             </>
           }
         >
@@ -504,6 +494,4 @@ const styles = StyleSheet.create({
     color: Gallery.ink,
   },
   photoAction: { alignItems: "flex-start", marginTop: -Spacing.one },
-  legal: { textAlign: "center", paddingHorizontal: Spacing.three },
-  legalLink: { color: Gallery.accent, fontWeight: "500" },
 });
