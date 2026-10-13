@@ -70,6 +70,7 @@ const privacy: LegalDocument = {
         "A posted visit shows your profile, the museum, the date, your reflection, the artworks and the photos you select, to the audience you choose: only you, friends or everyone. Anyone can see public visits and your public wall. Opening an artwork you’ve shared shows its title, artist, date, medium and museum. Your notes are never shared.",
         "We store friends, likes, comments and in-app notifications to show them to the people involved. Notifications are deleted after 30 days. Friend suggestions come from mutual friends, likes, and the artworks and museums you have in common with what other people have shared.",
         "Automated tools, including OpenAI’s moderation service, check the comments, reflections and profile bios you share for harmful content before others can see them.",
+        "Exhibitions you save to Want to see are stored with your account. If you have a profile, your friends see that you want to see them.",
         "Leaderboards show your profile and your number of saved artworks and visits. New profiles appear on the global leaderboard; you can change this in Settings → Leaderboards.",
       ],
     },
@@ -104,7 +105,7 @@ const privacy: LegalDocument = {
     {
       heading: "Deleting your information",
       paragraphs: [
-        "Deleting an artwork or photo removes the affected backed-up photo files. The artwork records described above remain. To delete your account, open Settings → Account → Delete account. This deletes your profile, friends, posts, wall, likes, comments, notifications and the collection backed up with your account, and signs out your other devices. Without an account, open Settings → Your collection → Delete my data to delete this iPhone’s backup.",
+        "Deleting an artwork or photo removes the affected backed-up photo files. The artwork records described above remain. To delete your account, open Settings → Account → Delete account. This deletes your profile, friends, posts, wall, likes, comments, notifications, Want to see exhibitions and the collection backed up with your account, and signs out your other devices. Without an account, open Settings → Your collection → Delete my data to delete this iPhone’s backup.",
         "Either way, Artlog also erases its data on this iPhone and deletes the photo crops you added to the shared index. Their label details and fingerprints, and your scan results, remain without any link to you, and reports and feedback you sent are kept without your name. Artlog data on your other devices stays until you delete the app there.",
       ],
     },

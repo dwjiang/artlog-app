@@ -42,6 +42,8 @@ export function isRunning(exhibition: Exhibition, today: string): boolean {
   return !isUpcoming(exhibition, today) && today <= exhibition.endsOn;
 }
 
+export const isClosed = (exhibition: Exhibition, today: string) => today > exhibition.endsOn;
+
 /** "Oct 1 – Dec 11, 2026", or "Through Dec 11, 2026" for a show listed only with its closing date. */
 export function exhibitionDates(exhibition: Exhibition): string {
   const year = exhibition.endsOn.slice(0, 4);
@@ -56,6 +58,7 @@ export function exhibitionStatus(exhibition: Exhibition, today: string): Exhibit
     return { tone: "accent", label: days(today, startsOn) === 1 ? "Opens tomorrow" : `Opens ${shortDate(startsOn)}` };
   }
   const left = days(today, exhibition.endsOn);
+  if (left < 0) return { tone: "muted", label: `Closed ${shortDate(exhibition.endsOn)}` };
   if (left <= WINDOW_DAYS) {
     const label =
       left === 0

@@ -78,6 +78,7 @@ import type * as lib_docentPrompts from "../lib/docentPrompts.js";
 import type * as lib_docentSources from "../lib/docentSources.js";
 import type * as lib_docentValidator from "../lib/docentValidator.js";
 import type * as lib_exhibitionListings from "../lib/exhibitionListings.js";
+import type * as lib_exhibitionSaves from "../lib/exhibitionSaves.js";
 import type * as lib_exhibitionSourceValidators from "../lib/exhibitionSourceValidators.js";
 import type * as lib_exhibitionValidators from "../lib/exhibitionValidators.js";
 import type * as lib_fileReferences from "../lib/fileReferences.js";
@@ -199,6 +200,7 @@ import type * as visitCompanions from "../visitCompanions.js";
 import type * as visitReactions from "../visitReactions.js";
 import type * as visits from "../visits.js";
 import type * as walls from "../walls.js";
+import type * as wantToSee from "../wantToSee.js";
 
 import type {
   ApiFromModules,
@@ -277,6 +279,7 @@ declare const fullApi: ApiFromModules<{
   "lib/docentSources": typeof lib_docentSources;
   "lib/docentValidator": typeof lib_docentValidator;
   "lib/exhibitionListings": typeof lib_exhibitionListings;
+  "lib/exhibitionSaves": typeof lib_exhibitionSaves;
   "lib/exhibitionSourceValidators": typeof lib_exhibitionSourceValidators;
   "lib/exhibitionValidators": typeof lib_exhibitionValidators;
   "lib/fileReferences": typeof lib_fileReferences;
@@ -398,6 +401,7 @@ declare const fullApi: ApiFromModules<{
   visitReactions: typeof visitReactions;
   visits: typeof visits;
   walls: typeof walls;
+  wantToSee: typeof wantToSee;
 }>;
 
 /**

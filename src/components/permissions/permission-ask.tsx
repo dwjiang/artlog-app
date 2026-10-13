@@ -46,7 +46,7 @@ const PERMISSION_COPY: Record<PermissionKind, PermissionCopy> = {
     headline: "Hear back from friends.",
     use: {
       symbol: "bell",
-      text: "Tells you about friend requests, likes, and comments, and when a visit is still open.",
+      text: "Tells you about friend requests, likes, comments, open visits, and shows you want to see.",
     },
     limit: "Choose which in Settings.",
   },

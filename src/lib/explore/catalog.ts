@@ -9,6 +9,7 @@ import type { ExploreCatalog, ExploreCity, ExploreData } from "./types";
 
 type Regions = FunctionReturnType<typeof api.exhibitions.regions>;
 type RegionCatalog = FunctionReturnType<typeof api.exhibitions.inRegion>;
+export type FriendSaves = FunctionReturnType<typeof api.wantToSee.friends>;
 
 const DAY = 86_400_000;
 
@@ -58,8 +59,9 @@ export function catalogData(
       };
     }),
     exhibitions: catalog.exhibitions.flatMap((row) => {
-      // The viewing period under way or next; a show closed between periods reads as opening again.
-      const period = row.viewingPeriods.find((candidate) => candidate.endDate >= today);
+      // The viewing period under way or next, so a show closed between periods reads as opening again; past the last
+      // period, a saved show reads as closed.
+      const period = row.viewingPeriods.find((candidate) => candidate.endDate >= today) ?? row.viewingPeriods.at(-1);
       if (!period) return [];
       return [
         {
@@ -74,5 +76,19 @@ export function catalogData(
         },
       ];
     }),
+  };
+}
+
+/** Fills in the friends who want to see each show, most recent first. */
+export function withFriends<T extends ExploreCatalog>(data: T, saves: FriendSaves): T {
+  if (saves.length === 0) return data;
+  const byShow = new Map<string, FriendSaves>();
+  for (const save of saves) byShow.set(save.exhibitionId, [...(byShow.get(save.exhibitionId) ?? []), save]);
+  return {
+    ...data,
+    exhibitions: data.exhibitions.map((exhibition) => ({
+      ...exhibition,
+      friends: (byShow.get(exhibition.id) ?? []).map(({ friend }) => friend),
+    })),
   };
 }

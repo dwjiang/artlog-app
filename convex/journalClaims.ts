@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values";
 import { sameOwner } from "../shared/journal/contracts";
 import { LIMITS, utf8Bytes } from "../shared/journal/limits";
 import { mutation } from "./functions";
+import { claimExhibitionSaves } from "./lib/exhibitionSaves";
 import { recordArtworkScore, recordVisitScore } from "./lib/leaderboard";
 import { findOwnedSave, findOwnedVisit, nextChangeVersion, resolveOwner } from "./lib/ownership";
 
@@ -107,10 +108,15 @@ export const resume = mutation({
       moved++;
       bytes += size;
     }
-    const complete = !(await ctx.db
+    let complete = !(await ctx.db
       .query("collections")
       .withIndex("by_owner_localId", (q) => q.eq("owner", source))
       .first());
+    if (complete) {
+      const exhibitionSaves = await claimExhibitionSaves(ctx, source, owner);
+      complete = exhibitionSaves.complete;
+      moved += exhibitionSaves.moved;
+    }
     if (complete) {
       await ctx.db.patch("journalClaims", claim._id, {
         phase: "complete",

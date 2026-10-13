@@ -1,6 +1,6 @@
 import type { AvatarId } from "@/shared/social/avatars";
 
-export type ExploreFriend = { profileId: string; name: string; avatar: AvatarId };
+export type ExploreFriend = { profileId: string; name: string; avatar: AvatarId; photoUrl?: string };
 
 export type ExploreMuseum = {
   id: string;

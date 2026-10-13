@@ -53,6 +53,13 @@ describe("exhibition status", () => {
     });
     expect(exhibitionStatus(show("a", undefined, "2026-10-12"), TODAY).label).toBe("Ends in 8 days");
   });
+
+  it("says when a show closed, from the day after its last day", () => {
+    expect(exhibitionStatus(show("a", "2026-06-01", "2026-10-03"), TODAY)).toEqual({
+      tone: "muted",
+      label: "Closed Oct 3",
+    });
+  });
 });
 
 describe("exhibition dates", () => {

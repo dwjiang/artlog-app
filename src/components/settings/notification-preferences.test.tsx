@@ -26,6 +26,7 @@ it("turns each kind of notification on or off on this iPhone", async () => {
   expect(screen.getByRole("switch", { name: "Mentions" })).toBeChecked();
   expect(screen.getByRole("switch", { name: "Visits you’re added to" })).toBeChecked();
   expect(screen.getByRole("switch", { name: "Visit reminders" })).toBeChecked();
+  expect(screen.getByRole("switch", { name: "Exhibition reminders" })).toBeChecked();
 
   await fireEvent.press(reactions);
   await fireEvent.press(screen.getByRole("switch", { name: "Visits you’re added to" }));
@@ -38,6 +39,7 @@ it("turns each kind of notification on or off on this iPhone", async () => {
     mentions: true,
     companions: false,
     visitReminders: true,
+    exhibitionReminders: true,
   });
 });
 

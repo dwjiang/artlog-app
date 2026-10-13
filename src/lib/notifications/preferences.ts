@@ -6,7 +6,13 @@ import { setSetting } from "@/db/repos/settings";
 import { settings } from "@/db/schema";
 import { reportError } from "@/lib/observability";
 
-export type NotificationPreference = "friends" | "reactions" | "mentions" | "companions" | "visitReminders";
+export type NotificationPreference =
+  | "friends"
+  | "reactions"
+  | "mentions"
+  | "companions"
+  | "visitReminders"
+  | "exhibitionReminders";
 export type NotificationPreferences = Record<NotificationPreference, boolean>;
 
 const keys: Record<NotificationPreference, string> = {
@@ -15,6 +21,7 @@ const keys: Record<NotificationPreference, string> = {
   mentions: "notify-mentions",
   companions: "notify-companions",
   visitReminders: "notify-visit-reminders",
+  exhibitionReminders: "notify-exhibition-reminders",
 };
 const listeners = new Set<() => void>();
 
@@ -27,6 +34,7 @@ export function readPreferences(rows: readonly { key: string; value: string }[])
     mentions: !off.has(keys.mentions),
     companions: !off.has(keys.companions),
     visitReminders: !off.has(keys.visitReminders),
+    exhibitionReminders: !off.has(keys.exhibitionReminders),
   };
 }
 

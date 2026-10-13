@@ -8,9 +8,9 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
-import { exhibitionDates, exhibitionStatus, friendNames, isUpcoming } from "@/lib/explore/exhibition-timing";
-import { toggleReminder, toggleWantToSee, usePlans } from "@/lib/explore/plans";
+import { exhibitionDates, exhibitionStatus, friendNames } from "@/lib/explore/exhibition-timing";
 import { exhibitionById, museumById, useExhibitions } from "@/lib/explore/use-explore";
+import { useWantToSee } from "@/lib/explore/want-to-see";
 
 import { FactRow, openDirections, openExhibitionPage, StatusChip } from "./detail-parts";
 import { openMuseum } from "./explore-routes";
@@ -22,7 +22,7 @@ const BUTTON_HEIGHT = 52;
 
 export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
   const explore = useExhibitions([exhibitionId]);
-  const plans = usePlans();
+  const wantToSee = useWantToSee();
   const { width } = useWindowDimensions();
   const [aspect, setAspect] = useState(1);
   const { data } = explore;
@@ -38,8 +38,7 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
     );
   }
   const status = exhibitionStatus(exhibition, data.today);
-  const saved = plans.wantToSee.has(exhibition.id);
-  const reminded = plans.reminders.has(exhibition.id);
+  const saved = wantToSee.saved.has(exhibition.id);
   const imageWidth = width - Spacing.content * 2;
   const host = new URL(exhibition.sourceUrl).hostname.replace(/^www\./, "");
   return (
@@ -87,31 +86,20 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
               variant={saved ? "outlined" : "filled"}
               fullWidth
               minHeight={BUTTON_HEIGHT}
-              onPress={() => toggleWantToSee(exhibition.id)}
+              disabled={!wantToSee.ready}
+              onPress={() => wantToSee.toggle(exhibition)}
             />
           </View>
           <View style={styles.action}>
-            {isUpcoming(exhibition, data.today) ? (
+            {museum && (
               <GalleryButton
-                label={reminded ? "Reminder on" : "Remind me"}
-                accessibilityLabel={reminded ? "Turn off the opening-day reminder" : "Remind me when it opens"}
-                icon={reminded ? "bell.fill" : "bell"}
+                label="Directions"
+                icon="arrow.triangle.turn.up.right.diamond"
                 variant="outlined"
                 fullWidth
                 minHeight={BUTTON_HEIGHT}
-                onPress={() => toggleReminder(exhibition.id)}
+                onPress={() => openDirections(museum)}
               />
-            ) : (
-              museum && (
-                <GalleryButton
-                  label="Directions"
-                  icon="arrow.triangle.turn.up.right.diamond"
-                  variant="outlined"
-                  fullWidth
-                  minHeight={BUTTON_HEIGHT}
-                  onPress={() => openDirections(museum)}
-                />
-              )
             )}
           </View>
         </View>

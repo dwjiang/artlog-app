@@ -15,7 +15,8 @@ jest.mock("@/lib/settings/use-measurement-units", () => ({
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => false }));
 jest.mock("convex/react", () => ({ useMutation: () => jest.fn() }));
 jest.mock("@/lib/social/use-social-query", () => ({
-  useSocialQuery: (query: unknown) => {
+  useSocialQuery: (query: unknown, args: unknown) => {
+    if (args === "skip") return { data: undefined, refresh: jest.fn() };
     const { getFunctionName } = jest.requireActual("convex/server");
     const { bayArea, regions } = jest.requireActual("./__fixtures__/catalog");
     return { data: getFunctionName(query) === "exhibitions:regions" ? regions : bayArea, refresh: jest.fn() };

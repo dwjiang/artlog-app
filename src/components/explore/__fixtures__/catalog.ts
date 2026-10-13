@@ -50,6 +50,7 @@ export const bayArea = {
     show("orchard", "bampfa", "Orchard Light", period(13, 147)),
     show("returning", "bampfa", "The Returning Room", period(-60, -5), period(6, 30)),
     show("collection", "sfmoma", "Collection in Focus", period(null, 120)),
+    show("ended", "omca", "Last Light", period(-90, -3)),
   ],
 };
 

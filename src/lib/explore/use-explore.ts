@@ -4,6 +4,7 @@ import { useNetworkState } from "expo-network";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 import { useCurrentMinute } from "@/hooks/use-current-minute";
+import { useLocalOwner } from "@/lib/account/owner-store";
 import { isNetworkError } from "@/lib/network-error";
 import { isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
@@ -15,7 +16,15 @@ import { calendarDate } from "@/shared/journal/limits";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { catalogAsOf, catalogData, defaultCity, exploreCities, exploreData } from "./catalog";
+import {
+  catalogAsOf,
+  catalogData,
+  defaultCity,
+  exploreCities,
+  exploreData,
+  withFriends,
+  type FriendSaves,
+} from "./catalog";
 import type { ExploreCatalog, ExploreData } from "./types";
 
 export type ExploreView<T = ExploreCatalog> = {
@@ -39,18 +48,28 @@ export function chooseCity(cityId: string) {
   for (const listener of listeners) listener();
 }
 
-function useCatalogContext() {
+const NO_FRIEND_SAVES: FriendSaves = [];
+
+/** What the caller's friends want to see; only accounts have friends. */
+function useFriendSaves(enabled: boolean): FriendSaves {
+  const signedIn = useLocalOwner().startsWith("account:");
+  const deviceReady = useDeviceReady();
+  const args = enabled && signedIn && deviceReady ? {} : "skip";
+  return useSocialQuery(api.wantToSee.friends, args, "explore").data ?? NO_FRIEND_SAVES;
+}
+
+function useCatalogContext({ friends = true } = {}) {
   const today = calendarDate(useCurrentMinute(), Intl.DateTimeFormat().resolvedOptions().timeZone);
   const asOf = catalogAsOf(today);
   const offline = isOffline(useNetworkState());
   const { fix } = useVenue();
   const { units } = useMeasurementUnits();
-  return { today, asOf, offline, fix, units };
+  return { today, asOf, offline, fix, units, friendSaves: useFriendSaves(friends) };
 }
 
 /** Browse the chosen city, or the one nearest the phone, measured from today on this device. */
 export function useExplore(): ExploreView<ExploreData> {
-  const { today, asOf, offline, fix, units } = useCatalogContext();
+  const { today, asOf, offline, fix, units, friendSaves } = useCatalogContext();
   const chosen = useSyncExternalStore(subscribe, () => chosenCity);
   const regions = useSocialQuery(api.exhibitions.regions, { asOf }, "explore");
   const cities = useMemo(() => exploreCities(regions.data ?? []), [regions.data]);
@@ -59,8 +78,11 @@ export function useExplore(): ExploreView<ExploreData> {
   useRegionRefresh(cityId, offline);
   const city = cities.find((candidate) => candidate.id === cityId);
   const data = useMemo(
-    () => (catalog.data && city ? exploreData(catalog.data, { city, cities, today }, fix, units) : undefined),
-    [catalog.data, city, cities, today, fix, units],
+    () =>
+      catalog.data && city
+        ? withFriends(exploreData(catalog.data, { city, cities, today }, fix, units), friendSaves)
+        : undefined,
+    [catalog.data, city, cities, today, fix, units, friendSaves],
   );
   const retry = () => (regions.error ? regions.refresh() : catalog.refresh());
   if (offline && !data) return { status: "offline", retry };
@@ -85,11 +107,11 @@ type Catalog = FunctionReturnType<typeof api.exhibitions.inRegion>;
 
 function useCatalogView(
   result: { data?: Catalog; error?: Error; refresh: () => void },
-  { today, offline, fix, units }: ReturnType<typeof useCatalogContext>,
+  { today, offline, fix, units, friendSaves }: ReturnType<typeof useCatalogContext>,
 ): ExploreView {
   const data = useMemo(
-    () => result.data && catalogData(result.data, today, fix, units),
-    [result.data, today, fix, units],
+    () => result.data && withFriends(catalogData(result.data, today, fix, units), friendSaves),
+    [result.data, today, fix, units, friendSaves],
   );
   const retry = result.refresh;
   if (offline && !data) return { status: "offline", retry };
@@ -97,12 +119,15 @@ function useCatalogView(
   return data ? { status: "ready", data, retry } : { status: "loading", retry };
 }
 
-/** Saved shows and detail routes resolve by identity, independently of the browsing city. */
-export function useExhibitions(ids: readonly string[]): ExploreView {
-  const context = useCatalogContext();
+/**
+ * Saved shows and detail routes resolve by identity, including shows that have closed, independently of the browsing
+ * city. `friends: false` leaves out who else wants to see them, for callers that never show it.
+ */
+export function useExhibitions(ids: readonly string[], { friends = true } = {}): ExploreView {
+  const context = useCatalogContext({ friends });
   const batches = [];
   for (let index = 0; index < ids.length; index += 100) {
-    batches.push({ exhibitionIds: ids.slice(index, index + 100) as Id<"exhibitions">[], asOf: context.asOf });
+    batches.push({ exhibitionIds: ids.slice(index, index + 100) as Id<"exhibitions">[], asOf: 0 });
   }
   const result = useBatchedSocialQuery(api.exhibitions.byIds, batches, "explore");
   const data = useMemo(
