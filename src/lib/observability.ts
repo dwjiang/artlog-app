@@ -45,6 +45,7 @@ const expectedCodes = new Set([
   "spend_cap",
   "no_venue_site",
   "venue_opted_out",
+  "venue_unavailable",
   "identity_unresolved",
   "image_mismatch",
   "search_superseded",

@@ -39,6 +39,7 @@ it.each([
   new Error("Unable to download a file: The Internet connection appears to be offline."),
   new Error("Unable to upload a file: Network request failed"),
   new ConvexError({ code: "no_venue_site" }),
+  new ConvexError({ code: "venue_unavailable" }),
   new ConvexError({ code: "identity_unresolved" }),
   new ConvexError({ code: "album_full" }),
   new ConvexError({ code: "label_unverified" }),

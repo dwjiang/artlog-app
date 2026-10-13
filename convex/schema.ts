@@ -352,6 +352,8 @@ export default defineSchema({
     wikidataId: v.optional(v.string()),
     region: v.string(),
     optOut: v.boolean(),
+    excludedFromDiscovery: v.optional(v.boolean()),
+    mergedInto: v.optional(v.id("museums")),
     contributionRevision: v.number(),
   })
     .index("by_key", ["key"])

@@ -189,7 +189,8 @@ def export_asset(writer: ConvexWriter, out: Path, *, deployment_url: str) -> Ven
         with closing(sqlite3.connect(temporary)) as db:
             db.execute("""CREATE TABLE venues (
               id TEXT PRIMARY KEY, key TEXT, name TEXT NOT NULL,
-              lat REAL NOT NULL, lng REAL NOT NULL, website TEXT, region TEXT NOT NULL, city TEXT, country TEXT, cityKey TEXT
+              lat REAL NOT NULL, lng REAL NOT NULL, website TEXT, region TEXT NOT NULL, city TEXT, country TEXT, cityKey TEXT,
+              excludedFromDiscovery INTEGER NOT NULL DEFAULT 0
             )""")
             db.execute(
                 "CREATE TABLE meta (changeVersion INTEGER NOT NULL, generatedAt TEXT NOT NULL, deployment TEXT NOT NULL)"
@@ -197,7 +198,7 @@ def export_asset(writer: ConvexWriter, out: Path, *, deployment_url: str) -> Ven
             row_count = 0
             for row in _exported_venues(writer):
                 db.execute(
-                    "INSERT INTO venues VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO venues VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         row["_id"],
                         row["key"],
@@ -209,6 +210,7 @@ def export_asset(writer: ConvexWriter, out: Path, *, deployment_url: str) -> Ven
                         row.get("city"),
                         row.get("country"),
                         row.get("cityKey"),
+                        int(row.get("excludedFromDiscovery", False)),
                     ),
                 )
                 row_count += 1

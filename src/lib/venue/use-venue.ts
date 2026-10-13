@@ -29,7 +29,14 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { getPoiSearch } from "../../../modules/poi-search/src";
 import { refreshVenueTableInBackground } from "./refresh";
 import { CHOOSE_RADIUS_M, pickVenue, type VenueRow } from "./resolve";
-import { applyVenueMetadata, nearest, openVenueDb, venueCoordinates, venueNameById } from "./venue-db";
+import {
+  applyVenueMetadata,
+  filterExcludedPlaces,
+  nearest,
+  openVenueDb,
+  venueCoordinates,
+  venueNameById,
+} from "./venue-db";
 import {
   endedToday,
   initialVenueState,
@@ -426,10 +433,12 @@ export function createVenueController(): VenueController {
     try {
       const places = await getPoiSearch().searchNearby(fix.lat, fix.lng, POI_RADIUS_M);
       if (!ownership.isCurrent()) return;
+      const available = await filterExcludedPlaces(await openVenueDb(), places);
+      if (!ownership.isCurrent()) return;
       dispatch({
         type: "poiOptions",
         quiet,
-        options: places.map((place) => ({
+        options: available.map((place) => ({
           kind: "poi",
           name: place.name,
           lat: place.lat,

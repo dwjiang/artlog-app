@@ -202,11 +202,11 @@ function currentInRegion(ctx: QueryCtx, region: string, asOf: number) {
     .withIndex("by_region_finalEndAt", (q) => q.eq("region", region).gte("finalEndAt", asOf));
 }
 
-/** Museums by id, null for ones deleted or opted out since their shows were imported. */
+/** Museums available for discovery, cached by identity. */
 async function visibleMuseum(ctx: QueryCtx, cache: Map<Id<"museums">, Doc<"museums"> | null>, id: Id<"museums">) {
   if (!cache.has(id)) {
     const museum = await ctx.db.get("museums", id);
-    cache.set(id, museum && !(await isVenueOptedOut(ctx, museum)) ? museum : null);
+    cache.set(id, museum && !museum.excludedFromDiscovery && !(await isVenueOptedOut(ctx, museum)) ? museum : null);
   }
   return cache.get(id)!;
 }

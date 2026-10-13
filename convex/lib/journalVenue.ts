@@ -13,5 +13,7 @@ export function projectJournalVenue(venue: Doc<"museums">): JournalVenue {
     city: venue.city,
     cityKey: venue.cityKey,
     country: venue.country,
+    excludedFromDiscovery: venue.excludedFromDiscovery,
+    mergedInto: venue.mergedInto,
   };
 }

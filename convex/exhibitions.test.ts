@@ -277,6 +277,24 @@ describe("verified exhibition import", () => {
 describe("Explore region catalog", () => {
   const REGION = "sf-bay-area";
 
+  it("hides audited museums and shows from discovery while retaining their records and imported evidence", async () => {
+    const { t, museumId } = await fixture({ region: REGION });
+    await t.action(internal.exhibitions.upsertBatch, { records: [exhibition()] });
+    const [stored] = await t.query(internal.exhibitions.exportByVenueKeys, { venueKeys: [VENUE_KEY] });
+    expect((await t.query(api.exhibitions.inRegion, { region: REGION, asOf: NOW })).museums).toHaveLength(1);
+    await t.action(internal.museumAudit.applyBatch, {
+      records: [{ key: VENUE_KEY, excludedFromDiscovery: true }],
+    });
+    expect(await t.query(api.exhibitions.inRegion, { region: REGION, asOf: NOW })).toEqual({
+      museums: [],
+      exhibitions: [],
+    });
+    expect(await t.query(api.exhibitions.regions, { asOf: NOW })).toEqual([]);
+    expect(await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW })).toEqual({ museums: [], exhibitions: [] });
+    expect(await t.run((ctx) => ctx.db.get("museums", museumId))).toMatchObject({ excludedFromDiscovery: true });
+    expect(await t.query(internal.exhibitions.exportByVenueKeys, { venueKeys: [VENUE_KEY] })).toEqual([stored]);
+  });
+
   it("looks up saved exhibitions and museum details independently of a browsing region", async () => {
     const { t, museumId } = await fixture({ region: REGION });
     const otherMuseumId = await t.run((ctx) =>

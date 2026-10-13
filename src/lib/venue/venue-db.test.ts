@@ -267,6 +267,111 @@ it("names a venue from the local table for a saved work", async () => {
   expect(await venueDb.venueNameById("museum-none" as never)).toBeUndefined();
 });
 
+it("migrates an installed older table in place without losing journal venues or its checkpoint", async () => {
+  const live = await venueDb.openVenueDb();
+  await venueDb.applyVenueMetadata(live, [gallery]);
+  await venueDb.applyVenueChanges(live, { venues: [renamed], checkpoint: 8, hasMore: false });
+  await live.execAsync("ALTER TABLE venues DROP COLUMN excludedFromDiscovery");
+  await live.closeAsync();
+  loadModules();
+
+  const reopened = await venueDb.openVenueDb();
+  expect(await venueDb.readVenueTableMeta(reopened)).toMatchObject({ changeVersion: 8 });
+  expect(await venueDb.venueMetadataForIds([gallery.id, renamed.id])).toEqual([
+    expect.objectContaining({ id: renamed.id, name: renamed.name, excludedFromDiscovery: 0 }),
+    expect.objectContaining({ id: gallery.id, name: gallery.name, excludedFromDiscovery: 0 }),
+  ]);
+  expect(await reopened.getAllAsync("SELECT id FROM journalVenues")).toEqual([{ id: gallery.id }]);
+  expect(mockReportError).not.toHaveBeenCalled();
+});
+
+it("applies withdrawal and restoration from incremental refresh while keeping saved venue metadata accessible", async () => {
+  const live = await venueDb.openVenueDb();
+  expect((await searchVenues("Museum", live)).map((row) => row.id)).toEqual([renamed.id]);
+  mockQuery.mockResolvedValue({ venues: [{ ...renamed, excludedFromDiscovery: true }], checkpoint: 2, hasMore: false });
+  await refresh.refreshVenueTable(refresh.refreshDependencies);
+
+  expect(await searchVenues("Museum", live)).toEqual([]);
+  expect(await venueDb.nearest(live, renamed, 400)).toEqual([]);
+  expect(await venueDb.venueNameById(renamed.id)).toBe(renamed.name);
+  expect(await venueDb.venueCoordinates(renamed.id)).toEqual({ lat: renamed.lat, lng: renamed.lng });
+  expect(await venueDb.venueMetadataForIds([renamed.id])).toEqual([
+    expect.objectContaining({ id: renamed.id, excludedFromDiscovery: 1 }),
+  ]);
+
+  mockSettings.delete(venueDb.VENUE_TABLE_CHECKED_AT);
+  mockQuery.mockResolvedValue({
+    venues: [{ ...renamed, excludedFromDiscovery: false }],
+    checkpoint: 3,
+    hasMore: false,
+  });
+  await refresh.refreshVenueTable(refresh.refreshDependencies);
+  expect((await searchVenues("Museum", live)).map((row) => row.id)).toEqual([renamed.id]);
+  expect((await venueDb.nearest(live, renamed, 400)).map((row) => row.id)).toEqual([renamed.id]);
+});
+
+it("carries discovery status in a full snapshot without dropping withdrawn venues", async () => {
+  mockBundled = path.join(mockRoot, "other-deployment.db");
+  table(mockBundled, 42, "https://other.convex.cloud");
+  mockSnapshot.mockResolvedValue({
+    venues: [{ ...gallery, excludedFromDiscovery: true }, renamed],
+    checkpoint: 3,
+    cursor: null,
+  });
+  mockQuery.mockResolvedValue({ venues: [], checkpoint: 3, hasMore: false });
+  await refresh.refreshVenueTable(refresh.refreshDependencies);
+
+  const live = await venueDb.openVenueDb();
+  expect(await searchVenues("Harbor", live)).toEqual([]);
+  expect((await venueDb.nearest(live, gallery, 400)).map((row) => row.id)).toEqual([renamed.id]);
+  expect(await venueDb.venueMetadataForIds([gallery.id])).toEqual([
+    expect.objectContaining({ id: gallery.id, name: gallery.name, excludedFromDiscovery: 1 }),
+  ]);
+});
+
+it("applies discovery status from journal sync and clears it when the flag is absent", async () => {
+  const live = await venueDb.openVenueDb();
+  await venueDb.applyVenueMetadata(live, [{ ...gallery, excludedFromDiscovery: true }]);
+  expect(await searchVenues("Harbor", live)).toEqual([]);
+  expect(await venueDb.venueNameById(gallery.id)).toBe(gallery.name);
+  await venueDb.applyVenueMetadata(live, [gallery]);
+  expect((await searchVenues("Harbor", live)).map((row) => row.id)).toEqual([gallery.id]);
+});
+
+it("filters known excluded places by normalized name and distance offline without changing retained records", async () => {
+  const live = await venueDb.openVenueDb();
+  await venueDb.applyVenueMetadata(live, [{ ...gallery, excludedFromDiscovery: true }]);
+  const before = await venueDb.venueMetadataForIds([gallery.id]);
+  mockQuery.mockClear();
+  mockSnapshot.mockClear();
+  const excluded = {
+    name: "  ＨＡＲＢＯＲ   GALLERY ",
+    lat: gallery.lat + 0.0003,
+    lng: gallery.lng,
+    category: "museum",
+  };
+  const otherBranch = { ...excluded, lat: gallery.lat + 0.002 };
+  const unknown = { ...excluded, name: "New Gallery" };
+  const included = { name: "Museum", lat: 40, lng: -73, category: "museum" };
+  expect(await venueDb.filterExcludedPlaces(live, [excluded, otherBranch, unknown, included])).toEqual([
+    otherBranch,
+    unknown,
+    included,
+  ]);
+  expect(await venueDb.venueMetadataForIds([gallery.id])).toEqual(before);
+  expect(mockQuery).not.toHaveBeenCalled();
+  expect(mockSnapshot).not.toHaveBeenCalled();
+});
+
+it("recognizes an excluded place across the date line and leaves an empty search untouched", async () => {
+  const live = await venueDb.openVenueDb();
+  await venueDb.applyVenueMetadata(live, [
+    { ...gallery, name: "Island Museum", lat: 0, lng: 179.9998, excludedFromDiscovery: true },
+  ]);
+  expect(await venueDb.filterExcludedPlaces(live, [{ name: "Island Museum", lat: 0, lng: -179.9998 }])).toEqual([]);
+  expect(await venueDb.filterExcludedPlaces(live, [])).toEqual([]);
+});
+
 it.each(["city", "country", "cityKey"])(
   "replaces an installed table missing %s even when the asset hash matches",
   async (column) => {
@@ -326,16 +431,27 @@ it("drops fetched changes with a replaced bundled table and fetches them again o
   expect(await venueDb.venueNameById("new-gallery" as never)).toBe("Harbor Gallery");
 });
 
-it("opens the shipped museum asset for nearby lookup and search on production", async () => {
+it("opens the shipped production asset with art museums discoverable and excluded museums retained for history", async () => {
   mockBundled = path.resolve(__dirname, "../../..", "assets/venues.db");
   process.env.EXPO_PUBLIC_CONVEX_URL = "https://admired-goldfinch-660.convex.cloud";
   loadModules();
   const db = await venueDb.openVenueDb();
   const matches = await searchVenues("Metropolitan Museum", db);
-  expect(matches.length).toBeGreaterThan(0);
-  expect(await venueDb.nearest(db, matches[0], 400)).toEqual(
-    expect.arrayContaining([expect.objectContaining({ id: matches[0].id })]),
+  const met = matches.find(({ key }) => key === "wikidata:Q160236");
+  expect(met).toBeDefined();
+  expect(await venueDb.nearest(db, met!, 400)).toEqual(
+    expect.arrayContaining([expect.objectContaining({ id: met!.id })]),
   );
+  const excluded = await db.getFirstAsync<import("./resolve").VenueRow>(
+    "SELECT * FROM venues WHERE key = ?",
+    "wikidata:Q964035",
+  );
+  expect(excluded).toMatchObject({ name: "Computer History Museum", excludedFromDiscovery: 1 });
+  expect((await searchVenues("Computer History Museum", db)).map(({ id }) => id)).not.toContain(excluded!.id);
+  expect((await venueDb.nearest(db, excluded!, 400)).map(({ id }) => id)).not.toContain(excluded!.id);
+  expect(await venueDb.venueNameById(excluded!.id)).toBe("Computer History Museum");
+  expect(await venueDb.venueCoordinates(excluded!.id)).toEqual({ lat: excluded!.lat, lng: excluded!.lng });
+  expect(await venueDb.venueMetadataForIds([excluded!.id])).toEqual([excluded]);
 });
 
 it("rejects an invalid bundle without marking it installed and retries after it is corrected", async () => {
@@ -395,6 +511,7 @@ it("carries journal venues across a new bundled asset and lets published rows su
       city: "New York",
       cityKey: "wikidata:Q60",
       country: "US",
+      excludedFromDiscovery: true,
     },
     {
       id: "museum-1" as never,
@@ -425,6 +542,7 @@ it("carries journal venues across a new bundled asset and lets published rows su
       city: "New York",
       cityKey: "wikidata:Q60",
       country: "US",
+      excludedFromDiscovery: 1,
     }),
   ]);
   expect(mockSettings.get("venueTableAssetHash")).toBe("bundle");
