@@ -136,6 +136,18 @@ it("excludes withdrawn works and museums from newly published downloads", async 
   await expect(t.mutation(internal.museumDownloads.build, { venueId })).rejects.toThrow("Museum unavailable");
 });
 
+it("hides audited exclusions from discovery while keeping their published offline packages usable", async () => {
+  const { t, user, venueId } = await fixture();
+  await t.mutation(internal.museumDownloads.build, { venueId });
+  await t.finishAllScheduledFunctions(() => vi.runAllTimers());
+  const paginationOpts = { cursor: null, numItems: 64 };
+  expect((await user.as.query(api.museumDownloads.catalog, { paginationOpts })).page).toHaveLength(1);
+  const museum = (await t.run((ctx) => ctx.db.get("museums", venueId)))!;
+  await t.action(internal.museumAudit.applyBatch, { records: [{ key: museum.key, excludedFromDiscovery: true }] });
+  expect((await user.as.query(api.museumDownloads.catalog, { paginationOpts })).page).toEqual([]);
+  expect(await user.as.query(api.museumDownloads.get, { venueId })).toMatchObject({ id: venueId, count: 1 });
+});
+
 it("can restart an interrupted build without publishing stale batches", async () => {
   const { t, user, venueId } = await fixture();
   await t.mutation(internal.museumDownloads.build, { venueId });

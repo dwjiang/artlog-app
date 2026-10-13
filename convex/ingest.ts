@@ -179,9 +179,9 @@ export async function bumpCounter(ctx: MutationCtx, table: keyof Counters, inser
 }
 
 export const upsertMuseums = internalMutation({
-  args: { rows: v.array(museumRow) },
+  args: { rows: v.array(museumRow), insertOnly: v.optional(v.boolean()) },
   returns: v.object({ ids: v.record(v.string(), v.id("museums")) }),
-  handler: async (ctx, { rows }) => {
+  handler: async (ctx, { rows, insertOnly = false }) => {
     checkBatch(rows);
     const ids: Record<string, Id<"museums">> = {};
     const changed: Id<"museums">[] = [];
@@ -206,7 +206,7 @@ export const upsertMuseums = internalMutation({
       };
       const existing = await findByKey(ctx, "museums", row.key);
       if (existing) {
-        if (fieldsChanged(existing, fields)) {
+        if (!insertOnly && fieldsChanged(existing, fields)) {
           await ctx.db.patch("museums", existing._id, fields);
           changed.push(existing._id);
         }
@@ -588,6 +588,8 @@ export const exportVenues = internalQuery({
         cityKey: v.optional(v.string()),
         country: v.optional(v.string()),
         region: v.string(),
+        excludedFromDiscovery: v.optional(v.boolean()),
+        mergedInto: v.optional(v.id("museums")),
       }),
     ),
     continueCursor: v.string(),
@@ -608,6 +610,8 @@ export const exportVenues = internalQuery({
         city: m.city,
         cityKey: m.cityKey,
         country: m.country,
+        excludedFromDiscovery: m.excludedFromDiscovery,
+        mergedInto: m.mergedInto,
       })),
       continueCursor: result.continueCursor,
       isDone: result.isDone,

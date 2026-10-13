@@ -218,6 +218,21 @@ def test_failed_export_preserves_previous_asset(tmp_path):
     assert list(tmp_path.iterdir()) == [existing]
 
 
+def test_export_keeps_excluded_history_rows_and_defaults_legacy_flags_to_false(tmp_path):
+    writer = exporting({"page": [
+        {**EXPORT_ROW, "excludedFromDiscovery": True},
+        {**EXPORT_ROW, "_id": "museum-2", "key": "wikidata:Q2", "excludedFromDiscovery": False},
+        {**EXPORT_ROW, "_id": "museum-3", "key": "wikidata:Q3"},
+    ], "isDone": True})
+    asset = seed_venues.export_asset(writer, tmp_path, deployment_url=DEPLOYMENT)
+    with sqlite3.connect(asset.path) as db:
+        assert db.execute("SELECT id, excludedFromDiscovery FROM venues ORDER BY id").fetchall() == [
+            ("museum-1", 1), ("museum-2", 0), ("museum-3", 0),
+        ]
+        columns = {row[1]: row for row in db.execute("PRAGMA table_info(venues)")}
+        assert columns["excludedFromDiscovery"][2:5] == ("INTEGER", 1, "0")
+
+
 def test_oversized_export_omits_websites_then_enforces_hard_limit(tmp_path, monkeypatch):
     writer = exporting({"page": [{**EXPORT_ROW, "website": "x" * 100_000}], "isDone": True})
     monkeypatch.setattr(seed_venues, "MAX_ASSET_BYTES", 20_000)

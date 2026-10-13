@@ -19,6 +19,7 @@ const expectedCodes = new Set([
   "feature_off",
   "opted_out",
   "venue_opted_out",
+  "venue_unavailable",
   "not_found",
   "scan_not_found",
   "artwork_not_found",

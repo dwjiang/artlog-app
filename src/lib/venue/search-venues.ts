@@ -30,7 +30,7 @@ export async function searchVenues(query: string, database?: SQLiteDatabase): Pr
         DELETE FROM temp.venueSearch;`);
       await db.runAsync(
         `INSERT INTO temp.venueSearch(rowid, name, city, country)
-        SELECT rowid, name, coalesce(city, CASE region ${regions.map(() => "WHEN ? THEN ?").join(" ")} ELSE replace(region, '-', ' ') END), country FROM main.venues`,
+        SELECT rowid, name, coalesce(city, CASE region ${regions.map(() => "WHEN ? THEN ?").join(" ")} ELSE replace(region, '-', ' ') END), country FROM main.venues WHERE excludedFromDiscovery = 0`,
         ...regions.flat(),
       );
     })();
@@ -43,7 +43,7 @@ export async function searchVenues(query: string, database?: SQLiteDatabase): Pr
   await index.ready;
   return db.getAllAsync<VenueRow>(
     `SELECT v.* FROM main.venues v JOIN temp.venueSearch s ON v.rowid = s.rowid
-    WHERE venueSearch MATCH ? ORDER BY s.rank, v.name COLLATE NOCASE, v.id LIMIT ?`,
+    WHERE v.excludedFromDiscovery = 0 AND venueSearch MATCH ? ORDER BY s.rank, v.name COLLATE NOCASE, v.id LIMIT ?`,
     words.map((word) => `"${word}"*`).join(" AND "),
     MUSEUM_SEARCH_LIMIT,
   );

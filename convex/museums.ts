@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values";
 import { stableStringify } from "../shared/attestation/stable-stringify";
 import { journalVenue } from "../shared/journal/venue";
 import { validateGeography } from "../shared/social/contracts";
+import { normalizeVenueName } from "../shared/venue-name";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { internalAction, internalQuery, type QueryCtx } from "./_generated/server";
@@ -55,10 +56,6 @@ async function nearby(ctx: QueryCtx, lat: number, lng: number, radius: number) {
     .sort((a, b) => a.distance - b.distance);
 }
 
-function normalizeName(name: string) {
-  return name.normalize("NFKC").trim().replaceAll(/\s+/g, " ").toLowerCase();
-}
-
 export const confirmPoiVenue = mutation({
   args: {
     city: v.optional(v.string()),
@@ -93,7 +90,7 @@ export const confirmPoiVenue = mutation({
       || Math.abs(args.lat) > 90
       || !Number.isFinite(args.lng)
       || Math.abs(args.lng) > 180
-      || !normalizeName(args.name)
+      || !normalizeVenueName(args.name)
       || args.name.length > 300
       || (args.website !== undefined && !websiteUrl(args.website))
     ) {
@@ -101,12 +98,18 @@ export const confirmPoiVenue = mutation({
     }
     validateGeography(args);
     const duplicate = (await nearby(ctx, args.lat, args.lng, 100)).find(
-      ({ venue }) => normalizeName(venue.name) === normalizeName(args.name),
+      ({ venue }) => normalizeVenueName(venue.name) === normalizeVenueName(args.name),
     );
     if (duplicate) {
+      const venue = duplicate.venue.mergedInto
+        ? await ctx.db.get("museums", duplicate.venue.mergedInto)
+        : duplicate.venue;
+      if (!venue || venue.mergedInto || venue.excludedFromDiscovery) {
+        throw new ConvexError({ code: "venue_unavailable" });
+      }
       return {
-        venueId: duplicate.venue._id,
-        venue: projectJournalVenue(duplicate.venue),
+        venueId: venue._id,
+        venue: projectJournalVenue(venue),
       };
     }
     const seeded = (await nearby(ctx, args.lat, args.lng, 60000)).find(({ venue }) => venue.seedSource !== "poi");

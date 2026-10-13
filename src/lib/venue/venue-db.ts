@@ -6,12 +6,14 @@ import { openDatabaseAsync, type SQLiteDatabase } from "expo-sqlite";
 import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
 import { reportError } from "@/lib/observability";
 import { bundledVenueAsset } from "@/lib/venue-asset";
+import { normalizeVenueName } from "@/shared/venue-name";
 
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import {
   boundingBox,
   CHOOSE_RADIUS_M,
+  haversineMeters,
   pickVenue,
   rankCandidates,
   type Coordinate,
@@ -33,7 +35,7 @@ export type VenueTableMeta = {
   deployment: string;
 };
 
-const VENUE_COLUMNS = "id, key, name, lat, lng, website, region, city, cityKey, country";
+const VENUE_COLUMNS = "id, key, name, lat, lng, website, region, city, cityKey, country, excludedFromDiscovery";
 
 /**
  * Copies the bundled table into place on first launch, again after an app update ships a new asset,
@@ -98,6 +100,10 @@ async function missingVenueColumn(db: SQLiteDatabase): Promise<string | undefine
     ["meta", ["changeVersion", "generatedAt", "deployment"]],
   ] as const) {
     const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+    if (table === "venues" && columns.length > 0 && !columns.some(({ name }) => name === "excludedFromDiscovery")) {
+      await db.execAsync("ALTER TABLE venues ADD COLUMN excludedFromDiscovery INTEGER NOT NULL DEFAULT 0");
+      columns.push({ name: "excludedFromDiscovery" });
+    }
     const missing = required.find((name) => !columns.some((column) => column.name === name));
     if (missing) return `${table}.${missing}`;
   }
@@ -151,13 +157,31 @@ export async function readVenueTableMeta(db: SQLiteDatabase): Promise<VenueTable
 export async function nearest(db: SQLiteDatabase, origin: Coordinate, radiusM: number): Promise<VenueCandidate[]> {
   const box = boundingBox(origin, radiusM);
   const rows = await db.getAllAsync<VenueRow>(
-    `SELECT ${VENUE_COLUMNS} FROM venues WHERE lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?`,
+    `SELECT ${VENUE_COLUMNS} FROM venues WHERE excludedFromDiscovery = 0 AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?`,
     box.minLat,
     box.maxLat,
     box.minLng,
     box.maxLng,
   );
   return rankCandidates(rows, origin, radiusM);
+}
+
+export async function filterExcludedPlaces<T extends Coordinate & { name: string }>(
+  db: SQLiteDatabase,
+  places: T[],
+): Promise<T[]> {
+  if (places.length === 0) return places;
+  const bounds = places.map((place) => boundingBox(place, 100));
+  // A latitude-only bound also covers matches across the date line; exact distance checks longitude.
+  const excluded = await db.getAllAsync<Pick<VenueRow, "name" | "lat" | "lng">>(
+    "SELECT name, lat, lng FROM venues WHERE excludedFromDiscovery = 1 AND lat BETWEEN ? AND ?",
+    Math.min(...bounds.map(({ minLat }) => minLat)),
+    Math.max(...bounds.map(({ maxLat }) => maxLat)),
+  );
+  return places.filter((place) => {
+    const name = normalizeVenueName(place.name);
+    return !excluded.some((venue) => normalizeVenueName(venue.name) === name && haversineMeters(place, venue) <= 100);
+  });
 }
 
 export async function resolveVenueAt(origin: Coordinate): Promise<VenueResolution> {
@@ -178,7 +202,7 @@ export function onVenueMetadataChange(listener: () => void): () => void {
     metadataListeners.delete(listener);
   };
 }
-const VENUE_PLACEHOLDERS = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+const VENUE_PLACEHOLDERS = "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 function venueValues(venue: VenueMetadata | VenueRow) {
   return [
     venue.id,
@@ -191,6 +215,7 @@ function venueValues(venue: VenueMetadata | VenueRow) {
     venue.city ?? null,
     venue.cityKey ?? null,
     venue.country ?? null,
+    venue.excludedFromDiscovery ? 1 : 0,
   ];
 }
 /** A journal venue row; `IGNORE` lets a row already published in the table win over the incoming one. */
