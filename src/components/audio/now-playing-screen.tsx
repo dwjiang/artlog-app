@@ -183,7 +183,8 @@ const styles = StyleSheet.create({
   player: { flexGrow: 1 },
   print: {
     flex: 1,
-    minHeight: 180,
+    // Low enough that a three-line title still clears the transport on a 667-point screen (iPhone SE, iPad).
+    minHeight: 64,
     alignItems: "center",
     justifyContent: "center",
     marginHorizontal: Spacing.four,
