@@ -189,6 +189,20 @@ export async function saveExhibition(
   return "updated";
 }
 
+/** Explore lists shows and due listing reads under their museum's region, so a region change moves them too. */
+export async function moveMuseumRegion(ctx: MutationCtx, museumId: Id<"museums">, region: string): Promise<void> {
+  const shows = await ctx.db
+    .query("exhibitions")
+    .withIndex("by_museum_title", (q) => q.eq("museumId", museumId))
+    .collect();
+  for (const show of shows) await ctx.db.patch("exhibitions", show._id, { region });
+  const refresh = await ctx.db
+    .query("exhibitionRefreshes")
+    .withIndex("by_museumId", (q) => q.eq("museumId", museumId))
+    .unique();
+  if (refresh) await ctx.db.patch("exhibitionRefreshes", refresh._id, { region });
+}
+
 export const upsertBatch = internalAction({
   args: batchArgs,
   returns: exhibitionBatchResult,

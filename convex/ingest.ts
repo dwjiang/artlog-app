@@ -9,6 +9,7 @@ import { validateGeography } from "../shared/social/contracts";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalQuery, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { moveMuseumRegion } from "./exhibitions";
 import { internalMutation } from "./functions";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { registerMuseumObject } from "./lib/museumWorkIdentity";
@@ -208,6 +209,7 @@ export const upsertMuseums = internalMutation({
       if (existing) {
         if (!insertOnly && fieldsChanged(existing, fields)) {
           await ctx.db.patch("museums", existing._id, fields);
+          if (existing.region !== fields.region) await moveMuseumRegion(ctx, existing._id, fields.region);
           changed.push(existing._id);
         }
         ids[row.key] = existing._id;

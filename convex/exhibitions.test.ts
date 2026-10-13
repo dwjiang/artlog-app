@@ -295,6 +295,25 @@ describe("Explore region catalog", () => {
     expect(await t.query(internal.exhibitions.exportByVenueKeys, { venueKeys: [VENUE_KEY] })).toEqual([stored]);
   });
 
+  it("lists a museum's shows and refresh schedule under its new region after a reseed moves it", async () => {
+    const { t, museumId } = await fixture({ region: "country:US" });
+    await t.action(internal.exhibitions.upsertBatch, { records: [exhibition()] });
+    await t.run((ctx) =>
+      ctx.db.insert("exhibitionRefreshes", { museumId, region: "country:US", dueAt: NOW, failures: 0 }),
+    );
+    const { _id, _creationTime, optOut, contributionRevision, ...row } = (await t.run((ctx) =>
+      ctx.db.get("museums", museumId),
+    ))!;
+    await t.mutation(internal.ingest.upsertMuseums, { rows: [{ ...row, region: REGION }] });
+    expect((await t.query(api.exhibitions.inRegion, { region: REGION, asOf: NOW })).exhibitions).toHaveLength(1);
+    expect((await t.query(api.exhibitions.inRegion, { region: "country:US", asOf: NOW })).exhibitions).toEqual([]);
+    // With the show gone, only the refresh schedule keeps the region on the Explore map.
+    await t.run(async (ctx) => {
+      for (const show of await ctx.db.query("exhibitions").collect()) await ctx.db.delete("exhibitions", show._id);
+    });
+    expect((await t.query(api.exhibitions.regions, { asOf: NOW })).map(({ region }) => region)).toEqual([REGION]);
+  });
+
   it.each([false, true])("keeps saved shows readable after discovery exclusion (alias: %s)", async (alias) => {
     const { t, museumId } = await fixture({ region: REGION });
     await t.action(internal.exhibitions.upsertBatch, { records: [exhibition()] });
