@@ -21,7 +21,12 @@ jest.mock("@/lib/social/use-social-session", () => ({
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: (...args: unknown[]) => mockQuery(...args),
 }));
-jest.mock("./report-toolbar", () => ({ ReportToolbar: () => null }));
+jest.mock("./report-toolbar", () => ({
+  ReportToolbar: ({ kind, id }: { kind: string; id: string }) => {
+    const { Text } = jest.requireActual("react-native");
+    return <Text>{`Report ${kind} ${id}`}</Text>;
+  },
+}));
 jest.mock("@/components/settings/account-section", () => ({
   AccountSection: () => null,
 }));
@@ -70,6 +75,7 @@ beforeEach(() => {
   };
   artwork = {
     itemId: "art-a" as never,
+    profileId: "author" as never,
     artwork: {
       title: "Starry Night",
       artist: "Vincent van Gogh",
@@ -104,6 +110,14 @@ it("navigates only the selected shared photos and preserves authenticated media 
   expect(photos.every((photo) => photo.props.cachePolicy === "memory")).toBe(true);
   expect(screen.getByText(/Vincent van Gogh/)).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Starry Night" })).toBeOnTheScreen();
+});
+
+it("offers Report for someone else’s shared visit, not your own", async () => {
+  const view = await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
+  expect(screen.getByText("Report sharedVisit post-a")).toBeOnTheScreen();
+  mockSession = { ...mockSession, profileId: "author" };
+  await view.rerender(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
+  expect(screen.queryByText(/^Report sharedVisit/)).toBeNull();
 });
 
 it("names the artwork in the bar only while its title is scrolled under the bar", async () => {

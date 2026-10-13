@@ -269,6 +269,7 @@ it("allows public access before friendship and revokes detail, artwork, and feed
   ).toHaveLength(1);
   expect(await b.as.query(api.sharedVisits.getArtwork, { postId, itemId })).toMatchObject({
     itemId,
+    profileId: a.profileId,
   });
   const other = await socialVisit(t, a);
   const otherPost = await a.as.action(api.sharedVisits.publish, other.selection);

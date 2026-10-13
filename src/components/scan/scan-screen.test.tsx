@@ -287,7 +287,7 @@ it("prompts for late nearby options only while the camera is active and has no c
   expect(mockVenueView.promptChooser).toHaveBeenCalledTimes(1);
 });
 
-it("asks for camera access only after tapping Allow camera on the active screen", async () => {
+it("asks for camera access only after tapping Continue on the active screen", async () => {
   mockFocused = false;
   mockGranted = false;
   mockCanRequest = true;
@@ -296,7 +296,7 @@ it("asks for camera access only after tapping Allow camera on the active screen"
   mockFocused = true;
   await view.rerender(<ScanScreen />);
   expect(mockRequest).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "Allow camera" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   expect(mockRequest).toHaveBeenCalledTimes(1);
 });
 

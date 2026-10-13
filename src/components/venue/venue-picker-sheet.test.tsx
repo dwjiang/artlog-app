@@ -396,14 +396,34 @@ describe("choosing a museum", () => {
     expect(open).toHaveBeenCalledTimes(1);
   });
 
-  it("asks for location that was never answered, then looks for nearby museums", async () => {
+  it("opens the iOS prompt for location that was never answered, with no pre-prompt, then looks for museums", async () => {
+    const request = jest.fn(async () => ({ granted: true }));
+    mockRequestLocation = request;
     mockLocation = { granted: false, canAskAgain: true };
     mockView = { ...mockView, status: "denied", options: [] };
-    await render(<VenuePickerSheet />);
-    expect(screen.getByText(/^Allow location to find nearby museums\./)).toBeOnTheScreen();
-    expect(screen.queryByRole("button", { name: "Open Settings" })).toBeNull();
-    await fireEvent.press(screen.getByRole("button", { name: "Allow location" }));
+    const view = await render(<VenuePickerSheet />);
+    expect(screen.getByRole("progressbar", { name: "Locating your museum" })).toBeOnTheScreen();
+    expect(screen.queryByText("Location access is off.")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Allow/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Continue without a museum" })).toBeOnTheScreen();
     await waitFor(() => expect(mockResolve).toHaveBeenCalledTimes(1));
+    await view.rerender(<VenuePickerSheet />);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("points to Settings once location is declined at the iOS prompt", async () => {
+    mockRequestLocation = async () => {
+      mockLocation = { granted: false, canAskAgain: false };
+      return { granted: false };
+    };
+    mockLocation = { granted: false, canAskAgain: true };
+    mockView = { ...mockView, status: "denied", options: [] };
+    const view = await render(<VenuePickerSheet />);
+    await act(async () => {});
+    await view.rerender(<VenuePickerSheet />);
+    expect(screen.getByText("Location access is off.")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Open Settings" })).toBeOnTheScreen();
+    expect(mockResolve).not.toHaveBeenCalled();
   });
 
   it("allows continuing without a museum while locating", async () => {

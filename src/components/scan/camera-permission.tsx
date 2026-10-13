@@ -81,7 +81,7 @@ export function CameraPermission({
         }
       >
         <GalleryButton
-          label={canRequestPermission ? "Allow camera" : "Open Settings"}
+          label={canRequestPermission ? "Continue" : "Open Settings"}
           variant="filled"
           fullWidth
           busy={busy}
