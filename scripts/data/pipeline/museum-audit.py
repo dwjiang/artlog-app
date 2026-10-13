@@ -586,6 +586,10 @@ def _run_import(
         for row in decision_records(inputs)
         if actual_audit_state(live[row["key"]]) != expected_audit_state(row, live)
     ]
+    # With no stored alias chains, moving existing aliases first frees their survivors to merge.
+    records.sort(
+        key=lambda row: (bool(row.get("duplicateOf")), live[row["key"]].get("mergedInto") is None)
+    )
     for start in range(0, len(records), 500):
         batch = records[start : start + 500]
         result = writer.action("museumAudit:applyBatch", {"records": batch})

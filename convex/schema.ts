@@ -357,7 +357,8 @@ export default defineSchema({
     contributionRevision: v.number(),
   })
     .index("by_key", ["key"])
-    .index("by_lat", ["lat"]),
+    .index("by_lat", ["lat"])
+    .index("by_mergedInto", ["mergedInto"]),
 
   exhibitionSources: defineTable(exhibitionSource).index("by_museumId", ["museumId"]),
 

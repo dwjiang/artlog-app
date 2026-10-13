@@ -202,21 +202,30 @@ function currentInRegion(ctx: QueryCtx, region: string, asOf: number) {
     .withIndex("by_region_finalEndAt", (q) => q.eq("region", region).gte("finalEndAt", asOf));
 }
 
-/** Museums available for discovery, cached by identity. */
-async function visibleMuseum(ctx: QueryCtx, cache: Map<Id<"museums">, Doc<"museums"> | null>, id: Id<"museums">) {
+async function visibleMuseum(
+  ctx: QueryCtx,
+  cache: Map<Id<"museums">, Doc<"museums"> | null>,
+  id: Id<"museums">,
+  includeExcluded = false,
+) {
   if (!cache.has(id)) {
     const museum = await ctx.db.get("museums", id);
-    cache.set(id, museum && !museum.excludedFromDiscovery && !(await isVenueOptedOut(ctx, museum)) ? museum : null);
+    cache.set(id, museum && !(await isVenueOptedOut(ctx, museum)) ? museum : null);
   }
-  return cache.get(id)!;
+  const museum = cache.get(id)!;
+  return museum && (includeExcluded || !museum.excludedFromDiscovery) ? museum : null;
 }
 
-async function buildCatalog(ctx: QueryCtx, rows: Doc<"exhibitions">[], museumIds: Id<"museums">[] = []) {
+async function buildCatalog(
+  ctx: QueryCtx,
+  rows: Doc<"exhibitions">[],
+  { museumIds = [], includeExcluded = false }: { museumIds?: Id<"museums">[]; includeExcluded?: boolean } = {},
+) {
   const cache = new Map<Id<"museums">, Doc<"museums"> | null>();
   const catalog: Infer<typeof exploreRegionCatalog> = { museums: [], exhibitions: [] };
   async function addMuseum(id: Id<"museums">) {
     const fresh = !cache.has(id);
-    const museum = await visibleMuseum(ctx, cache, id);
+    const museum = await visibleMuseum(ctx, cache, id, includeExcluded);
     if (museum && fresh) {
       catalog.museums.push({
         museumId: museum._id,
@@ -311,6 +320,7 @@ export const byIds = query({
     return buildCatalog(
       ctx,
       rows.filter((row): row is Doc<"exhibitions"> => row !== null && row.finalEndAt >= asOf),
+      { includeExcluded: true },
     );
   },
 });
@@ -324,7 +334,7 @@ export const atMuseum = query({
       .query("exhibitions")
       .withIndex("by_museum_finalEndAt", (q) => q.eq("museumId", museumId).gte("finalEndAt", asOf))
       .take(MAX_REGION_EXHIBITIONS);
-    return buildCatalog(ctx, rows, [museumId]);
+    return buildCatalog(ctx, rows, { museumIds: [museumId] });
   },
 });
 

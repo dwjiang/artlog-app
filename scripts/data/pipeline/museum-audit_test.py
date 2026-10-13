@@ -49,9 +49,10 @@ class Writer:
     def action(self, name, args):
         assert name == "museumAudit:applyBatch"
         self.writes.append((name, deepcopy(args)))
+        proposed = deepcopy(self.museums)
         changed, ids = 0, {}
         for row in args["records"]:
-            stored = self.museums[row["key"]]
+            stored = proposed[row["key"]]
             merged_into = (
                 self.museums[row["duplicateOf"]]["_id"] if row.get("duplicateOf") else None
             )
@@ -66,7 +67,15 @@ class Writer:
                 else:
                     stored.pop("mergedInto", None)
                 changed += 1
-                self.version += 1
+        by_id = {row["_id"]: row for row in proposed.values()}
+        if any(
+            by_id[row["mergedInto"]].get("mergedInto")
+            for row in proposed.values()
+            if row.get("mergedInto")
+        ):
+            raise ValueError("museum_alias_chain")
+        self.museums = proposed
+        self.version += changed
         if self.fail_after_commit:
             self.fail_after_commit = False
             raise RuntimeError("lost response")
@@ -404,6 +413,54 @@ def test_duplicate_chain_resolves_to_terminal_and_updates_terminals_first(source
     assert records[0]["key"] == "wikidata:Q1"
     assert records[1]["duplicateOf"] == "wikidata:Q3"
     assert records[2]["duplicateOf"] == "wikidata:Q3"
+
+
+@pytest.mark.parametrize("lost_response", [False, True])
+@pytest.mark.parametrize("restore_target", [False, True])
+def test_redirects_existing_aliases_before_merging_survivors_across_batches(
+    source, tmp_path, lost_response, restore_target
+):
+    originals = list(csv.DictReader((source / "artlog-current-museums.csv").open()))
+    decisions = list(csv.DictReader((source / "audit.csv").open()))
+    decisions[0].update(verdict="remove", duplicate_of="wikidata:Q3")
+    writer = existing_writer()
+    writer.museums["wikidata:Q4"].update(
+        excludedFromDiscovery=True, mergedInto=writer.museums["wikidata:Q1"]["_id"]
+    )
+    if restore_target:
+        decisions[2]["verdict"] = "keep"
+        writer.museums["wikidata:Q3"].update(
+            excludedFromDiscovery=True, mergedInto=writer.museums["wikidata:Q2"]["_id"]
+        )
+    for i in range(1000, 1498 - int(restore_target)):
+        key = f"wikidata:Q{i}"
+        originals.append({**originals[0], "key": key, "wikidata_id": f"Q{i}"})
+        decisions.append({**decisions[0], "key": key, "wikidata_id": f"Q{i}"})
+        writer.museums[key] = museum(key)
+    write_csv(source / "artlog-current-museums.csv", originals)
+    write_csv(source / "audit.csv", decisions)
+    verification_path = source / "verification.json"
+    verification = json.loads(verification_path.read_text())
+    verification["csv_validation"]["counts"].update(
+        input_rows=len(originals), audit_rows=len(decisions)
+    )
+    verification_path.write_text(json.dumps(verification))
+    assert run(source, tmp_path, writer)["originalDecisionsToChange"] == 501
+
+    writer.fail_after_commit = lost_response
+    if lost_response:
+        with pytest.raises(RuntimeError, match="lost response"):
+            run(source, tmp_path, writer, apply=True)
+    assert run(source, tmp_path, writer, apply=True)["verified"] is True
+    batches = [args["records"] for name, args in writer.writes if name == "museumAudit:applyBatch"]
+    assert [len(batch) for batch in batches] == [500, 1]
+    destination = writer.museums["wikidata:Q3"]
+    assert "mergedInto" not in destination
+    for key in ("wikidata:Q1", "wikidata:Q4"):
+        assert writer.museums[key]["mergedInto"] == destination["_id"]
+    version = writer.version
+    assert run(source, tmp_path, writer, apply=True)["verified"] is True
+    assert writer.version == version
 
 
 def test_dotenv_credentials_are_target_bound_and_do_not_mutate_environment(tmp_path, monkeypatch):

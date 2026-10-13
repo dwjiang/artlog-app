@@ -106,6 +106,15 @@ export const commitBatch = internalMutation({
       await ctx.db.patch("museums", museum._id, { excludedFromDiscovery, mergedInto });
       changed.push(museum._id);
     }
+    // Validate after all patches so a batch can redirect incoming aliases before merging their survivor.
+    for (const { museum, mergedInto } of updates) {
+      if (mergedInto === undefined) continue;
+      const incoming = await ctx.db
+        .query("museums")
+        .withIndex("by_mergedInto", (q) => q.eq("mergedInto", museum._id))
+        .first();
+      if (incoming) throw new ConvexError({ code: "invalid_import_file", reason: "museum_alias_chain" });
+    }
     await recordVenueChanges(ctx, changed);
     return { changed: changed.length, unchanged: records.length - changed.length, ids };
   },

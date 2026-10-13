@@ -129,6 +129,52 @@ it("accepts queued visits, saves and captures for an excluded alias and preserve
   });
 });
 
+it("rejects merging a survivor with a preserved incoming alias without changing any records", async () => {
+  const t = harness();
+  const keys = ["alias", "survivor", "destination"];
+  await t.run(async (ctx) => {
+    for (const key of keys) await seedMuseum(ctx, { key });
+  });
+  await t.action(internal.museumAudit.applyBatch, {
+    records: [{ key: "alias", excludedFromDiscovery: true, duplicateOf: "survivor" }],
+  });
+  const before = await t.query(internal.museumAudit.byKeys, { keys });
+  const checkpoint = await t.query(internal.venueChanges.latestVersion, {});
+
+  await expect(
+    t.action(internal.museumAudit.applyBatch, {
+      records: [{ key: "survivor", excludedFromDiscovery: true, duplicateOf: "destination" }],
+    }),
+  ).rejects.toThrow("museum_alias_chain");
+  expect(await t.query(internal.museumAudit.byKeys, { keys })).toEqual(before);
+  expect(await t.query(api.venueChanges.list, { since: checkpoint })).toMatchObject({ venues: [] });
+});
+
+it.each([false, true])(
+  "permits a survivor merge when its incoming alias changes in the same batch (restore: %s)",
+  async (restore) => {
+    const t = harness();
+    await t.run(async (ctx) => {
+      for (const key of ["alias", "survivor", "destination"]) await seedMuseum(ctx, { key });
+    });
+    await t.action(internal.museumAudit.applyBatch, {
+      records: [{ key: "alias", excludedFromDiscovery: true, duplicateOf: "survivor" }],
+    });
+    const records = [
+      { key: "survivor", excludedFromDiscovery: true, duplicateOf: "destination" },
+      { key: "alias", excludedFromDiscovery: !restore, ...(restore ? {} : { duplicateOf: "destination" }) },
+    ];
+    expect(await t.action(internal.museumAudit.applyBatch, { records })).toMatchObject({ changed: 2 });
+    const [alias, survivor, destination] = await t.query(internal.museumAudit.byKeys, {
+      keys: ["alias", "survivor", "destination"],
+    });
+    expect(alias?.mergedInto).toBe(restore ? undefined : destination?._id);
+    expect(survivor?.mergedInto).toBe(destination?._id);
+    expect(destination?.mergedInto).toBeUndefined();
+    expect(await t.action(internal.museumAudit.applyBatch, { records })).toMatchObject({ changed: 0, unchanged: 2 });
+  },
+);
+
 it.each([
   {
     records: [
