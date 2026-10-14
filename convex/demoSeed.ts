@@ -1,30 +1,24 @@
-import { ConvexError, type Infer, v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
-import { journalVisit } from "../shared/journal/contracts";
-import { isUuid, normalizeSearch } from "../shared/journal/limits";
 import { avatarId } from "../shared/social/avatars";
-import { validateProfile, validateWallItems, wallLayout, wallPattern } from "../shared/social/contracts";
 import { leaderboardVisibility } from "../shared/social/leaderboard";
 import { MAX_COMMENT_LENGTH } from "../shared/social/visit-reactions";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { internalAction, internalQuery, type MutationCtx } from "./_generated/server";
+import { internalAction, internalQuery } from "./_generated/server";
 import { internalMutation } from "./functions";
 import {
-  addDemoSave,
   demoAccountRange,
+  demoPersonArgs,
   demoProfile,
   demoProviderUserId,
-  demoSave,
-  insertDemoPost,
+  insertDemoPerson,
   readableBy,
   usableObject,
   venueByKey,
 } from "./lib/demoAccounts";
 import { fileStorage } from "./lib/fileStorage";
 import { canonicalPair } from "./lib/friendships";
-import { upsertJournalVisit } from "./lib/journal";
-import { findOwnedSave } from "./lib/ownership";
 import { insertVisitComment, insertVisitLike } from "./lib/visitReactions";
 
 export const storeImages = internalAction({
@@ -63,132 +57,11 @@ export const inspect = internalQuery({
   },
 });
 
-const { venueId: _venueId, ...visitFields } = journalVisit.fields;
-const demoVisit = v.object({
-  ...visitFields,
-  venueKey: v.string(),
-  saves: v.array(demoSave),
-  post: v.optional(v.object({ postId: v.string(), publishedAt: v.number() })),
-});
-const demoWall = v.object({
-  color: v.string(),
-  pattern: v.optional(wallPattern),
-  items: v.array(
-    v.object({
-      placementId: v.string(),
-      saveLocalId: v.string(),
-      photoLocalId: v.optional(v.string()),
-      layout: wallLayout,
-    }),
-  ),
-});
-
 export const seedPerson = internalMutation({
-  args: {
-    username: v.string(),
-    name: v.string(),
-    bio: v.optional(v.string()),
-    avatar: avatarId,
-    leaderboardVisibility,
-    joinedAt: v.number(),
-    visits: v.array(demoVisit),
-    wall: v.optional(demoWall),
-  },
+  args: { ...demoPersonArgs, leaderboardVisibility, joinedAt: v.number() },
   returns: v.id("profiles"),
-  handler: async (ctx, input) => {
-    const fields = validateProfile(input);
-    const providerUserId = demoProviderUserId(input.username);
-    if (
-      await ctx.db
-        .query("accounts")
-        .withIndex("by_provider_userId", (q) => q.eq("provider", "apple").eq("providerUserId", providerUserId))
-        .unique()
-    ) {
-      throw new ConvexError({ code: "demo_exists", username: input.username });
-    }
-    if (
-      await ctx.db
-        .query("profiles")
-        .withIndex("by_username", (q) => q.eq("username", input.username))
-        .unique()
-    ) {
-      throw new ConvexError({ code: "username_taken", username: input.username });
-    }
-    const accountId = await ctx.db.insert("accounts", { provider: "apple", providerUserId });
-    const deviceId = await ctx.db.insert("devices", {
-      accountId,
-      firstSeenAt: input.joinedAt,
-      trustWeight: 0.5,
-      banned: false,
-      platform: "ios",
-      attestCounter: 0,
-      scopeRevision: 0,
-    });
-    const profileId = await ctx.db.insert("profiles", {
-      accountId,
-      username: input.username,
-      ...fields,
-      avatar: input.avatar,
-      searchText: normalizeSearch(`${input.username} ${fields.name}`),
-      active: true,
-      publishedWallCount: 0,
-      leaderboardVisibility: input.leaderboardVisibility,
-      updatedAt: Date.now(),
-    });
-    const owner = { kind: "account" as const, accountId };
-    for (const { venueKey, saves, post, ...visit } of input.visits) {
-      const venue = await venueByKey(ctx, venueKey);
-      if (!venue) throw new ConvexError({ code: "invalid_venue", venueKey });
-      const visitRow = await upsertJournalVisit(ctx, owner, deviceId, { ...visit, venueId: venue._id });
-      const saveRows = [];
-      for (const save of saves) {
-        saveRows.push(await addDemoSave(ctx, owner, deviceId, visitRow, venue, save));
-      }
-      if (post && visit.visibility !== "private") {
-        if (!isUuid(post.postId)) throw new ConvexError({ code: "invalid_post" });
-        const existing = await ctx.db
-          .query("sharedVisits")
-          .withIndex("by_postId", (q) => q.eq("postId", post.postId))
-          .unique();
-        if (existing) throw new ConvexError({ code: "invalid_post" });
-        await insertDemoPost(ctx, { profileId, visit: visitRow, saves: saveRows, ...post });
-      }
-    }
-    if (input.wall) await seedWall(ctx, owner, profileId, input.wall);
-    return profileId;
-  },
+  handler: (ctx, input) => insertDemoPerson(ctx, demoProviderUserId(input.username), input),
 });
-
-async function seedWall(
-  ctx: MutationCtx,
-  owner: { kind: "account"; accountId: Id<"accounts"> },
-  profileId: Id<"profiles">,
-  wall: Infer<typeof demoWall>,
-) {
-  validateWallItems(wall.items, 0);
-  if (!/^#[0-9a-f]{6}$/i.test(wall.color)) throw new ConvexError({ code: "invalid_wall" });
-  const wallId = await ctx.db.insert("walls", {
-    profileId,
-    color: wall.color.toUpperCase(),
-    pattern: wall.pattern,
-    layoutRevision: 1,
-  });
-  for (const item of wall.items) {
-    const save = await findOwnedSave(ctx, owner, item.saveLocalId);
-    if (!save) throw new ConvexError({ code: "invalid_wall", saveLocalId: item.saveLocalId });
-    await ctx.db.insert("wallItems", {
-      wallId,
-      profileId,
-      saveId: save._id,
-      saveLocalId: save.localId,
-      placementId: item.placementId,
-      photoLocalId: item.photoLocalId,
-      layout: item.layout,
-      active: true,
-    });
-  }
-  await ctx.db.patch("profiles", profileId, { publishedWallCount: wall.items.length });
-}
 
 export const seedSocial = internalMutation({
   args: {

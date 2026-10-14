@@ -10,6 +10,7 @@ import { projectProfile } from "./lib/projections";
 import { readablePublication, requirePublicWallItem } from "./lib/publicationAccess";
 import { activeWallItems, publicWallProjection } from "./lib/publicWall";
 import { limitKey } from "./lib/rateLimits";
+import { isReviewFriend } from "./lib/reviewFriend";
 import { findDismissal } from "./lib/suggestionDismissals";
 
 // Every signal reads a bounded sample, so one read stays near a few thousand documents however large the graph grows.
@@ -59,6 +60,8 @@ async function gatherEvidence(
   };
   for (const edge of accepted.slice(0, SAMPLE.friends)) {
     const friend = otherSide(edge, viewer._id);
+    const profile = await ctx.db.get("profiles", friend);
+    if (!profile || (await isReviewFriend(ctx, profile))) continue;
     const [first, second] = await Promise.all([
       ctx.db
         .query("friendships")
@@ -184,6 +187,7 @@ export const list = query({
       const { edge, block, reverseBlock, state } = snapshot;
       if (
         !person
+        || (await isReviewFriend(ctx, person))
         || block?.active
         || reverseBlock?.active
         || edge?.state === "accepted"

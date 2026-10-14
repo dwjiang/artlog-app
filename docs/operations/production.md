@@ -113,6 +113,19 @@ npx convex run review:decideReport '{"reportId":"<report ID>","operator":"<revie
 a comment, hides a wall item or post, or deactivates a profile; `dismiss` retains
 it. Inspect the report before choosing the action.
 
+## App Review test friend
+
+Seed the test friend described in [social-and-journal.md](../social-and-journal.md)
+once per deployment, with a friends-only visit so a new friend has a post to
+read and report. Visits take the demo seed's shape (`demoPersonArgs` in
+`convex/lib/demoAccounts.ts`); upload their photos with `demoSeed:storeImages`.
+
+```sh
+npx convex run reviewFriend:seed '{"username":"testfriend","name":"Test Friend","bio":"A test account. Adds you back right away.","avatar":"<preset ID>","visits":[<visit>]}' --prod --env-file .context/production-target.env
+```
+
+Give App Review the username in the review notes.
+
 ## iOS distribution
 
 Production builds need the production Convex URL, a venue asset exported from

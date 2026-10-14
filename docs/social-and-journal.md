@@ -41,6 +41,13 @@ accessible to signed-out readers. A friend request becomes accepted only through
 the recipient's action; reversing a request does not accept it. Ending or blocking
 a friendship removes friends-only access. Unblocking does not restore friendship.
 
+The App Review test friend is the one exception: an account no sign-in reaches
+that accepts every request at once, so a reviewer can try friendship, Went with,
+and mentions alone. Only its exact username finds it. It stays out of newest
+people, suggestions, other people's mention search, and leaderboards, and its
+friends list shows each viewer only themself, so the people who add it stay
+strangers to each other.
+
 Read responses use explicit projections. Public artwork metadata excludes private
 notes, raw capture context, account identifiers, and complete-journal statistics.
 Visit cards and protected media recheck the current publication and audience.

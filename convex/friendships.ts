@@ -13,6 +13,7 @@ import { activeProfile, requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 import { limitKey } from "./lib/rateLimits";
 import { findOpenReport, profileEvidence } from "./lib/reports";
+import { isReviewFriend } from "./lib/reviewFriend";
 
 const args = { profileId: v.id("profiles"), revision: v.number() };
 const REQUESTED_STAYS_MS = 24 * 60 * 60 * 1000;
@@ -67,7 +68,8 @@ function transition(operation: "request" | "accept" | "decline" | "cancel" | "re
         if (edge && edge.state !== "none") {
           throw new ConvexError({ code: "invalid_relationship" });
         }
-        next = "pending";
+        const other = await ctx.db.get("profiles", profileId);
+        next = other && (await isReviewFriend(ctx, other)) ? "accepted" : "pending";
       } else if (operation === "remove") {
         if (edge?.state !== "accepted") {
           throw new ConvexError({ code: "invalid_relationship" });

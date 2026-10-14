@@ -9,6 +9,7 @@ import { canSeePost } from "./lib/mentions";
 import { activeProfile, optionalProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 import { readablePublication } from "./lib/publicationAccess";
+import { isReviewFriend } from "./lib/reviewFriend";
 
 const SHOWN = 5;
 // Recent commenters lead a comment's suggestions; older ones are found by name like anyone else.
@@ -90,7 +91,8 @@ export const suggest = query({
         .query("profiles")
         .withSearchIndex("search_text", (q) => q.search("searchText", prefix).eq("active", true))
         .take(SEARCH_SCAN);
-      for (const profile of found) await consider(profile);
+      // The review friend is offered only to its friends, who met it above.
+      for (const profile of found) if (!(await isReviewFriend(ctx, profile))) await consider(profile);
     }
     return Promise.all(
       picked.map(async ({ profile, role }) => ({
