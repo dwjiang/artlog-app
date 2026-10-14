@@ -15,7 +15,7 @@ import { Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { museumDay } from "@/lib/journal/visit-date";
 import { reportError } from "@/lib/observability";
-import type { MeasurementUnits } from "@/lib/settings/measurement-units";
+import { deviceMeasurementUnits, type MeasurementUnits } from "@/lib/settings/measurement-units";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
 import { playErrorHaptic } from "@/lib/ui/haptics";
 import { type VenueRow, formatDistance } from "@/lib/venue/resolve";
@@ -70,7 +70,7 @@ function ChooserSheet({
   keepVisit?: () => void;
 }) {
   const { units, failed: unitsFailed } = useMeasurementUnits();
-  const displayUnits = units ?? (unitsFailed ? "metric" : undefined);
+  const displayUnits = units ?? (unitsFailed ? deviceMeasurementUnits() : undefined);
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const sheetStyle = [styles.groupedContainer, useFittedFormSheetStyle()];

@@ -11,8 +11,14 @@ jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
+let mockMeasurementSystem: "metric" | "us" = "metric";
+jest.mock("expo-localization", () => ({
+  getLocales: () => [{ measurementSystem: mockMeasurementSystem }],
+}));
+
 beforeEach(async () => {
   jest.restoreAllMocks();
+  mockMeasurementSystem = "metric";
   dismissToast();
   await settings.removeSetting("measurement-units");
 });
@@ -39,7 +45,32 @@ it("selects and remembers either measurement system when General is reopened", a
   expect(await getMeasurementUnits()).toBe("metric");
 });
 
-it("keeps the saved selection on a failed write and allows retry", async () => {
+it.each([
+  ["metric", "us", "Metric", "metric"],
+  ["us", "metric", "Imperial", "imperial"],
+] as const)(
+  "persists a tap on the %s device default across system changes",
+  async (system, nextSystem, label, units) => {
+    mockMeasurementSystem = system;
+    const view = await render(
+      <GroupedList>
+        <GeneralPreference />
+      </GroupedList>,
+    );
+    await fireEvent.press(await screen.findByRole("button", { name: label, selected: true }));
+    await view.unmount();
+    mockMeasurementSystem = nextSystem;
+    expect(await getMeasurementUnits()).toBe(units);
+    await render(
+      <GroupedList>
+        <GeneralPreference />
+      </GroupedList>,
+    );
+    expect(await screen.findByRole("button", { name: label, selected: true })).toBeOnTheScreen();
+  },
+);
+
+it.each(["Metric", "Imperial"])("keeps the selection on a failed write of %s and allows retry", async (label) => {
   const toast = await renderHook(useToast);
   await render(
     <GroupedList>
@@ -48,7 +79,7 @@ it("keeps the saved selection on a failed write and allows retry", async () => {
   );
   await screen.findByRole("button", { name: "Metric", selected: true });
   jest.spyOn(settings, "setSetting").mockRejectedValueOnce(new Error("Disk full"));
-  await fireEvent.press(screen.getByRole("button", { name: "Imperial" }));
+  await fireEvent.press(screen.getByRole("button", { name: label }));
   expect(toast.result.current).toMatchObject({
     message: "Couldn’t save measurement units.",
     action: { label: "Retry" },
@@ -56,7 +87,8 @@ it("keeps the saved selection on a failed write and allows retry", async () => {
   expect(screen.getByRole("button", { name: "Metric", selected: true })).toBeOnTheScreen();
   expect(await getMeasurementUnits()).toBe("metric");
   await act(() => toast.result.current?.action?.onPress());
-  await waitFor(() => expect(screen.getByRole("button", { name: "Imperial", selected: true })).toBeOnTheScreen());
+  await waitFor(async () => expect(await settings.getSetting("measurement-units")).toBe(label.toLowerCase()));
+  expect(screen.getByRole("button", { name: label, selected: true })).toBeOnTheScreen();
 });
 
 it("allows choosing units after a failed read without claiming a saved selection", async () => {

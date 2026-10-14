@@ -7,6 +7,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { reportError } from "@/lib/observability";
+import { deviceMeasurementUnits } from "@/lib/settings/measurement-units";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
 import { playErrorHaptic } from "@/lib/ui/haptics";
 import { formatDistance } from "@/lib/venue/resolve";
@@ -19,15 +20,13 @@ import { useVenue } from "@/lib/venue/use-venue";
  */
 export function VisitAddSheet() {
   const { venue, visit, startVisit } = useVenue();
-  const { units, failed: unitsFailed } = useMeasurementUnits();
+  const { units } = useMeasurementUnits();
   const sheetStyle = [styles.container, useFittedFormSheetStyle()];
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const here = !visit && venue ? venue : undefined;
   const distance =
-    here?.distanceM === undefined
-      ? undefined
-      : formatDistance(here.distanceM, units ?? (unitsFailed ? "metric" : "metric"));
+    here?.distanceM === undefined ? undefined : formatDistance(here.distanceM, units ?? deviceMeasurementUnits());
 
   const startDetail = here
     ? `${here.name}${distance ? ` · ${distance}` : ""}. Artworks you scan there join it until you end it.`

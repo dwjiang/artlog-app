@@ -498,6 +498,13 @@
       "text": 2
     },
     {
+      "name": "expo-localization",
+      "version": "57.0.2",
+      "license": "MIT",
+      "source": "npm",
+      "text": 2
+    },
+    {
       "name": "expo-location",
       "version": "57.0.20",
       "license": "MIT",

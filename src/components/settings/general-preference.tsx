@@ -31,7 +31,7 @@ export function GeneralPreference() {
 
   // The local write lands within a frame or two, so a saving state would only flash; show the choice at once.
   async function change(value: MeasurementUnits) {
-    if (pending.current || value === units) return;
+    if (pending.current) return;
     pending.current = true;
     setChoice(value);
     try {

@@ -42,6 +42,7 @@ jest.mock("@/db/client", () => ({
 }));
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("./dev-tools", () => ({ DevTools: () => null }));
+jest.mock("expo-localization", () => ({ getLocales: () => [{ measurementSystem: "metric" }] }));
 jest.mock("expo-web-browser", () => ({ openBrowserAsync: (url: string) => mockOpenBrowser(url) }));
 
 jest.mock("@/lib/account/use-account", () => ({
