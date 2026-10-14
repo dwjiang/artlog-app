@@ -24,7 +24,8 @@ function exhibition(overrides: Partial<Import> = {}): Import {
 }
 
 async function fixture(overrides = {}) {
-  vi.spyOn(Date, "now").mockReturnValue(NOW);
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
   const t = harness();
   const museumId = await t.run((ctx) =>
     seedMuseum(ctx, {
@@ -41,7 +42,10 @@ async function fixture(overrides = {}) {
   return { t, museumId };
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("verified exhibition import", () => {
   it("resolves the deployment's museum key and keeps one row on exact retries", async () => {
@@ -276,10 +280,57 @@ describe("verified exhibition import", () => {
 
 describe("Explore region catalog", () => {
   const REGION = "sf-bay-area";
+  // Explore lists a new show once its picture lookup has run.
+  const lookedUp = (overrides: Partial<Import> = {}) => exhibition({ imageCheckedAt: NOW - 1000, ...overrides });
+
+  it("holds a new show back until its picture lookup has run, or for two hours", async () => {
+    const { t, museumId } = await fixture({ region: REGION });
+    await t.action(internal.exhibitions.upsertBatch, {
+      records: [exhibition(), exhibition({ title: "Paper Worlds" })],
+    });
+    const [waiting, checked] = await t.query(internal.exhibitions.exportByVenueKeys, { venueKeys: [VENUE_KEY] });
+    const titles = async () => ({
+      inRegion: (await t.query(api.exhibitions.inRegion, { region: REGION, asOf: NOW })).exhibitions.map(
+        (row) => row.title,
+      ),
+      atMuseum: (await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW })).exhibitions.map((row) => row.title),
+      regions: (await t.query(api.exhibitions.regions, { asOf: NOW })).map((row) => row.region),
+    });
+    expect(await titles()).toEqual({ inRegion: [], atMuseum: [], regions: [] });
+    expect(
+      (await t.query(api.exhibitions.byIds, { exhibitionIds: [waiting.exhibitionId], asOf: NOW })).exhibitions,
+    ).toHaveLength(1);
+
+    await t.mutation(internal.exhibitionImages.recordImages, {
+      checkedAt: NOW,
+      results: [{ exhibitionId: checked.exhibitionId, sourceUrl: checked.sourceUrl }],
+    });
+    expect(await titles()).toEqual({ inRegion: [checked.title], atMuseum: [checked.title], regions: [REGION] });
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+    await t.action(internal.exhibitions.upsertBatch, {
+      records: [exhibition({ checkedAt: NOW, title: waiting.title })],
+    });
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000 - 1);
+    await t.finishInProgressScheduledFunctions();
+    expect((await titles()).inRegion).toEqual([checked.title]);
+    const before = await t.run((ctx) => ctx.db.get("exhibitions", waiting.exhibitionId));
+
+    await vi.advanceTimersByTimeAsync(1);
+    await t.finishInProgressScheduledFunctions();
+    const after = await t.run((ctx) => ctx.db.get("exhibitions", waiting.exhibitionId));
+    // The cutoff must change a query dependency, not just return a new result when called again.
+    expect(after).not.toEqual(before);
+    expect(after).not.toHaveProperty("imageCheckedAt");
+    const visible = await titles();
+    expect(visible.inRegion.toSorted()).toEqual([waiting.title, checked.title].toSorted());
+    expect(visible.atMuseum.toSorted()).toEqual([waiting.title, checked.title].toSorted());
+    expect(visible.regions).toEqual([REGION]);
+  });
 
   it("hides audited museums and shows from discovery while retaining their records and imported evidence", async () => {
     const { t, museumId } = await fixture({ region: REGION });
-    await t.action(internal.exhibitions.upsertBatch, { records: [exhibition()] });
+    await t.action(internal.exhibitions.upsertBatch, { records: [lookedUp()] });
     const [stored] = await t.query(internal.exhibitions.exportByVenueKeys, { venueKeys: [VENUE_KEY] });
     expect((await t.query(api.exhibitions.inRegion, { region: REGION, asOf: NOW })).museums).toHaveLength(1);
     await t.action(internal.museumAudit.applyBatch, {
@@ -297,7 +348,7 @@ describe("Explore region catalog", () => {
 
   it("lists a museum's shows and refresh schedule under its new region after a reseed moves it", async () => {
     const { t, museumId } = await fixture({ region: "country:US" });
-    await t.action(internal.exhibitions.upsertBatch, { records: [exhibition()] });
+    await t.action(internal.exhibitions.upsertBatch, { records: [lookedUp()] });
     await t.run((ctx) =>
       ctx.db.insert("exhibitionRefreshes", { museumId, region: "country:US", dueAt: NOW, failures: 0 }),
     );
@@ -319,7 +370,7 @@ describe("Explore region catalog", () => {
 
   it.each([false, true])("keeps saved shows readable after discovery exclusion (alias: %s)", async (alias) => {
     const { t, museumId } = await fixture({ region: REGION });
-    await t.action(internal.exhibitions.upsertBatch, { records: [exhibition()] });
+    await t.action(internal.exhibitions.upsertBatch, { records: [lookedUp()] });
     const [stored] = await t.query(internal.exhibitions.exportByVenueKeys, { venueKeys: [VENUE_KEY] });
     const args = { exhibitionIds: [stored.exhibitionId], asOf: NOW };
     const before = await t.query(api.exhibitions.byIds, args);
@@ -356,7 +407,7 @@ describe("Explore region catalog", () => {
       }),
     );
     await t.action(internal.exhibitions.upsertBatch, {
-      records: [exhibition(), exhibition({ venueKey: "london-museum", timeZone: "Europe/London" })],
+      records: [lookedUp(), lookedUp({ venueKey: "london-museum", timeZone: "Europe/London" })],
     });
     const rows = await t.query(internal.exhibitions.exportByVenueKeys, { venueKeys: [VENUE_KEY, "london-museum"] });
     const catalog = await t.query(api.exhibitions.byIds, {
@@ -392,7 +443,7 @@ describe("Explore region catalog", () => {
   it("reads a region's shows with live museum names and inclusive local closing dates", async () => {
     const { t, museumId } = await fixture({ region: REGION });
     await t.action(internal.exhibitions.upsertBatch, {
-      records: [exhibition({ viewingPeriods: [{ startDate: "2026-10-01", endDate: "2026-10-09" }] })],
+      records: [lookedUp({ viewingPeriods: [{ startDate: "2026-10-01", endDate: "2026-10-09" }] })],
     });
     await t.run((ctx) => ctx.db.patch("museums", museumId, { name: "Current Museum Name" }));
     const beforeLocalMidnight = Date.parse("2026-10-10T06:59:59.999Z");
@@ -403,7 +454,7 @@ describe("Explore region catalog", () => {
           exhibitionId: expect.any(String),
           museumId,
           title: "Between Worlds",
-          sourceUrl: exhibition().sourceUrl,
+          sourceUrl: lookedUp().sourceUrl,
           viewingPeriods: [{ startDate: "2026-10-01", endDate: "2026-10-09" }],
         },
       ],
@@ -417,7 +468,7 @@ describe("Explore region catalog", () => {
     const { t } = await fixture({ region: REGION });
     const imageUrl = "https://images.ctfassets.example/tides.jpg";
     await t.action(internal.exhibitions.upsertBatch, {
-      records: [exhibition({ imageUrl }), exhibition({ title: "No preview" })],
+      records: [lookedUp({ imageUrl }), lookedUp({ title: "No preview" })],
     });
     const { exhibitions } = await t.query(api.exhibitions.inRegion, { region: REGION, asOf: NOW });
     expect(exhibitions.map((row) => [row.title, row.imageUrl])).toEqual([
@@ -429,9 +480,9 @@ describe("Explore region catalog", () => {
   it("keeps upcoming and temporarily closed shows while excluding fully ended ones", async () => {
     const { t } = await fixture({ region: REGION });
     const records = [
-      exhibition({ title: "Ended", viewingPeriods: [{ startDate: "2026-09-01", endDate: "2026-10-08" }] }),
-      exhibition({ title: "Upcoming", viewingPeriods: [{ startDate: "2026-10-10", endDate: "2026-10-31" }] }),
-      exhibition({
+      lookedUp({ title: "Ended", viewingPeriods: [{ startDate: "2026-09-01", endDate: "2026-10-08" }] }),
+      lookedUp({ title: "Upcoming", viewingPeriods: [{ startDate: "2026-10-10", endDate: "2026-10-31" }] }),
+      lookedUp({
         title: "Returns after closure",
         viewingPeriods: [
           { startDate: "2026-09-01", endDate: "2026-10-08" },
@@ -448,7 +499,7 @@ describe("Explore region catalog", () => {
   it("ends a viewing period at local midnight after daylight saving time changes", async () => {
     const { t } = await fixture({ region: REGION });
     await t.action(internal.exhibitions.upsertBatch, {
-      records: [exhibition({ viewingPeriods: [{ startDate: "2026-10-01", endDate: "2026-11-01" }] })],
+      records: [lookedUp({ viewingPeriods: [{ startDate: "2026-10-01", endDate: "2026-11-01" }] })],
     });
     const lastMillisecond = Date.parse("2026-11-02T07:59:59.999Z");
     const shows = async (asOf: number) =>
@@ -469,10 +520,10 @@ describe("Explore region catalog", () => {
     }
     await t.action(internal.exhibitions.upsertBatch, {
       records: [
-        exhibition(),
-        exhibition({ venueKey: "wikidata:second-sf", timeZone: "America/Los_Angeles" }),
-        exhibition({ venueKey: "wikidata:london", timeZone: "Europe/London" }),
-        exhibition({
+        lookedUp(),
+        lookedUp({ venueKey: "wikidata:second-sf", timeZone: "America/Los_Angeles" }),
+        lookedUp({ venueKey: "wikidata:london", timeZone: "Europe/London" }),
+        lookedUp({
           venueKey: "wikidata:paris",
           timeZone: "Europe/Paris",
           viewingPeriods: [{ startDate: "2026-09-01", endDate: "2026-10-08" }],
@@ -490,7 +541,7 @@ describe("Explore region catalog", () => {
 
   it.each(["flag", "registry", "deleted"] as const)("hides imported venues later %s", async (kind) => {
     const { t, museumId } = await fixture({ region: REGION });
-    await t.action(internal.exhibitions.upsertBatch, { records: [exhibition()] });
+    await t.action(internal.exhibitions.upsertBatch, { records: [lookedUp()] });
     await t.run(async (ctx) => {
       if (kind === "deleted") {
         await ctx.db.delete("museums", museumId);

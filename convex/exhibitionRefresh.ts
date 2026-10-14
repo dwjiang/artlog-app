@@ -255,6 +255,22 @@ type ListingRead = {
 
 type PoliteClient = ReturnType<typeof politeClient>;
 
+/** artlog-bot's client for background reads, spacing requests to each host across every running read. */
+export function backgroundClient(ctx: ActionCtx): PoliteClient {
+  return politeClient({
+    userAgent: userAgent(),
+    maxCrawlDelayS: MAX_CRAWL_DELAY_S,
+    waitForHost: (host, gapMs) =>
+      withErrorReporting("exhibitionRefresh.host", async () => {
+        for (;;) {
+          const retryAfter = await ctx.runMutation(internal.exhibitionRefresh.reserveHost, { host, gapMs });
+          if (retryAfter === 0) return;
+          await new Promise((resolve) => setTimeout(resolve, retryAfter));
+        }
+      }),
+  });
+}
+
 /** HTTPS listings on the museum's own site, the only pages a show may cite. */
 function listingUrls(museum: ListingMuseum, home: URL) {
   const urls = new Map<string, { url: URL; venueSpecific: boolean }>();
@@ -530,7 +546,7 @@ async function extractShows(
   return { kind: "changed", checkedAt, ...(own.cacheable ? { pageHash } : {}), shows };
 }
 
-async function eachConcurrently<T>(items: T[], limit: number, run: (item: T, index: number) => Promise<void>) {
+export async function eachConcurrently<T>(items: T[], limit: number, run: (item: T, index: number) => Promise<void>) {
   let next = 0;
   await Promise.all(
     Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -548,18 +564,7 @@ export const readBatch = internalAction({
   handler: (ctx, { refreshIds, leasedUntil }) =>
     withErrorReporting("exhibitionRefresh.readBatch", async () => {
       const museums = await ctx.runQuery(internal.exhibitionRefresh.loadBatch, { refreshIds, leasedUntil });
-      const client = politeClient({
-        userAgent: userAgent(),
-        maxCrawlDelayS: MAX_CRAWL_DELAY_S,
-        waitForHost: (host, gapMs) =>
-          withErrorReporting("exhibitionRefresh.host", async () => {
-            for (;;) {
-              const retryAfter = await ctx.runMutation(internal.exhibitionRefresh.reserveHost, { host, gapMs });
-              if (retryAfter === 0) return;
-              await new Promise((resolve) => setTimeout(resolve, retryAfter));
-            }
-          }),
-      });
+      const client = backgroundClient(ctx);
       const reads: ListingRead[] = Array(museums.length);
       await eachConcurrently(museums, PAGE_READERS, async (museum, index) => {
         reads[index] = await readListings(client, museum);

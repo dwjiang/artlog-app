@@ -17,6 +17,8 @@ crons.daily(
   internal.exhibitionRefresh.readDueListings,
   {},
 );
+// Two hours after the listing reads begin, by when the day's new shows are saved.
+crons.daily("look up exhibition images", { hourUTC: 12, minuteUTC: 23 }, internal.exhibitionImages.lookUpDue, {});
 
 crons.weekly("pick popular tags", { dayOfWeek: "monday", hourUTC: 9, minuteUTC: 17 }, internal.tags.refreshPopular, {});
 crons.monthly("pick artist avatars", { day: 1, hourUTC: 9, minuteUTC: 47 }, internal.artists.refreshCovers, {});

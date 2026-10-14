@@ -7,9 +7,8 @@ import { capturePages, listingHash, listingText } from "./lib/exhibitionListings
 import type { exhibitionSource } from "./lib/exhibitionSourceValidators";
 import { jsonResponse } from "./lib/labelFixtures";
 import { readSpend, seedDevice, seedMuseum } from "./lib/testFactories";
-import { harness, type Harness } from "./test.helpers";
+import { harness, runScheduled, type Harness } from "./test.helpers";
 
-const realSetTimeout = globalThis.setTimeout;
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-10-09T19:00:00Z");
 const MODEL = "https://api.tokenfactory.nebius.com/v1/chat/completions";
@@ -157,32 +156,17 @@ async function listedMuseum(t: Harness, host: string, region = BAY_AREA) {
   return { museumId, url };
 }
 
-// Finish this attempt without advancing into tomorrow's retries or stale-lease recovery.
-async function runScheduled(t: Harness, through = Date.now() + 10 * 60_000) {
-  for (let step = 0; step < 1000; step++) {
-    await vi.advanceTimersByTimeAsync(0);
-    let finished = false;
-    const finishing = t.finishInProgressScheduledFunctions().then(() => {
-      finished = true;
-    });
-    for (let pump = 0; !finished && pump < 1000; pump++) {
-      await new Promise((resolve) => realSetTimeout(resolve, 0));
-      if (!finished) await vi.advanceTimersByTimeAsync(1000);
-    }
-    if (!finished) throw new Error("Listing worker did not finish");
-    await finishing;
-    const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
-    const next = Math.min(...jobs.filter((job) => job.state.kind === "pending").map((job) => job.scheduledTime));
-    if (!Number.isFinite(next) || next > through) return;
-    if (next <= Date.now()) await vi.advanceTimersToNextTimerAsync();
-    else await vi.advanceTimersByTimeAsync(next - Date.now());
-  }
-  throw new Error("Scheduled listing reads did not settle");
-}
-
 async function readDue(t: Harness) {
   await t.mutation(internal.exhibitionRefresh.readDueListings, {});
   await runScheduled(t);
+  // Listing tests settle the separate picture lookup without adding image fetches to their request assertions.
+  await t.run(async (ctx) => {
+    const shows = await ctx.db
+      .query("exhibitions")
+      .withIndex("by_imageCheckedAt_finalEndAt", (q) => q.eq("imageCheckedAt", undefined))
+      .collect();
+    for (const show of shows) await ctx.db.patch("exhibitions", show._id, { imageCheckedAt: Date.now() });
+  });
 }
 
 async function refreshRow(t: Harness, museumId: Id<"museums">): Promise<Doc<"exhibitionRefreshes"> | null> {
