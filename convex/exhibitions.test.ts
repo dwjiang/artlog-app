@@ -510,4 +510,37 @@ describe("Explore region catalog", () => {
     });
     expect(await t.query(api.exhibitions.regions, { asOf: NOW })).toEqual([]);
   });
+
+  it("validates local museum candidates against current region and discovery visibility", async () => {
+    const { t, museumId } = await fixture({ region: REGION });
+    const ids = await t.run(async (ctx) => {
+      const flagged = await seedMuseum(ctx, { key: "flagged", region: REGION, optOut: true });
+      const registered = await seedMuseum(ctx, { key: "registered", region: REGION });
+      await ctx.db.insert("optOuts", {
+        target: { kind: "venue", venueId: registered },
+        requester: "museum",
+        receivedAt: NOW,
+      });
+      const excluded = await seedMuseum(ctx, { key: "excluded", region: REGION, excludedFromDiscovery: true });
+      const moved = await seedMuseum(ctx, { key: "moved", region: "london" });
+      const deleted = await seedMuseum(ctx, { key: "deleted", region: REGION });
+      await ctx.db.delete("museums", deleted);
+      return [museumId, flagged, registered, excluded, moved, deleted, museumId];
+    });
+    expect(await t.query(api.exhibitions.discoverableMuseumIds, { region: REGION, museumIds: ids })).toEqual([
+      museumId,
+    ]);
+    await t.run((ctx) => ctx.db.patch("museums", museumId, { optOut: true }));
+    expect(await t.query(api.exhibitions.discoverableMuseumIds, { region: REGION, museumIds: ids })).toEqual([]);
+  });
+
+  it("bounds museum visibility reads", async () => {
+    const { t, museumId } = await fixture({ region: REGION });
+    await expect(
+      t.query(api.exhibitions.discoverableMuseumIds, {
+        region: REGION,
+        museumIds: Array.from({ length: 101 }, () => museumId),
+      }),
+    ).rejects.toThrow("batch_too_large");
+  });
 });

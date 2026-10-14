@@ -1,7 +1,7 @@
 import type { FunctionReturnType } from "convex/server";
 
 import type { MeasurementUnits } from "@/lib/settings/measurement-units";
-import { formatDistance, haversineMeters, type Coordinate } from "@/lib/venue/resolve";
+import { formatDistance, haversineMeters, type Coordinate, type VenueRow } from "@/lib/venue/resolve";
 import { regionName } from "@/lib/venue/venue-location";
 import { regionCountry } from "@/shared/sources/region-country";
 
@@ -47,13 +47,22 @@ export function defaultCity(
   return nearestRegion(local.length > 0 ? local : regions, { lat, lng });
 }
 
+/** The city's shows with every museum in it, the server's record first for a museum that lists shows. */
 export function exploreData(
   catalog: RegionCatalog,
+  cityMuseums: readonly VenueRow[],
   place: Omit<ExploreData, keyof ExploreCatalog> & { today: string },
   fix: Coordinate | undefined,
   units: MeasurementUnits | undefined,
 ): ExploreData {
-  return { ...place, ...catalogData(catalog, place.today, fix, units) };
+  const listed = new Set(catalog.museums.map((museum) => museum.museumId));
+  const museums = [
+    ...catalog.museums,
+    ...cityMuseums
+      .filter((museum) => !listed.has(museum.id))
+      .map(({ id, name, city, lat, lng }) => ({ museumId: id, name, city: city ?? null, lat, lng })),
+  ];
+  return { ...place, ...catalogData({ ...catalog, museums }, place.today, fix, units) };
 }
 
 export function catalogData(

@@ -11,15 +11,16 @@ export function museumExhibitions(data: ExploreCatalog, museum: ExploreMuseum): 
 
 export const museumCover = (data: ExploreCatalog, museum: ExploreMuseum) => museumExhibitions(data, museum)[0]?.image;
 
-/** "3 exhibitions · 1 ending soon": what's on at a museum now, counting shows that have not opened yet. */
-export function museumSummary(data: ExploreCatalog, museum: ExploreMuseum): { count: string; ending?: string } {
+/**
+ * "3 exhibitions · 1 ending soon": what's on at a museum now, counting shows that have not opened yet. Nothing for a
+ * museum listing none, since most museums in a city have no shows listed.
+ */
+export function museumSummary(data: ExploreCatalog, museum: ExploreMuseum): { count?: string; ending?: string } {
   const current = museumExhibitions(data, museum);
+  if (current.length === 0) return {};
   const ending = exhibitionsByTiming(current, "ending", data.today).length;
   return {
-    count:
-      current.length === 0
-        ? "No exhibitions listed"
-        : `${current.length} ${current.length === 1 ? "exhibition" : "exhibitions"}`,
+    count: `${current.length} ${current.length === 1 ? "exhibition" : "exhibitions"}`,
     ending: ending > 0 ? `${ending} ending soon` : undefined,
   };
 }

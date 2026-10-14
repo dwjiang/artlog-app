@@ -192,6 +192,14 @@ export async function regionAt(origin: Coordinate): Promise<string | undefined> 
   return (await nearest(await openVenueDb(), origin, REGION_RADIUS_M))[0]?.region;
 }
 
+/** Every discoverable museum in Explore's `region`, whether or not it lists shows. */
+export async function museumsInRegion(region: string): Promise<VenueRow[]> {
+  return (await openVenueDb()).getAllAsync<VenueRow>(
+    `SELECT ${VENUE_COLUMNS} FROM venues WHERE region = ? AND excludedFromDiscovery = 0`,
+    region,
+  );
+}
+
 export async function resolveVenueAt(origin: Coordinate): Promise<VenueResolution> {
   return pickVenue(await nearest(await openVenueDb(), origin, CHOOSE_RADIUS_M));
 }
