@@ -9,7 +9,6 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalQuery, type ActionCtx, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { saveExhibition } from "./exhibitions";
 import { internalMutation, mutation } from "./functions";
-import { requireDevice } from "./lib/auth";
 import {
   EXHIBITION_MODEL,
   EXTRACTION_SYSTEM,
@@ -42,7 +41,6 @@ import { verifiedExhibition } from "./lib/exhibitionValidators";
 import { isEnabled } from "./lib/flags";
 import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { userAgent } from "./lib/politeFetch";
-import { limiter } from "./lib/rateLimits";
 import { regionCountry } from "./lib/regions";
 import { dailyCap, reserveSpend, spentToday } from "./lib/spend";
 import { MAX_EXTRACT_URLS } from "./lib/tavily";
@@ -51,15 +49,11 @@ import { chatJson } from "./lib/tokenFactory";
 import { isVenueOptedOut } from "./lib/venueOptOut";
 import { entityNames, getEntities } from "./lib/wikidata";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-// Regions Explore showed within this window are read on schedule; the rest when someone opens them.
-const VIEW_WINDOW_MS = 30 * DAY_MS;
-const VIEW_WRITE_GAP_MS = 60 * 60 * 1000;
 // A read still leased after this long is taken to have died, so its museum can be picked again.
 const LEASE_MS = 15 * 60 * 1000;
 const BATCH_SIZE = 20;
-const DISPATCH_LIMIT = 60;
-const REGION_LIMIT = 40;
+// Starting one batch this often keeps model reads under the project's Token Factory tokens-per-minute limit.
+const BATCH_GAP_MS = 24_000;
 // Background reads stop at this share of each daily cap, leaving the rest to people's own scans.
 const BACKGROUND_SHARE = 0.5;
 const MAX_LISTINGS = 4;
@@ -75,7 +69,6 @@ const MODEL_READERS = 4;
 const MODEL_CALLS_RESERVED = 2;
 const MAX_OUTPUT_TOKENS = 12_000;
 const MODEL_TIMEOUT_MS = 120_000;
-const MAX_REGION_CHARS = 100;
 
 const checkOutcome = v.union(
   v.object({
@@ -112,6 +105,9 @@ async function refreshRow(ctx: QueryCtx, museumId: Id<"museums">) {
     .unique();
 }
 
+// Explore never lists hidden or merged museums, so reading their listings would be paid for and never shown.
+const listedInExplore = (museum: Doc<"museums">) => !museum.excludedFromDiscovery && !museum.mergedInto;
+
 /** Keeps a museum's refresh schedule in step with its listing discovery; a new or changed listing is read as new. */
 export async function syncRefresh(
   ctx: MutationCtx,
@@ -119,7 +115,7 @@ export async function syncRefresh(
   source: Infer<typeof exhibitionSource>,
 ): Promise<void> {
   const row = await refreshRow(ctx, museum._id);
-  if (source.status !== "validated") {
+  if (source.status !== "validated" || !listedInExplore(museum)) {
     if (row) await ctx.db.delete("exhibitionRefreshes", row._id);
     return;
   }
@@ -141,18 +137,6 @@ async function budgetLeft(ctx: QueryCtx | MutationCtx): Promise<boolean> {
   return true;
 }
 
-async function takeDue(
-  rows: AsyncIterable<Doc<"exhibitionRefreshes">>,
-  picked: Map<Id<"exhibitionRefreshes">, Doc<"exhibitionRefreshes">>,
-  limit: number,
-  now: number,
-) {
-  for await (const row of rows) {
-    if (picked.size >= limit) return;
-    if ((row.leasedUntil ?? 0) <= now) picked.set(row._id, row);
-  }
-}
-
 /** Leases the rows and reads them in bounded batches. Fetches reserve host slots independently of batch boundaries. */
 async function leaseAndRead(ctx: MutationCtx, rows: Doc<"exhibitionRefreshes">[], now: number) {
   if (rows.length === 0) return;
@@ -168,71 +152,32 @@ async function leaseAndRead(ctx: MutationCtx, rows: Doc<"exhibitionRefreshes">[]
   }
 }
 
-/** Reads museums never read before, then those due in regions Explore showed recently. */
-export const dispatch = internalMutation({
+/** Reads every due listing, one spaced batch at a time, until none is due or the day's background budget is spent. */
+export const readDueListings = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
     if (!isEnabled("exhibitionRefresh") || !(await budgetLeft(ctx))) return null;
     const now = Date.now();
-    const picked = new Map<Id<"exhibitionRefreshes">, Doc<"exhibitionRefreshes">>();
-    await takeDue(
-      ctx.db
-        .query("exhibitionRefreshes")
-        .withIndex("by_checkedAt_dueAt", (q) => q.eq("checkedAt", undefined).lte("dueAt", now)),
-      picked,
-      DISPATCH_LIMIT,
-      now,
-    );
-    const views = ctx.db
-      .query("exploreRegionViews")
-      .withIndex("by_viewedAt", (q) => q.gte("viewedAt", now - VIEW_WINDOW_MS));
-    for await (const view of views) {
-      if (picked.size >= DISPATCH_LIMIT) break;
-      await takeDue(
-        ctx.db
-          .query("exhibitionRefreshes")
-          .withIndex("by_region_dueAt", (q) => q.eq("region", view.region).lte("dueAt", now)),
-        picked,
-        DISPATCH_LIMIT,
-        now,
-      );
+    const picked: Doc<"exhibitionRefreshes">[] = [];
+    // Rows an earlier batch still holds sit among the due ones; a lease that outlived its worker counts as free.
+    for await (const row of ctx.db.query("exhibitionRefreshes").withIndex("by_dueAt", (q) => q.lte("dueAt", now))) {
+      if ((row.leasedUntil ?? 0) <= now) picked.push(row);
+      if (picked.length === BATCH_SIZE) break;
     }
-    await leaseAndRead(ctx, [...picked.values()], now);
+    await leaseAndRead(ctx, picked, now);
+    if (picked.length === BATCH_SIZE) {
+      await ctx.scheduler.runAfter(BATCH_GAP_MS, internal.exhibitionRefresh.readDueListings, {});
+    }
     return null;
   },
 });
 
-/** Explore showed this region: keep its listings on schedule and read the ones already due. */
+/** Older app builds call this when Explore shows a region; listings are read on the daily schedule instead. */
 export const requestRegion = mutation({
   args: { region: v.string() },
   returns: v.null(),
-  handler: async (ctx, { region }) => {
-    const device = await requireDevice(ctx);
-    if (!region.trim() || region.length > MAX_REGION_CHARS) throw new ConvexError({ code: "invalid_venue" });
-    if (!isEnabled("exhibitionRefresh")) return null;
-    if (!(await limiter.limit(ctx, "exploreRefresh", { key: device._id })).ok) return null;
-    const now = Date.now();
-    const view = await ctx.db
-      .query("exploreRegionViews")
-      .withIndex("by_region", (q) => q.eq("region", region))
-      .unique();
-    if (!view) {
-      await ctx.db.insert("exploreRegionViews", { region, viewedAt: now });
-    } else if (now - view.viewedAt >= VIEW_WRITE_GAP_MS) {
-      await ctx.db.patch("exploreRegionViews", view._id, { viewedAt: now });
-    }
-    if (!(await budgetLeft(ctx))) return null;
-    const picked = new Map<Id<"exhibitionRefreshes">, Doc<"exhibitionRefreshes">>();
-    await takeDue(
-      ctx.db.query("exhibitionRefreshes").withIndex("by_region_dueAt", (q) => q.eq("region", region).lte("dueAt", now)),
-      picked,
-      REGION_LIMIT,
-      now,
-    );
-    await leaseAndRead(ctx, [...picked.values()], now);
-    return null;
-  },
+  handler: () => null,
 });
 
 export const remainingBudget = internalQuery({
@@ -273,7 +218,8 @@ export const loadBatch = internalQuery({
         .query("exhibitionSources")
         .withIndex("by_museumId", (q) => q.eq("museumId", museum._id))
         .unique();
-      const readable = source?.status === "validated" && !(await isVenueOptedOut(ctx, museum));
+      const readable =
+        source?.status === "validated" && listedInExplore(museum) && !(await isVenueOptedOut(ctx, museum));
       museums.push({
         refreshId,
         museumId: museum._id,

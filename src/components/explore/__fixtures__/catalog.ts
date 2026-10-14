@@ -46,7 +46,7 @@ export const bayArea = {
   exhibitions: [
     show("tides", "omca", "Tides of Memory", period(-100, 8)),
     show("fog", "sfmoma", "Fog Studies", period(-38, 14)),
-    show("signal", "sfmoma", "Signal and Noise", period(-9, 69)),
+    { ...show("signal", "sfmoma", "Signal and Noise", period(-9, 69)), imageUrl: "https://cdn.example.net/signal.jpg" },
     show("orchard", "bampfa", "Orchard Light", period(13, 147)),
     show("returning", "bampfa", "The Returning Room", period(-60, -5), period(6, 30)),
     show("collection", "sfmoma", "Collection in Focus", period(null, 120)),

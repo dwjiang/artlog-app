@@ -30,7 +30,6 @@ const limits = {
   narrationDaily: { kind: "fixed window", rate: 1000, period: DAY },
   docent: { kind: "fixed window", rate: 60, period: HOUR },
   rightNow: { kind: "fixed window", rate: 60, period: HOUR },
-  exploreRefresh: { kind: "fixed window", rate: 30, period: HOUR },
   wantToSee: { kind: "fixed window", rate: 60, period: MINUTE },
   correctFact: { kind: "fixed window", rate: 5, period: DAY },
   appFeedback: { kind: "fixed window", rate: 10, period: DAY },

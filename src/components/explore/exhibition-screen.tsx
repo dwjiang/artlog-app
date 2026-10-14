@@ -52,13 +52,23 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
       scrollEventThrottle={16}
     >
       {exhibition.image && (
-        <LoadingImage
-          uri={exhibition.image.uri}
-          label={exhibition.image.label}
-          contentFit="contain"
-          onLoad={({ source }) => setAspect(source.width / source.height)}
-          style={{ width: imageWidth, height: imageWidth / aspect, marginHorizontal: Spacing.content }}
-        />
+        // Credits the page the image came from; the image file itself is often on a CDN with an opaque host.
+        <MotionPressable
+          accessibilityRole="link"
+          accessibilityLabel={`Image from ${host}`}
+          accessibilityHint="Opens the exhibition page"
+          onPress={() => openExhibitionPage(exhibition.sourceUrl)}
+          style={styles.image}
+        >
+          <LoadingImage
+            uri={exhibition.image.uri}
+            label={exhibition.image.label}
+            contentFit="contain"
+            onLoad={({ source }) => setAspect(source.width / source.height)}
+            style={{ width: imageWidth, height: imageWidth / aspect }}
+          />
+          <Text variant="metadata" themeColor="textSecondary">{`Image from ${host}`}</Text>
+        </MotionPressable>
       )}
       <View style={styles.details}>
         <View style={styles.heading}>
@@ -127,6 +137,7 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
   content: { paddingTop: Spacing.two, paddingBottom: Spacing.five },
+  image: { marginHorizontal: Spacing.content, gap: Spacing.two },
   details: { paddingHorizontal: Spacing.content, paddingTop: Spacing.three, gap: Spacing.four },
   heading: { gap: Spacing.two },
   museumLink: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center", marginVertical: -Spacing.two },

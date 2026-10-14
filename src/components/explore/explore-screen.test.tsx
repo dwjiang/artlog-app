@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import * as Notifications from "expo-notifications";
 import type { ReactNode } from "react";
-import { Linking } from "react-native";
+import { AppState, Linking } from "react-native";
 
 import { chooseCity } from "@/lib/explore/use-explore";
 import { offerNotifications } from "@/lib/notifications/offer";
@@ -28,6 +28,7 @@ let mockExhibitionReminders: boolean;
 let mockParams: { timing?: string } = {};
 let mockFix: { lat: number; lng: number } | undefined;
 let mockOffline = false;
+let mockFocused = true;
 let mockFailure: Error | undefined;
 let mockRegions: unknown[];
 let mockEmptyRegion: string | undefined;
@@ -43,7 +44,7 @@ jest.mock("expo-router", () => {
     Stack: mockStack,
   };
 });
-jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
+jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116, useIsFocused: () => mockFocused }));
 jest.mock("expo-web-browser", () => ({ openBrowserAsync: (url: string) => mockOpenBrowser(url) }));
 jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable: !mockOffline }) }));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({ fix: mockFix }) }));
@@ -163,6 +164,8 @@ beforeEach(() => {
   mockParams = {};
   mockFix = undefined;
   mockOffline = false;
+  mockFocused = true;
+  AppState.currentState = "active";
   mockFailure = undefined;
   mockRegions = regions;
   mockEmptyRegion = undefined;
@@ -247,6 +250,8 @@ describe("Explore", () => {
     expect(screen.getByText("You’re offline.")).toBeOnTheScreen();
 
     mockOffline = false;
+    mockFocused = true;
+    AppState.currentState = "active";
     mockFailure = new Error("Network request failed");
     await render(<ExploreScreen />);
     await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
@@ -258,17 +263,10 @@ describe("Explore", () => {
     expect(screen.getByText("No exhibitions listed yet.")).toBeOnTheScreen();
   });
 
-  it("asks the backend to keep the shown city's museum listings current, never while offline", async () => {
-    mockFix = { lat: 50.21, lng: -5.48 };
+  it("never asks the backend to read museum listings when a city opens", async () => {
     await render(<ExploreScreen />);
-    expect(mockRequestRegion).toHaveBeenLastCalledWith({ region: "country:GB" });
-
     await fireEvent.press(screen.getByRole("button", { name: "San Francisco Bay Area" }));
-    expect(mockRequestRegion).toHaveBeenLastCalledWith({ region: "sf-bay-area" });
 
-    mockRequestRegion.mockClear();
-    mockOffline = true;
-    await render(<ExploreScreen />);
     expect(mockRequestRegion).not.toHaveBeenCalled();
   });
 
@@ -281,14 +279,13 @@ describe("Explore", () => {
     expect(screen.queryByText("You’re offline.")).toBeNull();
   });
 
-  it("keeps an empty city selectable and requests its listings", async () => {
+  it("keeps an empty city selectable", async () => {
     mockRegions = [...regions, { region: "paris", lat: 48.8, lng: 2.3 }];
     mockEmptyRegion = "paris";
     await render(<ExploreScreen />);
     await fireEvent.press(screen.getByRole("button", { name: "Paris" }));
     expect(screen.getByLabelText("City, Paris")).toBeOnTheScreen();
     expect(screen.getByText("No exhibitions close in the next 30 days.")).toBeOnTheScreen();
-    expect(mockRequestRegion).toHaveBeenLastCalledWith({ region: "paris" });
 
     await fireEvent.press(screen.getByRole("button", { name: "San Francisco Bay Area" }));
     expect(card("Tides of Memory")).toBeOnTheScreen();
@@ -333,9 +330,19 @@ describe("Exhibition", () => {
     expect(screen.getByRole("header", { name: "Collection in Focus" })).toBeOnTheScreen();
     expect(screen.getByText(/^Through [A-Z][a-z]{2} \d{1,2}, \d{4}$/)).toBeOnTheScreen();
 
+    expect(screen.queryByText(/^Image from/)).toBeNull();
+
     await fireEvent.press(screen.getByRole("link", { name: "Details on sfmoma.org" }));
 
     expect(mockOpenBrowser).toHaveBeenCalledWith("https://www.sfmoma.org/exhibitions/collection");
+  });
+
+  it("credits a show's image to the page it came from and opens that page from the image", async () => {
+    await render(<ExhibitionScreen exhibitionId="signal" />);
+
+    await fireEvent.press(screen.getByRole("link", { name: "Image from sfmoma.org" }));
+
+    expect(mockOpenBrowser).toHaveBeenCalledWith("https://www.sfmoma.org/exhibitions/signal");
   });
 });
 
