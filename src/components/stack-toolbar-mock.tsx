@@ -56,13 +56,20 @@ Toolbar.MenuAction = function ToolbarMenuAction({
   children,
   onPress,
   isOn,
+  subtitle,
 }: {
   children: string;
   onPress: () => void;
   isOn?: boolean;
+  subtitle?: string;
 }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected: !!isOn }} onPress={onPress}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!isOn }}
+      accessibilityHint={subtitle}
+      onPress={onPress}
+    >
       <Text>{children}</Text>
     </Pressable>
   );

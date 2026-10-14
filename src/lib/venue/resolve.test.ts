@@ -137,6 +137,7 @@ describe("formatDistance", () => {
     [1609, "5280 ft"],
     [1609.344, "1.0 mi"],
     [3218.688, "2.0 mi"],
+    [583_500, "363 mi"],
     [Number.NaN, ""],
     [Number.POSITIVE_INFINITY, ""],
   ])("formats %s meters in imperial units as %s", (meters, text) => {
@@ -149,6 +150,8 @@ describe("formatDistance", () => {
     [999, "1000 m"],
     [1000, "1.0 km"],
     [3140, "3.1 km"],
+    [99_940, "99.9 km"],
+    [8_904_200, "8,904 km"],
     [Number.NaN, ""],
   ])("formats %s as %s", (meters, text) => {
     expect(formatDistance(meters)).toBe(text);

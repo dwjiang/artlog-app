@@ -266,7 +266,7 @@ async function buildCatalog(
   return catalog;
 }
 
-/** Regions with live shows or validated listings, each placed at a visible museum so Explore can reopen empty cities. */
+/** Regions with a show not yet closed, each placed at a visible museum showing one. */
 export const regions = query({
   args: { asOf: v.number() },
   returns: v.array(exploreRegion),
@@ -288,25 +288,6 @@ export const regions = query({
       next = await ctx.db
         .query("exhibitions")
         .withIndex("by_region_finalEndAt", (q) => q.gt("region", region))
-        .first();
-    }
-    const included = new Set(result.map(({ region }) => region));
-    let refresh = await ctx.db.query("exhibitionRefreshes").withIndex("by_region_dueAt").first();
-    while (refresh) {
-      const { region } = refresh;
-      if (!included.has(region)) {
-        const rows = ctx.db.query("exhibitionRefreshes").withIndex("by_region_dueAt", (q) => q.eq("region", region));
-        for await (const row of rows) {
-          const museum = await visibleMuseum(ctx, museums, row.museumId);
-          if (museum) {
-            result.push({ region, lat: museum.lat, lng: museum.lng });
-            break;
-          }
-        }
-      }
-      refresh = await ctx.db
-        .query("exhibitionRefreshes")
-        .withIndex("by_region_dueAt", (q) => q.gt("region", region))
         .first();
     }
     return result;

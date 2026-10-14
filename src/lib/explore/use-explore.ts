@@ -1,7 +1,7 @@
 import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useNetworkState } from "expo-network";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { useCurrentMinute } from "@/hooks/use-current-minute";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -11,7 +11,10 @@ import { reportError } from "@/lib/observability";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
 import { useBatchedSocialQuery, useSocialQuery } from "@/lib/social/use-social-query";
 import { useDeviceReady } from "@/lib/use-device-ready";
+import type { Coordinate } from "@/lib/venue/resolve";
 import { useVenue } from "@/lib/venue/use-venue";
+import { regionAt } from "@/lib/venue/venue-db";
+import { regionName } from "@/lib/venue/venue-location";
 import { calendarDate } from "@/shared/journal/limits";
 
 import { api } from "../../../convex/_generated/api";
@@ -43,7 +46,8 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-export function chooseCity(cityId: string) {
+/** Browses `cityId`, or follows the phone's location again without one. */
+export function chooseCity(cityId: string | undefined) {
   chosenCity = cityId;
   for (const listener of listeners) listener();
 }
@@ -59,31 +63,70 @@ function useFriendSaves(enabled: boolean): FriendSaves {
 }
 
 function useCatalogContext({ friends = true } = {}) {
-  const today = calendarDate(useCurrentMinute(), Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const { timeZone } = Intl.DateTimeFormat().resolvedOptions();
+  const today = calendarDate(useCurrentMinute(), timeZone);
   const asOf = catalogAsOf(today);
   const offline = isOffline(useNetworkState());
   const { fix } = useVenue();
   const { units } = useMeasurementUnits();
-  return { today, asOf, offline, fix, units, friendSaves: useFriendSaves(friends) };
+  return { today, asOf, timeZone, offline, fix, units, friendSaves: useFriendSaves(friends) };
 }
 
-/** Browse the chosen city, or the one nearest the phone, measured from today on this device. */
+/** The phone's region from the venue table: undefined while it is read, null without a fix or a museum near it. */
+function useHomeRegion(fix: Coordinate | undefined): string | null | undefined {
+  const [region, setRegion] = useState<string | null>();
+  useEffect(() => {
+    if (!fix) return;
+    let current = true;
+    regionAt(fix).then(
+      (found) => {
+        if (current) setRegion(found ?? null);
+      },
+      (cause: unknown) => {
+        reportError(cause, "explore.home.region");
+        if (current) setRegion(null);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [fix]);
+  return fix ? region : null;
+}
+
+/**
+ * Browse the chosen city, else the phone's own, else the nearest city with shows to the phone or, without a location
+ * fix, to its time zone, measured from today on this device.
+ */
 export function useExplore(): ExploreView<ExploreData> {
-  const { today, asOf, offline, fix, units, friendSaves } = useCatalogContext();
+  const { today, asOf, timeZone, offline, fix, units, friendSaves } = useCatalogContext();
   const chosen = useSyncExternalStore(subscribe, () => chosenCity);
   const regions = useSocialQuery(api.exhibitions.regions, { asOf }, "explore");
+  const home = useHomeRegion(fix);
   const cities = useMemo(() => exploreCities(regions.data ?? []), [regions.data]);
-  const cityId = cities.some((city) => city.id === chosen) ? chosen : defaultCity(regions.data ?? [], fix);
+  const picked = cities.some((city) => city.id === chosen) ? chosen : undefined;
+  // Waits for the phone's region so Explore doesn't open one city and then jump to another.
+  const cityId =
+    picked
+    ?? (home === undefined ? undefined : defaultCity(regions.data ?? [], { fix, home: home ?? undefined, timeZone }));
   const catalog = useSocialQuery(api.exhibitions.inRegion, !cityId ? "skip" : { region: cityId, asOf }, "explore");
   useRegionRefresh(cityId, offline);
+  // The phone's own region is read on schedule too, so its listings appear once its museums post shows.
+  useRegionRefresh(home && home !== cityId ? home : undefined, offline);
   const city = cities.find((candidate) => candidate.id === cityId);
-  const data = useMemo(
-    () =>
-      catalog.data && city
-        ? withFriends(exploreData(catalog.data, { city, cities, today }, fix, units), friendSaves)
-        : undefined,
-    [catalog.data, city, cities, today, fix, units, friendSaves],
-  );
+  const following = !picked && fix !== undefined;
+  const data = useMemo(() => {
+    if (!catalog.data || !city) return undefined;
+    const place = {
+      city,
+      cities,
+      nearby: city.id === home,
+      following,
+      home: home ? regionName(home) : undefined,
+      today,
+    };
+    return withFriends(exploreData(catalog.data, place, fix, units), friendSaves);
+  }, [catalog.data, city, cities, home, following, today, fix, units, friendSaves]);
   const retry = () => (regions.error ? regions.refresh() : catalog.refresh());
   if (offline && !data) return { status: "offline", retry };
   if (regions.error || catalog.error) return { status: "error", retry };
@@ -91,7 +134,7 @@ export function useExplore(): ExploreView<ExploreData> {
   return data ? { status: "ready", data, retry } : { status: "loading", retry };
 }
 
-/** Tells the backend which region Explore shows, so it keeps that region's museum listings current. */
+/** Tells the backend about a region Explore shows or the phone is in, so it keeps its museum listings current. */
 function useRegionRefresh(region: string | undefined, offline: boolean) {
   const requestRegion = useMutation(api.exhibitionRefresh.requestRegion);
   const deviceReady = useDeviceReady();

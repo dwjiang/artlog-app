@@ -1,10 +1,12 @@
+import { Image } from "expo-image";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
 import {
+  defaultTiming,
   exhibitionsByTiming,
   NO_EXHIBITIONS,
   timingLabel,
@@ -12,6 +14,7 @@ import {
 } from "@/lib/explore/exhibition-timing";
 import { friendPicks, nearbyMuseums } from "@/lib/explore/lists";
 import { chooseCity, museumById, useExplore } from "@/lib/explore/use-explore";
+import { useMyLocationAction } from "@/lib/explore/use-my-location";
 
 import { ExhibitionCard } from "./exhibition-card";
 import { ExhibitionRow } from "./exhibition-row";
@@ -25,9 +28,11 @@ const FRIEND_PICKS_SHOWN = 3;
 export function ExploreScreen() {
   const router = useRouter();
   const explore = useExplore();
-  const [timing, setTiming] = useState<ExhibitionTiming>("ending");
+  const [chosenTiming, setTiming] = useState<ExhibitionTiming>();
   const { data } = explore;
+  const myLocation = useMyLocationAction({ following: data?.following, home: data?.home });
   if (!data) return <ExploreState view={explore} />;
+  const timing = chosenTiming ?? defaultTiming(data.exhibitions, data.today);
   const museums = nearbyMuseums(data);
   const shows = exhibitionsByTiming(data.exhibitions, timing, data.today);
   const picks = friendPicks(data).slice(0, FRIEND_PICKS_SHOWN);
@@ -36,11 +41,27 @@ export function ExploreScreen() {
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Menu accessibilityLabel={`City, ${data.city.name}`} tintColor={Gallery.ink}>
           <Stack.Toolbar.Label>{data.city.name}</Stack.Toolbar.Label>
-          {data.cities.map((city) => (
-            <Stack.Toolbar.MenuAction key={city.id} isOn={city.id === data.city.id} onPress={() => chooseCity(city.id)}>
-              {city.name}
+          <Stack.Toolbar.Menu inline>
+            <Stack.Toolbar.MenuAction
+              icon={myLocation.icon}
+              isOn={myLocation.isOn}
+              subtitle={myLocation.subtitle}
+              onPress={myLocation.onPress}
+            >
+              {myLocation.label}
             </Stack.Toolbar.MenuAction>
-          ))}
+          </Stack.Toolbar.Menu>
+          <Stack.Toolbar.Menu inline>
+            {data.cities.map((city) => (
+              <Stack.Toolbar.MenuAction
+                key={city.id}
+                isOn={!data.following && city.id === data.city.id}
+                onPress={() => chooseCity(city.id)}
+              >
+                {city.name}
+              </Stack.Toolbar.MenuAction>
+            ))}
+          </Stack.Toolbar.Menu>
         </Stack.Toolbar.Menu>
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
@@ -58,6 +79,9 @@ export function ExploreScreen() {
         />
       </Stack.Toolbar>
       <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+        {data.following && data.home && !data.nearby && (
+          <ElsewhereNote home={data.home} city={data.city.name} distance={museums[0]?.distance} />
+        )}
         <View style={styles.section}>
           <ExploreSectionHeading
             title={timingLabel(timing)}
@@ -98,19 +122,39 @@ export function ExploreScreen() {
             ))}
           </View>
         )}
-        <View style={styles.section}>
-          <ExploreSectionHeading
-            title={museums[0]?.distanceM === undefined ? "Museums" : "Museums near you"}
-            onSeeAll={() => router.push("/museums")}
-          />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-            {museums.map((museum) => (
-              <MuseumTile key={museum.id} data={data} museum={museum} />
-            ))}
-          </ScrollView>
-        </View>
+        {museums.length > 0 && (
+          <View style={styles.section}>
+            <ExploreSectionHeading
+              title={data.nearby ? "Museums near you" : "Museums"}
+              onSeeAll={() => router.push("/museums")}
+            />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+              {museums.map((museum) => (
+                <MuseumTile key={museum.id} data={data} museum={museum} />
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </ScrollView>
     </>
+  );
+}
+
+/** Says why Explore opened a city other than the phone's own. */
+function ElsewhereNote({ home, city, distance }: { home: string; city: string; distance?: string }) {
+  const { fontScale } = useWindowDimensions();
+  return (
+    <View style={styles.note}>
+      <Image
+        source="sf:mappin"
+        tintColor={Gallery.muted}
+        accessible={false}
+        style={{ width: 15 * fontScale, height: 15 * fontScale, marginTop: 3 * fontScale }}
+      />
+      <Text style={styles.noteText}>
+        {`Nothing listed in ${home} yet. Showing ${city}${distance ? `, ${distance} away` : ""}.`}
+      </Text>
+    </View>
   );
 }
 
@@ -120,4 +164,6 @@ const styles = StyleSheet.create({
   section: { gap: Spacing.compact },
   row: { gap: Spacing.compact, paddingHorizontal: Spacing.content },
   empty: { ...Typography.secondary, color: Gallery.muted, paddingHorizontal: Spacing.content },
+  note: { flexDirection: "row", gap: Spacing.one + Spacing.half, paddingHorizontal: Spacing.content },
+  noteText: { ...Typography.secondary, color: Gallery.muted, flexShrink: 1 },
 });

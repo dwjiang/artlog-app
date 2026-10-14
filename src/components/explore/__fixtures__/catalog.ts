@@ -58,3 +58,12 @@ export const cornwall = {
   museums: [{ museumId: "tate", name: "Tate St Ives", city: "St Ives", lat: 50.2153, lng: -5.4826 }],
   exhibitions: [show("harbour", "tate", "Harbour Drawings", period(-40, 10))],
 };
+
+// Long runs only, so nothing closes within the Ending soon window.
+export const london = {
+  museums: [{ museumId: "london-museum", name: "London Museum", city: "London", lat: 51.5176, lng: -0.0968 }],
+  exhibitions: [
+    show("river", "london-museum", "River Rooms", period(-45, 90)),
+    show("undated", "london-museum", "Undated Collection", period(null, 200)),
+  ],
+};

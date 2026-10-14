@@ -4,6 +4,7 @@ import { ConvexError, v, type Infer } from "convex/values";
 import type { ExhibitionCandidate } from "../shared/exhibitions/acceptance";
 import { politeClient, sameSite } from "../shared/exhibitions/polite-client";
 import { calendarDate } from "../shared/journal/limits";
+import { regionCountry } from "../shared/sources/region-country";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalQuery, type ActionCtx, type MutationCtx, type QueryCtx } from "./_generated/server";
@@ -43,7 +44,6 @@ import { isEnabled } from "./lib/flags";
 import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { userAgent } from "./lib/politeFetch";
 import { limiter } from "./lib/rateLimits";
-import { regionCountry } from "./lib/regions";
 import { dailyCap, reserveSpend, spentToday } from "./lib/spend";
 import { MAX_EXTRACT_URLS } from "./lib/tavily";
 import { extractWithCredit } from "./lib/tavilySpend";
@@ -52,7 +52,8 @@ import { isVenueOptedOut } from "./lib/venueOptOut";
 import { entityNames, getEntities } from "./lib/wikidata";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-// Regions Explore showed within this window are read on schedule; the rest when someone opens them.
+// Regions Explore asked about within this window (the city shown or the phone's own) are read on schedule; the rest
+// when it next asks.
 const VIEW_WINDOW_MS = 30 * DAY_MS;
 const VIEW_WRITE_GAP_MS = 60 * 60 * 1000;
 // A read still leased after this long is taken to have died, so its museum can be picked again.
@@ -203,7 +204,7 @@ export const dispatch = internalMutation({
   },
 });
 
-/** Explore showed this region: keep its listings on schedule and read the ones already due. */
+/** Explore showed this region or was opened in it: keep its listings on schedule and read the ones already due. */
 export const requestRegion = mutation({
   args: { region: v.string() },
   returns: v.null(),

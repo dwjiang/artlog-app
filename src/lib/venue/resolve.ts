@@ -89,10 +89,13 @@ export function formatDistance(distanceM: number, units: MeasurementUnits = "met
     if (distanceM < 1609.344) {
       return `${Math.max(10, Math.round(distanceM / 0.3048 / 10) * 10)} ft`;
     }
-    return `${(distanceM / 1609.344).toFixed(1)} mi`;
+    return `${longDistance(distanceM / 1609.344)} mi`;
   }
   if (distanceM < 1000) {
     return `${Math.max(10, Math.round(distanceM / 10) * 10)} m`;
   }
-  return `${(distanceM / 1000).toFixed(1)} km`;
+  return `${longDistance(distanceM / 1000)} km`;
 }
+
+// A tenth of a mile or kilometer matters on foot, not across a country.
+const longDistance = (value: number) => (value < 99.95 ? value.toFixed(1) : Math.round(value).toLocaleString("en-US"));
