@@ -5,6 +5,7 @@ import { registerArtists } from "./artists";
 import { registerDemoPhotoCleanup } from "./demoPhotos";
 import { registerFileReferences } from "./fileReferences";
 import { registerNotifications } from "./notifications";
+import { isUsableProfile } from "./ownership";
 import { registerPostTags } from "./postTags";
 import { withdrawProfilePosts } from "./publicationUpdates";
 import { CHALLENGE_RETENTION_MS, COMPLETED_REMOVAL_RETENTION_MS, EVIDENCE_RETENTION_MS } from "./retentionPolicy";
@@ -52,10 +53,10 @@ databaseTriggers.register("deviceRemovals", async (ctx, { newDoc, oldDoc }) => {
 
 databaseTriggers.register("profiles", async (ctx, { newDoc, oldDoc }) => {
   const profile = newDoc ?? oldDoc!;
-  if (oldDoc?.active && !oldDoc.removal && (!newDoc?.active || newDoc.removal)) {
+  if (isUsableProfile(oldDoc) && !isUsableProfile(newDoc)) {
     await withdrawProfilePosts(ctx, profile._id);
   }
-  const visibility = newDoc?.active && !newDoc.removal ? newDoc.leaderboardVisibility : "off";
+  const visibility = isUsableProfile(newDoc) ? newDoc.leaderboardVisibility : "off";
   if (
     oldDoc
     && oldDoc.active === newDoc?.active

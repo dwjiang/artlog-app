@@ -20,7 +20,7 @@ import { acceptedRelationships, blockedEitherWay, findBlock } from "./lib/friend
 import { linkedMentions, resolveMentions } from "./lib/mentions";
 import { requireAllowedBio, safetyChecksOn } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
-import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
+import { activeProfile, isUsableProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
 import { projectBrowsedProfile, projectProfile } from "./lib/projections";
 import { isReviewFriend } from "./lib/reviewFriend";
 import { findDismissal } from "./lib/suggestionDismissals";
@@ -65,7 +65,7 @@ export const insert = internalMutation({
       .withIndex("by_accountId", (q) => q.eq("accountId", accountId))
       .unique();
     if (existing) {
-      if (!existing.active || existing.removal) {
+      if (!isUsableProfile(existing)) {
         throw new ConvexError({ code: "profile_required" });
       }
       return projectProfile(ctx, existing);

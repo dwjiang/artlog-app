@@ -57,12 +57,12 @@ export function useQueryBatchRefresh<Q extends FunctionReference<"query", "publi
     try {
       await Promise.all(args.map((batch) => client.query(query, batch)));
     } catch (cause) {
-      if (session.isCurrent() && !controller.signal.aborted) {
+      if (session.isOwnerCurrent() && !controller.signal.aborted) {
         reportError(cause, `social.query.${getFunctionName(query)}`);
       }
       error = cause instanceof Error ? cause : new Error("Couldn’t refresh. Try again.", { cause });
     } finally {
-      if (session.isCurrent() && !controller.signal.aborted) {
+      if (session.isOwnerCurrent() && !controller.signal.aborted) {
         request.current = null;
         setState({ key, busy: false, error });
       }

@@ -3,8 +3,10 @@ import type { FunctionReturnType } from "convex/server";
 import type { MeasurementUnits } from "@/lib/settings/measurement-units";
 import { formatDistance, haversineMeters, type Coordinate } from "@/lib/venue/resolve";
 import { regionName } from "@/lib/venue/venue-location";
+import { regionCountry } from "@/shared/sources/region-country";
 
 import type { api } from "../../../convex/_generated/api";
+import { TIME_ZONE_PLACES } from "./time-zone-places";
 import type { ExploreCatalog, ExploreCity, ExploreData } from "./types";
 
 type Regions = FunctionReturnType<typeof api.exhibitions.regions>;
@@ -22,16 +24,32 @@ export function exploreCities(regions: Regions): ExploreCity[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** The region nearest the phone, or the first by name without a location fix. */
-export function defaultCity(regions: Regions, fix?: Coordinate): string | undefined {
-  if (!fix) return exploreCities(regions)[0]?.id;
-  const nearest = [...regions].sort((a, b) => haversineMeters(fix, a) - haversineMeters(fix, b));
-  return nearest[0]?.region;
+const nearestRegion = (regions: Regions, to: Coordinate) =>
+  regions.reduce<Regions[number] | undefined>(
+    (best, region) => (!best || haversineMeters(to, region) < haversineMeters(to, best) ? region : best),
+    undefined,
+  )?.region;
+
+/**
+ * The phone's own region when it has shows, else the one nearest the phone. Without a location fix, the one nearest
+ * the time zone's main city, preferring the zone's country; else the first by name.
+ */
+export function defaultCity(
+  regions: Regions,
+  { fix, home, timeZone }: { fix?: Coordinate; home?: string; timeZone?: string } = {},
+): string | undefined {
+  if (home && regions.some(({ region }) => region === home)) return home;
+  if (fix) return nearestRegion(regions, fix);
+  const zone = timeZone ? TIME_ZONE_PLACES[timeZone] : undefined;
+  if (!zone) return exploreCities(regions)[0]?.id;
+  const [country, lat, lng] = zone;
+  const local = regions.filter(({ region }) => regionCountry(region) === country);
+  return nearestRegion(local.length > 0 ? local : regions, { lat, lng });
 }
 
 export function exploreData(
   catalog: RegionCatalog,
-  place: { city: ExploreCity; cities: ExploreCity[]; today: string },
+  place: Omit<ExploreData, keyof ExploreCatalog> & { today: string },
   fix: Coordinate | undefined,
   units: MeasurementUnits | undefined,
 ): ExploreData {

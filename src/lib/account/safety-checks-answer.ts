@@ -25,7 +25,9 @@ export async function takeSafetyChecksAnswer(): Promise<boolean | undefined> {
 export async function carrySafetyChecksAnswer(answer: boolean | undefined) {
   if (answer === undefined) return;
   try {
-    await convex.mutation(api.accounts.setSafetyChecks, { enabled: answer, ifUnset: true });
+    // A decline always applies (5.1.2(i)); an allow only fills an unanswered account, so it never overrides a decline.
+    const choice = answer ? { enabled: true, ifUnset: true } : { enabled: false };
+    await convex.mutation(api.accounts.setSafetyChecks, choice);
   } catch (cause) {
     // A failed carry leaves the account's existing answer intact; an unanswered account still needs consent to post.
     reportError(cause, "social.safety_checks.carry");

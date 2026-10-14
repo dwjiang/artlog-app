@@ -319,6 +319,15 @@ it("suspends capture scope until the account claim finishes and invalidates it o
   expect(getLocalOwner()).toBe("device:test-installation");
 });
 
+it.each([undefined, "scope-a"])("invalidates pending account work when auth pauses sync with scope %s", (scope) => {
+  switchOwner("account:a", scope);
+  const pending = captureOwner();
+  pauseCollectionSync();
+  expect(pending.isOwnerCurrent()).toBe(false);
+  expect(pending.isCurrent()).toBe(false);
+  expect(captureOwner().scope).toBeUndefined();
+});
+
 it("rejects flushJournal with the sync failure, keeps the scheduled retry, and reports a paused or backgrounded queue", async () => {
   jest.spyOn(console, "warn").mockImplementation(() => {});
   await render(<CollectionSync />);

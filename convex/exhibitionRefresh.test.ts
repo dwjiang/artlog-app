@@ -893,12 +893,13 @@ describe("exhibition listing refresh", () => {
       await t.action(internal.museumAudit.applyBatch, restored);
       const row = await refreshRow(t, museumId);
       expect(row).toMatchObject({ dueAt: Date.now(), region: BAY_AREA, failures: 0 });
-      expect(await t.query(api.exhibitions.regions, { asOf: NOW })).toEqual([
-        { region: BAY_AREA, lat: 37.785, lng: -122.401 },
-      ]);
+      expect(await t.query(api.exhibitions.regions, { asOf: NOW })).toEqual([]);
       await readDue(t);
       expect(requested(url)).toHaveLength(1);
       expect((await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW })).exhibitions).toHaveLength(1);
+      expect(await t.query(api.exhibitions.regions, { asOf: NOW })).toEqual([
+        { region: BAY_AREA, lat: 37.785, lng: -122.401 },
+      ]);
 
       const checked = await refreshRow(t, museumId);
       await t.action(internal.museumAudit.applyBatch, restored);
@@ -906,7 +907,7 @@ describe("exhibition listing refresh", () => {
     },
   );
 
-  it("keeps re-reading a museum whose shows have all closed, so its region stays listed", async () => {
+  it("keeps re-reading a dormant museum while its empty region stays off Explore", async () => {
     const t = harness();
     const { museumId, url } = await listedMuseum(t, "museum.example");
     web[url] = { body: listing(TIDES.html) };
@@ -917,11 +918,6 @@ describe("exhibition listing refresh", () => {
     await readDue(t);
     expect(requested(url)).toHaveLength(2);
     expect((await refreshRow(t, museumId))!.checkedAt).toBeGreaterThanOrEqual(NOW + 40 * DAY);
-    expect(await t.query(api.exhibitions.regions, { asOf: NOW + 40 * DAY })).toEqual([
-      { region: BAY_AREA, lat: 37.785, lng: -122.401 },
-    ]);
-
-    await t.run((ctx) => ctx.db.patch("museums", museumId, { optOut: true }));
     expect(await t.query(api.exhibitions.regions, { asOf: NOW + 40 * DAY })).toEqual([]);
   });
 

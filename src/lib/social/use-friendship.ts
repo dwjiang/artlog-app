@@ -47,7 +47,7 @@ export function useFriendship(profileId: Id<"profiles">, session: SocialSession,
     const owner = captureOwner();
     const controller = new AbortController();
     request.current = controller;
-    const current = () => owner.isCurrent() && !controller.signal.aborted;
+    const current = () => owner.isOwnerCurrent() && !controller.signal.aborted;
     const client = relationshipClient(session.token, controller.signal);
     setPending(action);
     setError(undefined);
