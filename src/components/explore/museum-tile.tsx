@@ -61,6 +61,7 @@ export function MuseumTile({ data, museum }: { data: ExploreData; museum: Explor
 
 export function MuseumSummaryLine({ data, museum }: { data: ExploreData; museum: ExploreMuseum }) {
   const summary = museumSummary(data, museum);
+  if (!summary.count) return null;
   return (
     <Text style={styles.line} numberOfLines={1}>
       {summary.count}

@@ -11,9 +11,16 @@ export function friendPicks(data: ExploreCatalog): Exhibition[] {
     .sort((a, b) => b.friends.length - a.friends.length || a.endsOn.localeCompare(b.endsOn));
 }
 
-/** Nearest first when the phone's location is known, else by name. */
-export const nearbyMuseums = (data: ExploreCatalog) =>
-  [...data.museums].sort((a, b) => (a.distanceM ?? 0) - (b.distanceM ?? 0) || a.name.localeCompare(b.name));
+/** Nearest first when the phone's location is known, else those listing shows first, then by name. */
+export function nearbyMuseums(data: ExploreCatalog) {
+  const showing = new Set(data.exhibitions.map((exhibition) => exhibition.museumId));
+  return [...data.museums].sort(
+    (a, b) =>
+      (a.distanceM ?? 0) - (b.distanceM ?? 0)
+      || Number(showing.has(b.id)) - Number(showing.has(a.id))
+      || a.name.localeCompare(b.name),
+  );
+}
 
 /**
  * Saved shows: those still on or ahead in the order they close, so the last chance comes first, then those that have

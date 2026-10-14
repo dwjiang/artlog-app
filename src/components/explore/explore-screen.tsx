@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { FlatList, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
@@ -128,11 +128,16 @@ export function ExploreScreen() {
               title={data.nearby ? "Museums near you" : "Museums"}
               onSeeAll={() => router.push("/museums")}
             />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-              {museums.map((museum) => (
-                <MuseumTile key={museum.id} data={data} museum={museum} />
-              ))}
-            </ScrollView>
+            {/* A country lists thousands of museums, so tiles are drawn as the row scrolls to them. */}
+            <FlatList
+              testID="museum-row"
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.row}
+              data={museums}
+              keyExtractor={(museum) => museum.id}
+              renderItem={({ item }) => <MuseumTile data={data} museum={item} />}
+            />
           </View>
         )}
       </ScrollView>

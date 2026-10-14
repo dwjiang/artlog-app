@@ -36,7 +36,7 @@ const place = {
 };
 
 it("reads each show's current or next viewing period, or its last one once it has closed", () => {
-  const shows = exploreData(catalog, place, undefined, undefined).exhibitions;
+  const shows = exploreData(catalog, [], place, undefined, undefined).exhibitions;
   expect(shows.map(({ id, startsOn, endsOn }) => ({ id, startsOn, endsOn }))).toEqual([
     { id: "on-view", startsOn: "2026-09-01", endsOn: "2026-10-09" },
     { id: "ended-locally", startsOn: "2026-09-01", endsOn: "2026-10-08" },
@@ -54,12 +54,36 @@ it("reads each show's current or next viewing period, or its last one once it ha
 
 it("measures museums from the phone in the person's units once both are known", () => {
   const berkeley = { lat: 37.870804, lng: -122.26634 };
-  expect(exploreData(catalog, place, berkeley, "imperial").museums[0]).toMatchObject({ distance: "5.0 mi" });
-  expect(exploreData(catalog, place, berkeley, undefined).museums[0].distance).toBeUndefined();
-  expect(exploreData(catalog, place, undefined, "metric").museums[0]).toMatchObject({
+  expect(exploreData(catalog, [], place, berkeley, "imperial").museums[0]).toMatchObject({ distance: "5.0 mi" });
+  expect(exploreData(catalog, [], place, berkeley, undefined).museums[0].distance).toBeUndefined();
+  expect(exploreData(catalog, [], place, undefined, "metric").museums[0]).toMatchObject({
     distanceM: undefined,
     distance: undefined,
   });
+});
+
+it("lists every museum in the city, keeping the server's record for one that lists shows", () => {
+  const venue = (id: string, name: string, city: string | null) => ({
+    id: id as Id<"museums">,
+    key: id,
+    name,
+    lat: 37.8,
+    lng: -122.27,
+    website: null,
+    region: "sf-bay-area",
+    city,
+  });
+  const { museums } = exploreData(
+    catalog,
+    [venue("omca", "OMCA (stale)", "Oakland"), venue("chabot", "Chabot Space & Science Center", null)],
+    place,
+    undefined,
+    undefined,
+  );
+  expect(museums.map(({ id, name, city }) => ({ id, name, city }))).toEqual([
+    { id: museumId, name: "Oakland Museum of California", city: undefined },
+    { id: "chabot", name: "Chabot Space & Science Center", city: undefined },
+  ]);
 });
 
 it("names cities alphabetically", () => {

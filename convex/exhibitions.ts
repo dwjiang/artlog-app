@@ -305,6 +305,23 @@ export const inRegion = query({
   },
 });
 
+/** Local venue tables are candidate lists; discovery still follows the live visibility rules. */
+export const discoverableMuseumIds = query({
+  args: { region: v.string(), museumIds: v.array(v.id("museums")) },
+  returns: v.array(v.id("museums")),
+  handler: async (ctx, { region, museumIds }) => {
+    if (!region || region.length > 100) invalidMetadata();
+    if (museumIds.length > MAX_BATCH_SIZE) throw new ConvexError({ code: "batch_too_large" });
+    const cache = new Map<Id<"museums">, Doc<"museums"> | null>();
+    const visible: Id<"museums">[] = [];
+    for (const id of new Set(museumIds)) {
+      const museum = await visibleMuseum(ctx, cache, id);
+      if (museum?.region === region) visible.push(id);
+    }
+    return visible;
+  },
+});
+
 export const byIds = query({
   args: { exhibitionIds: v.array(v.id("exhibitions")), asOf: v.number() },
   returns: exploreRegionCatalog,
