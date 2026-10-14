@@ -44,16 +44,17 @@ it("persists requirements and rollbacks for the next offline launch", async () =
   }
 });
 
-it("does not reuse a requirement from a different deployment", async () => {
+it("has no saved answer before the first check or for a different deployment", async () => {
+  expect(await readCachedMinimum()).toBeUndefined();
   getItem.mockResolvedValue(JSON.stringify({ deployment: "https://other.convex.cloud", minimum: "42" }));
-  expect(await readCachedMinimum()).toBeNull();
+  expect(await readCachedMinimum()).toBeUndefined();
 });
 
 it.each(["broken json", JSON.stringify({ deployment: process.env.EXPO_PUBLIC_CONVEX_URL, minimum: "latest" })])(
   "reports corrupt cache without crashing startup",
   async (cached) => {
     getItem.mockResolvedValue(cached);
-    expect(await readCachedMinimum()).toBeNull();
+    expect(await readCachedMinimum()).toBeUndefined();
     expect(reportError).toHaveBeenCalledWith(expect.any(Error), "app-update.read-cache");
   },
 );

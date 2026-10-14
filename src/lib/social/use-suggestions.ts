@@ -32,7 +32,7 @@ export function useSuggestions(session: SocialSession) {
   }, [session.key]);
 
   async function change(person: Suggestion, action: "dismiss" | "restore", owner = captureOwner()) {
-    if (session.status !== "ready" || session.offline || !session.token || !owner.isCurrent()) return;
+    if (session.status !== "ready" || session.offline || !session.token || !owner.isOwnerCurrent()) return;
     const { profileId } = person.profile;
     const updateHidden = (hide: boolean) =>
       setHidden((previous) =>
@@ -45,7 +45,7 @@ export function useSuggestions(session: SocialSession) {
       );
     const controller = new AbortController();
     requests.current.add(controller);
-    const current = () => owner.isCurrent() && !controller.signal.aborted;
+    const current = () => owner.isOwnerCurrent() && !controller.signal.aborted;
     // Bind each write and its Undo/Retry to the initiating account, including after a reconnect.
     const client = new ConvexHttpClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
       auth: session.token,

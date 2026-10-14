@@ -63,6 +63,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   dismissToast();
   mockSession = {
+    scope: "scope-a",
     key: "me",
     profileId: "me" as never,
     token: "token",

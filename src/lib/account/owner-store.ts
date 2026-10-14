@@ -10,6 +10,11 @@ const ownerListeners = new Set<() => void>();
 export function initializeOwner(installationId: string, restoredOwner?: string): void {
   installationOwner = `device:${installationId}`;
   activeOwner = restoredOwner ?? installationOwner;
+  invalidateOwnerIdentity();
+}
+
+// Auth transitions invalidate pending account work even before journal sync has supplied a scope.
+export function invalidateOwnerIdentity(): void {
   ownerGeneration++;
   serverScope = undefined;
   generation++;
@@ -67,6 +72,14 @@ export function useOwnerGeneration(): number {
     subscribeOwner,
     () => generation,
     () => generation,
+  );
+}
+
+export function useOwnerIdentityGeneration(): number {
+  return useSyncExternalStore(
+    subscribeOwnerChange,
+    () => ownerGeneration,
+    () => ownerGeneration,
   );
 }
 

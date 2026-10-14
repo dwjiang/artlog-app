@@ -102,6 +102,7 @@ beforeEach(() => {
   mockUnseen = 0;
   mockVisit = undefined;
   mockSession = {
+    scope: "scope-a",
     status: "ready",
     key: "account-a",
     token: "token-a",
