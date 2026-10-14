@@ -312,7 +312,7 @@ it("reports whether the linked account has a profile so first sign-in can offer 
   expect(await guest.as.query(api.accounts.me, {})).toMatchObject({ linked: false, hasProfile: false });
 });
 
-it("keeps one safety-checks answer per account, which an answer from before sign-in never overrides", async () => {
+it("keeps one safety-checks answer per account, which an `ifUnset` answer never overrides", async () => {
   const t = harness();
   const { a, b } = await pair(t);
   expect(await a.as.query(api.accounts.me, {})).toMatchObject({ safetyChecks: null });

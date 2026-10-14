@@ -130,12 +130,21 @@ it("passes the challenge to native Apple sign-in and links after provider verifi
   expect(mockReportError).not.toHaveBeenCalled();
 });
 
-it("carries the onboarding safety-checks answer to the account without overriding one it already has", async () => {
+it("carries an onboarding allow to the account without overriding an answer it already has", async () => {
   await settings.setSetting("safety-checks", "on");
   const { result } = await renderHook(useAccount);
   await act(() => result.current.signInWithApple());
   expect(await settings.getSetting("safety-checks")).toBeUndefined();
   expect(mockMutation).toHaveBeenLastCalledWith("accounts:setSafetyChecks", { enabled: true, ifUnset: true });
+  expect(mockReportError).not.toHaveBeenCalled();
+});
+
+it("applies an onboarding decline even when the account allowed safety checks before", async () => {
+  await settings.setSetting("safety-checks", "off");
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current.signInWithApple());
+  expect(await settings.getSetting("safety-checks")).toBeUndefined();
+  expect(mockMutation).toHaveBeenLastCalledWith("accounts:setSafetyChecks", { enabled: false });
   expect(mockReportError).not.toHaveBeenCalled();
 });
 
