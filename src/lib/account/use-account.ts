@@ -20,6 +20,7 @@ import { eraseLocalData } from "./erase-local-data";
 import { googleSignIn, googleSignInAvailable } from "./google-sign-in";
 import { anonymousOwner, switchOwner } from "./owner-store";
 import { offerProfileSetup } from "./profile-setup-offer";
+import { carrySafetyChecksAnswer, takeSafetyChecksAnswer } from "./safety-checks-answer";
 
 const isCancellation = (cause: unknown) =>
   !!cause && typeof cause === "object" && "code" in cause && cause.code === "ERR_REQUEST_CANCELED";
@@ -88,11 +89,13 @@ export function useAccount() {
     const identity = { provider, providerUserId };
     const signed = await signPayload({ action: "linkAccount", ...identity });
     if (!signed) throw new Error("Device attestation is not ready");
+    const safetyChecksAnswer = await takeSafetyChecksAnswer();
     await convex.mutation(api.accounts.linkAccount, {
       ...identity,
       nonce: signed.nonce,
       assertionBase64: signed.assertionBase64,
     });
+    await carrySafetyChecksAnswer(safetyChecksAnswer);
     offerProfileSetup(name ? { name } : {});
   }
 

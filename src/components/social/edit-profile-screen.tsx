@@ -9,6 +9,7 @@ import { Gallery } from "@/constants/theme";
 import { captureOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
 import { profilePictureArgs, shownPicture, useProfilePictureDraft } from "@/lib/social/profile-picture";
+import { useSafetyChecks } from "@/lib/social/safety-checks";
 import type { PublicProfile } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
@@ -47,15 +48,26 @@ export function EditProfileScreen() {
       />
     );
   }
-  return <EditProfileForm key={session.key} profile={profile.data} scope={session.key} />;
+  return (
+    <EditProfileForm key={session.key} profile={profile.data} scope={session.key} safetyChecks={session.safetyChecks} />
+  );
 }
 
-export function EditProfileForm({ profile, scope }: { profile: PublicProfile; scope: string }) {
+export function EditProfileForm({
+  profile,
+  scope,
+  safetyChecks,
+}: {
+  profile: PublicProfile;
+  scope: string;
+  safetyChecks: boolean;
+}) {
   const save = useAction(api.profilePhotos.save);
   const [name, setName] = useState(profile.name);
   const [initialUsername] = useState(profile.username);
   const [username, setUsername] = useState(initialUsername);
   const [bio, setBio] = useState(profile.bio ?? "");
+  const checks = useSafetyChecks({ safetyChecks });
   const { picture, choose } = useProfilePictureDraft();
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -80,7 +92,8 @@ export function EditProfileForm({ profile, scope }: { profile: PublicProfile; sc
       if (!owner.isCurrent() || !mounted.current) return;
       await save({
         name: name.trim(),
-        bio: bio.trim(),
+        // Without safety checks the bio can't change, so it's left out and stays as it is.
+        ...(checks.enabled ? { bio: bio.trim() } : {}),
         // Sending an unchanged username would revert a rename made on another device since this form opened.
         ...(usernameChanged ? { username } : {}),
         ...pictureArgs,
@@ -135,7 +148,7 @@ export function EditProfileForm({ profile, scope }: { profile: PublicProfile; sc
           hint={usernameChanged ? undefined : "Friends and your profile QR code keep working if you change it."}
           editable={!busy}
         />
-        <BioField label="Bio" value={bio} onChangeText={setBio} editable={!busy} />
+        <BioField label="Bio" value={bio} onChangeText={setBio} editable={!busy} checks={checks} />
         <Text style={{ color: Gallery.muted, fontSize: 13, lineHeight: 18 }}>
           Your picture, name and bio appear on your public profile.
         </Text>

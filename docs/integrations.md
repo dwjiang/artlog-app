@@ -19,9 +19,10 @@ adapters and configured model IDs are the implementation source of truth.
   are [label.ts](../convex/label.ts), [docentSources.ts](../convex/lib/docentSources.ts)
   and [exhibitionRefresh.ts](../convex/exhibitionRefresh.ts). Search results propose
   evidence; an image URL alone does not establish artwork identity or rights.
-- OpenAI supplies narration speech and shared-text moderation. Provider failures
-  must preserve retry and moderation behavior without exposing content or
-  credentials in diagnostics.
+- OpenAI supplies narration speech and shared-text moderation. Shared text reaches
+  OpenAI only from accounts that turned on safety checks (App Review 5.1.2(i));
+  without them that text can't be posted. Provider failures must preserve retry
+  and moderation behavior without exposing content or credentials in diagnostics.
 
 Changes to providers, models, endpoints, environment variables, or request paths
 must keep setup instructions, privacy disclosures, and README claims consistent

@@ -2,8 +2,10 @@ import { Image } from "expo-image";
 import type { ComponentProps } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
+import type { SafetyChecks } from "@/lib/social/safety-checks";
 import { isUsernameProblem, usernameMessages, type UsernameCheck } from "@/lib/social/use-username-check";
 import { LIMITS } from "@/shared/journal/limits";
 
@@ -28,16 +30,19 @@ export function ProfileField({ label, ...input }: InputProps & { label: string }
   );
 }
 
+/** With safety checks off a bio can't be posted, so the field becomes the way to turn them on. */
 export function BioField({
   label,
   value,
   onChangeText,
   editable,
+  checks,
 }: {
   label: string;
   value: string;
   onChangeText: (bio: string) => void;
   editable: boolean;
+  checks: SafetyChecks;
 }) {
   const tagging = useRichTextInput({
     text: value,
@@ -47,6 +52,22 @@ export function BioField({
     place: { kind: "profile" },
     docked: true,
   });
+  if (!checks.enabled) {
+    return (
+      <View style={styles.field}>
+        <Text style={styles.label}>{label}</Text>
+        <View style={styles.checksOff}>
+          {!!value && <Text style={styles.offBio}>{value}</Text>}
+          <View style={styles.offRow}>
+            <Text style={styles.offText}>
+              {value ? "Turn on safety checks to edit your bio." : "Turn on safety checks to add a bio."}
+            </Text>
+            <GalleryButton label="Turn on" disabled={!editable || checks.busy} onPress={() => void checks.turnOn()} />
+          </View>
+        </View>
+      </View>
+    );
+  }
   return (
     <View style={styles.field}>
       <ProfileField label={label} accessibilityLabel="Bio" multiline {...tagging.inputProps} />
@@ -120,6 +141,18 @@ const styles = StyleSheet.create({
   },
   inputText: { padding: 14, color: Gallery.ink, fontSize: 17 },
   multiline: { minHeight: 100, textAlignVertical: "top" },
+  checksOff: {
+    paddingLeft: 14,
+    paddingRight: Spacing.compact,
+    paddingVertical: Spacing.one,
+    borderRadius: Radius.input,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: Gallery.controlBorder,
+  },
+  offBio: { paddingTop: 10, fontSize: 17, lineHeight: 22, color: Gallery.muted },
+  offRow: { flexDirection: "row", alignItems: "center", gap: Spacing.compact },
+  offText: { flex: 1, fontSize: 15, lineHeight: 21, color: Gallery.muted },
   usernameInput: { flexDirection: "row", alignItems: "center", paddingLeft: 14 },
   at: { fontSize: 17, color: Gallery.muted },
   usernameText: { flex: 1, paddingVertical: 14, paddingLeft: 2, paddingRight: 14, color: Gallery.ink, fontSize: 17 },

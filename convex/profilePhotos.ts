@@ -23,8 +23,9 @@ export const save = action({
   handler: async (ctx, input): Promise<Infer<typeof publicProfile>> =>
     withErrorReporting("profilePhotos.save", async () => {
       validateProfile(input);
-      const profileId = await ctx.runQuery(internal.profilePhotoData.authorize, {});
-      await requireAllowedBio(input.bio);
+      const { profileId, bio, safetyChecks } = await ctx.runQuery(internal.profilePhotoData.authorize, {});
+      // An unchanged bio was checked when it was saved, so it isn't sent again.
+      if (input.bio !== undefined && input.bio.trim() !== (bio ?? "")) await requireAllowedBio(input.bio, safetyChecks);
       let photo: Id<"files"> | null | undefined = input.photo === null ? null : undefined;
       if (input.photo) {
         if (input.photo.byteLength > 512 * 1024) {

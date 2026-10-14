@@ -11,6 +11,7 @@ import { captureOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
 import { profilePhotoBytes } from "@/lib/social/profile-photo";
 import { shownPicture, useProfilePictureDraft } from "@/lib/social/profile-picture";
+import { useSafetyChecks } from "@/lib/social/safety-checks";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { isUsernameProblem, useUsernameCheck } from "@/lib/social/use-username-check";
 import { LIMITS } from "@/shared/journal/limits";
@@ -40,6 +41,8 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
+  const checks = useSafetyChecks(session);
+  const bioArgs = checks.enabled ? { bio: bio.trim() } : {};
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const submitting = useRef(false);
@@ -61,7 +64,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
         await create({
           name: name.trim(),
           username,
-          bio: bio.trim(),
+          ...bioArgs,
           avatar: shown.avatar,
         });
         created.current = true;
@@ -69,7 +72,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
       }
       if (!owner.isCurrent() || !mounted.current) return;
       if (bytes) {
-        await savePhoto({ name: name.trim(), bio: bio.trim(), photo: bytes });
+        await savePhoto({ name: name.trim(), ...bioArgs, photo: bytes });
       }
       if (owner.isCurrent() && mounted.current) onCreated();
     } catch (cause) {
@@ -126,7 +129,13 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
         hint={profileCreated ? "Username saved" : undefined}
         editable={!busy && !profileCreated}
       />
-      <BioField label="Bio (optional)" value={bio} onChangeText={setBio} editable={!busy && !profileCreated} />
+      <BioField
+        label="Bio (optional)"
+        value={bio}
+        onChangeText={setBio}
+        editable={!busy && !profileCreated}
+        checks={checks}
+      />
       <Text style={{ fontSize: 13, lineHeight: 18, color: Gallery.muted }}>
         Your name, picture and bio appear on your public profile. Visits and private notes are separate.
       </Text>

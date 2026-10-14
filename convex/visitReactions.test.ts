@@ -277,6 +277,24 @@ describe("visit reactions", () => {
     ]);
   });
 
+  it("refuses comments until safety checks are on, without sending text to OpenAI or spending the quota", async () => {
+    const { t, visitor, postId } = await fixture();
+    await t.run((ctx) => ctx.db.patch("accounts", visitor.accountId, { safetyChecks: false }));
+    vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ results: [{ flagged: false }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    for (let i = 0; i < 25; i++) {
+      await expect(
+        visitor.as.action(api.visitReactions.addComment, { postId, body: "Lovely", requestId: crypto.randomUUID() }),
+      ).rejects.toMatchObject({ data: { code: "safety_checks_off" } });
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+    await visitor.as.mutation(api.accounts.setSafetyChecks, { enabled: true });
+    await visitor.as.action(api.visitReactions.addComment, { postId, body: "Lovely", requestId: crypto.randomUUID() });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((await t.query(api.visitReactions.listComments, { postId })).page.map((c) => c.body)).toEqual(["Lovely"]);
+  });
+
   it("lets a comment name the post's museum-titled artwork", async () => {
     const { t, visitor, visit, postId } = await fixture();
     const record = { title: "Pay Attention Motherfuckers", artist: "Bruce Nauman" };

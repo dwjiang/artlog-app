@@ -148,6 +148,7 @@ it("has one winner for simultaneous username requests and never replaces an exis
 it("normalizes accents, case, and whitespace; paginates bounded public allowlists", async () => {
   const { t, account } = await fixture();
   const a = await account("a");
+  await a.as.mutation(api.accounts.setSafetyChecks, { enabled: true });
   const profile = await a.as.action(api.profiles.create, {
     username: "elodie_art",
     name: " Élodie  Martin ",
@@ -208,6 +209,7 @@ it.each([
 it("lets OpenAI judge bios when creating and editing a profile, with the word list as fallback", async () => {
   const { account } = await fixture();
   const user = await account("a");
+  await user.as.mutation(api.accounts.setSafetyChecks, { enabled: true });
   await expect(
     user.as.action(api.profiles.create, { username: "reader", name: "Reader", bio: "shit art only" }),
   ).rejects.toMatchObject({ data: { code: "profile_not_allowed" } });
@@ -229,6 +231,38 @@ it("lets OpenAI judge bios when creating and editing a profile, with the word li
     const bio = "Writing about the vagina imagery in The Dinner Party";
     await expect(user.as.action(api.profilePhotos.save, { name: "Reader", bio })).resolves.toMatchObject({ bio });
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
+});
+
+it("posts a bio only with safety checks on, and never resends one that hasn't changed", async () => {
+  const { account } = await fixture();
+  const user = await account("a");
+  vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+  const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ results: [{ flagged: false }] }));
+  vi.stubGlobal("fetch", fetchMock);
+  try {
+    await expect(
+      user.as.action(api.profiles.create, { username: "reader", name: "Reader", bio: "Prints" }),
+    ).rejects.toMatchObject({ data: { code: "safety_checks_off" } });
+    await user.as.action(api.profiles.create, { username: "reader", name: "Reader" });
+    await expect(user.as.action(api.profilePhotos.save, { name: "Reader", bio: "Prints" })).rejects.toMatchObject({
+      data: { code: "safety_checks_off" },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await user.as.mutation(api.accounts.setSafetyChecks, { enabled: true });
+    await user.as.action(api.profilePhotos.save, { name: "Reader", bio: "Prints" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await user.as.mutation(api.accounts.setSafetyChecks, { enabled: false });
+    await expect(user.as.action(api.profilePhotos.save, { name: "Reader R.", bio: "Prints" })).resolves.toMatchObject({
+      name: "Reader R.",
+      bio: "Prints",
+    });
+    await expect(user.as.action(api.profilePhotos.save, { name: "Reader" })).resolves.toMatchObject({ bio: "Prints" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   } finally {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();

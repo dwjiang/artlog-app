@@ -735,6 +735,8 @@ export default defineSchema({
     provider: accountProvider,
     providerUserId: v.string(),
     email: v.optional(v.string()),
+    // Consent to send comments, posted visit notes and bios to OpenAI moderation (5.1.2(i)); absent until answered.
+    safetyChecks: v.optional(v.boolean()),
   }).index("by_provider_userId", ["provider", "providerUserId"]),
 
   visits: defineTable({

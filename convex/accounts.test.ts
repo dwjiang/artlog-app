@@ -312,6 +312,22 @@ it("reports whether the linked account has a profile so first sign-in can offer 
   expect(await guest.as.query(api.accounts.me, {})).toMatchObject({ linked: false, hasProfile: false });
 });
 
+it("keeps one safety-checks answer per account, which an answer from before sign-in never overrides", async () => {
+  const t = harness();
+  const { a, b } = await pair(t);
+  expect(await a.as.query(api.accounts.me, {})).toMatchObject({ safetyChecks: null });
+  expect(await a.as.mutation(api.accounts.setSafetyChecks, { enabled: true, ifUnset: true })).toBe(true);
+  expect(await b.as.mutation(api.accounts.setSafetyChecks, { enabled: false, ifUnset: true })).toBe(true);
+  expect(await b.as.query(api.accounts.me, {})).toMatchObject({ safetyChecks: true });
+  await b.as.mutation(api.accounts.setSafetyChecks, { enabled: false });
+  expect(await a.as.query(api.accounts.me, {})).toMatchObject({ safetyChecks: false });
+  const guest = await seedDevice(t);
+  expect(await guest.as.query(api.accounts.me, {})).toMatchObject({ safetyChecks: null });
+  await expect(guest.as.mutation(api.accounts.setSafetyChecks, { enabled: true })).rejects.toMatchObject({
+    data: { code: "sign_in_required" },
+  });
+});
+
 it("unlink removes only this device and clears pending proof so it cannot silently relink", async () => {
   const t = harness();
   const { a, b } = await pair(t);

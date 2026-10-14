@@ -23,3 +23,8 @@ export async function setSetting(key: string, value: string): Promise<void> {
 export async function removeSetting(key: string): Promise<void> {
   await db.delete(settings).where(eq(settings.key, key));
 }
+
+export async function takeSetting(key: string): Promise<string | undefined> {
+  const row = db.delete(settings).where(eq(settings.key, key)).returning({ value: settings.value }).get();
+  return row?.value;
+}

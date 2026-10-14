@@ -29,6 +29,7 @@ import { reportError } from "@/lib/observability";
 import { formatRelativeTime } from "@/lib/queue/relative-time";
 import { withPendingLike } from "@/lib/social/presentation";
 import { reportHref } from "@/lib/social/report";
+import { useSafetyChecks } from "@/lib/social/safety-checks";
 import type { PublicProfile } from "@/lib/social/types";
 import { useBlock } from "@/lib/social/use-block";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
@@ -176,6 +177,8 @@ function Comments({
   const addComment = useAction(api.visitReactions.addComment);
   const deleteComment = useMutation(api.visitReactions.deleteComment);
   const setCommentLike = useMutation(api.visitReactions.setCommentLike);
+  const safety = useSafetyChecks(session);
+  const canWrite = session.status === "ready" && safety.enabled;
   const blocking = useBlock(session);
   const list = useRef<ScrollView>(null);
   const [draft, setDraft] = useState("");
@@ -318,7 +321,7 @@ function Comments({
       showErrorToast("Couldn’t copy the comment.");
     }
   };
-  const canReply = (item: Comment) => session.status === "ready" && session.profileId !== item.author.profileId;
+  const canReply = (item: Comment) => canWrite && session.profileId !== item.author.profileId;
   const actionsFor = (item: Comment): CommentAction[] => [
     ...(canReply(item) ? [{ name: "reply", label: "Reply", run: () => reply(item) }] : []),
     { name: "copy", label: "Copy comment", run: () => void copy(item) },
@@ -514,7 +517,7 @@ function Comments({
             {error}
           </Text>
         )}
-        {session.status === "ready" ? (
+        {canWrite ? (
           <>
             {tagging.suggestions}
             <View style={styles.inputRow}>
@@ -568,12 +571,20 @@ function Comments({
         ) : (
           <View style={styles.join}>
             <Text style={[styles.body, { flex: 1 }]}>
-              {session.status === "profile-required" ? "Create a profile to comment." : "Sign in to comment."}
+              {session.status === "ready"
+                ? "Turn on safety checks to comment."
+                : session.status === "profile-required"
+                  ? "Create a profile to comment."
+                  : "Sign in to comment."}
             </Text>
-            <GalleryButton
-              label={session.status === "profile-required" ? "Create profile" : "Sign in"}
-              onPress={onJoin}
-            />
+            {session.status === "ready" ? (
+              <GalleryButton label="Turn on" disabled={safety.busy} onPress={() => void safety.turnOn()} />
+            ) : (
+              <GalleryButton
+                label={session.status === "profile-required" ? "Create profile" : "Sign in"}
+                onPress={onJoin}
+              />
+            )}
           </View>
         )}
       </View>

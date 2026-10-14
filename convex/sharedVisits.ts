@@ -10,7 +10,7 @@ import { action, internalAction, query, type QueryCtx } from "./_generated/serve
 import { internalMutation } from "./functions";
 import { acceptedRelationships, relationshipSnapshot } from "./lib/friendships";
 import { resolveMentions } from "./lib/mentions";
-import { flaggedUserTexts } from "./lib/moderation";
+import { flaggedUserTexts, requireSafetyChecks } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import { activeProfile, optionalProfile, requireProfile } from "./lib/ownership";
 import { projectArtworkDetail, recordTitles } from "./lib/projections";
@@ -59,7 +59,12 @@ export const withdrawProfileBatch = internalMutation({
   handler: (ctx, { profileId }) => withdrawProfilePosts(ctx, profileId),
 });
 
-const selectionArgs = { visitLocalId: v.string(), ...sharedSelection.fields };
+// `withoutReflection` posts the visit while its notes stay private, for someone who hasn't turned on safety checks.
+const selectionArgs = {
+  visitLocalId: v.string(),
+  withoutReflection: v.optional(v.boolean()),
+  ...sharedSelection.fields,
+};
 async function readPublicationRequest(ctx: QueryCtx, input: Infer<typeof sharedSelection> & { visitLocalId: string }) {
   const { profile, owner, accountId } = await requireProfile(ctx);
   const publication = await publicationForVisit(ctx, profile._id, input.visitLocalId);
@@ -101,8 +106,10 @@ export const publish = action({
   handler: (ctx, input): Promise<Infer<typeof publicationState>> =>
     withErrorReporting("sharedVisits.publish", async () => {
       const titles = await ctx.runMutation(internal.sharedVisits.preparePublication, input);
-      const [flagged] = await flaggedUserTexts([input.reflection], titles);
-      if (flagged) throw new ConvexError({ code: "reflection_not_allowed" });
+      if (!input.withoutReflection) {
+        const [flagged] = await flaggedUserTexts([input.reflection], titles);
+        if (flagged) throw new ConvexError({ code: "reflection_not_allowed" });
+      }
       return ctx.runMutation(internal.sharedVisits.savePublication, input);
     }),
 });
@@ -111,6 +118,8 @@ export const preparePublication = internalMutation({
   returns: v.array(v.string()),
   handler: async (ctx, input) => {
     const { accountId, saves } = await readPublicationRequest(ctx, input);
+    // Private posts are checked too: a later visibility change widens the post without publishing it again.
+    if (!input.withoutReflection && input.reflection.trim()) await requireSafetyChecks(ctx, accountId);
     // Commit the attempt before moderation, so rejected text also consumes the quota.
     await limitKey(ctx, "publishVisit", accountId);
     return recordTitles(ctx, saves);
@@ -122,7 +131,7 @@ export const savePublication = internalMutation({
   returns: publicationState,
   handler: async (ctx, input) => {
     const { profile, publication, visit, saves } = await readPublicationRequest(ctx, input);
-    const reflection = visit.reflection ?? "";
+    const reflection = input.withoutReflection ? "" : (visit.reflection ?? "");
     const mentions = await resolveMentions(ctx, reflection, profile._id, publication?.mentions);
     const fields = {
       audience: input.audience,

@@ -26,6 +26,7 @@ const guest: SocialSession = {
   token: null,
   profileId: undefined,
   accountReady: false,
+  safetyChecks: false,
   offline: false,
   error: undefined,
   refresh: jest.fn(),

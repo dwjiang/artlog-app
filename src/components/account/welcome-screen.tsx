@@ -33,6 +33,7 @@ import {
 } from "@/lib/account/local-profile";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { profileSetupRoute, takeProfileSetupOffer } from "@/lib/account/profile-setup-offer";
+import { answerSafetyChecks } from "@/lib/account/safety-checks-answer";
 import { signInContexts } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
 import { openLegalPage } from "@/lib/legal-links";
@@ -42,7 +43,16 @@ import { LIMITS } from "@/shared/journal/limits";
 
 import { SignInActions } from "./sign-in-actions";
 import { useWelcomeAccess, type AccessStep } from "./welcome-access";
-import { AccessArt, NameArt, SavedPhotoTile, ScanResult, SignInArt, WelcomeArt } from "./welcome-art";
+import {
+  AccessArt,
+  CheckedComment,
+  NameArt,
+  SafetyChecksArt,
+  SavedPhotoTile,
+  ScanResult,
+  SignInArt,
+  WelcomeArt,
+} from "./welcome-art";
 
 const BRAND_STATEMENT = "Point at a painting. Learn its story.";
 const SHEET_RADIUS = 28;
@@ -67,14 +77,17 @@ export function WelcomeScreen() {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string>();
+  const [answeringSafety, setAnsweringSafety] = useState<boolean>();
+  const [safetyError, setSafetyError] = useState<string>();
   const access = useWelcomeAccess();
   const account = useAccount();
   // An account brings its own profile, so it skips the sign-in and name pages. Fixed when the welcome opens, so
   // signing in on the way through cannot reshuffle the pages under the visitor.
   const owner = useLocalOwner();
   const [guest] = useState(!owner.startsWith("account:"));
-  const signInPage = access.steps.length + 1;
-  const count = access.steps.length + (guest ? 3 : 1);
+  const safetyPage = access.steps.length + 1;
+  const signInPage = safetyPage + 1;
+  const count = access.steps.length + (guest ? 4 : 2);
   const steps = count - 1;
   const finishing = useRef(false);
   const onScroll = useAnimatedScrollHandler({
@@ -103,6 +116,22 @@ export function WelcomeScreen() {
   const ask = async (current: AccessStep) => {
     await access.answer(current);
     advance();
+  };
+  const answerSafety = async (enabled: boolean) => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setAnsweringSafety(enabled);
+    setSafetyError(undefined);
+    try {
+      await answerSafetyChecks(enabled, !guest);
+      advance();
+    } catch (cause) {
+      reportError(cause, "account.welcome.safety_checks");
+      setSafetyError("Your choice couldn’t be saved. Please try again.");
+    } finally {
+      savingRef.current = false;
+      setAnsweringSafety(undefined);
+    }
   };
   useEffect(() => {
     // Signed in on the sign-in page: a new account continues into profile setup, an existing one is done.
@@ -212,6 +241,44 @@ export function WelcomeScreen() {
             </WelcomePage>
           );
         })}
+        <WelcomePage
+          active={index === safetyPage}
+          width={width}
+          art={<SafetyChecksArt active={index === safetyPage} />}
+          overlay={<CheckedComment shown={reached >= safetyPage} />}
+          bottom={sheetBottom}
+          // No iPhone prompt follows this page, so it holds the choice itself.
+          actions={
+            <>
+              <GalleryButton
+                label="Allow"
+                fullWidth
+                variant="filled"
+                disabled={answeringSafety !== undefined}
+                busy={answeringSafety === true}
+                busyLabel="Saving…"
+                onPress={() => void answerSafety(true)}
+              />
+              <GalleryButton
+                label="Don’t Allow"
+                fullWidth
+                variant="filled"
+                tone="neutral"
+                disabled={answeringSafety !== undefined}
+                busy={answeringSafety === false}
+                busyLabel="Saving…"
+                onPress={() => void answerSafety(false)}
+              />
+            </>
+          }
+        >
+          <PermissionAsk kind="safetyChecks" />
+          {safetyError && (
+            <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+              {safetyError}
+            </Text>
+          )}
+        </WelcomePage>
         {guest && (
           <WelcomePage
             active={index === signInPage}
@@ -332,7 +399,7 @@ export function WelcomeScreen() {
               icon="chevron.left"
               tone="surface"
               size={17}
-              disabled={saving}
+              disabled={saving || answeringSafety !== undefined}
               onPress={() => goTo(Math.max(index - 1, 0))}
             />
           </GlassSurface>

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
+import { Alert } from "react-native";
 
 import { switchOwner } from "@/lib/account/owner-store";
 import { chooseProfilePhoto, profilePhotoBytes } from "@/lib/social/profile-photo";
@@ -9,9 +10,11 @@ import { EditProfileForm } from "./edit-profile-screen";
 const mockSave = jest.fn();
 const mockBack = jest.fn();
 const mockAvailable = jest.fn();
+const mockSetSafetyChecks = jest.fn();
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
   useAction: () => mockSave,
+  useMutation: () => mockSetSafetyChecks,
 }));
 jest.mock("expo-router", () => ({
   router: { back: () => mockBack() },
@@ -49,7 +52,7 @@ beforeEach(() => {
 
 it("saves trimmed profile text while preserving an unchanged photo and username", async () => {
   mockAvailable.mockReturnValue(false);
-  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  await render(<EditProfileForm profile={profile} scope="account:a" safetyChecks />);
   expect(screen.getByText("Friends and your profile QR code keep working if you change it.")).toBeOnTheScreen();
   await fireEvent.changeText(screen.getByLabelText("Name"), " Alex Chen ");
   await fireEvent.changeText(screen.getByLabelText("Bio"), " A love of art. ");
@@ -61,10 +64,31 @@ it("saves trimmed profile text while preserving an unchanged photo and username"
   expect(mockBack).toHaveBeenCalledTimes(1);
 });
 
+it("keeps an existing bio unsent while safety checks are off and offers to turn them on", async () => {
+  const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  await render(
+    <EditProfileForm profile={{ ...profile, bio: "Prints and posters." }} scope="account:a" safetyChecks={false} />,
+  );
+  expect(screen.queryByLabelText("Bio")).toBeNull();
+  expect(screen.getByText("Prints and posters.")).toBeOnTheScreen();
+  expect(screen.getByText("Turn on safety checks to edit your bio.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Turn on" }));
+  expect(alert).toHaveBeenCalledWith(
+    "Turn on safety checks?",
+    expect.any(String),
+    expect.any(Array),
+    expect.anything(),
+  );
+  await fireEvent.changeText(screen.getByLabelText("Name"), "Alex Chen");
+  await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
+  expect(mockSave).toHaveBeenCalledWith({ name: "Alex Chen" });
+  alert.mockRestore();
+});
+
 it("suggests tags in use while a bio's tag is typed and saves the chosen one", async () => {
   jest.useFakeTimers();
   mockTagSearch.mockReturnValue([{ tag: "impressionism", postCount: 5 }]);
-  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  await render(<EditProfileForm profile={profile} scope="account:a" safetyChecks />);
   const bio = screen.getByLabelText("Bio");
   await fireEvent.changeText(bio, "Loves #imp");
   await fireEvent(bio, "selectionChange", { nativeEvent: { selection: { start: 10, end: 10 } } });
@@ -78,15 +102,17 @@ it("suggests tags in use while a bio's tag is typed and saves the chosen one", a
 });
 
 it("keeps a rename made elsewhere while the form is open", async () => {
-  const view = await render(<EditProfileForm profile={profile} scope="account:a" />);
-  await view.rerender(<EditProfileForm profile={{ ...profile, username: "alex_elsewhere" }} scope="account:a" />);
+  const view = await render(<EditProfileForm profile={profile} scope="account:a" safetyChecks />);
+  await view.rerender(
+    <EditProfileForm profile={{ ...profile, username: "alex_elsewhere" }} scope="account:a" safetyChecks />,
+  );
   expect(screen.getByText("Friends and your profile QR code keep working if you change it.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
   expect(mockSave).toHaveBeenCalledWith({ name: "Alex Morgan", bio: "" });
 });
 
 it("renames the username after normalizing what was typed", async () => {
-  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  await render(<EditProfileForm profile={profile} scope="account:a" safetyChecks />);
   await fireEvent.changeText(screen.getByLabelText("Username"), "Alex Chen");
   expect(await screen.findByText("Username available")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
@@ -100,7 +126,7 @@ it("renames the username after normalizing what was typed", async () => {
 
 it("blocks saving a username someone else has", async () => {
   mockAvailable.mockImplementation((username: string) => username !== "taken_name");
-  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  await render(<EditProfileForm profile={profile} scope="account:a" safetyChecks />);
   await fireEvent.changeText(screen.getByLabelText("Username"), "taken_name");
   expect(await screen.findByText("That username is taken. Try another.")).toBeOnTheScreen();
   const save = screen.getByRole("button", { name: "Save changes" });
@@ -110,7 +136,7 @@ it("blocks saving a username someone else has", async () => {
 });
 
 it("blocks an offensive or staff username without asking the server", async () => {
-  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  await render(<EditProfileForm profile={profile} scope="account:a" safetyChecks />);
   for (const username of ["fuck_you", "artlog_support", "alex-morgan"]) {
     await fireEvent.changeText(screen.getByLabelText("Username"), username);
     expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
@@ -123,7 +149,7 @@ it("blocks an offensive or staff username without asking the server", async () =
 
 it("shows why the server refused an offensive name", async () => {
   mockSave.mockRejectedValue(new ConvexError({ code: "profile_not_allowed" }));
-  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  await render(<EditProfileForm profile={profile} scope="account:a" safetyChecks />);
   await fireEvent.changeText(screen.getByLabelText("Name"), "Shithead");
   await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
   expect(await screen.findByText("That name, username, or bio isn’t allowed. Try different words.")).toBeOnTheScreen();
@@ -132,7 +158,7 @@ it("shows why the server refused an offensive name", async () => {
 
 it("swaps the photo for a painting and keeps the choice after a save failure", async () => {
   mockSave.mockRejectedValue(new Error("offline"));
-  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  await render(<EditProfileForm profile={profile} scope="account:a" safetyChecks />);
   await fireEvent.press(screen.getByRole("button", { name: "Change picture" }));
   await fireEvent.press(screen.getByRole("button", { name: "Senecio, Paul Klee" }));
   await fireEvent.press(screen.getByRole("button", { name: "Save" }));
@@ -153,7 +179,7 @@ it("does not upload a selected photo into a different account after preparation"
         finish = resolve;
       }),
   );
-  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  await render(<EditProfileForm profile={profile} scope="account:a" safetyChecks />);
   await fireEvent.press(screen.getByRole("button", { name: "Change picture" }));
   await fireEvent.press(screen.getByRole("button", { name: "Choose photo" }));
   await fireEvent.press(screen.getByRole("button", { name: "Save" }));
@@ -171,7 +197,7 @@ it("blocks picture changes while a save is in flight", async () => {
         finish = resolve;
       }),
   );
-  await render(<EditProfileForm profile={profile} scope="account:a" />);
+  await render(<EditProfileForm profile={profile} scope="account:a" safetyChecks />);
   await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
   expect(screen.getByRole("button", { name: "Change picture" })).toBeDisabled();
   await act(() => finish(profile));
