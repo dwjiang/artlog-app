@@ -29,7 +29,7 @@ export const MAX_MUSEUM_CHARS = 40_000;
 const CHROME = /<(script|style|noscript|svg|template)\b[\s\S]*?<\/\1>/gi;
 
 /** The page's main region, or its body, without non-text elements. */
-function contentRegion(html: string): string {
+export function contentRegion(html: string): string {
   const region =
     /<main\b[^>]*>([\s\S]*)<\/main>/i.exec(html)?.[1] ?? /<body\b[^>]*>([\s\S]*)<\/body>/i.exec(html)?.[1] ?? html;
   return region.replace(CHROME, " ");

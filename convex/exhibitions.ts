@@ -27,6 +27,9 @@ const MAX_PAGE_SIZE = 100;
 const MAX_EXPORT_ROWS = 1000;
 // Explore loads a region's current shows in one read; a busier region needs a narrower one.
 const MAX_REGION_EXHIBITIONS = 1000;
+// A new show waits for the daily picture lookup, two hours after the listing reads begin; one unchecked by then is
+// listed without a picture.
+const PICTURE_WAIT_MS = 2 * 60 * 60 * 1000;
 
 function invalidMetadata(): never {
   throw new ConvexError({ code: "invalid_import_file", reason: "exhibition_metadata" });
@@ -113,7 +116,7 @@ async function requireVenue(ctx: QueryCtx, venueKey: string) {
 }
 
 function exportRow(row: Doc<"exhibitions">, venueKey: string): Infer<typeof exhibitionExport> {
-  const { _id, _creationTime, titleKey: _titleKey, ...fields } = row;
+  const { _id, _creationTime, titleKey: _titleKey, imagePending: _imagePending, ...fields } = row;
   return { exhibitionId: _id, venueKey, ...fields };
 }
 
@@ -162,10 +165,17 @@ export async function saveExhibition(
     .withIndex("by_museum_title", (q) => q.eq("museumId", museum._id).eq("titleKey", saved.titleKey))
     .unique();
   if (!existing) {
-    await ctx.db.insert("exhibitions", saved);
+    const imagePending = record.imageCheckedAt === undefined;
+    const exhibitionId = await ctx.db.insert("exhibitions", {
+      ...saved,
+      ...(imagePending ? { imagePending: true as const } : {}),
+    });
+    if (imagePending) {
+      await ctx.scheduler.runAfter(PICTURE_WAIT_MS, internal.exhibitions.publishAfterImageWait, { exhibitionId });
+    }
     return "inserted";
   }
-  const { _id, _creationTime, ...prior } = existing;
+  const { _id, _creationTime, imagePending, ...prior } = existing;
   const { imageUrl: priorImage, imageCheckedAt: priorImageAt, ...priorEvidence } = prior;
   const { imageUrl, imageCheckedAt, ...evidence } = saved;
   if (existing.checkedAt > record.checkedAt) {
@@ -185,9 +195,31 @@ export async function saveExhibition(
     if (nextAt === previousAt) throw new ConvexError({ code: "conflict", reason: "image_timestamp_collision" });
   }
   if (stableStringify(prior) === stableStringify(saved)) return "unchanged";
-  await ctx.db.replace("exhibitions", _id, saved);
+  await ctx.db.replace("exhibitions", _id, {
+    ...saved,
+    ...(imagePending && saved.imageCheckedAt === undefined ? { imagePending } : {}),
+  });
   return "updated";
 }
+
+export const releaseImageWait = internalMutation({
+  args: { exhibitionId: v.id("exhibitions") },
+  returns: v.null(),
+  handler: async (ctx, { exhibitionId }) => {
+    const show = await ctx.db.get("exhibitions", exhibitionId);
+    if (show?.imagePending) await ctx.db.patch("exhibitions", exhibitionId, { imagePending: undefined });
+    return null;
+  },
+});
+
+export const publishAfterImageWait = internalAction({
+  args: { exhibitionId: v.id("exhibitions") },
+  returns: v.null(),
+  handler: (ctx, args): Promise<null> =>
+    withErrorReporting("exhibitions.publishAfterImageWait", () =>
+      ctx.runMutation(internal.exhibitions.releaseImageWait, args),
+    ),
+});
 
 /** Explore lists shows and due listing reads under their museum's region, so a region change moves them too. */
 export async function moveMuseumRegion(ctx: MutationCtx, museumId: Id<"museums">, region: string): Promise<void> {
@@ -215,6 +247,8 @@ function currentInRegion(ctx: QueryCtx, region: string, asOf: number) {
     .query("exhibitions")
     .withIndex("by_region_finalEndAt", (q) => q.eq("region", region).gte("finalEndAt", asOf));
 }
+
+const pictureSettled = (row: Doc<"exhibitions">) => row.imageCheckedAt !== undefined || !row.imagePending;
 
 async function visibleMuseum(
   ctx: QueryCtx,
@@ -279,6 +313,7 @@ export const regions = query({
     while (next) {
       const { region } = next;
       for await (const row of currentInRegion(ctx, region, asOf)) {
+        if (!pictureSettled(row)) continue;
         const museum = await visibleMuseum(ctx, museums, row.museumId);
         if (museum) {
           result.push({ region, lat: museum.lat, lng: museum.lng });
@@ -301,7 +336,7 @@ export const inRegion = query({
   handler: async (ctx, { region, asOf }) => {
     if (!isTimestamp(asOf) || !region || region.length > 100) invalidMetadata();
     const rows = await currentInRegion(ctx, region, asOf).take(MAX_REGION_EXHIBITIONS);
-    return buildCatalog(ctx, rows);
+    return buildCatalog(ctx, rows.filter(pictureSettled));
   },
 });
 
@@ -346,7 +381,7 @@ export const atMuseum = query({
       .query("exhibitions")
       .withIndex("by_museum_finalEndAt", (q) => q.eq("museumId", museumId).gte("finalEndAt", asOf))
       .take(MAX_REGION_EXHIBITIONS);
-    return buildCatalog(ctx, rows, { museumIds: [museumId] });
+    return buildCatalog(ctx, rows.filter(pictureSettled), { museumIds: [museumId] });
   },
 });
 

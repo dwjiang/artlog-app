@@ -5,7 +5,7 @@ export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 export type Fetched = { status: number; headers: Headers; body: Uint8Array };
 export type Followed =
   | { url: URL; response: Fetched }
-  | { reason: "robots" | "redirect_elsewhere" | "too_many_redirects" };
+  | { reason: "robots" | "robots_unavailable" | "redirect_elsewhere" | "too_many_redirects" };
 
 const ROBOT = "artlog-bot";
 const HOST_GAP_MS = 1000;
@@ -80,18 +80,19 @@ export function politeClient({
       }
       if (response.status >= 400 && response.status < 500 && response.status !== 429) return robotsParser(url.href, "");
     } catch {
-      // Unreachable: the whole site counts as disallowed.
+      // An unreadable policy blocks this attempt, but can be retried later.
     }
     return undefined;
   }
 
-  /** The pause a host asks for, or undefined when artlog-bot may not fetch `url` at all. */
-  async function permission(url: URL): Promise<number | undefined> {
+  /** The pause a host asks for, or why artlog-bot cannot fetch `url` on this attempt. */
+  async function permission(url: URL): Promise<number | "robots" | "robots_unavailable"> {
     if (!robots.has(url.origin)) robots.set(url.origin, readRobots(url));
     const rules = await robots.get(url.origin)!;
-    if (!rules || rules.isAllowed(url.href, ROBOT) === false) return undefined;
+    if (!rules) return "robots_unavailable";
+    if (rules.isAllowed(url.href, ROBOT) === false) return "robots";
     const delay = rules.getCrawlDelay(ROBOT) ?? 0;
-    return delay > maxCrawlDelayS ? undefined : Math.max(HOST_GAP_MS, delay * 1000);
+    return delay > maxCrawlDelayS ? "robots" : Math.max(HOST_GAP_MS, delay * 1000);
   }
 
   /** Follows redirects that `keep` accepts, checking robots.txt before every hop. */
@@ -99,7 +100,7 @@ export function politeClient({
     let url = start;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
       const gapMs = await permission(url);
-      if (gapMs === undefined) return { reason: "robots" };
+      if (typeof gapMs !== "number") return { reason: gapMs };
       const response = await get(url, accept, maxBytes, gapMs);
       if (response.status < 300 || response.status >= 400) return { url, response };
       const location = response.headers.get("location");

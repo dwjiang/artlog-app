@@ -67,13 +67,19 @@ export function decodeEntities(value: string): string {
   });
 }
 
-function metaTags(html: string): Map<string, string> {
+/** An HTML tag's attributes by lowercase name, with entities decoded. */
+export function tagAttributes(tag: string): Map<string, string> {
+  const attrs = new Map<string, string>();
+  for (const attr of tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g)) {
+    attrs.set(attr[1].toLowerCase(), decodeEntities(attr[2] ?? attr[3] ?? attr[4] ?? "").trim());
+  }
+  return attrs;
+}
+
+export function metaTags(html: string): Map<string, string> {
   const tags = new Map<string, string>();
   for (const match of html.matchAll(/<meta\b([^>]*)>/gi)) {
-    const attrs = new Map<string, string>();
-    for (const attr of match[1].matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g)) {
-      attrs.set(attr[1].toLowerCase(), decodeEntities(attr[2] ?? attr[3] ?? attr[4] ?? "").trim());
-    }
+    const attrs = tagAttributes(match[1]);
     const key = (attrs.get("property") ?? attrs.get("name") ?? attrs.get("itemprop"))?.toLowerCase();
     const content = attrs.get("content");
     if (key && content && !tags.has(key)) tags.set(key, content);

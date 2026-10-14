@@ -369,7 +369,8 @@ export default defineSchema({
   exhibitions: defineTable(exhibition)
     .index("by_museum_title", ["museumId", "titleKey"])
     .index("by_museum_finalEndAt", ["museumId", "finalEndAt"])
-    .index("by_region_finalEndAt", ["region", "finalEndAt"]),
+    .index("by_region_finalEndAt", ["region", "finalEndAt"])
+    .index("by_imageCheckedAt_finalEndAt", ["imageCheckedAt", "finalEndAt"]),
 
   // When each museum with a validated listing is next read. `checkedAt` is the last read that reached the page and
   // `pageHash` what the model last read; `leasedUntil` marks a read under way.

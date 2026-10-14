@@ -24,7 +24,6 @@
     "test:exhibitions": "node --experimental-strip-types --test scripts/exhibitions/*.test.mts shared/exhibitions/*.test.mts",
     "exhibitions:extract": "node --experimental-strip-types scripts/exhibitions/extract.mts",
     "exhibitions:pilot": "node --experimental-strip-types scripts/exhibitions/pilot.mts",
-    "exhibitions:images": "node --experimental-strip-types scripts/exhibitions/images.mts",
     "exhibitions:import": "node --experimental-strip-types scripts/exhibitions/import.mts",
     "eas-build-pre-install": "npm run model:check"
   },

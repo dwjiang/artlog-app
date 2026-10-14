@@ -56,3 +56,33 @@ export async function promoteGroup(t: Harness, objectId: Id<"objects">, venueId:
   await t.mutation(internal.promotion.findGroupAgreement, { objectId, venueId, cursor: null, witnesses: [] });
   await t.finishAllScheduledFunctions(() => vi.advanceTimersByTime(0));
 }
+
+const realSetTimeout = globalThis.setTimeout;
+
+/**
+ * Runs scheduled functions due by `through` under fake timers, pumping the clock so actions that wait between requests
+ * to a host can finish.
+ */
+export async function runScheduled(t: Harness, through = Date.now() + 10 * 60_000): Promise<void> {
+  for (let step = 0; step < 1000; step++) {
+    await vi.advanceTimersByTimeAsync(0);
+    let finished = false;
+    const finishing = t.finishInProgressScheduledFunctions().then(() => {
+      finished = true;
+    });
+    for (let pump = 0; !finished && pump < 1000; pump++) {
+      await new Promise((resolve) => realSetTimeout(resolve, 0));
+      if (!finished) await vi.advanceTimersByTimeAsync(1000);
+    }
+    if (!finished) throw new Error("Scheduled worker did not finish");
+    await finishing;
+    const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    // A job finishing can start another, which is already under way rather than pending.
+    if (jobs.some((job) => job.state.kind === "inProgress")) continue;
+    const next = Math.min(...jobs.filter((job) => job.state.kind === "pending").map((job) => job.scheduledTime));
+    if (!Number.isFinite(next) || next > through) return;
+    if (next <= Date.now()) await vi.advanceTimersToNextTimerAsync();
+    else await vi.advanceTimersByTimeAsync(next - Date.now());
+  }
+  throw new Error("Scheduled functions did not settle");
+}
