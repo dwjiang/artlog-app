@@ -1,5 +1,5 @@
 import type { Id } from "../../../convex/_generated/dataModel";
-import { catalogAsOf, defaultCity, exploreCities, exploreData } from "./catalog";
+import { catalogAsOf, defaultCity, exploreCities, exploreData, namedRegions } from "./catalog";
 
 const museumId = "omca" as Id<"museums">;
 const show = (title: string, viewingPeriods: { startDate: string | null; endDate: string }[], imageUrl?: string) => ({
@@ -92,6 +92,14 @@ it("names cities alphabetically", () => {
     { id: "london", name: "London" },
     { id: "sf-bay-area", name: "San Francisco Bay Area" },
   ]);
+});
+
+it("offers only regions it can name as cities", () => {
+  const unnamed = [
+    { region: "country:DD", lat: 51.06, lng: 13.74 },
+    { region: "country:unknown", lat: 40.75, lng: -74.01 },
+  ];
+  expect(namedRegions([...regions, ...unnamed])).toEqual(regions);
 });
 
 it("opens on the phone's own city, else the nearest city with shows", () => {

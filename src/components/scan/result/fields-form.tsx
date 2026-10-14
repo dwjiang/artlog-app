@@ -4,6 +4,7 @@ import { FieldInput } from "@/components/scan/field-input";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import { SNAPSHOT_FIELDS, type SnapshotDraft, type SnapshotField } from "@/lib/result/snapshot";
+import { LIMITS } from "@/shared/journal/limits";
 
 export const FIELD_LABELS: Record<SnapshotField, string> = {
   title: "Title",
@@ -33,6 +34,7 @@ export function FieldsForm({ draft, editable, onChange }: FieldsFormProps) {
             defaultValue={draft[field]}
             editable={editable}
             autoCapitalize={field === "date" ? "none" : "words"}
+            maxLength={LIMITS.typedDetail}
             onChangeText={(value) => onChange(field, value)}
           />
         </View>

@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { GuideTranscript } from "@/components/audio/guide-transcript";
@@ -10,7 +9,7 @@ import type { ContentReportTarget } from "@/lib/social/report";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { DocentSentence, DocentStatus, FactChip } from "../../../convex/lib/validators";
 
-/** "About this work", then the audio guide once the work has research to read from. `children` follow the guide. */
+/** "About this work", then the audio guide once the work has research to read from. */
 export function ArtworkStory({
   artworkId,
   title,
@@ -25,7 +24,6 @@ export function ArtworkStory({
   onRetry,
   waitWhileWriting,
   report,
-  children,
 }: {
   /** The catalog work behind the guide; without one there is nothing to listen to. */
   artworkId?: Id<"artworks">;
@@ -41,7 +39,6 @@ export function ArtworkStory({
   onRetry?: () => Promise<unknown>;
   waitWhileWriting?: boolean;
   report?: ContentReportTarget;
-  children?: ReactNode;
 }) {
   return (
     <View style={styles.story}>
@@ -68,7 +65,6 @@ export function ArtworkStory({
           <GuideTranscript artworkId={artworkId} />
         </>
       )}
-      {children}
     </View>
   );
 }

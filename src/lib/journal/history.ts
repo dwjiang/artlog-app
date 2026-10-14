@@ -27,8 +27,12 @@ const MONTHS = [
 ];
 
 export function countryName(code?: string | null): string {
+  return code ? (knownCountryName(code) ?? code) : "";
+}
+/** Undefined for codes without a current country, such as "unknown" or East Germany's "DD". */
+export function knownCountryName(code: string): string | undefined {
   // Hermes does not implement Intl.DisplayNames; keep the English labels with the journal data.
-  return code ? ((countryNames as Record<string, string>)[code] ?? code) : "";
+  return (countryNames as Record<string, string | undefined>)[code];
 }
 export function formatVisitDate(date: string): string {
   const [year, month, day] = date.split("-");

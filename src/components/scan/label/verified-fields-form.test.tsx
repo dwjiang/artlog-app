@@ -58,3 +58,16 @@ it("keeps optional catalog details available without crowding the main review", 
   await fireEvent.changeText(screen.getByLabelText("Accession number"), "A-43");
   expect(handlers.onChange).toHaveBeenCalledWith("accession", "A-43");
 });
+
+it("preserves a long verified title when focused and left without an edit", async () => {
+  const title = "A verified title with a detailed description ".repeat(6);
+  const state = formStateFromFlow({
+    ...flow,
+    fields: { ...flow.fields, title: { value: title, evidence: "tavily+image", locked: true } },
+  });
+  await render(<VerifiedFieldsForm state={state} warnings={[]} editable {...handlers} />);
+  expect(screen.getByDisplayValue(title)).toBeOnTheScreen();
+  await fireEvent(screen.getByLabelText("Title"), "focus");
+  await fireEvent(screen.getByLabelText("Title"), "blur");
+  expect(handlers.onChange).not.toHaveBeenCalled();
+});

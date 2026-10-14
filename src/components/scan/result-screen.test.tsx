@@ -344,7 +344,14 @@ it("shows listen controls and the audio guide transcript inline once narration e
   expect(screen.getByRole("link", { name: "Test Museum" })).toBeOnTheScreen();
 });
 
-it("shows a confident match with its fields, chip, prose, sources and news", async () => {
+it("shows a confident match with its fields, chip, prose and sources", async () => {
+  // A server-sent web card stays hidden: this build ships no section the server could switch on unreviewed.
+  const news = {
+    text: "Monet’s water lilies are on view.",
+    sourceUrl: "https://news.example/monet",
+    sourceLabel: "News",
+  };
+  results.set("scans:get", { ...confidentScan, rightNow: news });
   await render(result());
   expect(await screen.findByText("Match")).toBeOnTheScreen();
   expect(screen.getByText("Water Lilies")).toBeOnTheScreen();
@@ -358,8 +365,8 @@ it("shows a confident match with its fields, chip, prose, sources and news", asy
   expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
   expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
   expect(screen.getByRole("link", { name: "The Met" })).toBeOnTheScreen();
-  expect(screen.getByText("From the web")).toBeOnTheScreen();
-  expect(screen.getByRole("link", { name: "Example News" })).toBeOnTheScreen();
+  expect(screen.queryByText("From the web")).toBeNull();
+  expect(screen.queryByText(news.text)).toBeNull();
   expect(screen.getByRole("button", { name: "Scan the Label" })).toBeOnTheScreen();
   expect(screen.queryByText("Other possibilities")).toBeNull();
   expect(screen.getByRole("button", { name: "Not right?" })).toBeOnTheScreen();

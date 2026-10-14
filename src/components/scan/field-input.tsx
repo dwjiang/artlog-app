@@ -26,6 +26,7 @@ export type FieldInputProps = {
   autoCapitalize: "none" | "words" | "sentences";
   onChangeText: (value: string) => void;
   onBlur?: () => void;
+  /** Existing longer values are preserved and may be corrected or shortened. */
   maxLength?: number;
   numberOfLines?: number;
   variant?: "outlined" | "filled";
@@ -50,14 +51,15 @@ export function FieldInput({
   autoCapitalize,
   onChangeText,
   onBlur,
-  maxLength,
+  maxLength: typingLimit,
   numberOfLines,
   variant = "outlined",
   icon,
   style,
 }: FieldInputProps) {
   const [focused, setFocused] = useState(false);
-  const text = useNativeState(limitTextLength(defaultValue, maxLength));
+  const maxLength = typingLimit === undefined ? undefined : Math.max(typingLimit, defaultValue.length);
+  const text = useNativeState(defaultValue);
   useEffect(() => {
     if (maxLength === undefined) return;
     // SwiftUI counts graphemes; persistence counts UTF-16 units. Clamp on the UI thread before JS receives the edit.

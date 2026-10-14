@@ -1,6 +1,7 @@
 import type { Infer } from "convex/values";
 
 import { normalizeText } from "../../shared/catalog/text";
+import { LIMITS } from "../../shared/journal/limits";
 import { defaultAvatar, isAvatarId } from "../../shared/social/avatars";
 import {
   type artworkDetail,
@@ -11,7 +12,7 @@ import {
   type displayMediaContext,
   validateMedia,
 } from "../../shared/social/contracts";
-import { isSevere } from "../../shared/social/offensive-text";
+import { isOffensive } from "../../shared/social/offensive-text";
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { fileStorage } from "./fileStorage";
@@ -92,23 +93,28 @@ export function projectArtwork(
       /* Ineligible media renders the same placeholder as missing media. */
     }
   }
-  // Typed details sync without review, so public copies drop slurs and the strongest swearing instead of failing the
-  // sync. Crude words stay, because real titles use them ("Bitch", "Piss Flowers").
-  const { title, artist, date, medium } = save.snapshot;
+  // A title and artist matching the linked record show as recorded, because real titles use crude words ("Bitch").
+  const { title, artist } = save.snapshot;
+  const date = publicDetail(save.snapshot.date);
+  const medium = publicDetail(save.snapshot.medium);
   return {
-    title: !fromRecord && isSevere(title) ? "Untitled" : title,
-    artist: !fromRecord && isSevere(artist) ? "" : artist,
-    ...(date && !isSevere(date) ? { date } : {}),
-    ...(medium && !isSevere(medium) ? { medium } : {}),
+    title: fromRecord ? title : (publicDetail(title) ?? "Untitled"),
+    artist: fromRecord ? artist : (publicDetail(artist) ?? ""),
+    ...(date ? { date } : {}),
+    ...(medium ? { medium } : {}),
     media,
   };
+}
+// Typed details sync without review, so others see one only when the full word list passes it, and only its start.
+function publicDetail(text: string | undefined) {
+  return text && !isOffensive(text) ? Array.from(text).slice(0, LIMITS.typedDetail).join("") : undefined;
 }
 export function projectArtworkDetail(
   artwork: Infer<typeof publicArtwork>,
   save: Pick<Doc<"collections">, "snapshot">,
 ): Infer<typeof artworkDetail> {
-  const { institution } = save.snapshot;
-  return institution && !isSevere(institution) ? { ...artwork, institution } : artwork;
+  const institution = publicDetail(save.snapshot.institution);
+  return institution ? { ...artwork, institution } : artwork;
 }
 export function projectWallArtwork(
   item: Doc<"wallItems">,

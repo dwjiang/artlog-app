@@ -150,7 +150,7 @@ it("keeps About details accessible", async () => {
 
 it("opens contextual sign-in while keeping the guest journal available", async () => {
   await render(<SettingsScreen />);
-  expect(screen.getByText("Saved on this iPhone")).toBeOnTheScreen();
+  expect(screen.getByText("Automatic backup for this iPhone")).toBeOnTheScreen();
   expect(screen.queryByText(/sync across devices/i)).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
   expect(mockSignIn).not.toHaveBeenCalled();

@@ -95,7 +95,7 @@ export function SettingsScreen() {
             <View style={{ flex: 1 }}>
               <ThemedText variant="button">Your collection</ThemedText>
               <ThemedText variant="metadata" themeColor="textSecondary">
-                Saved on this iPhone
+                Automatic backup for this iPhone
               </ThemedText>
             </View>
             <Image

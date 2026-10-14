@@ -18,6 +18,7 @@ export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
   mispronounced: "Mispronounced words",
   glitches: "Glitches or cuts off",
   mismatch: "Doesn’t match the transcript",
+  copyright: "Copyright infringement",
   other: "Something else",
 };
 

@@ -2,7 +2,7 @@ import type { FunctionReturnType } from "convex/server";
 
 import type { MeasurementUnits } from "@/lib/settings/measurement-units";
 import { formatDistance, haversineMeters, type Coordinate, type VenueRow } from "@/lib/venue/resolve";
-import { regionName } from "@/lib/venue/venue-location";
+import { knownRegionName, regionName } from "@/lib/venue/venue-location";
 import { regionCountry } from "@/shared/sources/region-country";
 
 import type { api } from "../../../convex/_generated/api";
@@ -17,6 +17,9 @@ const DAY = 86_400_000;
 
 /** A day before today's UTC midnight is still today somewhere, so the server keeps every show not yet closed locally. */
 export const catalogAsOf = (today: string) => Date.parse(today) - DAY;
+
+/** Regions Explore can offer as cities; a museum's region can be an unknown or former country. */
+export const namedRegions = (regions: Regions) => regions.filter(({ region }) => knownRegionName(region) !== undefined);
 
 export function exploreCities(regions: Regions): ExploreCity[] {
   return regions

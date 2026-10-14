@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { createRef } from "react";
+import { createRef, useState } from "react";
 
 import { FieldInput, type FieldInputRef } from "./field-input";
 
@@ -44,4 +44,36 @@ it("hands the field's text to a form that missed it when the field loses focus, 
   await view.rerender(field("The Last Day of Pompeii"));
   await fireEvent(screen.getByLabelText("Title"), "blur");
   expect(onChangeText).toHaveBeenCalledTimes(2);
+});
+
+it("lets a longer existing value be corrected and shortened without allowing further growth", async () => {
+  const ref = createRef<FieldInputRef>();
+  const onChangeText = jest.fn();
+  function Form() {
+    const [value, setValue] = useState("abcdefgh");
+    return (
+      <FieldInput
+        ref={ref}
+        label="Title"
+        defaultValue={value}
+        editable
+        autoCapitalize="words"
+        maxLength={5}
+        onChangeText={(next) => {
+          setValue(next);
+          onChangeText(next);
+        }}
+      />
+    );
+  }
+  await render(<Form />);
+  expect(ref.current?.getText()).toBe("abcdefgh");
+  await fireEvent.changeText(screen.getByLabelText("Title"), "Abcdefgh");
+  expect(ref.current?.getText()).toBe("Abcdefgh");
+  await fireEvent.changeText(screen.getByLabelText("Title"), "Abcdefghi");
+  expect(onChangeText).toHaveBeenLastCalledWith("Abcdefgh");
+  await fireEvent.changeText(screen.getByLabelText("Title"), "Abcd");
+  await fireEvent.changeText(screen.getByLabelText("Title"), "Abcdef");
+  expect(ref.current?.getText()).toBe("Abcde");
+  expect(onChangeText).toHaveBeenLastCalledWith("Abcde");
 });

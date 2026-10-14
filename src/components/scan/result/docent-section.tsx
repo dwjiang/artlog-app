@@ -11,6 +11,7 @@ import { Gallery, Spacing } from "@/constants/theme";
 import { useScreenActive } from "@/hooks/use-screen-active";
 import { isNetworkError } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
+import { sourceLicences } from "@/lib/result/source-licence";
 import type { ContentReportTarget } from "@/lib/social/report";
 import { showErrorToast } from "@/lib/ui/toast";
 
@@ -221,6 +222,19 @@ export function SourceList({ sources }: { sources: NumberedSource[] }) {
             <Image source="sf:arrow.up.right" tintColor={Gallery.muted} style={styles.open} />
           </SourceLink>
         ))}
+        {sourceLicences(sources.map(({ url }) => url)).map(({ publisher, name, url }) => (
+          <SourceLink
+            key={url}
+            label={`Adapted with AI from ${publisher}, licensed ${name}`}
+            url={url}
+            style={styles.source}
+          >
+            <ThemedText variant="metadata" themeColor="textSecondary" style={styles.licence}>
+              {`Adapted with AI from ${publisher} · ${name}`}
+            </ThemedText>
+            <Image source="sf:arrow.up.right" tintColor={Gallery.muted} style={styles.open} />
+          </SourceLink>
+        ))}
       </View>
     </View>
   );
@@ -264,5 +278,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   sourceLabel: { flex: 1, fontWeight: "500", color: Gallery.accent },
+  licence: { flex: 1 },
   open: { width: 10, height: 10 },
 });

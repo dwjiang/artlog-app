@@ -23,6 +23,7 @@ import {
   defaultCity,
   exploreCities,
   exploreData,
+  namedRegions,
   withFriends,
   type FriendSaves,
 } from "./catalog";
@@ -136,12 +137,12 @@ export function useExplore(): ExploreView<ExploreData> {
   const chosen = useSyncExternalStore(subscribe, () => chosenCity);
   const regions = useSocialQuery(api.exhibitions.regions, { asOf }, "explore");
   const home = useHomeRegion(fix);
-  const cities = useMemo(() => exploreCities(regions.data ?? []), [regions.data]);
+  const listed = useMemo(() => namedRegions(regions.data ?? []), [regions.data]);
+  const cities = useMemo(() => exploreCities(listed), [listed]);
   const picked = cities.some((city) => city.id === chosen) ? chosen : undefined;
   // Waits for the phone's region so Explore doesn't open one city and then jump to another.
   const cityId =
-    picked
-    ?? (home === undefined ? undefined : defaultCity(regions.data ?? [], { fix, home: home ?? undefined, timeZone }));
+    picked ?? (home === undefined ? undefined : defaultCity(listed, { fix, home: home ?? undefined, timeZone }));
   const catalog = useSocialQuery(api.exhibitions.inRegion, !cityId ? "skip" : { region: cityId, asOf }, "explore");
   const cityMuseums = useCityMuseums(cityId);
   const city = cities.find((candidate) => candidate.id === cityId);
@@ -162,7 +163,7 @@ export function useExplore(): ExploreView<ExploreData> {
     regions.error ? regions.refresh() : cityMuseums.error ? cityMuseums.refresh() : catalog.refresh();
   if (offline && !data) return { status: "offline", retry };
   if (regions.error || catalog.error || cityMuseums.error) return { status: "error", retry };
-  if (regions.data?.length === 0) return { status: "empty", retry };
+  if (regions.data && listed.length === 0) return { status: "empty", retry };
   return data ? { status: "ready", data, retry } : { status: "loading", retry };
 }
 
