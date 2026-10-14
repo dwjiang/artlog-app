@@ -328,7 +328,7 @@ it("reports the usable profile and whether sign-in still moves the journal, so s
   expect(await device.as.query(api.accounts.me, {})).toMatchObject({ hasProfile: true, profileId: null });
 });
 
-it("keeps one safety-checks answer per account, which an answer from before sign-in never overrides", async () => {
+it("keeps one safety-checks answer per account, which an `ifUnset` answer never overrides", async () => {
   const t = harness();
   const { a, b } = await pair(t);
   expect(await a.as.query(api.accounts.me, {})).toMatchObject({ safetyChecks: null });

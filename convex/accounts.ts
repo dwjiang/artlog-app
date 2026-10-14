@@ -349,7 +349,7 @@ export const me = query({
   },
 });
 
-/** `ifUnset` carries an answer given before sign-in without overriding one the account already holds. */
+/** `ifUnset` lets an allow given before sign-in fill an unanswered account without overriding the answer it holds. */
 export const setSafetyChecks = mutation({
   args: { enabled: v.boolean(), ifUnset: v.optional(v.boolean()) },
   returns: v.boolean(),
