@@ -12,6 +12,7 @@ import { bayArea, regions } from "./__fixtures__/catalog";
 import { ExhibitionListScreen } from "./exhibition-list-screen";
 import { ExhibitionScreen } from "./exhibition-screen";
 import { ExploreScreen } from "./explore-screen";
+import { MuseumListScreen } from "./museum-list-screen";
 import { MuseumScreen } from "./museum-screen";
 import { WantToSeeScreen } from "./want-to-see-screen";
 
@@ -40,6 +41,15 @@ let mockPermission: { granted: boolean; canAskAgain: boolean } | null;
 const mockRequestPermission = jest.fn(async () => ({ granted: true, canAskAgain: true }));
 const mockResolve = jest.fn(async (_options?: { quiet?: boolean }) => ({}));
 let mockCached: Map<string, unknown>;
+let mockMuseumPhotos: Map<string, unknown>;
+// Stills last the app session, so each museum gets the same answer in every test: BAMPFA has one, OMCA none, and the
+// rest are refused as throttled, which is never kept.
+const mockLookAroundStill = jest.fn(async (lat: number, _lng: number, _width: number, _height: number) => {
+  if (lat === 37.870804) return "file:///look-around/bampfa.jpg";
+  if (lat === 37.798641) return null;
+  throw Object.assign(new Error("Throttled"), { code: "ERR_LOOK_AROUND_THROTTLED" });
+});
+const mockOpenLookAround = jest.fn(async (_lat: number, _lng: number) => undefined);
 
 jest.mock("expo-router", () => {
   const { mockStack } = jest.requireActual("@/components/stack-toolbar-mock");
@@ -82,6 +92,10 @@ jest.mock("@/lib/social/use-query-refresh", () => ({
   }),
 }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
+jest.mock("../../../modules/look-around/src", () => ({
+  ...jest.requireActual("../../../modules/look-around/src"),
+  getLookAround: () => ({ snapshot: mockLookAroundStill, open: mockOpenLookAround }),
+}));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("@/lib/account/owner-store", () => ({
   useLocalOwner: () => mockOwner,
@@ -102,7 +116,10 @@ jest.mock("convex/react", () => ({
   useQueries: (
     requests: Record<
       string,
-      { query: unknown; args: { region?: string; museumId?: string; museumIds?: string[]; exhibitionIds?: string[] } }
+      {
+        query: unknown;
+        args: { region?: string; museumId?: string; museumIds?: string[]; exhibitionIds?: string[]; venueId?: string };
+      }
     >,
   ) => {
     const { getFunctionName } = jest.requireActual("convex/server");
@@ -120,6 +137,8 @@ jest.mock("convex/react", () => ({
           data = mockSaved;
         } else if (name === "wantToSee:friends") {
           data = mockFriendSaves;
+        } else if (name === "museumPhotos:forVenue") {
+          data = { photo: mockMuseumPhotos.get(args.venueId!) ?? null, checked: true };
         } else if (name === "exhibitions:inRegion") {
           data = args.region === "london" ? london : args.region === "country:GB" ? cornwall : bayArea;
         } else if (name === "exhibitions:discoverableMuseumIds") {
@@ -200,6 +219,8 @@ beforeEach(() => {
   mockRequestPermission.mockClear();
   mockResolve.mockClear();
   mockCached = new Map();
+  mockMuseumPhotos = new Map();
+  mockOpenLookAround.mockClear();
   chooseCity(undefined);
 });
 
@@ -528,6 +549,88 @@ describe("Exhibition", () => {
     await fireEvent.press(screen.getByRole("link", { name: "Image from sfmoma.org" }));
 
     expect(mockOpenBrowser).toHaveBeenCalledWith("https://www.sfmoma.org/exhibitions/signal");
+  });
+});
+
+describe("museum pictures", () => {
+  const commonsPhoto = (file: string, credit: { author?: string; license?: string } = {}) => ({
+    imageUrl: `https://commons.wikimedia.org/wiki/Special:FilePath/${file}?width=1280`,
+    pageUrl: `https://commons.wikimedia.org/wiki/File:${file}`,
+    ...credit,
+  });
+
+  it("shows a museum's Commons photo, else a Look Around still, else a show's artwork, else a placeholder", async () => {
+    mockCityMuseums = {
+      "sf-bay-area": [
+        {
+          id: "letterform" as VenueRow["id"],
+          key: "letterform",
+          name: "Letterform Archive",
+          lat: 37.7701,
+          lng: -122.3919,
+          website: null,
+          region: "sf-bay-area",
+          city: "San Francisco",
+        },
+      ],
+    };
+    mockMuseumPhotos.set("letterform", commonsPhoto("Letterform_Archive.jpg"));
+    await render(<ExploreScreen />);
+    const row = await screen.findByTestId("museum-row");
+
+    expect(await within(row).findByLabelText("Photo of Letterform Archive")).toHaveProp("source", [
+      { uri: "https://commons.wikimedia.org/wiki/Special:FilePath/Letterform_Archive.jpg?width=960" },
+    ]);
+    // Apple's Maps logo is drawn into the still's lower-left corner, so crops keep that corner.
+    expect(
+      await within(row).findByLabelText("Look Around view of Berkeley Art Museum and Pacific Film Archive"),
+    ).toHaveProp("contentPosition", { left: 0, bottom: 0 });
+    expect(within(row).getByLabelText("Signal and Noise")).toBeOnTheScreen();
+    expect(within(row).queryByLabelText(/Oakland Museum of California$/)).toBeNull();
+    expect(mockLookAroundStill).not.toHaveBeenCalledWith(37.7701, -122.3919, expect.any(Number), expect.any(Number));
+    // Cards fit a double-size still, which shows Apple's fixed-size logo at half the size.
+    expect(mockLookAroundStill).toHaveBeenCalledWith(37.870804, -122.26634, 800, 500);
+  });
+
+  it("gives list rows smaller Commons files and stills that keep Apple's logo legible", async () => {
+    mockMuseumPhotos.set("sfmoma", commonsPhoto("SFMOMA.jpg"));
+    await render(<MuseumListScreen />);
+
+    expect(await screen.findByLabelText("Photo of San Francisco Museum of Modern Art")).toHaveProp("source", [
+      { uri: "https://commons.wikimedia.org/wiki/Special:FilePath/SFMOMA.jpg?width=330" },
+    ]);
+    expect(
+      await screen.findByLabelText("Look Around view of Berkeley Art Museum and Pacific Film Archive"),
+    ).toBeOnTheScreen();
+    expect(mockLookAroundStill).toHaveBeenCalledWith(37.870804, -122.26634, 400, 250);
+  });
+
+  it("credits the museum's photo on its page and opens the photo's Commons page", async () => {
+    mockMuseumPhotos.set("omca", commonsPhoto("OMCA.jpg", { author: "Jane Doe", license: "CC BY-SA 4.0" }));
+    await render(<MuseumScreen museumId="omca" />);
+
+    await fireEvent.press(await screen.findByRole("link", { name: "Photo: Jane Doe · CC BY-SA 4.0" }));
+
+    expect(mockOpenBrowser).toHaveBeenCalledWith("https://commons.wikimedia.org/wiki/File:OMCA.jpg");
+  });
+
+  it("heads a museum page without a photo with its Look Around still, which opens Look Around", async () => {
+    await render(<MuseumScreen museumId="bampfa" />);
+
+    expect(
+      await screen.findByLabelText("Look Around view of Berkeley Art Museum and Pacific Film Archive"),
+    ).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: "Look Around · Apple Maps" }));
+
+    expect(mockOpenLookAround).toHaveBeenCalledWith(37.870804, -122.26634);
+  });
+
+  it("leaves a show's artwork in its row instead of heading the museum page with it", async () => {
+    await render(<MuseumScreen museumId="sfmoma" />);
+
+    expect(await screen.findByRole("button", { name: /^Signal and Noise/ })).toBeOnTheScreen();
+    expect(screen.queryByText(/^Photo: |^Look Around · /)).toBeNull();
+    expect(screen.queryByLabelText("Loading photo")).toBeNull();
   });
 });
 

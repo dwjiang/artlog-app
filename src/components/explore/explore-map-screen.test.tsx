@@ -20,7 +20,7 @@ jest.mock("@/lib/venue/venue-db", () => ({
   museumsInRegion: async () => mockCityMuseums,
   onVenueMetadataChange: () => () => {},
 }));
-jest.mock("convex/react", () => ({ useMutation: () => jest.fn() }));
+jest.mock("convex/react", () => ({ useMutation: () => jest.fn(), useQueries: () => ({}) }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useBatchedSocialQuery: (_query: unknown, batches: { museumIds: string[] }[]) => ({
     data: batches.map(({ museumIds }) => museumIds),

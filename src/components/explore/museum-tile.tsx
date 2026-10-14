@@ -1,15 +1,17 @@
 import { StyleSheet, View } from "react-native";
 
+import { ImageSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, Radius, Spacing } from "@/constants/theme";
-import { museumCover, museumLine, museumSummary } from "@/lib/explore/museum-summary";
+import { useMuseumImage } from "@/lib/explore/museum-image";
+import { museumLine, museumSummary } from "@/lib/explore/museum-summary";
 import type { ExploreData, ExploreMuseum } from "@/lib/explore/types";
 
 import { ExploreImage } from "./explore-image";
 import { openMuseum } from "./explore-routes";
 
-/** The artwork of the museum's most pressing show, or a neutral placeholder. */
+/** The museum's photo, else a Look Around still, else its most pressing show's artwork, else a placeholder. */
 export function MuseumPhoto({
   data,
   museum,
@@ -21,14 +23,17 @@ export function MuseumPhoto({
   width: number;
   height: number;
 }) {
-  const radius = width > 80 ? Radius.card : 8;
-  return (
-    <ExploreImage
-      image={museumCover(data, museum)}
-      icon="building.columns"
-      style={{ width, height, borderRadius: radius }}
-    />
-  );
+  const card = width > 80;
+  const style = { width, height, borderRadius: card ? Radius.card : 8 };
+  const { image, loading } = useMuseumImage(data, museum, card ? "card" : "row");
+  if (loading) {
+    return (
+      <View style={[styles.clip, style]}>
+        <ImageSkeleton label={`Loading photo of ${museum.name}`} style={StyleSheet.absoluteFill} />
+      </View>
+    );
+  }
+  return <ExploreImage image={image} icon="building.columns" style={style} />;
 }
 
 const MUSEUM_TILE_WIDTH = 264;
@@ -71,6 +76,7 @@ export function MuseumSummaryLine({ data, museum }: { data: ExploreData; museum:
 }
 
 const styles = StyleSheet.create({
+  clip: { overflow: "hidden" },
   tile: { width: MUSEUM_TILE_WIDTH, gap: Spacing.two },
   text: { gap: 1, paddingTop: 2 },
   name: { fontFamily: Fonts.display, fontSize: 17, lineHeight: 22, letterSpacing: -0.2, color: Gallery.ink },

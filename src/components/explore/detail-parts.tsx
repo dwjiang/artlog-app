@@ -14,8 +14,9 @@ export function openDirections(museum: ExploreMuseum) {
   Linking.openURL(url).catch((error: unknown) => reportError(error, "explore.directions", { level: "warning" }));
 }
 
-export function openExhibitionPage(url: string) {
-  openBrowserAsync(url).catch((error: unknown) => reportError(error, "explore.exhibition_page", { level: "warning" }));
+/** Opens a page credited for a show or a photo; `context` names it in error reports. */
+export function openSourcePage(url: string, context: string) {
+  openBrowserAsync(url).catch((error: unknown) => reportError(error, context, { level: "warning" }));
 }
 
 const CHIPS = {

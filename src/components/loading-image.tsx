@@ -7,7 +7,7 @@ import { reportError } from "@/lib/observability";
 
 import { ImageSkeleton } from "./loading-skeleton";
 
-type Props = Pick<ImageProps, "contentFit" | "onLoad" | "onDisplay" | "onError"> & {
+type Props = Pick<ImageProps, "contentFit" | "contentPosition" | "onLoad" | "onDisplay" | "onError"> & {
   uri: string;
   label: string;
   style: StyleProp<ViewStyle>;
@@ -17,7 +17,7 @@ export function LoadingImage(props: Props) {
   return <ImageContent key={props.uri} {...props} />;
 }
 
-function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onDisplay, onError }: Props) {
+function ImageContent({ uri, label, style, contentFit = "cover", contentPosition, onLoad, onDisplay, onError }: Props) {
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   return (
     <View style={[{ overflow: "hidden" }, style]}>
@@ -43,6 +43,7 @@ function ImageContent({ uri, label, style, contentFit = "cover", onLoad, onDispl
           cachePolicy={uri.startsWith("file:") ? "memory" : "disk"}
           accessibilityLabel={label}
           contentFit={contentFit}
+          contentPosition={contentPosition}
           transition={{ duration: Motion.state, effect: "cross-dissolve" }}
           style={StyleSheet.absoluteFill}
           onLoad={(event) => {
