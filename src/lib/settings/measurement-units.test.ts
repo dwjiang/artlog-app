@@ -6,12 +6,33 @@ jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 
+let mockMeasurementSystem: "metric" | "us" | "uk" | null = "metric";
+jest.mock("expo-localization", () => ({
+  getLocales: () => [{ measurementSystem: mockMeasurementSystem }],
+}));
+
 beforeEach(async () => {
+  mockMeasurementSystem = "metric";
   await removeSetting("measurement-units");
 });
 
-it("defaults to metric and persists the selected units across fresh reads", async () => {
+it.each([
+  ["metric", "metric"],
+  ["us", "imperial"],
+  ["uk", "imperial"],
+  [null, "metric"],
+] as const)("follows an iPhone measurement system of %s until units are chosen", async (system, units) => {
+  mockMeasurementSystem = system;
+  expect(await getMeasurementUnits()).toBe(units);
+});
+
+it("keeps chosen units when the iPhone's measurement system differs", async () => {
+  mockMeasurementSystem = "us";
+  await setMeasurementUnits("metric");
   expect(await getMeasurementUnits()).toBe("metric");
+});
+
+it("persists the selected units across fresh reads", async () => {
   await setMeasurementUnits("imperial");
   await jest.isolateModulesAsync(async () => {
     const settings = jest.requireActual<typeof import("./measurement-units")>("./measurement-units");
@@ -21,9 +42,10 @@ it("defaults to metric and persists the selected units across fresh reads", asyn
   expect(await getMeasurementUnits()).toBe("metric");
 });
 
-it("uses metric when a saved value is unrecognized", async () => {
+it("follows the iPhone when a saved value is unrecognized", async () => {
+  mockMeasurementSystem = "us";
   await setSetting("measurement-units", "unknown");
-  expect(await getMeasurementUnits()).toBe("metric");
+  expect(await getMeasurementUnits()).toBe("imperial");
 });
 
 it("notifies active screens after saving and stops notifying after unsubscribe", async () => {

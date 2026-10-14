@@ -11,6 +11,9 @@ import { VenuePickerSheet } from "./venue-picker-sheet";
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
+jest.mock("expo-localization", () => ({
+  getLocales: () => [{ measurementSystem: "metric" }],
+}));
 jest.mock("@/lib/venue/search-venues", () => ({ searchVenues: jest.fn() }));
 jest.mock("@/hooks/use-reduced-motion", () => ({
   useReducedMotion: () => true,

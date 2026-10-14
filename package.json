@@ -64,6 +64,7 @@
     "expo-image-manipulator": "~57.0.21",
     "expo-image-picker": "~57.0.20",
     "expo-linking": "~57.0.12",
+    "expo-localization": "~57.0.2",
     "expo-location": "~57.0.20",
     "expo-maps": "~57.0.4",
     "expo-media-library": "~57.0.5",
