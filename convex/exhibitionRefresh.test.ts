@@ -711,7 +711,7 @@ describe("exhibition listing refresh", () => {
     expect(await refreshRow(t, imported)).toMatchObject({ dueAt: Date.now(), failures: 0 });
   });
 
-  it("lets Explore reopen a dormant region with no remaining shows", async () => {
+  it("leaves a dormant region off Explore's cities until a phone there asks for it", async () => {
     const t = harness();
     const { as } = await seedDevice(t);
     const { museumId, url } = await listedMuseum(t, "museum.example");
@@ -722,16 +722,12 @@ describe("exhibition listing refresh", () => {
     vi.setSystemTime(NOW + 40 * DAY);
     await readDue(t);
     expect(requested(url)).toHaveLength(1);
-    const regions = await t.query(api.exhibitions.regions, { asOf: NOW + 40 * DAY });
-    expect(regions).toEqual([{ region: BAY_AREA, lat: 37.785, lng: -122.401 }]);
+    expect(await t.query(api.exhibitions.regions, { asOf: NOW + 40 * DAY })).toEqual([]);
 
-    await as.mutation(api.exhibitionRefresh.requestRegion, { region: regions[0].region });
+    await as.mutation(api.exhibitionRefresh.requestRegion, { region: BAY_AREA });
     await runScheduled(t);
     expect(requested(url)).toHaveLength(2);
     expect(await refreshRow(t, museumId)).toMatchObject({ checkedAt: expect.any(Number) });
-
-    await t.run((ctx) => ctx.db.patch("museums", museumId, { optOut: true }));
-    expect(await t.query(api.exhibitions.regions, { asOf: NOW + 40 * DAY })).toEqual([]);
   });
 
   it("ignores an old worker after listing discovery replaces its source", async () => {

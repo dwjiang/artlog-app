@@ -141,6 +141,7 @@
         "convex/schema.ts",
         "convex/crons.ts",
         "convex/http.ts",
+        "jest.global-setup.ts",
         "**/*.config.ts",
         "**/*.config.mts"
       ],

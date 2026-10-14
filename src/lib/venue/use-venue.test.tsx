@@ -1475,7 +1475,8 @@ it("keeps a searched museum through denied location, relaunch, and scans until t
     venueId: "id-Met",
     visitLocalId: visit.localId,
   });
-  expect(mockGetPermission).not.toHaveBeenCalled();
+  expect(mockRequestPermission).not.toHaveBeenCalled();
+  expect(mockGetPosition).not.toHaveBeenCalled();
   const restored = createVenueController();
   await restored.hydrate();
   expect(await restored.resolve()).toMatchObject({
@@ -1486,6 +1487,27 @@ it("keeps a searched museum through denied location, relaunch, and scans until t
   expect(restored.getContext()).toEqual({});
   expect(mockVisits.get(visit.localId)?.endedAt).not.toBeNull();
 });
+
+it.each([false, true])(
+  "refreshes location without replacing a manually selected museum (open visit: %s)",
+  async (openVisit) => {
+    await controller.confirm({ kind: "seeded", venueId: metId, name: metRow.name, manual: byHand() });
+    if (openVisit) await controller.visitForSave(metId, mockNow);
+    const selected = controller.getState().venue;
+    mockGetPermission.mockResolvedValue({ granted: false });
+    await controller.resolve({ quiet: true });
+    expect(controller.getState().venue).toEqual(selected);
+    expect(mockGetPosition).not.toHaveBeenCalled();
+
+    mockGetPermission.mockResolvedValue({ granted: true });
+    mockNearest.mockResolvedValue([neueRow]);
+    await controller.resolve({ quiet: true });
+    expect(controller.getState()).toMatchObject({ status: "resolved", fix: { lat: met.lat, lng: met.lng } });
+    expect(controller.getState().venue).toEqual(selected);
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockRequestPermission).not.toHaveBeenCalled();
+  },
+);
 
 it("closes a searched museum's visit the next day while location stays denied, and a relaunch finds it closed", async () => {
   mockRequestPermission.mockResolvedValue({ granted: false });
@@ -1512,12 +1534,13 @@ it("lets location take over the day after a museum was picked from search withou
     manual: byHand(),
   });
   expect(await controller.resolve()).toEqual({ venueId: metId });
-  expect(mockGetPermission).not.toHaveBeenCalled();
+  expect(mockRequestPermission).not.toHaveBeenCalled();
+  expect(mockGetPosition).not.toHaveBeenCalled();
   mockNow += DAY;
   mockGetPermission.mockResolvedValue({ granted: true });
   mockNearest.mockResolvedValue([{ ...neueRow, distanceM: 40 }]);
   expect(await controller.resolve()).toEqual({ venueId: neueId });
-  expect(mockGetPermission).toHaveBeenCalledTimes(1);
+  expect(mockGetPosition).toHaveBeenCalledTimes(1);
   expect(controller.getState().venue?.manual).toBeUndefined();
 });
 

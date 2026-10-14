@@ -17,6 +17,8 @@ const show = (id: string, startsOn: string, endsOn: string, friends: string[] = 
 const data: ExploreData = {
   city: { id: "chicago", name: "Chicago" },
   cities: [{ id: "chicago", name: "Chicago" }],
+  nearby: true,
+  following: true,
   today: "2026-10-04",
   museums: [museum("far", 12_500), museum("near", 950), museum("empty", 4800)],
   exhibitions: [

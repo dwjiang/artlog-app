@@ -262,6 +262,11 @@ it("replaces an installed table holding another deployment's IDs even when the a
   expect(mockReportError).not.toHaveBeenCalled();
 });
 
+it("places the phone in the region of the nearest museum, only when one is within reach", async () => {
+  expect(await venueDb.regionAt({ lat: 40.2, lng: -73 })).toBe("seeded");
+  expect(await venueDb.regionAt({ lat: 41, lng: -73 })).toBeUndefined();
+});
+
 it("names a venue from the local table for a saved work", async () => {
   expect(await venueDb.venueNameById("museum-1" as never)).toBe("Museum");
   expect(await venueDb.venueNameById("museum-none" as never)).toBeUndefined();

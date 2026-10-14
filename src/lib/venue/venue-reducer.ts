@@ -222,7 +222,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
     case "locating":
       return { ...state, status: "locating", error: undefined };
     case "denied":
-      if (state.venue?.manual && state.visit && isVisitToday(state.visit, event.at)) {
+      if (state.venue?.manual && isVisitToday(state.venue.manual, event.at)) {
         return { ...state, status: "resolved", fix: undefined };
       }
       // Without location the visit pauses like leaving the museum, whether access was declined or left unanswered.
@@ -241,7 +241,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       };
     case "resolved": {
       const { fix, resolution } = event;
-      if (state.venue?.manual && state.visit && isVisitToday(state.visit, fix.at)) {
+      if (state.venue?.manual && isVisitToday(state.venue.manual, fix.at)) {
         return { ...state, status: "resolved", fix, error: undefined };
       }
       const base = { ...state, fix, error: undefined };

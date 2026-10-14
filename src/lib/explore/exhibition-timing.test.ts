@@ -1,4 +1,10 @@
-import { exhibitionDates, exhibitionStatus, exhibitionsByTiming, friendNames } from "./exhibition-timing";
+import {
+  defaultTiming,
+  exhibitionDates,
+  exhibitionStatus,
+  exhibitionsByTiming,
+  friendNames,
+} from "./exhibition-timing";
 import type { Exhibition, ExploreFriend } from "./types";
 
 const TODAY = "2026-10-04";
@@ -103,6 +109,24 @@ describe("exhibitions by timing", () => {
 
   it("lists shows that have not opened yet, soonest first", () => {
     expect(ids("upcoming")).toEqual(["opens-first", "opens-later"]);
+  });
+
+  it("lists every show on view, including long runs and closing-only listings, soonest closing first", () => {
+    expect(ids("now")).toEqual([
+      "ending-first",
+      "ending-later",
+      "closing-only",
+      "opened-later",
+      "opened-earlier",
+      "long-running",
+    ]);
+  });
+
+  it("opens on what ends soon, else what is on view, else what opens next", () => {
+    expect(defaultTiming(all, TODAY)).toBe("ending");
+    expect(defaultTiming([closed, longRunning, opensFirst], TODAY)).toBe("now");
+    expect(defaultTiming([closed, opensFirst], TODAY)).toBe("upcoming");
+    expect(defaultTiming([closed], TODAY)).toBe("ending");
   });
 });
 

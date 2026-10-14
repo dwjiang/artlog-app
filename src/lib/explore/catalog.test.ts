@@ -27,7 +27,13 @@ const regions = [
   { region: "london", lat: 51.5081, lng: -0.0997 },
   { region: "country:FR", lat: 43.7, lng: 7.27 },
 ];
-const place = { city: { id: "sf-bay-area", name: "San Francisco Bay Area" }, cities: [], today: "2026-10-09" };
+const place = {
+  city: { id: "sf-bay-area", name: "San Francisco Bay Area" },
+  cities: [],
+  nearby: false,
+  following: false,
+  today: "2026-10-09",
+};
 
 it("reads each show's current or next viewing period, or its last one once it has closed", () => {
   const shows = exploreData(catalog, place, undefined, undefined).exhibitions;
@@ -56,17 +62,49 @@ it("measures museums from the phone in the person's units once both are known", 
   });
 });
 
-it("names cities alphabetically and opens on the one nearest the phone", () => {
+it("names cities alphabetically", () => {
   expect(exploreCities(regions)).toEqual([
     { id: "country:FR", name: "France" },
     { id: "london", name: "London" },
     { id: "sf-bay-area", name: "San Francisco Bay Area" },
   ]);
-  expect(defaultCity(regions, { lat: 37.87, lng: -122.27 })).toBe("sf-bay-area");
-  expect(defaultCity(regions, undefined)).toBe("country:FR");
-  expect(defaultCity([], undefined)).toBeUndefined();
+});
+
+it("opens on the phone's own city, else the nearest city with shows", () => {
+  const nice = { lat: 43.7, lng: 7.27 };
+  const paris = { lat: 48.86, lng: 2.34 };
+  expect(defaultCity(regions, { fix: nice, home: "country:FR" })).toBe("country:FR");
+  // London's museum is nearer Paris than the French one listing shows.
+  expect(defaultCity(regions, { fix: paris, home: "paris" })).toBe("london");
+  expect(defaultCity(regions, { fix: { lat: 37.87, lng: -122.27 } })).toBe("sf-bay-area");
+});
+
+it("without a location fix, opens near the time zone's main city, preferring the zone's country", () => {
+  const withNewYork = [...regions, { region: "new-york", lat: 40.75, lng: -73.97 }];
+  expect(defaultCity(withNewYork, { timeZone: "America/Los_Angeles" })).toBe("sf-bay-area");
+  expect(defaultCity(withNewYork, { timeZone: "America/New_York" })).toBe("new-york");
+  // Paris is nearer London's museum than the French one, but the zone's own country wins.
+  expect(defaultCity(regions, { timeZone: "Europe/Paris" })).toBe("country:FR");
+  // Nothing listed in Japan, so the nearest city anywhere.
+  expect(defaultCity(regions, { timeZone: "Asia/Tokyo" })).toBe("sf-bay-area");
+  expect(defaultCity(regions, { timeZone: "Mars/Olympus_Mons" })).toBe("country:FR");
+  expect(defaultCity(regions)).toBe("country:FR");
+  expect(defaultCity([])).toBeUndefined();
 });
 
 it("asks the server for shows that have not closed anywhere it is still today", () => {
   expect(catalogAsOf("2026-10-09")).toBe(Date.parse("2026-10-08T00:00:00Z"));
+});
+
+it.each([
+  ["Asia/Calcutta", "country:IN", 22.53, 88.37],
+  ["Asia/Katmandu", "country:NP", 27.72, 85.32],
+  ["Europe/Kiev", "country:UA", 50.43, 30.52],
+  ["Asia/Saigon", "country:VN", 10.75, 106.67],
+  ["America/Buenos_Aires", "country:AR", -34.6, -58.45],
+  ["Iceland", "country:IS", 64.15, -21.85],
+  ["Pacific/Truk", "country:FM", 7.42, 151.78],
+] as const)("places the time-zone alias %s in its own country", (timeZone, region, lat, lng) => {
+  const listed = [...regions, { region: "country:AL", lat: 41.33, lng: 19.82 }, { region, lat, lng }];
+  expect(defaultCity(listed, { timeZone })).toBe(region);
 });

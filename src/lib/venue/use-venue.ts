@@ -506,8 +506,8 @@ export function createVenueController(): VenueController {
       reportError(error, "venue.visit.expire");
       console.warn("Could not close the visit from an earlier day", error);
     });
-    // A museum picked by hand stands for the rest of its day there, visit or not; location takes over again the next day.
-    if (state.venue?.manual && isVisitToday(state.venue.manual, Date.now())) {
+    // Scans keep a manual museum without waiting for GPS; other resolves can refresh Explore's location too.
+    if (forScan && state.venue?.manual && isVisitToday(state.venue.manual, Date.now())) {
       return venueContext(state);
     }
     if (!needsFix(state, Date.now())) return venueContext(state);

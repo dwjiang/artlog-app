@@ -184,6 +184,14 @@ export async function filterExcludedPlaces<T extends Coordinate & { name: string
   });
 }
 
+// Explore takes the nearest museum's region within this distance to be the phone's own.
+const REGION_RADIUS_M = 50_000;
+
+/** The region of the discoverable museum nearest the phone, when one is close enough to stand for where it is. */
+export async function regionAt(origin: Coordinate): Promise<string | undefined> {
+  return (await nearest(await openVenueDb(), origin, REGION_RADIUS_M))[0]?.region;
+}
+
 export async function resolveVenueAt(origin: Coordinate): Promise<VenueResolution> {
   return pickVenue(await nearest(await openVenueDb(), origin, CHOOSE_RADIUS_M));
 }

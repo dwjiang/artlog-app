@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import * as Notifications from "expo-notifications";
 import type { ReactNode } from "react";
-import { Linking } from "react-native";
+import { AppState, Linking } from "react-native";
 
 import { chooseCity } from "@/lib/explore/use-explore";
 import { offerNotifications } from "@/lib/notifications/offer";
@@ -30,7 +30,11 @@ let mockFix: { lat: number; lng: number } | undefined;
 let mockOffline = false;
 let mockFailure: Error | undefined;
 let mockRegions: unknown[];
-let mockEmptyRegion: string | undefined;
+let mockHome: string | undefined;
+let mockVenueStatus: string;
+let mockPermission: { granted: boolean; canAskAgain: boolean } | null;
+const mockRequestPermission = jest.fn(async () => ({ granted: true, canAskAgain: true }));
+const mockResolve = jest.fn(async (_options?: { quiet?: boolean }) => ({}));
 let mockCached: Map<string, unknown>;
 
 jest.mock("expo-router", () => {
@@ -46,7 +50,19 @@ jest.mock("expo-router", () => {
 jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
 jest.mock("expo-web-browser", () => ({ openBrowserAsync: (url: string) => mockOpenBrowser(url) }));
 jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable: !mockOffline }) }));
-jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({ fix: mockFix }) }));
+jest.mock("@/lib/venue/use-venue", () => ({
+  useVenue: () => ({ fix: mockFix, status: mockVenueStatus, resolve: mockResolve }),
+}));
+jest.mock("expo-location", () => {
+  const { createPermissionHook } = jest.requireActual("expo-modules-core");
+  return {
+    useForegroundPermissions: createPermissionHook({
+      getMethod: async () => mockPermission,
+      requestMethod: () => mockRequestPermission(),
+    }),
+  };
+});
+jest.mock("@/lib/venue/venue-db", () => ({ regionAt: async () => mockHome }));
 jest.mock("@/lib/settings/use-measurement-units", () => ({
   useMeasurementUnits: () => ({ units: "imperial", failed: false }),
 }));
@@ -82,7 +98,7 @@ jest.mock("convex/react", () => ({
     >,
   ) => {
     const { getFunctionName } = jest.requireActual("convex/server");
-    const { bayArea, cornwall } = jest.requireActual("./__fixtures__/catalog");
+    const { bayArea, cornwall, london } = jest.requireActual("./__fixtures__/catalog");
     return Object.fromEntries(
       Object.entries(requests).map(([key, { query, args }]) => {
         if (mockOffline) return [key, mockCached.get(key)];
@@ -97,12 +113,7 @@ jest.mock("convex/react", () => ({
         } else if (name === "wantToSee:friends") {
           data = mockFriendSaves;
         } else if (name === "exhibitions:inRegion") {
-          data =
-            args.region === mockEmptyRegion
-              ? { museums: [], exhibitions: [] }
-              : args.region === "country:GB"
-                ? cornwall
-                : bayArea;
+          data = args.region === "london" ? london : args.region === "country:GB" ? cornwall : bayArea;
         } else {
           const exhibitions = [...bayArea.exhibitions, ...cornwall.exhibitions].filter((show) =>
             args.museumId ? show.museumId === args.museumId : args.exhibitionIds?.includes(show.exhibitionId),
@@ -165,9 +176,13 @@ beforeEach(() => {
   mockOffline = false;
   mockFailure = undefined;
   mockRegions = regions;
-  mockEmptyRegion = undefined;
+  mockHome = undefined;
+  mockVenueStatus = "resolved";
+  mockPermission = { granted: true, canAskAgain: true };
+  mockRequestPermission.mockClear();
+  mockResolve.mockClear();
   mockCached = new Map();
-  chooseCity("");
+  chooseCity(undefined);
 });
 
 afterEach(() => jest.restoreAllMocks());
@@ -210,9 +225,10 @@ describe("Explore", () => {
     expect(screen.getByRole("header", { name: "Museums" })).toBeOnTheScreen();
 
     mockFix = { lat: 37.870804, lng: -122.26634 };
+    mockHome = "sf-bay-area";
     await render(<ExploreScreen />);
 
-    expect(screen.getByRole("header", { name: "Museums near you" })).toBeOnTheScreen();
+    expect(await screen.findByRole("header", { name: "Museums near you" })).toBeOnTheScreen();
     const museums = screen.getAllByRole("button", { name: / exhibitions?(,|$)/ });
     expect(museums[0]).toHaveAccessibleName(
       "Berkeley Art Museum and Pacific Film Archive, 10 ft · Berkeley, 2 exhibitions",
@@ -281,17 +297,108 @@ describe("Explore", () => {
     expect(screen.queryByText("You’re offline.")).toBeNull();
   });
 
-  it("keeps an empty city selectable and requests its listings", async () => {
-    mockRegions = [...regions, { region: "paris", lat: 48.8, lng: 2.3 }];
-    mockEmptyRegion = "paris";
+  it("opens the nearest city with shows when none are listed where the phone is, and says so", async () => {
+    mockFix = { lat: 48.86, lng: 2.34 };
+    mockHome = "paris";
     await render(<ExploreScreen />);
-    await fireEvent.press(screen.getByRole("button", { name: "Paris" }));
-    expect(screen.getByLabelText("City, Paris")).toBeOnTheScreen();
-    expect(screen.getByText("No exhibitions close in the next 30 days.")).toBeOnTheScreen();
-    expect(mockRequestRegion).toHaveBeenLastCalledWith({ region: "paris" });
+
+    expect(await screen.findByLabelText("City, United Kingdom")).toBeOnTheScreen();
+    expect(screen.getByText("Nothing listed in Paris yet. Showing United Kingdom, 363 mi away.")).toBeOnTheScreen();
+    expect(screen.getByRole("header", { name: "Museums" })).toBeOnTheScreen();
+    // The phone's own region keeps its listings on schedule even though Explore shows another.
+    expect(mockRequestRegion.mock.calls).toEqual(
+      expect.arrayContaining([[{ region: "country:GB" }], [{ region: "paris" }]]),
+    );
 
     await fireEvent.press(screen.getByRole("button", { name: "San Francisco Bay Area" }));
-    expect(card("Tides of Memory")).toBeOnTheScreen();
+    expect(screen.getByLabelText("City, San Francisco Bay Area")).toBeOnTheScreen();
+    expect(screen.queryByText(/^Nothing listed in Paris/)).toBeNull();
+  });
+
+  it("follows the phone from the top of the city menu, naming its area, until a city is picked", async () => {
+    mockFix = { lat: 37.870804, lng: -122.26634 };
+    mockHome = "sf-bay-area";
+    await render(<ExploreScreen />);
+    const myLocation = await screen.findByRole("button", { name: "My Location" });
+    expect(myLocation).toBeSelected();
+    expect(screen.getByHintText("San Francisco Bay Area")).toBe(myLocation);
+    expect(screen.getByRole("button", { name: "San Francisco Bay Area" })).not.toBeSelected();
+
+    await fireEvent.press(screen.getByRole("button", { name: "United Kingdom" }));
+    expect(screen.getByLabelText("City, United Kingdom")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "United Kingdom" })).toBeSelected();
+    expect(screen.getByRole("button", { name: "My Location" })).not.toBeSelected();
+
+    await fireEvent.press(screen.getByRole("button", { name: "My Location" }));
+    expect(screen.getByLabelText("City, San Francisco Bay Area")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "My Location" })).toBeSelected();
+  });
+
+  it.each(["denied", "resolved"])("asks for location even when the museum status is %s", async (status) => {
+    mockVenueStatus = status;
+    mockPermission = { granted: false, canAskAgain: true };
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "United Kingdom" }));
+    const useMyLocation = screen.getByRole("button", { name: "Use My Location" });
+    expect(screen.queryByHintText("Turn on in Settings")).toBeNull();
+
+    await fireEvent.press(useMyLocation);
+
+    expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockResolve).toHaveBeenCalledWith({ quiet: true }));
+    // The pick is cleared, so the city follows the fix the resolve brings.
+    expect(screen.getByLabelText("City, San Francisco Bay Area")).toBeOnTheScreen();
+  });
+
+  it("follows the phone after location is enabled in Settings", async () => {
+    const appState = jest.spyOn(AppState, "addEventListener");
+    const openSettings = jest.spyOn(Linking, "openSettings").mockResolvedValue(undefined);
+    mockVenueStatus = "denied";
+    mockPermission = { granted: false, canAskAgain: false };
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "United Kingdom" }));
+    const useMyLocation = screen.getByHintText("Turn on in Settings");
+    expect(useMyLocation).toHaveAccessibleName("Use My Location");
+
+    await fireEvent.press(useMyLocation);
+
+    expect(openSettings).toHaveBeenCalledTimes(1);
+    expect(mockRequestPermission).not.toHaveBeenCalled();
+
+    mockPermission = { granted: true, canAskAgain: true };
+    mockVenueStatus = "resolved";
+    mockFix = { lat: 37.870804, lng: -122.26634 };
+    mockHome = "sf-bay-area";
+    await act(async () => {
+      for (const [event, listener] of appState.mock.calls) if (event === "change") listener("active");
+    });
+    expect(await screen.findByLabelText("City, San Francisco Bay Area")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "My Location" })).toBeSelected();
+  });
+
+  it("keeps the chosen city when the location prompt is declined", async () => {
+    mockPermission = { granted: false, canAskAgain: true };
+    mockRequestPermission.mockResolvedValueOnce({ granted: false, canAskAgain: false });
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "United Kingdom" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Use My Location" }));
+
+    expect(screen.getByLabelText("City, United Kingdom")).toBeOnTheScreen();
+    expect(screen.getByHintText("Turn on in Settings")).toBeOnTheScreen();
+    expect(mockResolve).not.toHaveBeenCalled();
+  });
+
+  it("opens a city where nothing ends soon on what is on view", async () => {
+    mockRegions = [...regions, { region: "london", lat: 51.5, lng: -0.12 }];
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "London" }));
+
+    expect(screen.getByText("On now")).toBeOnTheScreen();
+    expect(card("River Rooms")).toBeOnTheScreen();
+    expect(card("Undated Collection")).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole("checkbox", { name: "Ending soon" }));
+    expect(screen.getByText("No exhibitions close in the next 30 days.")).toBeOnTheScreen();
   });
 });
 

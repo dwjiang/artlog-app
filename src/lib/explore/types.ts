@@ -41,4 +41,13 @@ export type ExploreCatalog = {
   museums: ExploreMuseum[];
 };
 
-export type ExploreData = ExploreCatalog & { city: ExploreCity; cities: ExploreCity[] };
+export type ExploreData = ExploreCatalog & {
+  city: ExploreCity;
+  cities: ExploreCity[];
+  /** The city is the one the phone is in. */
+  nearby: boolean;
+  /** Explore chose the city from the phone's location rather than a person's pick. */
+  following: boolean;
+  /** The name of the phone's region, when its location places it in one. */
+  home?: string;
+};
