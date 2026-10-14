@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 
-import { captureOwner, subscribeOwner } from "@/lib/account/owner-store";
+import { captureOwner, subscribeOwnerChange } from "@/lib/account/owner-store";
 import { convexErrorCode, isNetworkError } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
@@ -25,7 +25,7 @@ export function useBlock(session: SocialSession) {
       request.current?.abort();
       request.current = null;
     };
-    const unsubscribe = subscribeOwner(() => {
+    const unsubscribe = subscribeOwnerChange(() => {
       cancel();
       setPending(undefined);
     });
@@ -39,8 +39,8 @@ export function useBlock(session: SocialSession) {
   async function run(change: Change, person: Person, owner: ReturnType<typeof captureOwner>) {
     if (
       !mounted.current
-      || !owner.isCurrent()
-      || !owner.scope
+      || !owner.isOwnerCurrent()
+      || !session.scope
       || request.current
       || session.status !== "ready"
       || !session.token
@@ -50,11 +50,11 @@ export function useBlock(session: SocialSession) {
     const { action } = change;
     const controller = new AbortController();
     request.current = controller;
-    const current = () => owner.isCurrent() && !controller.signal.aborted;
+    const current = () => owner.isOwnerCurrent() && !controller.signal.aborted;
     setPending(person.profileId);
     try {
       const client = relationshipClient(session.token, controller.signal);
-      const input = { profileId: person.profileId, scope: owner.scope };
+      const input = { profileId: person.profileId, scope: session.scope };
       if (change.action === "unblock") {
         await client.mutation(
           api.friendships.unblock,

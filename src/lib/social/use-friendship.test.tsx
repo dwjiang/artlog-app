@@ -33,6 +33,7 @@ jest.mock("./use-social-query", () => ({
 }));
 const session: SocialSession = {
   key: "scope-a",
+  scope: "scope-a",
   token: "token-a",
   profileId: "viewer" as never,
   status: "ready",

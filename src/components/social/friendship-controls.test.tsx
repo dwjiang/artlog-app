@@ -21,6 +21,7 @@ jest.mock("@/lib/social/use-friendship", () => ({
   },
 }));
 const guest: SocialSession = {
+  scope: undefined,
   status: "signed-out",
   key: "guest",
   token: null,

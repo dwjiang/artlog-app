@@ -19,7 +19,7 @@ import { useDeviceReady } from "@/lib/use-device-ready";
 
 import { api } from "../../../convex/_generated/api";
 import { syncArtworkAlbums } from "./album-sync";
-import { anonymousOwner, captureOwner, getLocalOwner, switchOwner } from "./owner-store";
+import { anonymousOwner, captureOwner, getLocalOwner, invalidateOwnerIdentity, switchOwner } from "./owner-store";
 import { syncCollectionPhotos } from "./photo-sync";
 import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from "./photo-transfer";
 import { syncSavedRecognition } from "./recognition-sync";
@@ -224,7 +224,7 @@ function stop(): void {
 
 export function pauseCollectionSync(): void {
   paused = true;
-  switchOwner(getLocalOwner());
+  invalidateOwnerIdentity();
   stop();
 }
 

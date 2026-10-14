@@ -52,7 +52,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   AppState.currentState = "active";
   Constants.platform!.ios!.buildNumber = "10";
-  readCacheMock.mockResolvedValue(null);
+  readCacheMock.mockResolvedValue(undefined);
   fetchMinimumMock.mockReset().mockResolvedValue(null);
   jest.mocked(cacheMinimum).mockResolvedValue();
   jest.spyOn(AppState, "addEventListener").mockImplementation((_type, callback) => {
@@ -65,7 +65,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-it("holds startup until checked, then blocks an older build and caches the requirement", async () => {
+it("holds a launch with no saved answer until checked, then blocks an older build and caches the requirement", async () => {
   let finish!: (minimum: string) => void;
   fetchMinimumMock.mockImplementation(
     () =>
@@ -86,14 +86,39 @@ it("allows supported builds", async () => {
   expect(result.current).toEqual({ loading: false, updateRequired: false });
 });
 
-it.each([null, "11"])("uses cached minimum %s when a startup check times out", async (cached) => {
+it("opens at once with a saved answer, then blocks when the check finds a raised minimum", async () => {
+  readCacheMock.mockResolvedValue(null);
+  let finish!: (minimum: string) => void;
+  fetchMinimumMock.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const { result } = await renderHook(useAppCompatibility);
+  expect(result.current).toEqual({ loading: false, updateRequired: false });
+  await act(() => finish("11"));
+  expect(result.current).toEqual({ loading: false, updateRequired: true });
+  expect(cacheMinimum).toHaveBeenCalledWith("11");
+});
+
+it.each([null, "11"])("keeps saved minimum %s when the startup check times out", async (cached) => {
   readCacheMock.mockResolvedValue(cached);
   fetchMinimumMock.mockImplementation(pendingRequest());
   const { result } = await renderHook(useAppCompatibility);
+  expect(result.current).toEqual({ loading: false, updateRequired: cached !== null });
   await act(() => jest.advanceTimersByTimeAsync(4_000));
   expect(result.current).toEqual({ loading: false, updateRequired: cached !== null });
   expect(reportError).not.toHaveBeenCalled();
   expect(cacheMinimum).not.toHaveBeenCalled();
+});
+
+it("opens a first launch without a connection once the check times out", async () => {
+  fetchMinimumMock.mockImplementation(pendingRequest());
+  const { result } = await renderHook(useAppCompatibility);
+  expect(result.current.loading).toBe(true);
+  await act(() => jest.advanceTimersByTimeAsync(4_000));
+  expect(result.current).toEqual({ loading: false, updateRequired: false });
 });
 
 it("lets an upgraded build pass a cached requirement while offline", async () => {

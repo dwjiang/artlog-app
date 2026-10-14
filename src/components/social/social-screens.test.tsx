@@ -144,6 +144,7 @@ const pages = (patch: object = {}) => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockSession = {
+    scope: "scope-a",
     key: "account-a",
     token: "private-token",
     profileId: "viewer" as never,

@@ -52,7 +52,11 @@ export function useAppCompatibility() {
 
     void readCachedMinimum().then((cached) => {
       if (disposed) return;
-      setMinimum(cached);
+      // A saved answer opens the app at once; the check below still shows the update screen if the minimum rose.
+      if (cached !== undefined) {
+        setMinimum(cached);
+        setLoading(false);
+      }
       initialized = true;
       void refresh();
     });

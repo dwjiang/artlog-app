@@ -1,8 +1,7 @@
 import { useAuthToken } from "@convex-dev/auth/react";
 import { useNetworkState } from "expo-network";
 
-import { useLocalOwner, useOwnerGeneration, useServerScope } from "@/lib/account/owner-store";
-import { convexErrorCode } from "@/lib/network-error";
+import { useLocalOwner, useOwnerIdentityGeneration } from "@/lib/account/owner-store";
 import { isOffline } from "@/lib/network-state";
 import { useDeviceReady } from "@/lib/use-device-ready";
 
@@ -11,8 +10,7 @@ import { useSocialQuery } from "./use-social-query";
 
 export function useSocialSession() {
   const owner = useLocalOwner();
-  const generation = useOwnerGeneration();
-  const serverScope = useServerScope();
+  const generation = useOwnerIdentityGeneration();
   const token = useAuthToken();
   const deviceReady = useDeviceReady();
   const network = useNetworkState();
@@ -20,15 +18,13 @@ export function useSocialSession() {
   const key = `${generation}:${offline ? "offline" : "online"}:${deviceReady && !!token}`;
   const account = useSocialQuery(api.accounts.me, deviceReady && !offline ? {} : "skip", key);
   const linked = account.data?.linked === true;
+  // Social reads need the finished sign-in claim, not the journal sync that reruns it on every launch.
   const accountReady =
-    linked && !!token && account.data?.scope === serverScope && owner === `account:${account.data?.accountId}`;
-  const mine = useSocialQuery(api.walls.getMine, accountReady && !offline ? {} : "skip", key);
-  const profileRequired = convexErrorCode(mine.error) === "profile_required";
-  const profileId = accountReady && mine.data?.scope === account.data?.scope ? mine.data?.profileId : undefined;
-  const error = account.error ?? (profileRequired ? undefined : mine.error);
+    linked && !!token && account.data?.claimComplete === true && owner === `account:${account.data?.accountId}`;
+  const profileId = accountReady ? (account.data?.profileId ?? undefined) : undefined;
   const status = offline
     ? "offline"
-    : error
+    : account.error
       ? "error"
       : !deviceReady || account.data === undefined
         ? "loading"
@@ -36,24 +32,20 @@ export function useSocialSession() {
           ? "signed-out"
           : !accountReady
             ? "loading"
-            : profileRequired
-              ? "profile-required"
-              : profileId
-                ? "ready"
-                : "loading";
+            : profileId
+              ? "ready"
+              : "profile-required";
   return {
-    key,
+    key: `${key}:${account.data?.scope ?? ""}`,
+    scope: accountReady ? account.data?.scope : undefined,
     token,
     profileId,
     status,
-    error,
+    error: account.error,
     offline,
     accountReady,
     safetyChecks: account.data?.safetyChecks === true,
-    refresh: () => {
-      account.refresh();
-      mine.refresh();
-    },
+    refresh: account.refresh,
   };
 }
 export type SocialSession = ReturnType<typeof useSocialSession>;

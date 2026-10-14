@@ -59,7 +59,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
     setError(undefined);
     try {
       const bytes = picture?.kind === "photo" ? await profilePhotoBytes(picture.uri) : undefined;
-      if (!owner.isCurrent() || !mounted.current) return;
+      if (!owner.isOwnerCurrent() || !mounted.current) return;
       if (!created.current) {
         await create({
           name: name.trim(),
@@ -70,14 +70,14 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
         created.current = true;
         setProfileCreated(true);
       }
-      if (!owner.isCurrent() || !mounted.current) return;
+      if (!owner.isOwnerCurrent() || !mounted.current) return;
       if (bytes) {
         await savePhoto({ name: name.trim(), ...bioArgs, photo: bytes });
       }
-      if (owner.isCurrent() && mounted.current) onCreated();
+      if (owner.isOwnerCurrent() && mounted.current) onCreated();
     } catch (cause) {
       reportError(cause, created.current ? "profile.photo.save" : "profile.create");
-      if (owner.isCurrent() && mounted.current) {
+      if (owner.isOwnerCurrent() && mounted.current) {
         setError(
           created.current
             ? "Your profile is ready, but the photo could not upload. Retry or continue without it."
@@ -86,7 +86,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
       }
     } finally {
       submitting.current = false;
-      if (owner.isCurrent() && mounted.current) setBusy(false);
+      if (owner.isOwnerCurrent() && mounted.current) setBusy(false);
     }
   }
   return (
