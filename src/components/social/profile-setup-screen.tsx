@@ -99,7 +99,7 @@ export function ProfileSetupScreen({
     setError(undefined);
     try {
       await create({ name: initialName, username: chosenUsername, avatar: localProfile.avatar });
-      if (!owner.isCurrent() || !mounted.current) return;
+      if (!owner.isOwnerCurrent() || !mounted.current) return;
       setSavedName(initialName);
       setUsername(chosenUsername);
       setCreated(true);
@@ -107,7 +107,7 @@ export function ProfileSetupScreen({
     } catch (cause) {
       const taken = convexErrorCode(cause) === "username_taken";
       if (!taken) reportError(cause, "profile.create");
-      if (owner.isCurrent() && mounted.current) {
+      if (owner.isOwnerCurrent() && mounted.current) {
         setError(
           taken ? usernameMessages.taken : (socialErrorMessage(cause) ?? "Your username couldn’t be saved. Try again."),
         );
@@ -127,12 +127,12 @@ export function ProfileSetupScreen({
     setError(undefined);
     try {
       await saveProfile({ name: trimmedName });
-      if (!owner.isCurrent() || !mounted.current) return;
+      if (!owner.isOwnerCurrent() || !mounted.current) return;
       setSavedName(trimmedName);
       setStep(2);
     } catch (cause) {
       reportError(cause, "profile.update");
-      if (owner.isCurrent() && mounted.current) {
+      if (owner.isOwnerCurrent() && mounted.current) {
         setError(socialErrorMessage(cause) ?? "Your name wasn’t saved. Try again.");
       }
     } finally {
@@ -150,12 +150,12 @@ export function ProfileSetupScreen({
     setError(undefined);
     try {
       const pictureArgs = await profilePictureArgs(picture);
-      if (!owner.isCurrent() || !mounted.current) return;
+      if (!owner.isOwnerCurrent() || !mounted.current) return;
       await saveProfile({ name: savedName, ...pictureArgs });
-      if (owner.isCurrent() && mounted.current) finish();
+      if (owner.isOwnerCurrent() && mounted.current) finish();
     } catch (cause) {
       reportError(cause, "profile.photo.save");
-      if (owner.isCurrent() && mounted.current) {
+      if (owner.isOwnerCurrent() && mounted.current) {
         setError(
           picture.kind === "photo"
             ? "The photo couldn’t upload. Try again or continue without it."

@@ -93,6 +93,7 @@ beforeEach(() => {
     return { remove: jest.fn() };
   });
   mockSession = {
+    scope: "scope-a",
     status: "ready",
     key: "account-a",
     token: "token-a",

@@ -13,7 +13,14 @@ import { requireDevice } from "./lib/auth";
 import { deleteUnreferencedCollectionPhotos, deleteUnreferencedPhoto } from "./lib/collectionPhotos";
 import { deleteAuthAccountBatch, retireDevice } from "./lib/deviceRetirement";
 import { withErrorReporting } from "./lib/observability";
-import { deviceScope, ownerForDevice, requireAccount, requireClaimComplete } from "./lib/ownership";
+import {
+  deviceScope,
+  isClaimComplete,
+  isUsableProfile,
+  ownerForDevice,
+  requireAccount,
+  requireClaimComplete,
+} from "./lib/ownership";
 import { deleteSavedRecognition } from "./lib/savedRecognition";
 import { clearAttributionBatch, purgeSaveMediaBatch, purgeSocialBatch } from "./lib/socialCleanup";
 import { accountProvider } from "./lib/validators";
@@ -304,6 +311,10 @@ export const me = query({
     provider: v.union(accountProvider, v.null()),
     email: v.union(v.string(), v.null()),
     hasProfile: v.boolean(),
+    // Null unless social reads accept the profile, so the app needs no wall read to learn it.
+    profileId: v.union(v.id("profiles"), v.null()),
+    // False while this device's sign-in is still moving its guest journal into the account.
+    claimComplete: v.boolean(),
     safetyChecks: v.union(v.boolean(), v.null()),
     scope: v.string(),
   }),
@@ -330,6 +341,8 @@ export const me = query({
       provider: account?.provider ?? null,
       email: account?.email ?? null,
       hasProfile: !!profile,
+      profileId: isUsableProfile(profile) ? profile._id : null,
+      claimComplete: await isClaimComplete(ctx, device._id),
       safetyChecks: account?.safetyChecks ?? null,
       scope: deviceScope(device, await ownerForDevice(ctx, device)),
     };

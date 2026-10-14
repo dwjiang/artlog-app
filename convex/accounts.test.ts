@@ -312,6 +312,22 @@ it("reports whether the linked account has a profile so first sign-in can offer 
   expect(await guest.as.query(api.accounts.me, {})).toMatchObject({ linked: false, hasProfile: false });
 });
 
+it("reports the usable profile and whether sign-in still moves the journal, so social screens skip the wall", async () => {
+  const t = harness();
+  const device = await seedDevice(t);
+  expect(await device.as.query(api.accounts.me, {})).toMatchObject({ profileId: null, claimComplete: true });
+  await appleSignIn(device);
+  await link(device);
+  const { scope, ...linked } = await device.as.query(api.accounts.me, {});
+  expect(linked).toMatchObject({ linked: true, profileId: null, claimComplete: false });
+  while (!(await device.as.mutation(api.journalClaims.resume, { scope })).complete) {}
+  expect(await device.as.query(api.accounts.me, {})).toMatchObject({ profileId: null, claimComplete: true });
+  const { profileId } = await device.as.action(api.profiles.create, { username: "first_reader", name: "Reader" });
+  expect((await device.as.query(api.accounts.me, {})).profileId).toBe(profileId);
+  await t.run((ctx) => ctx.db.patch("profiles", profileId, { active: false }));
+  expect(await device.as.query(api.accounts.me, {})).toMatchObject({ hasProfile: true, profileId: null });
+});
+
 it("keeps one safety-checks answer per account, which an `ifUnset` answer never overrides", async () => {
   const t = harness();
   const { a, b } = await pair(t);

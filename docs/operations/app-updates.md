@@ -27,11 +27,13 @@ Production changes require explicit authorization and the production deployment
 selector. Do not raise the production minimum while the replacement
 is still in review or otherwise unavailable.
 
-The app checks before mounting navigation and sync, on foreground, on reconnect,
-and once per minute while active. An outdated build shows the update screen and
-unmounts the app content. Each successful response replaces the cached minimum,
-including removal of the requirement. The cache is scoped to the deployment and
-survives an app upgrade.
+The app checks at launch, on foreground, on reconnect, and once per minute while
+active. A launch with a cached answer for the deployment opens with that answer
+while the check runs; a launch without one waits for the check before mounting
+navigation and sync. An outdated build shows the update screen and unmounts the
+app content, so a newly raised minimum can let a launch run briefly first. Each
+successful response replaces the cached minimum, including removal of the
+requirement. The cache is scoped to the deployment and survives an app upgrade.
 
 A failed or four-second timed-out check uses the cached minimum. With no known
 requirement, the app remains usable offline; a previously blocked build stays

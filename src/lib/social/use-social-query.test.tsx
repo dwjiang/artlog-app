@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react-native";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 
+import { switchOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
 
 import { api } from "../../../convex/_generated/api";
@@ -208,6 +209,26 @@ it("ignores a stale refresh failure after changing the query scope", async () =>
   await act(() => reject(new Error("Old request failed")));
   expect(view.result.current.error).toBeUndefined();
   expect(reportError).not.toHaveBeenCalled();
+});
+
+it("finishes refreshing when journal sync restores the same account's scope", async () => {
+  switchOwner("account:a");
+  mockResults.first = page("alex", null, true).page[0];
+  let finish!: () => void;
+  mockHttpQuery.mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const view = await renderHook(() =>
+    useSocialQuery(api.profiles.getPublic, { profileId: "alex" as never }, "account-a"),
+  );
+  await act(() => view.result.current.refresh());
+  await act(() => switchOwner("account:a", "scope-a"));
+  await act(() => finish());
+  expect(view.result.current.refreshing).toBe(false);
+  expect(view.result.current.data).toMatchObject({ name: "alex" });
 });
 
 it("keeps a delivered result on screen through a pull-to-refresh until the fresh subscription answers", async () => {

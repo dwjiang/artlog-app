@@ -13,10 +13,11 @@ function validMinimum(value: unknown): value is string | null {
   return value === null || (typeof value === "string" && parseIosBuild(value) !== null);
 }
 
-export async function readCachedMinimum(): Promise<string | null> {
+// `undefined` means this deployment has no usable saved answer, so startup has to wait for the server.
+export async function readCachedMinimum(): Promise<string | null | undefined> {
   try {
     const stored = await installationStorage.getItem(storageKey);
-    if (stored === null) return null;
+    if (stored === null) return undefined;
     const cached: unknown = JSON.parse(stored);
     if (
       typeof cached !== "object"
@@ -24,13 +25,13 @@ export async function readCachedMinimum(): Promise<string | null> {
       || !("deployment" in cached)
       || cached.deployment !== deployment
     ) {
-      return null;
+      return undefined;
     }
     if (!("minimum" in cached) || !validMinimum(cached.minimum)) throw new Error("Invalid cached app compatibility");
     return cached.minimum;
   } catch (cause) {
     reportError(cause, "app-update.read-cache");
-    return null;
+    return undefined;
   }
 }
 

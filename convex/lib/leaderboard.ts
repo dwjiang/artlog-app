@@ -1,6 +1,7 @@
 import type { JournalOwner, JournalSave, JournalVisit } from "../../shared/journal/contracts";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import { isUsableProfile } from "./ownership";
 
 async function increment(ctx: MutationCtx, accountId: Id<"accounts">, metric: "visits" | "artworks", amount: number) {
   if (amount === 0) return;
@@ -18,7 +19,7 @@ async function increment(ctx: MutationCtx, accountId: Id<"accounts">, metric: "v
       .withIndex("by_accountId", (q) => q.eq("accountId", accountId))
       .unique();
     await ctx.db.insert("leaderboardScores", {
-      visibility: profile?.active && !profile.removal ? profile.leaderboardVisibility : "off",
+      visibility: isUsableProfile(profile) ? profile.leaderboardVisibility : "off",
       accountId,
       metric,
       score: amount,

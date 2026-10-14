@@ -5,11 +5,12 @@ import { Alert } from "react-native";
 import { switchOwner } from "@/lib/account/owner-store";
 import { chooseProfilePhoto, profilePhotoBytes } from "@/lib/social/profile-photo";
 
-import { EditProfileForm } from "./edit-profile-screen";
+import { EditProfileForm, EditProfileScreen } from "./edit-profile-screen";
 
 const mockSave = jest.fn();
 const mockBack = jest.fn();
 const mockAvailable = jest.fn();
+const mockMine = jest.fn();
 const mockSetSafetyChecks = jest.fn();
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
@@ -21,14 +22,32 @@ jest.mock("expo-router", () => ({
   Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
 }));
 const mockTagSearch = jest.fn();
-jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => ({ key: "account:a" }) }));
+jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => "token-a" }));
+jest.mock("expo-network", () => ({ useNetworkState: () => ({ isConnected: true }) }));
+jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("@/lib/social/use-social-query", () => ({
-  useSocialQuery: (query: never, args: { username: string } | { prefix: string } | "skip") =>
-    args === "skip"
-      ? { loading: false }
-      : jest.requireActual("convex/server").getFunctionName(query) === "tags:search"
-        ? { data: mockTagSearch(args), loading: false }
-        : { data: mockAvailable((args as { username: string }).username), loading: false },
+  useSocialQuery: (query: never, args: { username: string } | { prefix: string } | "skip") => {
+    if (args === "skip") return { loading: false };
+    switch (jest.requireActual("convex/server").getFunctionName(query)) {
+      case "accounts:me":
+        return {
+          data: {
+            linked: true,
+            accountId: "a",
+            profileId: "profile",
+            claimComplete: true,
+            scope: "scope-a",
+            safetyChecks: true,
+          },
+        };
+      case "profiles:mine":
+        return { data: mockMine() };
+      case "tags:search":
+        return { data: mockTagSearch(args), loading: false };
+      default:
+        return { data: mockAvailable((args as { username: string }).username), loading: false };
+    }
+  },
 }));
 jest.mock("@/lib/social/profile-photo", () => ({
   chooseProfilePhoto: jest.fn(),
@@ -47,7 +66,28 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSave.mockResolvedValue(profile);
   mockAvailable.mockReturnValue(true);
+  mockMine.mockReturnValue(profile);
   switchOwner("account:a", "scope-a");
+});
+
+it("keeps a profile draft and its pending save when startup sync restores the same account's scope", async () => {
+  switchOwner("account:a");
+  let finish!: (saved: typeof profile) => void;
+  mockSave.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  await render(<EditProfileScreen />);
+  await fireEvent.changeText(screen.getByLabelText("Name"), "Alex Chen");
+  await fireEvent.changeText(screen.getByLabelText("Bio"), "Art in the city.");
+  await fireEvent.press(screen.getByRole("button", { name: "Save changes" }));
+  await act(() => switchOwner("account:a", "scope-a"));
+  expect(screen.getByLabelText("Name")).toHaveDisplayValue("Alex Chen");
+  expect(screen.getByLabelText("Bio")).toHaveTextContent("Art in the city.");
+  await act(() => finish(profile));
+  expect(mockBack).toHaveBeenCalledTimes(1);
 });
 
 it("saves trimmed profile text while preserving an unchanged photo and username", async () => {

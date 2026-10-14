@@ -89,7 +89,7 @@ export function EditProfileForm({
     setError(undefined);
     try {
       const pictureArgs = await profilePictureArgs(picture);
-      if (!owner.isCurrent() || !mounted.current) return;
+      if (!owner.isOwnerCurrent() || !mounted.current) return;
       await save({
         name: name.trim(),
         // Without safety checks the bio can't change, so it's left out and stays as it is.
@@ -98,17 +98,17 @@ export function EditProfileForm({
         ...(usernameChanged ? { username } : {}),
         ...pictureArgs,
       });
-      if (owner.isCurrent() && mounted.current) {
+      if (owner.isOwnerCurrent() && mounted.current) {
         showToast("Profile updated. Your wall and visits are unchanged.");
         router.back();
       }
     } catch (cause) {
       reportError(cause, "profile.update");
-      if (owner.isCurrent() && mounted.current) {
+      if (owner.isOwnerCurrent() && mounted.current) {
         setError(socialErrorMessage(cause) ?? "Your profile was not saved. Please try again.");
       }
     } finally {
-      if (owner.isCurrent() && mounted.current) setBusy(false);
+      if (owner.isOwnerCurrent() && mounted.current) setBusy(false);
     }
   }
   const shown = shownPicture(profile, picture);

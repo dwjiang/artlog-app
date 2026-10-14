@@ -22,12 +22,15 @@ export async function resolveOwner(ctx: ReadCtx, scope?: string) {
   }
   return { device, owner, scope: deviceScope(device, owner) };
 }
-export async function requireClaimComplete(ctx: ReadCtx, deviceId: Id<"devices">): Promise<void> {
+export async function isClaimComplete(ctx: ReadCtx, deviceId: Id<"devices">): Promise<boolean> {
   const claim = await ctx.db
     .query("journalClaims")
     .withIndex("by_deviceId", (q) => q.eq("deviceId", deviceId))
     .unique();
-  if (claim && claim.phase !== "complete") {
+  return !claim || claim.phase === "complete";
+}
+export async function requireClaimComplete(ctx: ReadCtx, deviceId: Id<"devices">): Promise<void> {
+  if (!(await isClaimComplete(ctx, deviceId))) {
     throw new ConvexError({ code: "claim_required" });
   }
 }
@@ -43,20 +46,22 @@ export async function requireAccount(ctx: ReadCtx) {
   }
   return { ...resolved, accountId: resolved.owner.accountId };
 }
+export const isUsableProfile = (profile: Doc<"profiles"> | null | undefined): profile is Doc<"profiles"> =>
+  !!profile?.active && !profile.removal;
 export async function requireProfile(ctx: ReadCtx) {
   const account = await requireAccount(ctx);
   const profile = await ctx.db
     .query("profiles")
     .withIndex("by_accountId", (q) => q.eq("accountId", account.accountId))
     .unique();
-  if (!profile?.active || profile.removal) {
+  if (!isUsableProfile(profile)) {
     throw new ConvexError({ code: "profile_required" });
   }
   return { ...account, profile };
 }
 export async function activeProfile(ctx: ReadCtx, profileId: Id<"profiles">) {
   const profile = await ctx.db.get("profiles", profileId);
-  return profile?.active && !profile.removal && (await ctx.db.get("accounts", profile.accountId)) ? profile : null;
+  return isUsableProfile(profile) && (await ctx.db.get("accounts", profile.accountId)) ? profile : null;
 }
 export function findOwnedVisit(ctx: ReadCtx, owner: JournalOwner, localId: string) {
   return ctx.db
@@ -119,5 +124,5 @@ export async function optionalProfile(ctx: ReadCtx) {
     .query("profiles")
     .withIndex("by_accountId", (q) => q.eq("accountId", device.accountId!))
     .unique();
-  return profile?.active && !profile.removal ? profile : null;
+  return isUsableProfile(profile) ? profile : null;
 }
