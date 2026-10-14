@@ -172,7 +172,7 @@ it("rejects a save at a different museum and a repeated username", async () => {
   await t.mutation(internal.demoSeed.seedPerson, person("dana", files, { visibility: "public" }));
   await expect(
     t.mutation(internal.demoSeed.seedPerson, person("dana", files, { visibility: "public" })),
-  ).rejects.toMatchObject({ data: { code: "demo_exists" } });
+  ).rejects.toMatchObject({ data: { code: "account_exists" } });
   expect(
     await t.query(internal.demoSeed.inspect, {
       objectKeys: ["met:436535", "met:0"],

@@ -22,6 +22,7 @@ import { requireAllowedBio, safetyChecksOn } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
 import { projectBrowsedProfile, projectProfile } from "./lib/projections";
+import { isReviewFriend } from "./lib/reviewFriend";
 import { findDismissal } from "./lib/suggestionDismissals";
 
 // `avatar` carries over the painting someone already had as a guest.
@@ -138,8 +139,10 @@ export const search = query({
       .query("profiles")
       .withSearchIndex("search_text", (q) => q.search("searchText", search).eq("active", true))
       .paginate(pagination(input));
+    const username = search.replace(/^@/, "");
     const page = [];
     for (const profile of result.page) {
+      if (profile.username !== username && (await isReviewFriend(ctx, profile))) continue;
       if (await browsable(ctx, viewer, profile)) page.push(await projectBrowsedProfile(ctx, viewer, profile));
     }
     return {
@@ -167,9 +170,12 @@ export const friends = query({
     const person = await activeProfile(ctx, profileId);
     if (!person || (await blockedEitherWay(ctx, viewer._id, profileId))) return null;
     const edges = (await acceptedRelationships(ctx, profileId)).slice(0, LIMITS.friends);
+    // Everyone who added the review friend is a stranger to everyone else who did.
+    const hidden = await isReviewFriend(ctx, person);
     const people = [];
     for (const edge of edges) {
       const id = edge.firstProfileId === profileId ? edge.secondProfileId : edge.firstProfileId;
+      if (hidden && id !== viewer._id) continue;
       const friend = await activeProfile(ctx, id);
       if (friend && !(await blockedEitherWay(ctx, viewer._id, id))) {
         people.push(await projectBrowsedProfile(ctx, viewer, friend));
@@ -196,6 +202,7 @@ export const discover = query({
     const page = [];
     for (const profile of result.page) {
       if (input.excludeDismissed && viewer && (await findDismissal(ctx, viewer._id, profile._id))) continue;
+      if (await isReviewFriend(ctx, profile)) continue;
       if (await browsable(ctx, viewer, profile)) page.push(await projectBrowsedProfile(ctx, viewer, profile));
     }
     return {
