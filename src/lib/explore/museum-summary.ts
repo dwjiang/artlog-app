@@ -9,7 +9,9 @@ export function museumExhibitions(data: ExploreCatalog, museum: ExploreMuseum): 
   return [...running, ...exhibitionsByTiming(here, "upcoming", data.today)];
 }
 
-export const museumCover = (data: ExploreCatalog, museum: ExploreMuseum) => museumExhibitions(data, museum)[0]?.image;
+/** The artwork of the most pressing show that has one. */
+export const museumCover = (data: ExploreCatalog, museum: ExploreMuseum) =>
+  museumExhibitions(data, museum).find((exhibition) => exhibition.image)?.image;
 
 /**
  * "3 exhibitions · 1 ending soon": what's on at a museum now, counting shows that have not opened yet. Nothing for a

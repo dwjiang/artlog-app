@@ -12,7 +12,7 @@ import { exhibitionDates, exhibitionStatus, friendNames } from "@/lib/explore/ex
 import { exhibitionById, museumById, useExhibitions } from "@/lib/explore/use-explore";
 import { useWantToSee } from "@/lib/explore/want-to-see";
 
-import { FactRow, openDirections, openExhibitionPage, StatusChip } from "./detail-parts";
+import { FactRow, openDirections, openSourcePage, StatusChip } from "./detail-parts";
 import { openMuseum } from "./explore-routes";
 import { ExploreState } from "./explore-state";
 import { FriendStack } from "./friend-stack";
@@ -57,7 +57,7 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
           accessibilityRole="link"
           accessibilityLabel={`Image from ${host}`}
           accessibilityHint="Opens the exhibition page"
-          onPress={() => openExhibitionPage(exhibition.sourceUrl)}
+          onPress={() => openSourcePage(exhibition.sourceUrl, "explore.exhibition_page")}
           style={styles.image}
         >
           <LoadingImage
@@ -125,7 +125,7 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
         )}
         <View>
           <FactRow icon="calendar">{exhibitionDates(exhibition)}</FactRow>
-          <FactRow icon="safari" last onPress={() => openExhibitionPage(exhibition.sourceUrl)}>
+          <FactRow icon="safari" last onPress={() => openSourcePage(exhibition.sourceUrl, "explore.exhibition_page")}>
             {`Details on ${host}`}
           </FactRow>
         </View>

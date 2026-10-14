@@ -14,12 +14,10 @@ type MuseumPhotoResult = FunctionReturnType<typeof api.museumPhotos.forVenue>;
 export type MuseumPhoto = NonNullable<MuseumPhotoResult["photo"]>;
 
 /**
- * The Commons photo of the open visit's museum, or of the museum the phone is at before a visit starts. The first
- * person to see a museum asks the backend to look its photo up. Undefined while loading, offline or when there is none.
+ * The museum's Commons photo. The first person to see a museum asks the backend to look its photo up. `settled` is
+ * false only while the backend's first answer loads; an unfinished lookup or a failed read settles without a photo.
  */
-export function useCurrentMuseumPhoto(): MuseumPhoto | undefined {
-  const { visit, ready } = useVenue();
-  const venueId = visit?.venueId ?? (ready?.kind === "here" ? ready.venue.venueId : undefined);
+export function useMuseumPhoto(venueId: string | undefined): { photo?: MuseumPhoto; settled: boolean } {
   const deviceReady = useDeviceReady();
   const queries = useMemo(
     (): RequestForQueries =>
@@ -46,5 +44,14 @@ export function useCurrentMuseumPhoto(): MuseumPhoto | undefined {
     });
     return () => subscription.remove();
   }, [unchecked, venueId, request]);
-  return loaded?.photo ?? undefined;
+  return { photo: loaded?.photo ?? undefined, settled: !queries.photo || result !== undefined };
+}
+
+/**
+ * The Commons photo of the open visit's museum, or of the museum the phone is at before a visit starts. Undefined
+ * while loading, offline or when there is none.
+ */
+export function useCurrentMuseumPhoto(): MuseumPhoto | undefined {
+  const { visit, ready } = useVenue();
+  return useMuseumPhoto(visit?.venueId ?? (ready?.kind === "here" ? ready.venue.venueId : undefined)).photo;
 }

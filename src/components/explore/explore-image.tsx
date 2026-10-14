@@ -1,4 +1,4 @@
-import { Image } from "expo-image";
+import { Image, type ImageContentPosition } from "expo-image";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { LoadingImage } from "@/components/loading-image";
@@ -11,11 +11,13 @@ export function ExploreImage({
   icon = "photo.artframe",
   style,
 }: {
-  image: Exhibition["image"];
+  image: (Exhibition["image"] & { contentPosition?: ImageContentPosition }) | undefined;
   icon?: string;
   style: StyleProp<ViewStyle>;
 }) {
-  if (image) return <LoadingImage uri={image.uri} label={image.label} style={style} />;
+  if (image) {
+    return <LoadingImage uri={image.uri} label={image.label} contentPosition={image.contentPosition} style={style} />;
+  }
   return (
     <View style={[styles.placeholder, style]}>
       <Image source={`sf:${icon}`} tintColor={Gallery.muted} accessible={false} style={styles.icon} />
