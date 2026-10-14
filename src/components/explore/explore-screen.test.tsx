@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as Notifications from "expo-notifications";
 import type { ReactNode } from "react";
 import { AppState, Linking } from "react-native";
@@ -6,6 +6,7 @@ import { AppState, Linking } from "react-native";
 import { chooseCity } from "@/lib/explore/use-explore";
 import { offerNotifications } from "@/lib/notifications/offer";
 import * as toast from "@/lib/ui/toast";
+import type { VenueRow } from "@/lib/venue/resolve";
 
 import { bayArea, regions } from "./__fixtures__/catalog";
 import { ExhibitionListScreen } from "./exhibition-list-screen";
@@ -32,6 +33,8 @@ let mockFocused = true;
 let mockFailure: Error | undefined;
 let mockRegions: unknown[];
 let mockHome: string | undefined;
+let mockCityMuseums: Record<string, VenueRow[]>;
+let mockDiscoverable: Set<string> | null | undefined;
 let mockVenueStatus: string;
 let mockPermission: { granted: boolean; canAskAgain: boolean } | null;
 const mockRequestPermission = jest.fn(async () => ({ granted: true, canAskAgain: true }));
@@ -63,7 +66,11 @@ jest.mock("expo-location", () => {
     }),
   };
 });
-jest.mock("@/lib/venue/venue-db", () => ({ regionAt: async () => mockHome }));
+jest.mock("@/lib/venue/venue-db", () => ({
+  regionAt: async () => mockHome,
+  museumsInRegion: async (region: string) => mockCityMuseums[region] ?? [],
+  onVenueMetadataChange: () => () => {},
+}));
 jest.mock("@/lib/settings/use-measurement-units", () => ({
   useMeasurementUnits: () => ({ units: "imperial", failed: false }),
 }));
@@ -95,7 +102,7 @@ jest.mock("convex/react", () => ({
   useQueries: (
     requests: Record<
       string,
-      { query: unknown; args: { region?: string; museumId?: string; exhibitionIds?: string[] } }
+      { query: unknown; args: { region?: string; museumId?: string; museumIds?: string[]; exhibitionIds?: string[] } }
     >,
   ) => {
     const { getFunctionName } = jest.requireActual("convex/server");
@@ -115,6 +122,12 @@ jest.mock("convex/react", () => ({
           data = mockFriendSaves;
         } else if (name === "exhibitions:inRegion") {
           data = args.region === "london" ? london : args.region === "country:GB" ? cornwall : bayArea;
+        } else if (name === "exhibitions:discoverableMuseumIds") {
+          if (args.museumIds!.length > 100) return [key, new Error("batch_too_large")];
+          data =
+            mockDiscoverable === undefined
+              ? undefined
+              : args.museumIds!.filter((id) => mockDiscoverable === null || mockDiscoverable?.has(id));
         } else {
           const exhibitions = [...bayArea.exhibitions, ...cornwall.exhibitions].filter((show) =>
             args.museumId ? show.museumId === args.museumId : args.exhibitionIds?.includes(show.exhibitionId),
@@ -180,6 +193,8 @@ beforeEach(() => {
   mockFailure = undefined;
   mockRegions = regions;
   mockHome = undefined;
+  mockCityMuseums = {};
+  mockDiscoverable = null;
   mockVenueStatus = "resolved";
   mockPermission = { granted: true, canAskAgain: true };
   mockRequestPermission.mockClear();
@@ -237,6 +252,71 @@ describe("Explore", () => {
       "Berkeley Art Museum and Pacific Film Archive, 10 ft · Berkeley, 2 exhibitions",
     );
     expect(museums[1]).toHaveAccessibleName(/^Oakland Museum of California, 5\.0 mi, 1 exhibition/);
+  });
+
+  it("lists every museum in the city, those without shows after those with them", async () => {
+    const venue = (index: number): VenueRow => ({
+      id: `gallery-${index}` as VenueRow["id"],
+      key: `gallery-${index}`,
+      name: `Gallery ${String(index).padStart(2, "0")}`,
+      lat: 37.8,
+      lng: -122.4,
+      website: null,
+      region: "sf-bay-area",
+      city: "San Francisco",
+    });
+    mockCityMuseums = { "sf-bay-area": Array.from({ length: 112 }, (_, index) => venue(index + 1)) };
+    await render(<ExploreScreen />);
+
+    const row = await screen.findByTestId("museum-row");
+    await waitFor(() =>
+      expect(within(row).getAllByRole("button")[3]).toHaveAccessibleName("Gallery 01, San Francisco"),
+    );
+    expect(within(row).getAllByRole("button")[2]).toHaveAccessibleName(/^San Francisco Museum of Modern Art, /);
+    expect(screen.queryByText("No exhibitions listed")).toBeNull();
+
+    // Jest has no layout, so the row is given its size and scrolled to its end.
+    await fireEvent(row, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 402, height: 220 } } });
+    await fireEvent(row, "contentSizeChange", 4300, 220);
+    await fireEvent.scroll(row, {
+      nativeEvent: {
+        contentOffset: { x: 3900, y: 0 },
+        contentSize: { width: 4300, height: 220 },
+        layoutMeasurement: { width: 402, height: 220 },
+      },
+    });
+    expect(await screen.findByRole("button", { name: /^Gallery 12,/ })).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole("button", { name: "See all: Museums" }));
+    expect(mockPush).toHaveBeenCalledWith("/museums");
+  });
+
+  it("keeps local candidates hidden until approved and removes a live opt-out", async () => {
+    mockCityMuseums = {
+      "sf-bay-area": [
+        {
+          id: "local" as VenueRow["id"],
+          key: "local",
+          name: "Local gallery",
+          lat: 37.8,
+          lng: -122.4,
+          website: null,
+          region: "sf-bay-area",
+          city: "San Francisco",
+        },
+      ],
+    };
+    mockDiscoverable = undefined;
+    await render(<ExploreScreen />);
+    expect(screen.queryByRole("button", { name: "Local gallery, San Francisco" })).toBeNull();
+
+    mockDiscoverable = new Set(["local"]);
+    await screen.rerender(<ExploreScreen />);
+    expect(await screen.findByRole("button", { name: "Local gallery, San Francisco" })).toBeOnTheScreen();
+
+    mockDiscoverable = new Set();
+    await screen.rerender(<ExploreScreen />);
+    expect(screen.queryByRole("button", { name: "Local gallery, San Francisco" })).toBeNull();
   });
 
   it("opens the full list with the row's choice", async () => {

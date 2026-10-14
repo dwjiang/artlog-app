@@ -9,9 +9,9 @@ import { reportError } from "@/lib/observability";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
 import { useBatchedSocialQuery, useSocialQuery } from "@/lib/social/use-social-query";
 import { useDeviceReady } from "@/lib/use-device-ready";
-import type { Coordinate } from "@/lib/venue/resolve";
+import type { Coordinate, VenueRow } from "@/lib/venue/resolve";
 import { useVenue } from "@/lib/venue/use-venue";
-import { regionAt } from "@/lib/venue/venue-db";
+import { museumsInRegion, onVenueMetadataChange, regionAt } from "@/lib/venue/venue-db";
 import { regionName } from "@/lib/venue/venue-location";
 import { calendarDate } from "@/shared/journal/limits";
 
@@ -93,6 +93,41 @@ function useHomeRegion(fix: Coordinate | undefined): string | null | undefined {
   return fix ? region : null;
 }
 
+const NO_MUSEUMS: VenueRow[] = [];
+
+/** Local candidates appear only after the server confirms they are still discoverable in this region. */
+function useCityMuseums(cityId: string | undefined) {
+  const [read, setRead] = useState<{ cityId: string; museums: VenueRow[] }>();
+  useEffect(() => {
+    if (!cityId) return;
+    let current = true;
+    const refresh = () => {
+      museumsInRegion(cityId).then(
+        (museums) => {
+          if (current) setRead({ cityId, museums });
+        },
+        (cause: unknown) => reportError(cause, "explore.city.museums"),
+      );
+    };
+    refresh();
+    const unsubscribe = onVenueMetadataChange(refresh);
+    return () => {
+      current = false;
+      unsubscribe();
+    };
+  }, [cityId]);
+  const candidates = read && read.cityId === cityId ? read.museums : NO_MUSEUMS;
+  const batches = [];
+  if (cityId) {
+    for (let index = 0; index < candidates.length; index += 100) {
+      batches.push({ region: cityId, museumIds: candidates.slice(index, index + 100).map((museum) => museum.id) });
+    }
+  }
+  const visibility = useBatchedSocialQuery(api.exhibitions.discoverableMuseumIds, batches, "explore");
+  const allowed = new Set(visibility.data?.flat());
+  return { ...visibility, museums: candidates.filter((museum) => allowed.has(museum.id)) };
+}
+
 /**
  * Browse the chosen city, else the phone's own, else the nearest city with shows to the phone or, without a location
  * fix, to its time zone, measured from today on this device.
@@ -109,6 +144,7 @@ export function useExplore(): ExploreView<ExploreData> {
   const cityId =
     picked ?? (home === undefined ? undefined : defaultCity(listed, { fix, home: home ?? undefined, timeZone }));
   const catalog = useSocialQuery(api.exhibitions.inRegion, !cityId ? "skip" : { region: cityId, asOf }, "explore");
+  const cityMuseums = useCityMuseums(cityId);
   const city = cities.find((candidate) => candidate.id === cityId);
   const following = !picked && fix !== undefined;
   const data = useMemo(() => {
@@ -121,11 +157,12 @@ export function useExplore(): ExploreView<ExploreData> {
       home: home ? regionName(home) : undefined,
       today,
     };
-    return withFriends(exploreData(catalog.data, place, fix, units), friendSaves);
-  }, [catalog.data, city, cities, home, following, today, fix, units, friendSaves]);
-  const retry = () => (regions.error ? regions.refresh() : catalog.refresh());
+    return withFriends(exploreData(catalog.data, cityMuseums.museums, place, fix, units), friendSaves);
+  }, [catalog.data, cityMuseums.museums, city, cities, home, following, today, fix, units, friendSaves]);
+  const retry = () =>
+    regions.error ? regions.refresh() : cityMuseums.error ? cityMuseums.refresh() : catalog.refresh();
   if (offline && !data) return { status: "offline", retry };
-  if (regions.error || catalog.error) return { status: "error", retry };
+  if (regions.error || catalog.error || cityMuseums.error) return { status: "error", retry };
   if (regions.data && listed.length === 0) return { status: "empty", retry };
   return data ? { status: "ready", data, retry } : { status: "loading", retry };
 }

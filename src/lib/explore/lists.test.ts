@@ -43,6 +43,11 @@ it("orders museums nearest first, or by name without a location", () => {
   expect(nearbyMuseums(unplaced).map((place) => place.id)).toEqual(["Art Institute", "MCA", "Wrightwood"]);
 });
 
+it("puts museums listing shows ahead of the rest without a location", () => {
+  const unplaced = { ...data, museums: [museum("empty"), museum("far"), museum("near")] };
+  expect(nearbyMuseums(unplaced).map((place) => place.id)).toEqual(["far", "near", "empty"]);
+});
+
 it("lists saved shows still on or ahead, closing soonest first, then closed ones, most recent first", () => {
   const { current, closed } = savedExhibitions(
     data,
@@ -56,8 +61,8 @@ it("lists a museum's running shows by closing date, then its upcoming ones", () 
   expect(ids(museumExhibitions(data, museum("near")))).toEqual(["four", "none", "two-later", "upcoming"]);
 });
 
-it("counts a museum's shows and the ones ending soon", () => {
+it("counts a museum's shows and the ones ending soon, and says nothing without any", () => {
   expect(museumSummary(data, museum("near"))).toEqual({ count: "4 exhibitions", ending: "1 ending soon" });
   expect(museumSummary(data, museum("far"))).toEqual({ count: "1 exhibition", ending: undefined });
-  expect(museumSummary(data, museum("empty"))).toEqual({ count: "No exhibitions listed", ending: undefined });
+  expect(museumSummary(data, museum("empty"))).toEqual({});
 });
