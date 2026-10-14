@@ -19,7 +19,6 @@ import { useLiftToasts } from "@/lib/ui/toast";
 
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { FieldsForm } from "./fields-form";
-import { RightNowSection } from "./right-now-section";
 import { RunnerUps } from "./runner-ups";
 import { LABEL_BUTTON, SaveBar } from "./save-bar";
 import { TentativeOriginNotice } from "./tentative-origin-notice";
@@ -201,9 +200,7 @@ export function ResultCard({
                 ? { kind: "docent", artworkId: view.primary.artworkId }
                 : scanId && { kind: "scanDocent", scanId }
             }
-          >
-            <RightNowSection rightNow={view.rightNow} />
-          </ArtworkStory>
+          />
         )}
         {suggestions.length > 0 && (
           <View style={styles.section}>

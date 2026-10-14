@@ -59,11 +59,6 @@ export const factSheet = [
     sourceLabel: "The Met",
   },
 ];
-export const rightNow = {
-  text: "Monet’s late water lilies are on view at the Met through January.",
-  sourceUrl: "https://news.example/monet",
-  sourceLabel: "Example News",
-};
 
 const base = {
   scanId: SCAN_ID,
@@ -83,7 +78,6 @@ export const confidentScan: NonNullable<ScanResult> = {
   docent,
   docentStatus: "ready",
   factSheet,
-  rightNow,
 };
 
 export const confidentScanWithoutProse: NonNullable<ScanResult> = {

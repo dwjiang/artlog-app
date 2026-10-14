@@ -62,6 +62,16 @@ it("lists each cited page once, in citation order, and opens it on tap", async (
   expect(mockOpenBrowser).toHaveBeenCalledWith("https://museum.example/lilies");
 });
 
+it("names the open licence of adapted Wikipedia text and links to it", async () => {
+  const wikipedia = { id: "w1", sourceUrl: "https://en.wikipedia.org/wiki/Water_Lilies", sourceLabel: "Wikipedia" };
+  await render(
+    <DocentSection docent={[{ sentence: "Monet painted it at Giverny.", factIds: ["w1"] }]} factSheet={[wikipedia]} />,
+  );
+  expect(screen.getByText("Adapted with AI from Wikipedia · CC BY-SA 4.0")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("link", { name: "Adapted with AI from Wikipedia, licensed CC BY-SA 4.0" }));
+  expect(mockOpenBrowser).toHaveBeenCalledWith("https://creativecommons.org/licenses/by-sa/4.0/");
+});
+
 it("marks only the last sentence of each run that rests on the same pages", async () => {
   const sentences = ["One.", "Two.", "Three.", "Four."];
   await render(

@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
 
+import { LIMITS } from "../shared/journal/limits";
 import { STARTER_WALLS } from "../shared/wall/defaults";
 import { WALL_FRAMES } from "../shared/wall/frames";
 import { api, internal } from "./_generated/api";
@@ -213,7 +214,7 @@ it("enforces unique selections and layers, item limits, frame IDs and geometry b
   }
 });
 
-it("keeps slurs and the strongest swearing in typed artwork details off public walls", async () => {
+it("keeps flagged words in typed artwork details off public walls and shortens long details", async () => {
   const t = harness();
   const a = await wallFixture(t, "a");
   await t.run((ctx) =>
@@ -232,8 +233,15 @@ it("keeps slurs and the strongest swearing in typed artwork details off public w
   expect((await a.as.query(api.walls.getMine, {})).items[0].artwork.title).toBe("Untitled");
   const crude = { title: "Piss Flowers", artist: "Helen Chadwick", medium: "Shitty bronze" };
   await t.run((ctx) => ctx.db.patch("collections", a.saveId, { snapshot: crude }));
-  expect((await t.query(api.walls.getPublic, { profileId: a.profile.profileId }))!.items[0].artwork).toMatchObject(
-    crude,
+  expect((await t.query(api.walls.getPublic, { profileId: a.profile.profileId }))!.items[0].artwork).toEqual({
+    title: "Untitled",
+    artist: "Helen Chadwick",
+    media: { kind: "placeholder", width: 1, height: 1 },
+  });
+  const long = "Nocturne in blue and gold ".repeat(20);
+  await t.run((ctx) => ctx.db.patch("collections", a.saveId, { snapshot: { title: long, artist: "Whistler" } }));
+  expect((await t.query(api.walls.getPublic, { profileId: a.profile.profileId }))!.items[0].artwork.title).toBe(
+    long.slice(0, LIMITS.typedDetail),
   );
 });
 
@@ -571,7 +579,7 @@ it("versions replacement crops and refuses stale or malformed crop references", 
   expect(await (await f.t.fetch(path)).text()).toBe("full");
 });
 
-it("names the museum on a wall artwork's page only, without severe words", async () => {
+it("names the museum on a wall artwork's page only, without flagged words", async () => {
   const t = harness();
   const owner = await wallFixture(t, "owner");
   const setInstitution = (institution: string) =>

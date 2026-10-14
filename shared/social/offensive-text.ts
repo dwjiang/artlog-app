@@ -12,7 +12,7 @@ const ADDED_WORDS = {
   spic: pattern`|spic|`,
   wetback: pattern`wetback`,
 };
-// Slurs and the strongest swearing. Typed artwork titles may use the rest ("Bitch", "Piss Flowers", "The Rape").
+// Slurs and the strongest swearing, refused even where OpenAI would pass swearing aimed at no one.
 const SEVERE_WORDS = new Set([
   "abeed",
   "abo",

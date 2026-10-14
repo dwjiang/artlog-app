@@ -8,6 +8,7 @@ export const LIMITS = {
   cursorBytes: 8 * 1024,
   note: 20_000,
   snapshot: 10_000,
+  typedDetail: 200,
   name: 60,
   bio: 160,
   usernameMin: 3,

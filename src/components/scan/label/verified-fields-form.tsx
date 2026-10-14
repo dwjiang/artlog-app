@@ -6,6 +6,7 @@ import { FieldInput } from "@/components/scan/field-input";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
 import { LABEL_FIELD_LABELS, WARNING_MESSAGES, type LabelFormState } from "@/lib/label/fields";
+import { LIMITS } from "@/shared/journal/limits";
 
 import type { LabelFieldName, LabelWarning } from "../../../../convex/lib/validators";
 
@@ -53,6 +54,7 @@ export function VerifiedFieldsForm({ state, warnings, editable, onChange }: Veri
                 editable={editable}
                 style={styles.input}
                 autoCapitalize={name === "date" || name === "accession" ? "none" : "words"}
+                maxLength={LIMITS.typedDetail}
                 onChangeText={(value) => onChange(name, value)}
               />
             </View>

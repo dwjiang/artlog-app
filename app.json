@@ -57,7 +57,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
+      ["expo-router", { "sitemap": false }],
       "expo-dev-client",
       "./plugins/with-release-info-plist",
       [

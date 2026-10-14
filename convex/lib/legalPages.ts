@@ -10,7 +10,7 @@ export type ThirdPartyNotices = {
   texts: string[];
 };
 
-const UPDATED = "October 7, 2026";
+const UPDATED = "October 14, 2026";
 const EMAIL = "danieljiang1999@gmail.com";
 const CONTACT = `Questions or requests: email ${EMAIL}, or open Settings → Send feedback in Artlog.`;
 
@@ -149,7 +149,7 @@ const terms: LegalDocument = {
       heading: "Using Artlog",
       paragraphs: [
         "You must be at least 13 years old to use Artlog. If you’re under the age of majority where you live, you need a parent’s or guardian’s permission.",
-        "Artlog is under active development, so features may change or stop working.",
+        "We may change, add or remove features at any time.",
       ],
     },
     {
@@ -195,6 +195,13 @@ const terms: LegalDocument = {
       heading: "Artworks and other sources",
       paragraphs: [
         "Artwork information and images come from museums, Wikidata, Wikipedia, Wikimedia Commons and other sources. They belong to their owners and are subject to their licenses. Other sites and services linked from Artlog have their own terms.",
+      ],
+    },
+    {
+      heading: "Copyright complaints",
+      paragraphs: [
+        `If you believe something in Artlog infringes your copyright, report it in the app and choose Copyright infringement, or email ${EMAIL}. Include your name and contact details, the work you own, where it appears in Artlog, a statement that you believe in good faith its use isn’t authorized, and a statement that your notice is accurate and that you own the copyright or may act for its owner, with your signature.`,
+        "We remove or disable content that a valid notice identifies and may end the accounts of people who repeatedly infringe.",
       ],
     },
     {

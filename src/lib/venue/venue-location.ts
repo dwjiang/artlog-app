@@ -1,4 +1,4 @@
-import { countryName } from "@/lib/journal/history";
+import { countryName, knownCountryName } from "@/lib/journal/history";
 import regions from "@/shared/sources/regions.json";
 
 import type { VenueRow } from "./resolve";
@@ -17,8 +17,12 @@ export function venueLocation(venue: VenueRow) {
 }
 /** "San Francisco Bay Area" for a metro region, the country's name for a `country:` one. */
 export function regionName(region: string): string {
-  if (region.startsWith("country:")) return countryName(region.slice(8));
-  return (regions as Record<string, Region | undefined>)[region]?.name ?? region;
+  return knownRegionName(region) ?? region;
+}
+/** Undefined for a region without a name, such as `country:unknown` or a former country like `country:DD`. */
+export function knownRegionName(region: string): string | undefined {
+  if (region.startsWith("country:")) return knownCountryName(region.slice(8));
+  return (regions as Record<string, Region | undefined>)[region]?.name;
 }
 export function regionSearchNames(): [string, string][] {
   return Object.entries(regions).map(([key, region]) => [key, region.name]);

@@ -123,6 +123,7 @@ it("offers description reasons and confirms the report was saved", async () => {
     "Wrong or made-up facts",
     "Describes a different artwork",
     "Offensive or inappropriate",
+    "Copyright infringement",
     "Something else",
   ]);
   await fireEvent.press(screen.getByRole("radio", { name: "Wrong or made-up facts" }));

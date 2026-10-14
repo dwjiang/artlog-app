@@ -33,7 +33,6 @@ it("names a confident match and carries its prose, sources and news", () => {
   });
   expect(view.docent).toBe(confidentScan.docent);
   expect(view.factSheet).toBe(confidentScan.factSheet);
-  expect(view.rightNow).toBe(confidentScan.rightNow);
 });
 
 it("shows a soft match as a maybe without prose", () => {
@@ -45,7 +44,6 @@ it("shows a soft match as a maybe without prose", () => {
     editable: true,
   });
   expect(view.docent).toBeUndefined();
-  expect(view.rightNow).toBeUndefined();
 });
 
 it("leaves a miss unidentified with every candidate offered as a suggestion", () => {
@@ -169,5 +167,4 @@ it("ignores an earlier runner-up selection after the owner links that work", () 
   expect(view).toMatchObject({ kind: "confident", primary: lilies, linked: "label", runnerUps: [], editable: true });
   expect(view.docent).toBe(confidentScan.docent);
   expect(view.factSheet).toBe(confidentScan.factSheet);
-  expect(view.rightNow).toBe(confidentScan.rightNow);
 });
