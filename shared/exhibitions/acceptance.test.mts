@@ -159,6 +159,67 @@ await test("accepts English day-first and four-digit numeric ranges", () => {
 
 const paris: ExhibitionMuseum = { ...museum, timeZone: "Europe/Paris", country: "FR" };
 
+await test("reads spaced numeric dates without swapping the museum-local day and month", () => {
+  const dates = "17. 4. 2026 – 2. 1. 2028";
+  const result = validate(
+    { startDate: "2026-04-17", endDate: "2028-01-02", dateText: dates, dateEvidence: dates },
+    { museum: { ...museum, timeZone: "Europe/Prague", country: "CZ" } },
+  );
+  assert.equal(result.accepted.length, 1);
+  assert.deepEqual([result.accepted[0]?.startDate, result.accepted[0]?.endDate], ["2026-04-17", "2028-01-02"]);
+});
+
+await test("reads German dates whose printed day and month have no intervening space", () => {
+  const dates = "24.Oktober 2026 bis zum 6.Juni 2027";
+  assert.equal(
+    validate(
+      { startDate: "2026-10-24", endDate: "2027-06-06", dateText: dates, dateEvidence: dates },
+      { museum: { ...museum, timeZone: "Europe/Berlin", country: "DE" } },
+    ).accepted.length,
+    1,
+  );
+});
+
+await test("reads an exhibition's Slovenian opening and closing labels", () => {
+  const dates = "Od: 18 jun 2026 Do: 28 feb 2027";
+  assert.equal(
+    validate(
+      { startDate: "2026-06-18", endDate: "2027-02-28", dateText: dates, dateEvidence: dates },
+      { museum: { ...museum, timeZone: "Europe/Ljubljana", country: "SI" } },
+    ).accepted.length,
+    1,
+  );
+});
+
+await test("preserves a closure gap between German exhibition runs joined by und", () => {
+  const dates = "26. September bis 18. Oktober 2026 und 14. November 2026 bis 21. Februar 2027";
+  const result = validate({
+    startDate: "2026-09-26",
+    endDate: "2027-02-21",
+    dateText: dates,
+    dateEvidence: dates,
+    intervals: [
+      { startDate: "2026-09-26", endDate: "2026-10-18", dateEvidence: dates },
+      { startDate: "2026-11-14", endDate: "2027-02-21", dateEvidence: dates },
+    ],
+  });
+  assert.deepEqual(
+    result.accepted.map(({ startDate, endDate }) => [startDate, endDate]),
+    [
+      ["2026-09-26", "2026-10-18"],
+      ["2026-11-14", "2027-02-21"],
+    ],
+  );
+  assert.ok(
+    validate({
+      startDate: "2026-09-26",
+      endDate: "2027-02-21",
+      dateText: dates,
+      dateEvidence: dates,
+    }).rejected[0]?.reasons.includes("dates_not_supported"),
+  );
+});
+
 await test("accepts French, German, Italian, Spanish and Dutch day-first ranges", () => {
   for (const dateText of [
     "Du 15 octobre 2026 au 14 mars 2027",

@@ -103,7 +103,7 @@ const weekdays = [
 // Ordinal marks: 1st, 1er, 1º (read as "1o"), 1° and the German "1.".
 const dayPattern = "(\\d{1,2})(?:st|nd|rd|th|er|o|°|\\.)?(?!\\d)";
 // Spanish puts "de" between day, month and year; Russian may follow the year with "г." or "года".
-const monthAfterDay = "\\s+(?:de\\s+)?";
+const monthAfterDay = "\\s*(?:de\\s+)?";
 const yearPattern = `(?:,?\\s+(?:de\\s+)?(\\d{4})(?!\\d)(?:\\s*(?:года|г\\.?)${wordAfter})?)?`;
 const rangeWords = [
   "to",
@@ -120,6 +120,7 @@ const rangeWords = [
   "hasta",
   "tot en met",
   "tot",
+  "do:?",
   "по",
 ];
 const connector = `\\s*(?:-|(?:${rangeWords.join("|")})${wordAfter}|t/m(?![\\w/]))\\s*`;
@@ -146,7 +147,8 @@ export function normalizeEvidence(text: string): string {
 function dateText(text: string): string {
   return normalizeEvidence(text)
     .normalize("NFD")
-    .replaceAll(/[\u0300-\u036f]/g, "");
+    .replaceAll(/[\u0300-\u036f]/g, "")
+    .replaceAll(/(?<=\d)([./])\s+(?=\d)/g, "$1");
 }
 
 function isCalendarDate(value: string): boolean {
@@ -359,7 +361,9 @@ function joinedDateRanges(evidence: string, ranges: DateRange[]): boolean {
     && spans.every((span, index) => {
       if (index === 0) return true;
       const previous = spans[index - 1];
-      return previous.end <= span.start && /^[\s,;]*(?:(?:and|&)[\s,;]*)?$/.test(text.slice(previous.end, span.start));
+      return (
+        previous.end <= span.start && /^[\s,;]*(?:(?:and|und|&)[\s,;]*)?$/.test(text.slice(previous.end, span.start))
+      );
     })
   );
 }
