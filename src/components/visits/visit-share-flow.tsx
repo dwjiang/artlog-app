@@ -33,6 +33,8 @@ import { useVisits } from "@/lib/journal/use-visits";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
 import { offerNotifications } from "@/lib/notifications/offer";
 import { reportError } from "@/lib/observability";
+import { confirmAlert, useSafetyChecks } from "@/lib/social/safety-checks";
+import { useSocialSession } from "@/lib/social/use-social-session";
 import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { showToast } from "@/lib/ui/toast";
 import { arrangeShareGrid, sharedOrder } from "@/lib/visits/share-order";
@@ -131,12 +133,13 @@ async function publishAs(
   visit: VisitSummary,
   notes: VisitNotesHandle | null,
   controller: Sharing["controller"],
+  withoutReflection: boolean,
 ) {
   if (!(await notes?.save())) return false;
   const previous = visit.visibility;
   const changed = previous !== audience;
   if (changed) await patchVisit(visit.localId, { visibility: audience }, visit.owner);
-  if (await controller.publish()) return true;
+  if (await controller.publish({ withoutReflection })) return true;
   if (changed) await patchVisit(visit.localId, { visibility: previous }, visit.owner);
   return false;
 }
@@ -148,6 +151,7 @@ export function VisitShareScreen() {
   const [postError, setPostError] = useState<string>();
   const submitting = useRef(false);
   const notes = useRef<VisitNotesHandle>(null);
+  const safety = useSafetyChecks(useSocialSession());
   const { width, fontScale } = useWindowDimensions();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const headerHeight = useHeaderHeight();
@@ -252,15 +256,31 @@ export function VisitShareScreen() {
   // No try/finally here: the React Compiler skips a component that has one, and would leave the toolbar unmemoized.
   async function post() {
     if (submitting.current) return;
+    let withoutReflection = false;
+    if (!safety.enabled && notes.current?.text().trim()) {
+      const choice = await confirmAlert(
+        "Post without your note?",
+        "Visit notes need safety checks before they can be posted.",
+        [
+          { text: "Turn On Checks", isPreferred: true },
+          { text: "Post Without Note" },
+          { text: "Cancel", style: "cancel" },
+        ],
+      );
+      if (choice === "Post Without Note") withoutReflection = true;
+      else if (choice !== "Turn On Checks" || !(await safety.turnOn())) return;
+    }
     submitting.current = true;
     setPosting(true);
     setPostError(undefined);
     const { audience } = draft!;
-    const posted = await publishAs(audience, visit, notes.current, controller).catch((cause: unknown) => {
-      reportError(cause, "visit.publish.visibility");
-      setPostError("Your visit could not be posted. Your selection is kept. Try again.");
-      return false;
-    });
+    const posted = await publishAs(audience, visit, notes.current, controller, withoutReflection).catch(
+      (cause: unknown) => {
+        reportError(cause, "visit.publish.visibility");
+        setPostError("Your visit could not be posted. Your selection is kept. Try again.");
+        return false;
+      },
+    );
     if (posted) {
       playSuccessHaptic();
       // Home opens on the feed the post belongs to; feeds order posts by visit date, not by when they were posted.

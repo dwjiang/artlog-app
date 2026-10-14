@@ -49,6 +49,7 @@ export function useSocialSession() {
     error,
     offline,
     accountReady,
+    safetyChecks: account.data?.safetyChecks === true,
     refresh: () => {
       account.refresh();
       mine.refresh();

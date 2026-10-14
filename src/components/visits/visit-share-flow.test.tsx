@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { Alert, type AlertButton } from "react-native";
 
 import type { ArtworkPhoto } from "@/db/schema";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
@@ -102,8 +103,17 @@ const mockFriend = (profileId: string, name: string, username: string) => ({
   publishedWallCount: 0,
 });
 let mockFriends = [mockFriend("maya", "Maya Chen", "maya"), mockFriend("jonah", "Jonah Park", "jonahp")];
+let mockSafetyChecks = true;
+const mockSetSafetyChecks = jest.fn();
+jest.mock("convex/react", () => ({ ...jest.requireActual("convex/react"), useMutation: () => mockSetSafetyChecks }));
 jest.mock("@/lib/social/use-social-session", () => ({
-  useSocialSession: () => ({ key: "a", status: "ready", profileId: "me", offline: false }),
+  useSocialSession: () => ({
+    key: "a",
+    status: "ready",
+    profileId: "me",
+    offline: false,
+    safetyChecks: mockSafetyChecks,
+  }),
 }));
 jest.mock("@/lib/social/use-friends", () => ({
   useFriends: () => ({ data: mockFriends, loading: false, error: undefined, refresh: jest.fn() }),
@@ -188,6 +198,8 @@ jest.mock("expo-router", () => {
 });
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.restoreAllMocks();
+  mockSafetyChecks = true;
   mockPage = "index";
   mockAudience = undefined;
   mockFriends = [mockFriend("maya", "Maya Chen", "maya"), mockFriend("jonah", "Jonah Park", "jonahp")];
@@ -553,6 +565,57 @@ it("updates an already shared visit and posts a private visit without changing i
     pathname: "/",
     params: { feed: "friends", posted: expect.any(String) },
   });
+});
+
+/** Answers each alert with the named button, in order. */
+function answerAlerts(...choices: string[]) {
+  return jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons?: AlertButton[]) => {
+    const choice = choices.shift();
+    buttons?.find((button) => button.text === choice)?.onPress?.();
+  });
+}
+
+it("asks before posting a note without safety checks, and can post the visit while the note stays private", async () => {
+  mockSafetyChecks = false;
+  const alert = answerAlerts("Post Without Note");
+  mockController.publish.mockResolvedValueOnce(true);
+  await render(<VisitShareLayout />);
+  await fireEvent.press(screen.getByRole("button", { name: "Post" }));
+  await waitFor(() => expect(mockController.publish).toHaveBeenCalledWith({ withoutReflection: true }));
+  expect(alert).toHaveBeenCalledWith(
+    "Post without your note?",
+    "Visit notes need safety checks before they can be posted.",
+    expect.any(Array),
+    expect.anything(),
+  );
+  expect(mockSetSafetyChecks).not.toHaveBeenCalled();
+});
+
+it("turns safety checks on from the note question after naming who checks the text, then posts the note", async () => {
+  mockSafetyChecks = false;
+  const alert = answerAlerts("Turn On Checks", "Turn On");
+  mockSetSafetyChecks.mockResolvedValueOnce(true);
+  mockController.publish.mockResolvedValueOnce(true);
+  await render(<VisitShareLayout />);
+  await fireEvent.press(screen.getByRole("button", { name: "Post" }));
+  await waitFor(() => expect(mockController.publish).toHaveBeenCalledWith({ withoutReflection: false }));
+  expect(alert).toHaveBeenLastCalledWith(
+    "Turn on safety checks?",
+    expect.stringContaining("Our moderation provider, OpenAI,"),
+    expect.any(Array),
+    expect.anything(),
+  );
+  expect(mockSetSafetyChecks).toHaveBeenCalledWith({ enabled: true });
+});
+
+it("keeps the form when the note question is cancelled", async () => {
+  mockSafetyChecks = false;
+  answerAlerts("Cancel");
+  await render(<VisitShareLayout />);
+  await fireEvent.press(screen.getByRole("button", { name: "Post" }));
+  await act(async () => {});
+  expect(mockController.publish).not.toHaveBeenCalled();
+  expect(mockPatchVisit).not.toHaveBeenCalled();
 });
 
 it("holds the Post slot with a busy indicator and disables Cancel until posting settles", async () => {

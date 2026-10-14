@@ -15,6 +15,7 @@ export const ERROR_MESSAGES = {
   invalid_comment: "Write a comment between 1 and 1,000 characters.",
   comment_not_allowed: "That comment includes words that aren’t allowed. Try different words.",
   reflection_not_allowed: "Your reflection includes words that aren’t allowed. Edit it and try again.",
+  safety_checks_off: "Turn on safety checks to post this.",
   invalid_relationship: "This connection is not valid.",
   invalid_report: "Check the report reason and details.",
   friend_limit: "One of these profiles has reached the friend limit.",

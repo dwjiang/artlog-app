@@ -11,12 +11,17 @@ export type SocialUser = Awaited<ReturnType<typeof seedDevice>> & {
 };
 let users = 0;
 // Sequential default names keep random hex out of usernames, where the profanity filter reads it as leetspeak.
-export async function socialUser(t: Harness, name = `user${++users}`): Promise<SocialUser> {
+export async function socialUser(
+  t: Harness,
+  name = `user${++users}`,
+  { safetyChecks = true }: { safetyChecks?: boolean } = {},
+): Promise<SocialUser> {
   const device = await seedDevice(t);
   const accountId = await t.run(async (ctx) => {
     const id = await ctx.db.insert("accounts", {
       provider: "apple",
       providerUserId: name,
+      safetyChecks,
     });
     await ctx.db.patch("devices", device.deviceId, { accountId: id });
     return id;

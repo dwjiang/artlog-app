@@ -7,6 +7,7 @@ import Animated, { cubicBezier } from "react-native-reanimated";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ArtworkCollage, introArtworks } from "@/components/guest/artwork-preview";
 import { PaintingReveal } from "@/components/scan/painting-reveal";
+import { ProfileAvatar } from "@/components/social/profile-avatar";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, Motion, Radius, Spacing } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -42,6 +43,8 @@ const gallery = {
   crop: require("../../../assets/images/onboarding/washington-crossing-the-delaware.webp"),
   cropSize: { width: 1937, height: 1135 },
 };
+const luncheon = require("../../../assets/images/onboarding/luncheon-of-the-boating-party.webp");
+
 const STORY =
   "Leutze painted it in Germany, using American tourists and art students as models. The American painter Worthington Whittredge posed as Washington. Look at the flag: the Stars and Stripes it carries wasn’t adopted until the summer after this crossing.";
 const STORY_WORDS = STORY.split(" ");
@@ -353,6 +356,30 @@ export function AccessArt({ step, active, shown }: { step: AccessKey; active: bo
   return <MuseumArt active={active} shown={shown} />;
 }
 
+/** Renoir's friends talking over lunch, behind a comment about what people post. */
+export function SafetyChecksArt({ active }: { active: boolean }) {
+  return <Backdrop source={luncheon} focus={{ x: 0.55, y: 0.4 }} active={active} />;
+}
+
+/** A visitor's comment rising out of the safety-checks sheet with the check it passed. */
+export function CheckedComment({ shown }: { shown: boolean }) {
+  if (!shown) return null;
+  return (
+    <Enter motion="rise" delay={300} style={styles.resultSlot}>
+      <View style={[styles.card, styles.comment]}>
+        <ProfileAvatar name="Maya Chen" avatar="vigee" size={32} />
+        <View style={styles.resultText}>
+          <Text style={styles.commentName}>Maya Chen</Text>
+          <Text style={styles.commentBody}>Saw this at the Phillips. Even better in person.</Text>
+        </View>
+        <Enter motion="pop" delay={750} style={{ ...styles.check, ...styles.commentCheck }}>
+          <Image source="sf:checkmark" tintColor={Gallery.surface} accessible={false} style={styles.checkIcon} />
+        </Enter>
+      </View>
+    </Enter>
+  );
+}
+
 /** The saved original rising out of the Photos sheet with its check. */
 export function SavedPhotoTile({ shown }: { shown: boolean }) {
   if (!shown) return null;
@@ -477,6 +504,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkIcon: { width: 11, height: 11 },
+  comment: { flexDirection: "row", alignItems: "flex-start", gap: 10, padding: Spacing.compact },
+  commentName: { fontSize: 13, lineHeight: 18, fontWeight: "600", color: Gallery.ink },
+  commentBody: { fontSize: 14, lineHeight: 19, color: Gallery.ink },
+  commentCheck: { top: -8, bottom: undefined },
   pinAnchor: { position: "absolute", width: 0, height: 0 },
   pin: {
     position: "absolute",

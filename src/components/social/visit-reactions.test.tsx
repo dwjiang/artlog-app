@@ -1,6 +1,6 @@
-import { act, fireEvent, render, renderHook, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react-native";
 import type { FunctionReference } from "convex/server";
-import { ActionSheetIOS } from "react-native";
+import { ActionSheetIOS, Alert, type AlertButton } from "react-native";
 
 import type { SocialSession } from "@/lib/social/use-social-session";
 import { playErrorHaptic, playLightHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
@@ -68,6 +68,7 @@ beforeEach(() => {
     token: "token",
     status: "ready",
     accountReady: true,
+    safetyChecks: true,
     offline: false,
     error: undefined,
     refresh: mockRefresh,
@@ -135,6 +136,42 @@ it("keeps the like state and exposes retry after a failed write", async () => {
   expect(toast.result.current).toMatchObject({ message: "Couldn’t update your like.", action: { label: "Retry" } });
   await act(() => toast.result.current?.action?.onPress());
   expect(mockMutate).toHaveBeenCalledTimes(2);
+});
+
+it("asks someone without safety checks to turn them on, naming OpenAI, before they can comment or reply", async () => {
+  mockSession = { ...mockSession, safetyChecks: false };
+  mockComments = [
+    {
+      commentId: "comment",
+      body: "Beautiful light.",
+      createdAt: 1,
+      isAuthor: false,
+      likeCount: 0,
+      liked: false,
+      author: { profileId: "friend", name: "Jules Morgan", username: "jules" },
+      mentions: [],
+    },
+  ];
+  const alert = jest
+    .spyOn(Alert, "alert")
+    .mockImplementation((_title, _message, buttons?: AlertButton[]) =>
+      buttons?.find((button) => button.text === "Turn On")?.onPress?.(),
+    );
+  await render(<VisitReactions visit={visit} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Open 2 comments" }));
+  expect(screen.getByText("Beautiful light.")).toBeOnTheScreen();
+  expect(screen.queryByLabelText("Add a comment")).toBeNull();
+  expect(screen.queryByText("Reply")).toBeNull();
+  expect(screen.getByText("Turn on safety checks to comment.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Turn on" }));
+  expect(alert).toHaveBeenCalledWith(
+    "Turn on safety checks?",
+    "Our moderation provider, OpenAI, checks your comments, visit notes and bio for harmful content before others see them. It gets only the text, not your name or account.",
+    expect.any(Array),
+    expect.anything(),
+  );
+  await waitFor(() => expect(mockMutate).toHaveBeenCalledWith("accounts:setSafetyChecks", { enabled: true }));
+  alert.mockRestore();
 });
 
 it("lets guests read comments and asks them to sign in before reacting", async () => {

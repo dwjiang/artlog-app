@@ -38,6 +38,7 @@ const session: SocialSession = {
   status: "ready",
   offline: false,
   accountReady: true,
+  safetyChecks: true,
   error: undefined,
   refresh: jest.fn(),
 };

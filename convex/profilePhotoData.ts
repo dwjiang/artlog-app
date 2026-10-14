@@ -7,13 +7,17 @@ import { internalQuery } from "./_generated/server";
 import { internalMutation } from "./functions";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { resolveMentions } from "./lib/mentions";
+import { safetyChecksOn } from "./lib/moderation";
 import { requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 
 export const authorize = internalQuery({
   args: {},
-  returns: v.id("profiles"),
-  handler: async (ctx) => (await requireProfile(ctx)).profile._id,
+  returns: v.object({ profileId: v.id("profiles"), bio: v.optional(v.string()), safetyChecks: v.boolean() }),
+  handler: async (ctx) => {
+    const { profile, accountId } = await requireProfile(ctx);
+    return { profileId: profile._id, bio: profile.bio, safetyChecks: await safetyChecksOn(ctx, accountId) };
+  },
 });
 
 export const save = internalMutation({
@@ -48,9 +52,12 @@ export const save = internalMutation({
     }
     const photoStorageId = input.photo === undefined ? profile.photoStorageId : (input.photo ?? undefined);
     if (photoStorageId) await retainFile(ctx, photoStorageId, true);
-    const bioMentions = await resolveMentions(ctx, fields.bio ?? "", profile._id, profile.bioMentions);
+    // An omitted bio keeps the current one, which someone with safety checks off can't resubmit.
+    const bio = input.bio === undefined ? profile.bio : fields.bio;
+    const bioMentions = await resolveMentions(ctx, bio ?? "", profile._id, profile.bioMentions);
     await ctx.db.patch("profiles", profile._id, {
       ...fields,
+      bio,
       bioMentions: bioMentions.length > 0 ? bioMentions : undefined,
       username,
       photoStorageId,
@@ -61,6 +68,6 @@ export const save = internalMutation({
     if (profile.photoStorageId && profile.photoStorageId !== photoStorageId) {
       await fileStorage.delete(ctx, profile.photoStorageId);
     }
-    return projectProfile(ctx, { ...profile, ...fields, username, photoStorageId, avatar });
+    return projectProfile(ctx, { ...profile, ...fields, bio, username, photoStorageId, avatar });
   },
 });

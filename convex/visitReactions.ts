@@ -9,7 +9,7 @@ import type { Id } from "./_generated/dataModel";
 import { action, internalAction, query, type QueryCtx } from "./_generated/server";
 import { internalMutation, mutation } from "./functions";
 import { linkedMentions, resolveMentions } from "./lib/mentions";
-import { flaggedUserTexts } from "./lib/moderation";
+import { flaggedUserTexts, requireSafetyChecks } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import { optionalProfile, requireProfile } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
@@ -225,6 +225,7 @@ export const prepareComment = internalMutation({
   handler: async (ctx, input) => {
     const { publication, accountId, existing } = await readCommentRequest(ctx, input);
     if (existing) return { commentId: existing._id, titles: [] };
+    await requireSafetyChecks(ctx, accountId);
     // Commit the attempt before moderation, so rejected text also consumes the quota.
     await limitKey(ctx, "commentVisit", accountId);
     return { commentId: null, titles: await publicationRecordTitles(ctx, publication._id) };

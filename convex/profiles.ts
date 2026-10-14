@@ -18,7 +18,7 @@ import { action, internalQuery, query, type QueryCtx } from "./_generated/server
 import { internalMutation } from "./functions";
 import { acceptedRelationships, blockedEitherWay, findBlock } from "./lib/friendships";
 import { linkedMentions, resolveMentions } from "./lib/mentions";
-import { requireAllowedBio } from "./lib/moderation";
+import { requireAllowedBio, safetyChecksOn } from "./lib/moderation";
 import { withErrorReporting } from "./lib/observability";
 import { activeProfile, optionalProfile, requireAccount, requireProfile } from "./lib/ownership";
 import { projectBrowsedProfile, projectProfile } from "./lib/projections";
@@ -37,17 +37,17 @@ export const create = action({
   handler: (ctx, input): Promise<Infer<typeof publicProfile>> =>
     withErrorReporting("profiles.create", async () => {
       validateProfile(input);
-      await ctx.runQuery(internal.profiles.requireSignedIn, {});
-      await requireAllowedBio(input.bio);
+      const { safetyChecks } = await ctx.runQuery(internal.profiles.requireSignedIn, {});
+      await requireAllowedBio(input.bio, safetyChecks);
       return ctx.runMutation(internal.profiles.insert, input);
     }),
 });
 export const requireSignedIn = internalQuery({
   args: {},
-  returns: v.null(),
+  returns: v.object({ safetyChecks: v.boolean() }),
   handler: async (ctx) => {
-    await requireAccount(ctx);
-    return null;
+    const { accountId } = await requireAccount(ctx);
+    return { safetyChecks: await safetyChecksOn(ctx, accountId) };
   },
 });
 export const insert = internalMutation({

@@ -108,6 +108,7 @@ beforeEach(() => {
     profileId: "profile-a" as never,
     offline: false,
     accountReady: true,
+    safetyChecks: true,
     refresh: jest.fn(),
     error: undefined,
   };

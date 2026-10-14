@@ -10,9 +10,10 @@ const mockSavePhoto = jest.fn();
 jest.mock("convex/react", () => ({
   useAction: (action: unknown) =>
     jest.requireActual("convex/server").getFunctionName(action) === "profiles:create" ? mockCreate : mockSavePhoto,
+  useMutation: () => jest.fn(),
 }));
 jest.mock("@/lib/social/use-social-session", () => ({
-  useSocialSession: () => ({ key: "account:a" }),
+  useSocialSession: () => ({ key: "account:a", safetyChecks: true }),
 }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: () => ({ data: true }),

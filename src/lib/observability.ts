@@ -23,6 +23,7 @@ const expectedCodes = new Set([
   "profile_not_allowed",
   "comment_not_allowed",
   "reflection_not_allowed",
+  "safety_checks_off",
   "invalid_visit",
   "invalid_save",
   "invalid_venue",

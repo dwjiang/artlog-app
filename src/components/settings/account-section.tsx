@@ -1,3 +1,4 @@
+import { Switch } from "@expo/ui";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Alert } from "react-native";
@@ -13,6 +14,7 @@ import {
 } from "@/components/grouped-list";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
+import { SAFETY_CHECKS_FOOTER, useSafetyChecks } from "@/lib/social/safety-checks";
 import { useSocialSession } from "@/lib/social/use-social-session";
 
 export function AccountSection() {
@@ -38,6 +40,7 @@ export function AccountSection() {
       },
     ]);
   const session = useSocialSession();
+  const checks = useSafetyChecks({ safetyChecks: account?.safetyChecks === true });
   const profileRequired = session.status === "profile-required";
   const status = error ? <GroupedFooter tone="destructive">{error}</GroupedFooter> : undefined;
   // Offline, the account query never resolves; keep the sign-in row instead of an endless indicator.
@@ -95,6 +98,14 @@ export function AccountSection() {
         {session.status === "ready" && (
           <NavigationRow label="Blocked People" onPress={() => router.push("/blocked-people")} />
         )}
+      </GroupedSection>
+      <GroupedSection footer={<GroupedFooter>{SAFETY_CHECKS_FOOTER}</GroupedFooter>}>
+        <Switch
+          label="Safety checks"
+          value={checks.enabled}
+          disabled={busy || checks.busy || session.offline || !session.accountReady}
+          onValueChange={(on) => void (on ? checks.turnOn() : checks.turnOff())}
+        />
       </GroupedSection>
       <GroupedButtons>
         <OutlinedListButton

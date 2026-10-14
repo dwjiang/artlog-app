@@ -18,7 +18,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { visitStyles as styles } from "./visit-ui";
 
 type NotesVisit = Pick<Visit, "localId" | "owner" | "reflection" | "visibility">;
-export type VisitNotesHandle = { save: () => Promise<boolean> };
+export type VisitNotesHandle = { save: () => Promise<boolean>; text: () => string };
 type VisitNotesProps = {
   visit: NotesVisit;
   /** Saves as the person types and on blur; off, the field stays open and saves only through the handle. */
@@ -100,7 +100,7 @@ function NoteField({
     pending: 0,
     onResult: setError,
   });
-  useImperativeHandle(ref, () => ({ save: () => persist(latest.current) }), []);
+  useImperativeHandle(ref, () => ({ save: () => persist(latest.current), text: () => latest.current.text }), []);
 
   useEffect(() => {
     const note = latest.current;

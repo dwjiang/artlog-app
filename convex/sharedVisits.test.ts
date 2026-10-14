@@ -111,6 +111,40 @@ it("refuses to publish an offensive reflection at any audience", async () => {
   });
 });
 
+it("posts notes only with safety checks on, and can post the visit without them at any audience", async () => {
+  const t = harness();
+  const a = await socialUser(t, "NoChecks", { safetyChecks: false });
+  const draft = await socialVisit(t, a);
+  const reflection = "Sat with the Water Lilies for an hour";
+  await t.run((ctx) => ctx.db.patch("visits", draft.visit._id, { reflection }));
+  vi.stubEnv("OPENAI_API_KEY", "test-openai-key");
+  const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ results: [{ flagged: false }] }));
+  vi.stubGlobal("fetch", fetchMock);
+  for (const audience of ["private", "public"] as const) {
+    await setVisitVisibility(t, a, draft.visit._id, audience);
+    await expect(
+      a.as.action(api.sharedVisits.publish, { ...draft.selection, audience, reflection }),
+    ).rejects.toMatchObject({ data: { code: "safety_checks_off" } });
+  }
+  const { postId } = await a.as.action(api.sharedVisits.publish, {
+    ...draft.selection,
+    audience: "public",
+    reflection,
+    withoutReflection: true,
+  });
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect((await t.query(api.sharedVisits.get, { postId: postId! })).reflection).toBe("");
+  expect(await a.as.query(api.sharedVisits.getState, { visitLocalId: draft.visit.localId })).toMatchObject({
+    reflection,
+    revision: 1,
+  });
+
+  await a.as.mutation(api.accounts.setSafetyChecks, { enabled: true });
+  await a.as.action(api.sharedVisits.publish, { ...draft.selection, audience: "public", reflection, revision: 1 });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect((await t.query(api.sharedVisits.get, { postId: postId! })).reflection).toBe(reflection);
+});
+
 it("shows the chosen wallpaper on the post, its feed card, and the owner's next share", async () => {
   const t = harness();
   const a = await socialUser(t);

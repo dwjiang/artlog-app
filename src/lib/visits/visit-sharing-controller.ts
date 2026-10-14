@@ -208,7 +208,8 @@ export function createVisitSharingController({
       draft.photoSelections = draft.photoSelections?.filter((row) => draft.saveLocalIds.includes(row.saveLocalId));
       emit({ draft });
     },
-    publish: () => {
+    /** `withoutReflection` posts the visit while its notes stay private. */
+    publish: ({ withoutReflection = false }: { withoutReflection?: boolean } = {}) => {
       if (!state.draft || state.acknowledged?.removed) return Promise.resolve(false);
       return run("publish", async (context, current) => {
         // Posting reads the saved visit first, so notes edited on the share screen are published as they synced.
@@ -216,7 +217,10 @@ export function createVisitSharingController({
         if (!current()) return;
         accept(fresh);
         if (fresh.removed) throw new ConvexError({ code: "not_found" });
-        const result = await transport.publish(state.draft!, context);
+        const result = await transport.publish(
+          withoutReflection ? { ...state.draft!, withoutReflection } : state.draft!,
+          context,
+        );
         if (current()) accept(result, false);
       });
     },

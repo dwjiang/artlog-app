@@ -6,7 +6,7 @@ import { WallProfileSheet } from "./wall-profile-sheet";
 
 const mockCreate = jest.fn();
 jest.mock("@/lib/social/use-social-session", () => ({
-  useSocialSession: () => ({ key: "account:test", status: "ready" }),
+  useSocialSession: () => ({ key: "account:test", status: "ready", safetyChecks: true }),
 }));
 jest.mock("@/lib/social/use-social-query", () => ({
   useSocialQuery: () => ({ data: true }),
@@ -14,6 +14,7 @@ jest.mock("@/lib/social/use-social-query", () => ({
 jest.mock("convex/react", () => ({
   useAction: (action: unknown) =>
     jest.requireActual("convex/server").getFunctionName(action) === "profiles:create" ? mockCreate : jest.fn(),
+  useMutation: () => jest.fn(),
 }));
 jest.mock("./wall-sheet", () => ({
   WallSheet: ({ children }: { children: ReactNode }) => children,

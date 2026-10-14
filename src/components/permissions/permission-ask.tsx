@@ -3,10 +3,13 @@ import { StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { SAFETY_CHECKS_LIMIT, SAFETY_CHECKS_USE } from "@/lib/social/safety-checks";
 
 const APP_ICON = require("../../../assets/images/icon.png");
 
 export type PermissionKind = "camera" | "photos" | "location" | "notifications";
+/** Safety checks ask for consent in-app; no iPhone prompt follows them. */
+type AskKind = PermissionKind | "safetyChecks";
 
 type PermissionCopy = {
   name: string;
@@ -16,8 +19,8 @@ type PermissionCopy = {
   limit: string;
 };
 
-/** What each pre-prompt says before its iPhone prompt: the headline, what the access does, and where it stops. */
-const PERMISSION_COPY: Record<PermissionKind, PermissionCopy> = {
+/** What each permission page says: the headline, what the access does, and where it stops. */
+const PERMISSION_COPY: Record<AskKind, PermissionCopy> = {
   camera: {
     name: "Camera",
     symbol: "camera.fill",
@@ -50,10 +53,17 @@ const PERMISSION_COPY: Record<PermissionKind, PermissionCopy> = {
     },
     limit: "Choose which in Settings.",
   },
+  safetyChecks: {
+    name: "Safety checks",
+    symbol: "checkmark.shield.fill",
+    headline: "Keep posts safe.",
+    use: { symbol: "text.bubble", text: SAFETY_CHECKS_USE },
+    limit: SAFETY_CHECKS_LIMIT,
+  },
 };
 
-/** A pre-prompt's copy, laid out the same on the welcome pages and in the notifications sheet. */
-export function PermissionAsk({ kind }: { kind: PermissionKind }) {
+/** A permission page's copy, laid out the same on the welcome pages and in the notifications sheet. */
+export function PermissionAsk({ kind }: { kind: AskKind }) {
   return (
     <View style={styles.ask}>
       <PermissionMark kind={kind} />
@@ -66,7 +76,7 @@ export function PermissionAsk({ kind }: { kind: PermissionKind }) {
 }
 
 /** Artlog's icon linked to the permission's tile, so the page reads as a permission request before any text. */
-function PermissionMark({ kind }: { kind: PermissionKind }) {
+function PermissionMark({ kind }: { kind: AskKind }) {
   const { name, symbol } = PERMISSION_COPY[kind];
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={`${name} permission`} style={styles.mark}>
@@ -84,7 +94,7 @@ function PermissionMark({ kind }: { kind: PermissionKind }) {
 }
 
 /** What the access does, then where it stops, on one gray card. */
-function PermissionReasons({ kind }: { kind: PermissionKind }) {
+function PermissionReasons({ kind }: { kind: AskKind }) {
   const { use, limit } = PERMISSION_COPY[kind];
   return (
     <View style={styles.reasons}>

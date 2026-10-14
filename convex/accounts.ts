@@ -13,7 +13,7 @@ import { requireDevice } from "./lib/auth";
 import { deleteUnreferencedCollectionPhotos, deleteUnreferencedPhoto } from "./lib/collectionPhotos";
 import { deleteAuthAccountBatch, retireDevice } from "./lib/deviceRetirement";
 import { withErrorReporting } from "./lib/observability";
-import { deviceScope, ownerForDevice, requireClaimComplete } from "./lib/ownership";
+import { deviceScope, ownerForDevice, requireAccount, requireClaimComplete } from "./lib/ownership";
 import { deleteSavedRecognition } from "./lib/savedRecognition";
 import { clearAttributionBatch, purgeSaveMediaBatch, purgeSocialBatch } from "./lib/socialCleanup";
 import { accountProvider } from "./lib/validators";
@@ -304,6 +304,7 @@ export const me = query({
     provider: v.union(accountProvider, v.null()),
     email: v.union(v.string(), v.null()),
     hasProfile: v.boolean(),
+    safetyChecks: v.union(v.boolean(), v.null()),
     scope: v.string(),
   }),
   handler: async (ctx) => {
@@ -329,7 +330,22 @@ export const me = query({
       provider: account?.provider ?? null,
       email: account?.email ?? null,
       hasProfile: !!profile,
+      safetyChecks: account?.safetyChecks ?? null,
       scope: deviceScope(device, await ownerForDevice(ctx, device)),
     };
+  },
+});
+
+/** `ifUnset` carries an answer given before sign-in without overriding one the account already holds. */
+export const setSafetyChecks = mutation({
+  args: { enabled: v.boolean(), ifUnset: v.optional(v.boolean()) },
+  returns: v.boolean(),
+  handler: async (ctx, { enabled, ifUnset }) => {
+    const { accountId } = await requireAccount(ctx);
+    const account = await ctx.db.get("accounts", accountId);
+    if (!account) throw new ConvexError({ code: "sign_in_required" });
+    if (ifUnset && account.safetyChecks !== undefined) return account.safetyChecks;
+    await ctx.db.patch("accounts", accountId, { safetyChecks: enabled });
+    return enabled;
   },
 });

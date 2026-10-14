@@ -1,7 +1,8 @@
 import { ConvexError } from "convex/values";
 
 import { isOffensive, isSevere } from "../../shared/social/offensive-text";
-import { env } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
+import { env, type QueryCtx } from "../_generated/server";
 import { MODERATION_MAX_TOKENS, MODERATION_PROMPT, MODERATION_SCHEMA, parseModeration } from "./labelPrompt";
 import { reportBackendError } from "./observability";
 import { mentions } from "./textMatch";
@@ -80,8 +81,19 @@ export async function flaggedUserTexts(texts: string[], recordTitles: string[]):
   return inputs.map((input) => !!input && (isSevere(input) || (verdicts?.[next++] ?? isOffensive(input))));
 }
 
-export async function requireAllowedBio(bio: string | undefined) {
-  const [flagged] = await flaggedUserTexts([bio ?? ""], []);
+export async function safetyChecksOn(ctx: QueryCtx, accountId: Id<"accounts">): Promise<boolean> {
+  return (await ctx.db.get("accounts", accountId))?.safetyChecks === true;
+}
+
+/** Text someone writes for others reaches OpenAI only after they turn on safety checks; until then it can't be posted. */
+export async function requireSafetyChecks(ctx: QueryCtx, accountId: Id<"accounts">) {
+  if (!(await safetyChecksOn(ctx, accountId))) throw new ConvexError({ code: "safety_checks_off" });
+}
+
+export async function requireAllowedBio(bio: string | undefined, safetyChecks: boolean) {
+  if (!bio?.trim()) return;
+  if (!safetyChecks) throw new ConvexError({ code: "safety_checks_off" });
+  const [flagged] = await flaggedUserTexts([bio], []);
   if (flagged) throw new ConvexError({ code: "profile_not_allowed" });
 }
 

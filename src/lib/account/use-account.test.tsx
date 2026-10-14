@@ -1,5 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 
+import * as settings from "@/db/repos/settings";
+
 import { takeProfileSetupOffer } from "./profile-setup-offer";
 import { useAccount } from "./use-account";
 
@@ -49,7 +51,9 @@ jest.mock("./google-sign-in", () => ({
   googleSignIn: () => mockGoogle(),
 }));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
-jest.mock("@/db/repos/settings", () => ({ setSetting: async () => {} }));
+jest.mock("@/db/client", () => ({
+  db: jest.requireActual("@/db/test-db").createTestDatabase(),
+}));
 jest.mock("@/lib/convex-client", () => ({
   convex: {
     mutation: (fn: unknown, args: unknown) =>
@@ -78,8 +82,10 @@ jest.mock("@/lib/observability", () => ({
   addBreadcrumb: (...args: unknown[]) => mockBreadcrumb(...args),
 }));
 
-beforeEach(() => {
+beforeEach(async () => {
+  jest.restoreAllMocks();
   jest.resetAllMocks();
+  await settings.removeSetting("safety-checks");
   takeProfileSetupOffer();
   mockAccount = { linked: false, deviceCount: 0 };
   mockAvailable.mockResolvedValue(true);
@@ -122,6 +128,65 @@ it("passes the challenge to native Apple sign-in and links after provider verifi
   expect(mockResume).toHaveBeenCalledTimes(1);
   expect(mockBreadcrumb.mock.calls).toEqual([["auth.apple_sign_in.start"], ["auth.apple_sign_in.success"]]);
   expect(mockReportError).not.toHaveBeenCalled();
+});
+
+it("carries the onboarding safety-checks answer to the account without overriding one it already has", async () => {
+  await settings.setSetting("safety-checks", "on");
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current.signInWithApple());
+  expect(await settings.getSetting("safety-checks")).toBeUndefined();
+  expect(mockMutation).toHaveBeenLastCalledWith("accounts:setSafetyChecks", { enabled: true, ifUnset: true });
+  expect(mockReportError).not.toHaveBeenCalled();
+});
+
+it("does not carry a failed consent upload to the next account that signs in", async () => {
+  await settings.setSetting("safety-checks", "on");
+  const failure = new Error("Consent write failed");
+  mockMutation.mockImplementation(async (name: string) => {
+    if (name === "accounts:setSafetyChecks") throw failure;
+    return { nonce: "apple-nonce" };
+  });
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current.signInWithApple());
+  expect(result.current.error).toBeUndefined();
+  expect(mockReportError).toHaveBeenCalledWith(failure, "social.safety_checks.carry");
+
+  await act(() => result.current.signOut());
+  mockMutation.mockResolvedValue({ nonce: "apple-nonce" });
+  await act(() => result.current.signInWithGoogle());
+  expect(mockMutation.mock.calls.filter(([name]) => name === "accounts:setSafetyChecks")).toHaveLength(1);
+  expect(await settings.getSetting("safety-checks")).toBeUndefined();
+});
+
+it("consumes the guest answer before linking so an interrupted link cannot carry it to another account", async () => {
+  await settings.setSetting("safety-checks", "on");
+  let finish!: () => void;
+  mockMutation.mockImplementation((name: string) =>
+    name === "accounts:linkAccount"
+      ? new Promise<void>((resolve) => (finish = resolve))
+      : Promise.resolve({ nonce: "apple-nonce" }),
+  );
+  const { result } = await renderHook(useAccount);
+  let signIn!: Promise<void>;
+  await act(async () => {
+    signIn = result.current.signInWithApple();
+  });
+  await waitFor(() => expect(mockMutation).toHaveBeenCalledWith("accounts:linkAccount", expect.anything()));
+  expect(await settings.getSetting("safety-checks")).toBeUndefined();
+  await act(async () => {
+    finish();
+    await signIn;
+  });
+});
+
+it("does not link an account when its guest consent cannot be consumed", async () => {
+  const failure = new Error("Disk unavailable");
+  jest.spyOn(settings, "takeSetting").mockRejectedValueOnce(failure);
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current.signInWithApple());
+  expect(mockMutation).not.toHaveBeenCalledWith("accounts:linkAccount", expect.anything());
+  expect(mockMutation).not.toHaveBeenCalledWith("accounts:setSafetyChecks", expect.anything());
+  expect(result.current.error).toContain("try again");
 });
 
 it("verifies Google before linking its attested identity and offering profile setup", async () => {
