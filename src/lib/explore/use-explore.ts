@@ -1,11 +1,9 @@
-import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useNetworkState } from "expo-network";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { useCurrentMinute } from "@/hooks/use-current-minute";
 import { useLocalOwner } from "@/lib/account/owner-store";
-import { isNetworkError } from "@/lib/network-error";
 import { isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
@@ -110,9 +108,6 @@ export function useExplore(): ExploreView<ExploreData> {
     picked
     ?? (home === undefined ? undefined : defaultCity(regions.data ?? [], { fix, home: home ?? undefined, timeZone }));
   const catalog = useSocialQuery(api.exhibitions.inRegion, !cityId ? "skip" : { region: cityId, asOf }, "explore");
-  useRegionRefresh(cityId, offline);
-  // The phone's own region is read on schedule too, so its listings appear once its museums post shows.
-  useRegionRefresh(home && home !== cityId ? home : undefined, offline);
   const city = cities.find((candidate) => candidate.id === cityId);
   const following = !picked && fix !== undefined;
   const data = useMemo(() => {
@@ -132,18 +127,6 @@ export function useExplore(): ExploreView<ExploreData> {
   if (regions.error || catalog.error) return { status: "error", retry };
   if (regions.data?.length === 0) return { status: "empty", retry };
   return data ? { status: "ready", data, retry } : { status: "loading", retry };
-}
-
-/** Tells the backend about a region Explore shows or the phone is in, so it keeps its museum listings current. */
-function useRegionRefresh(region: string | undefined, offline: boolean) {
-  const requestRegion = useMutation(api.exhibitionRefresh.requestRegion);
-  const deviceReady = useDeviceReady();
-  useEffect(() => {
-    if (!region || !deviceReady || offline) return;
-    requestRegion({ region }).catch((cause: unknown) => {
-      if (!isNetworkError(cause)) reportError(cause, "explore.region.refresh");
-    });
-  }, [region, deviceReady, offline, requestRegion]);
 }
 
 type Catalog = FunctionReturnType<typeof api.exhibitions.inRegion>;

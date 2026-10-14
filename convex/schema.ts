@@ -383,7 +383,7 @@ export default defineSchema({
     leasedUntil: v.optional(v.number()),
   })
     .index("by_museumId", ["museumId"])
-    .index("by_checkedAt_dueAt", ["checkedAt", "dueAt"])
+    .index("by_dueAt", ["dueAt"])
     .index("by_region_dueAt", ["region", "dueAt"]),
 
   // Request slots belong to the fetch host, including robots and redirects, across every refresh worker.
@@ -397,14 +397,6 @@ export default defineSchema({
   })
     .index("by_owner_exhibitionId", ["owner", "exhibitionId"])
     .index("by_owner_savedAt", ["owner", "savedAt"]),
-
-  // When Explore last showed each region; recently shown regions have their listings read on schedule.
-  exploreRegionViews: defineTable({
-    region: v.string(),
-    viewedAt: v.number(),
-  })
-    .index("by_region", ["region"])
-    .index("by_viewedAt", ["viewedAt"]),
 
   // A museum's Commons photo for the Now card, looked up the first time someone sees the museum there.
   // `checkedAt` stays unset while a lookup is pending; a checked row without `file` means no usable photo.

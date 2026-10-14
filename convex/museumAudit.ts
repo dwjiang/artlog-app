@@ -3,6 +3,7 @@ import { ConvexError, type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internalAction, internalQuery, type QueryCtx } from "./_generated/server";
+import { syncRefresh } from "./exhibitionRefresh";
 import { internalMutation } from "./functions";
 import { MAX_BATCH_ROWS } from "./ingest";
 import { withErrorReporting } from "./lib/observability";
@@ -104,6 +105,11 @@ export const commitBatch = internalMutation({
         continue;
       }
       await ctx.db.patch("museums", museum._id, { excludedFromDiscovery, mergedInto });
+      const source = await ctx.db
+        .query("exhibitionSources")
+        .withIndex("by_museumId", (q) => q.eq("museumId", museum._id))
+        .unique();
+      if (source) await syncRefresh(ctx, { ...museum, excludedFromDiscovery, mergedInto }, source);
       changed.push(museum._id);
     }
     // Validate after all patches so a batch can redirect incoming aliases before merging their survivor.

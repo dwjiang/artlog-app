@@ -9,6 +9,7 @@ import { jsonResponse } from "./lib/labelFixtures";
 import { readSpend, seedDevice, seedMuseum } from "./lib/testFactories";
 import { harness, type Harness } from "./test.helpers";
 
+const realSetTimeout = globalThis.setTimeout;
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-10-09T19:00:00Z");
 const MODEL = "https://api.tokenfactory.nebius.com/v1/chat/completions";
@@ -156,10 +157,31 @@ async function listedMuseum(t: Harness, host: string, region = BAY_AREA) {
   return { museumId, url };
 }
 
-const runScheduled = (t: Harness) => t.finishAllScheduledFunctions(() => vi.runOnlyPendingTimersAsync());
+// Finish this attempt without advancing into tomorrow's retries or stale-lease recovery.
+async function runScheduled(t: Harness, through = Date.now() + 10 * 60_000) {
+  for (let step = 0; step < 1000; step++) {
+    await vi.advanceTimersByTimeAsync(0);
+    let finished = false;
+    const finishing = t.finishInProgressScheduledFunctions().then(() => {
+      finished = true;
+    });
+    for (let pump = 0; !finished && pump < 1000; pump++) {
+      await new Promise((resolve) => realSetTimeout(resolve, 0));
+      if (!finished) await vi.advanceTimersByTimeAsync(1000);
+    }
+    if (!finished) throw new Error("Listing worker did not finish");
+    await finishing;
+    const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    const next = Math.min(...jobs.filter((job) => job.state.kind === "pending").map((job) => job.scheduledTime));
+    if (!Number.isFinite(next) || next > through) return;
+    if (next <= Date.now()) await vi.advanceTimersToNextTimerAsync();
+    else await vi.advanceTimersByTimeAsync(next - Date.now());
+  }
+  throw new Error("Scheduled listing reads did not settle");
+}
 
 async function readDue(t: Harness) {
-  await t.mutation(internal.exhibitionRefresh.dispatch, {});
+  await t.mutation(internal.exhibitionRefresh.readDueListings, {});
   await runScheduled(t);
 }
 
@@ -212,37 +234,31 @@ describe("exhibition listing refresh", () => {
     expect(await readSpend(t)).toEqual({ tokenFactoryCalls: 1, tavilyCredits: 0 });
   });
 
-  it("keeps regions Explore shows on schedule, skips the model for unchanged pages and leaves other regions until opened", async () => {
+  it("re-reads listings on the daily run once they are due, skipping the model for unchanged pages", async () => {
     const t = harness();
-    const { as } = await seedDevice(t);
-    const shown = await listedMuseum(t, "museum.example");
-    const unseen = await listedMuseum(t, "elsewhere.example", "Elsewhere");
-    for (const { url } of [shown, unseen]) web[url] = { body: listing(TIDES.html) };
-    answer = (request) => {
-      const url = request.messages[1].content.includes("elsewhere.example") ? unseen.url : shown.url;
-      return modelAnswer([TIDES.candidate(url)]);
-    };
+    const { museumId, url } = await listedMuseum(t, "museum.example");
+    web[url] = { body: listing(TIDES.html) };
+    answer = () => modelAnswer([TIDES.candidate(url)]);
     await readDue(t);
-    expect(requested(MODEL)).toHaveLength(2);
+    expect(requested(MODEL)).toHaveLength(1);
 
     const later = NOW + 26 * DAY;
     vi.setSystemTime(later);
-    await as.mutation(api.exhibitionRefresh.requestRegion, { region: BAY_AREA });
-    await runScheduled(t);
-    expect(requested(shown.url)).toHaveLength(2);
-    expect(requested(MODEL)).toHaveLength(2);
-    const checked = (await refreshRow(t, shown.museumId))!;
+    await readDue(t);
+    expect(requested(url)).toHaveLength(2);
+    expect(requested(MODEL)).toHaveLength(1);
+    const checked = (await refreshRow(t, museumId))!;
     expect(checked.checkedAt).toBeGreaterThanOrEqual(later);
     expect(checked.dueAt).toBe(checked.checkedAt! + 30 * DAY);
 
     vi.setSystemTime(later + 29 * DAY);
-    await as.mutation(api.exhibitionRefresh.requestRegion, { region: BAY_AREA });
-    vi.setSystemTime(later + 31 * DAY);
-    web[shown.url] = { body: listing(`${TIDES.html}<p>Paper Worlds opens soon.</p>`) };
     await readDue(t);
-    expect(requested(shown.url)).toHaveLength(3);
-    expect(requested(MODEL)).toHaveLength(3);
-    expect(requested(unseen.url)).toHaveLength(1);
+    expect(requested(url)).toHaveLength(2);
+    vi.setSystemTime(later + 31 * DAY);
+    web[url] = { body: listing(`${TIDES.html}<p>Paper Worlds opens soon.</p>`) };
+    await readDue(t);
+    expect(requested(url)).toHaveLength(3);
+    expect(requested(MODEL)).toHaveLength(2);
   });
 
   it("reads numeric dates in the order of the museum's country", async () => {
@@ -416,7 +432,6 @@ describe("exhibition listing refresh", () => {
 
   it("refreshes an extended exhibition when only its linked detail page changes", async () => {
     const t = harness();
-    const { as } = await seedDevice(t);
     const { museumId, url } = await listedMuseum(t, "museum.example");
     const showUrl = "https://museum.example/exhibitions/tides";
     web[url] = { body: listing('<a href="/exhibitions/tides">Tides of Light</a>') };
@@ -439,8 +454,7 @@ describe("exhibition listing refresh", () => {
     web[showUrl] = { body: showDetail(dated) };
     const later = NOW + 26 * DAY;
     vi.setSystemTime(later);
-    await as.mutation(api.exhibitionRefresh.requestRegion, { region: BAY_AREA });
-    await runScheduled(t);
+    await readDue(t);
 
     const catalog = await t.query(api.exhibitions.atMuseum, { museumId, asOf: later });
     expect(catalog.exhibitions).toEqual([
@@ -649,10 +663,106 @@ describe("exhibition listing refresh", () => {
 
     expect(requested(MODEL)).toHaveLength(2);
     const row = await refreshRow(t, museumId);
-    expect(row).toMatchObject({ failures: 1, dueAt: Date.now() + DAY });
+    expect(row).toMatchObject({ failures: 1 });
+    expect(row?.dueAt).toBeGreaterThanOrEqual(NOW + DAY);
+    expect(row?.dueAt).toBeLessThanOrEqual(Date.now() + DAY);
     expect(row?.checkedAt).toBeUndefined();
     expect(row?.pageHash).toBeUndefined();
     expect(await readSpend(t)).toEqual({ tokenFactoryCalls: 2, tavilyCredits: 0 });
+  });
+
+  it("works through a backlog of new listings one spaced batch at a time until none is left", async () => {
+    const t = harness();
+    for (let index = 0; index < 21; index++) {
+      const { url } = await listedMuseum(t, `museum-${index}.example`);
+      web[url] = { body: listing(TIDES.html) };
+    }
+    const rows = () => t.run((ctx) => ctx.db.query("exhibitionRefreshes").collect());
+
+    await t.mutation(internal.exhibitionRefresh.readDueListings, {});
+    expect((await rows()).filter((row) => row.leasedUntil !== undefined)).toHaveLength(20);
+    await runScheduled(t);
+
+    const checkedAt = (await rows()).map((row) => row.checkedAt);
+    expect(checkedAt.every((at) => at !== undefined)).toBe(true);
+    expect(Math.max(...(checkedAt as number[]))).toBeGreaterThanOrEqual(NOW + 24_000);
+    expect(requested(MODEL)).toHaveLength(21);
+  });
+
+  it("retries a failed read on the first daily run after its backoff, without a job of its own", async () => {
+    const t = harness();
+    const { museumId, url } = await listedMuseum(t, "retry.example");
+    web[url] = { status: 429 };
+    await readDue(t);
+    const failed = (await refreshRow(t, museumId))!;
+    expect(failed.failures).toBe(1);
+    const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(jobs.filter((job) => job.state.kind === "pending")).toEqual([]);
+    web[url] = { body: listing(TIDES.html) };
+
+    await readDue(t);
+    expect(requested(url)).toHaveLength(1);
+    vi.setSystemTime(failed.dueAt);
+    await readDue(t);
+
+    expect(await refreshRow(t, museumId)).toMatchObject({ failures: 0 });
+    expect((await refreshRow(t, museumId))!.checkedAt).toBeGreaterThanOrEqual(failed.dueAt);
+    expect(requested(url)).toHaveLength(2);
+  });
+
+  it("continues the backlog while slow workers still hold earlier rows", async () => {
+    const t = harness();
+    for (let index = 0; index < 41; index++) {
+      const { url } = await listedMuseum(t, `slow-${index}.example`);
+      web[url] = { body: listing(TIDES.html) };
+    }
+    const normalFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input) === MODEL) await new Promise((resolve) => setTimeout(resolve, 30_000));
+      return normalFetch(input, init);
+    });
+
+    await readDue(t);
+
+    const rows = await t.run((ctx) => ctx.db.query("exhibitionRefreshes").collect());
+    expect(rows.filter((row) => row.checkedAt !== undefined)).toHaveLength(41);
+    expect(Date.now()).toBeLessThan(NOW + 10 * 60_000);
+    expect(requested(MODEL)).toHaveLength(41);
+  });
+
+  it("stops when the day's background budget is spent and resumes on the next day's run", async () => {
+    const t = harness();
+    const { museumId, url } = await listedMuseum(t, "budget.example");
+    web[url] = { body: listing(TIDES.html) };
+    await t.mutation(internal.spend.record, { tavilyCredits: 1000 });
+
+    await readDue(t);
+    expect(requested(url)).toHaveLength(0);
+    const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(jobs.filter((job) => job.state.kind === "pending")).toEqual([]);
+
+    vi.setSystemTime(Date.parse("2026-10-10T10:23:00Z"));
+    await readDue(t);
+
+    expect((await refreshRow(t, museumId))!.checkedAt).toBeGreaterThanOrEqual(Date.parse("2026-10-10T10:23:00Z"));
+    expect(requested(url)).toHaveLength(1);
+  });
+
+  it("recovers a listing whose worker died with a lease on a later run", async () => {
+    const t = harness();
+    const { museumId, url } = await listedMuseum(t, "leased.example");
+    const row = (await refreshRow(t, museumId))!;
+    const leasedUntil = NOW + 15 * 60_000;
+    await t.run((ctx) => ctx.db.patch("exhibitionRefreshes", row._id, { leasedUntil }));
+    web[url] = { body: listing(TIDES.html) };
+    await readDue(t);
+    expect(requested(url)).toHaveLength(0);
+
+    vi.setSystemTime(NOW + DAY);
+    await readDue(t);
+
+    expect((await refreshRow(t, museumId))!.checkedAt).toBeGreaterThanOrEqual(NOW + DAY);
+    expect(requested(url)).toHaveLength(1);
   });
 
   it("stops background reads at half of either daily cap", async () => {
@@ -668,15 +778,24 @@ describe("exhibition listing refresh", () => {
   it("reads nothing until the deployment turns it on", async () => {
     vi.stubEnv("FLAG_EXHIBITION_REFRESH", undefined);
     const t = harness();
-    const { as } = await seedDevice(t);
     await listedMuseum(t, "museum.example");
 
     await readDue(t);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts Explore's region requests from older app builds without reading anything", async () => {
+    const t = harness();
+    const { as } = await seedDevice(t);
+    await listedMuseum(t, "museum.example");
+
     await as.mutation(api.exhibitionRefresh.requestRegion, { region: BAY_AREA });
     await runScheduled(t);
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(await t.run((ctx) => ctx.db.query("exploreRegionViews").collect())).toEqual([]);
+    const jobs = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+    expect(jobs).toEqual([]);
   });
 
   it("follows listing discovery: schedules imported listings and drops museums that lost theirs", async () => {
@@ -711,9 +830,85 @@ describe("exhibition listing refresh", () => {
     expect(await refreshRow(t, imported)).toMatchObject({ dueAt: Date.now(), failures: 0 });
   });
 
-  it("leaves a dormant region off Explore's cities until a phone there asks for it", async () => {
+  it("never schedules or fetches listings of museums Explore hides or merged away", async () => {
     const t = harness();
-    const { as } = await seedDevice(t);
+    const { museumId: kept, url } = await listedMuseum(t, "museum.example");
+    const hidden = await t.run((ctx) =>
+      seedMuseum(ctx, { website: "https://hidden.example", region: BAY_AREA, excludedFromDiscovery: true }),
+    );
+    await t.action(internal.exhibitionSources.upsertBatch, {
+      records: [source(hidden, "https://hidden.example/exhibitions")],
+    });
+    const merged = await t.run(async (ctx) => {
+      const id = await seedMuseum(ctx, { website: "https://merged.example", region: BAY_AREA, mergedInto: kept });
+      await ctx.db.insert("exhibitionSources", source(id, "https://merged.example/exhibitions"));
+      return id;
+    });
+    await t.mutation(internal.exhibitionRefresh.backfill, { cursor: null });
+    await runScheduled(t);
+    expect(await refreshRow(t, hidden)).toBeNull();
+    expect(await refreshRow(t, merged)).toBeNull();
+
+    await t.run((ctx) => ctx.db.patch("museums", kept, { excludedFromDiscovery: true }));
+    web[url] = { body: listing(TIDES.html) };
+    await readDue(t);
+    expect(requested(url)).toHaveLength(0);
+  });
+
+  it.each([
+    { importedBeforeAudit: false, merged: false },
+    { importedBeforeAudit: false, merged: true },
+    { importedBeforeAudit: true, merged: false },
+    { importedBeforeAudit: true, merged: true },
+  ])(
+    "resumes listing reads after an audit restores a museum (imported before audit: $importedBeforeAudit, merged: $merged)",
+    async ({ importedBeforeAudit, merged }) => {
+      const t = harness();
+      const museumId = await t.run((ctx) =>
+        seedMuseum(ctx, {
+          key: "restored",
+          name: "Verified Museum",
+          website: "https://museum.example",
+          lat: 37.785,
+          lng: -122.401,
+          region: BAY_AREA,
+        }),
+      );
+      if (merged) await t.run((ctx) => seedMuseum(ctx, { key: "survivor" }));
+      const url = "https://museum.example/exhibitions";
+      const records = [source(museumId, url)];
+      if (importedBeforeAudit) await t.action(internal.exhibitionSources.upsertBatch, { records });
+      await t.action(internal.museumAudit.applyBatch, {
+        records: [{ key: "restored", excludedFromDiscovery: true, ...(merged ? { duplicateOf: "survivor" } : {}) }],
+      });
+      if (!importedBeforeAudit) await t.action(internal.exhibitionSources.upsertBatch, { records });
+      expect(await refreshRow(t, museumId)).toBeNull();
+      web[url] = { body: listing(TIDES.html) };
+      answer = () => modelAnswer([TIDES.candidate(url)]);
+      await readDue(t);
+      expect(requested(url)).toHaveLength(0);
+      expect(await t.query(api.exhibitions.regions, { asOf: NOW })).toEqual([]);
+
+      const restored = { records: [{ key: "restored", excludedFromDiscovery: false }] };
+      await t.action(internal.museumAudit.applyBatch, restored);
+      const row = await refreshRow(t, museumId);
+      expect(row).toMatchObject({ dueAt: Date.now(), region: BAY_AREA, failures: 0 });
+      expect(await t.query(api.exhibitions.regions, { asOf: NOW })).toEqual([]);
+      await readDue(t);
+      expect(requested(url)).toHaveLength(1);
+      expect((await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW })).exhibitions).toHaveLength(1);
+      expect(await t.query(api.exhibitions.regions, { asOf: NOW })).toEqual([
+        { region: BAY_AREA, lat: 37.785, lng: -122.401 },
+      ]);
+
+      const checked = await refreshRow(t, museumId);
+      await t.action(internal.museumAudit.applyBatch, restored);
+      expect(await refreshRow(t, museumId)).toEqual(checked);
+    },
+  );
+
+  it("keeps re-reading a dormant museum while its empty region stays off Explore", async () => {
+    const t = harness();
     const { museumId, url } = await listedMuseum(t, "museum.example");
     web[url] = { body: listing(TIDES.html) };
     answer = () => modelAnswer([]);
@@ -721,24 +916,20 @@ describe("exhibition listing refresh", () => {
 
     vi.setSystemTime(NOW + 40 * DAY);
     await readDue(t);
-    expect(requested(url)).toHaveLength(1);
-    expect(await t.query(api.exhibitions.regions, { asOf: NOW + 40 * DAY })).toEqual([]);
-
-    await as.mutation(api.exhibitionRefresh.requestRegion, { region: BAY_AREA });
-    await runScheduled(t);
     expect(requested(url)).toHaveLength(2);
-    expect(await refreshRow(t, museumId)).toMatchObject({ checkedAt: expect.any(Number) });
+    expect((await refreshRow(t, museumId))!.checkedAt).toBeGreaterThanOrEqual(NOW + 40 * DAY);
+    expect(await t.query(api.exhibitions.regions, { asOf: NOW + 40 * DAY })).toEqual([]);
   });
 
   it("ignores an old worker after listing discovery replaces its source", async () => {
     const t = harness();
     const { museumId, url } = await listedMuseum(t, "museum.example");
-    await t.mutation(internal.exhibitionRefresh.dispatch, {});
+    await t.mutation(internal.exhibitionRefresh.readDueListings, {});
     const old = (await refreshRow(t, museumId))!;
     await t.action(internal.exhibitionSources.upsertBatch, {
       records: [source(museumId, `${url}/new`, { checkedAt: NOW })],
     });
-    await t.mutation(internal.exhibitionRefresh.dispatch, {});
+    await t.mutation(internal.exhibitionRefresh.readDueListings, {});
     await t.mutation(internal.exhibitionRefresh.recordCheck, {
       refreshId: old._id,
       leasedUntil: old.leasedUntil!,
@@ -754,9 +945,8 @@ describe("exhibition listing refresh", () => {
     expect(requested(`${url}/new`)).toHaveLength(1);
   });
 
-  it("shares host spacing and crawl delays across batches and region requests", async () => {
+  it("shares host spacing and crawl delays across batches", async () => {
     const t = harness();
-    const { as } = await seedDevice(t);
     const times: number[] = [];
     const respond = fetchMock.getMockImplementation()!;
     fetchMock.mockImplementation(async (input, init) => {
@@ -771,9 +961,8 @@ describe("exhibition listing refresh", () => {
       const { url } = await listedMuseum(t, "museum.example");
       web[url] = { body: listing(TIDES.html) };
     }
-    await t.mutation(internal.exhibitionRefresh.dispatch, {});
+    await t.mutation(internal.exhibitionRefresh.readDueListings, {});
     await listedMuseum(t, "museum.example", "Elsewhere");
-    await as.mutation(api.exhibitionRefresh.requestRegion, { region: "Elsewhere" });
     await runScheduled(t);
 
     expect(requested("https://museum.example/exhibitions")).toHaveLength(22);
@@ -801,7 +990,8 @@ describe("exhibition listing refresh", () => {
 
       const row = (await refreshRow(t, museumId))!;
       expect(row.failures).toBe(1);
-      expect(row.dueAt).toBe(Date.now() + DAY);
+      expect(row.dueAt).toBeGreaterThanOrEqual(NOW + DAY);
+      expect(row.dueAt).toBeLessThanOrEqual(Date.now() + DAY);
       expect(row.checkedAt).toBeUndefined();
       expect(row.pageHash).toBeUndefined();
       expect((await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW })).exhibitions).toHaveLength(1);
