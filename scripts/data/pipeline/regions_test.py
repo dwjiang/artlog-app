@@ -12,6 +12,12 @@ def test_bay_area_coordinates_and_rural_country_fallback():
     assert region_for(replace(SF, lat=41, lng=-100), config) == "country:US"
 
 
+def test_metro_radius_is_100_km_from_the_center():
+    config = load_regions()
+    assert region_for(replace(SF, lat=38.58, lng=-122.4194), config) == "sf-bay-area"
+    assert region_for(replace(SF, lat=38.70, lng=-122.4194), config) == "country:US"
+
+
 def test_country_must_match_even_when_admin_or_coordinates_match():
     assert (
         region_for(replace(SF, country_iso="CA", admin_qids=("Q62",)), load_regions())

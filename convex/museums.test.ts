@@ -87,6 +87,42 @@ it("deduplicates names within 100 m without replacing the existing website or pr
   expect((await t.query(api.venueChanges.list, { since: 0 })).venues).toEqual([]);
 });
 
+it("confirms an audited alias as its surviving museum while preserving the alias and past references", async () => {
+  const { t, user, venueId } = await fixture({ name: poi.name, lat: 10, lng: 20 });
+  const survivor = await t.run((ctx) =>
+    seedMuseum(ctx, { key: "survivor", name: "Canonical Museum", lat: 11, lng: 20 }),
+  );
+  const alias = (await t.run((ctx) => ctx.db.get("museums", venueId)))!;
+  await t.action(internal.museumAudit.applyBatch, {
+    records: [{ key: alias.key, excludedFromDiscovery: true, duplicateOf: "survivor" }],
+  });
+  expect(await confirm(user)).toMatchObject({ venueId: survivor, venue: { id: survivor, name: "Canonical Museum" } });
+  expect(await t.run((ctx) => ctx.db.get("museums", venueId))).toMatchObject({
+    excludedFromDiscovery: true,
+    mergedInto: survivor,
+  });
+  expect((await t.query(internal.ingest.counts, {})).museums).toBe(0);
+  expect(await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect())).toHaveLength(0);
+});
+
+it.each([false, true])("refuses excluded POIs without creating a replacement (alias: %s)", async (isAlias) => {
+  const { t, user, venueId } = await fixture({ name: poi.name, lat: 10, lng: 20 });
+  const venue = (await t.run((ctx) => ctx.db.get("museums", venueId)))!;
+  const records: { key: string; excludedFromDiscovery: boolean; duplicateOf?: string }[] = [
+    { key: venue.key, excludedFromDiscovery: true },
+  ];
+  if (isAlias) {
+    await t.run((ctx) => seedMuseum(ctx, { key: "survivor", lat: 11, lng: 20 }));
+    records[0].duplicateOf = "survivor";
+    records.push({ key: "survivor", excludedFromDiscovery: true });
+  }
+  await t.action(internal.museumAudit.applyBatch, { records });
+  await expect(confirm(user)).rejects.toMatchObject({ data: { code: "venue_unavailable" } });
+  expect((await t.query(internal.ingest.exportVenues, {})).page).toHaveLength(isAlias ? 2 : 1);
+  expect((await t.query(internal.ingest.counts, {})).museums).toBe(0);
+  expect(await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect())).toHaveLength(0);
+});
+
 it("does not deduplicate distant names and uses unknown region beyond 60 km", async () => {
   const { t, user, venueId } = await fixture({
     name: poi.name,

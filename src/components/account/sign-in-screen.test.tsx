@@ -34,6 +34,8 @@ jest.mock("expo-router", () => ({
   useRouter: () => mockRouter,
   Stack: { Screen: () => null },
 }));
+const mockOpenBrowser = jest.fn();
+jest.mock("expo-web-browser", () => ({ openBrowserAsync: (url: string) => mockOpenBrowser(url) }));
 jest.mock("expo-network", () => ({
   useNetworkState: () => ({
     isConnected: mockOnline,
@@ -65,6 +67,16 @@ it("shows context, starts Apple sign-in, and lets a guest dismiss", async () => 
   expect(mockBack).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
   expect(mockBack).toHaveBeenCalledTimes(1);
+});
+
+it("links the terms and privacy policy under the sign-in buttons", async () => {
+  process.env.EXPO_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
+  await render(<SignInScreen />);
+  expect(screen.getByText(/By continuing, you agree to our Terms of Service/)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("link", { name: "Terms of Service" }));
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/terms");
+  await fireEvent.press(screen.getByRole("link", { name: "Privacy Policy" }));
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/privacy");
 });
 
 it("keeps sign-in errors retryable and closes only after linking finishes", async () => {

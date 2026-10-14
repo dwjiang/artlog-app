@@ -5,6 +5,8 @@ from typing import NotRequired, TypedDict
 from .model_version import REPO_ROOT
 from .wikidata import VenueRow, distance_km
 
+METRO_RADIUS_KM = 100
+
 
 class Region(TypedDict):
     name: str
@@ -25,6 +27,6 @@ def region_for(row: VenueRow, regions_config: Mapping[str, Region]) -> str:
             continue
         distance = distance_km(row.lat, row.lng, region["center"])
         admin_match = bool(set(row.admin_qids).intersection(region.get("adminQids", [])))
-        if admin_match or distance <= 60:
+        if admin_match or distance <= METRO_RADIUS_KM:
             candidates.append((not admin_match, distance, key))
     return min(candidates)[2] if candidates else f"country:{row.country_iso}"

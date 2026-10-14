@@ -277,6 +277,69 @@ describe("verified exhibition import", () => {
 describe("Explore region catalog", () => {
   const REGION = "sf-bay-area";
 
+  it("hides audited museums and shows from discovery while retaining their records and imported evidence", async () => {
+    const { t, museumId } = await fixture({ region: REGION });
+    await t.action(internal.exhibitions.upsertBatch, { records: [exhibition()] });
+    const [stored] = await t.query(internal.exhibitions.exportByVenueKeys, { venueKeys: [VENUE_KEY] });
+    expect((await t.query(api.exhibitions.inRegion, { region: REGION, asOf: NOW })).museums).toHaveLength(1);
+    await t.action(internal.museumAudit.applyBatch, {
+      records: [{ key: VENUE_KEY, excludedFromDiscovery: true }],
+    });
+    expect(await t.query(api.exhibitions.inRegion, { region: REGION, asOf: NOW })).toEqual({
+      museums: [],
+      exhibitions: [],
+    });
+    expect(await t.query(api.exhibitions.regions, { asOf: NOW })).toEqual([]);
+    expect(await t.query(api.exhibitions.atMuseum, { museumId, asOf: NOW })).toEqual({ museums: [], exhibitions: [] });
+    expect(await t.run((ctx) => ctx.db.get("museums", museumId))).toMatchObject({ excludedFromDiscovery: true });
+    expect(await t.query(internal.exhibitions.exportByVenueKeys, { venueKeys: [VENUE_KEY] })).toEqual([stored]);
+  });
+
+  it("lists a museum's shows and refresh schedule under its new region after a reseed moves it", async () => {
+    const { t, museumId } = await fixture({ region: "country:US" });
+    await t.action(internal.exhibitions.upsertBatch, { records: [exhibition()] });
+    await t.run((ctx) =>
+      ctx.db.insert("exhibitionRefreshes", { museumId, region: "country:US", dueAt: NOW, failures: 0 }),
+    );
+    const { _id, _creationTime, optOut, contributionRevision, ...row } = (await t.run((ctx) =>
+      ctx.db.get("museums", museumId),
+    ))!;
+    await t.mutation(internal.ingest.upsertMuseums, { rows: [{ ...row, region: REGION }] });
+    expect((await t.query(api.exhibitions.inRegion, { region: REGION, asOf: NOW })).exhibitions).toHaveLength(1);
+    expect((await t.query(api.exhibitions.inRegion, { region: "country:US", asOf: NOW })).exhibitions).toEqual([]);
+    // With the show gone, only the refresh schedule keeps the region on the Explore map.
+    await t.run(async (ctx) => {
+      for (const show of await ctx.db.query("exhibitions").collect()) await ctx.db.delete("exhibitions", show._id);
+    });
+    expect((await t.query(api.exhibitions.regions, { asOf: NOW })).map(({ region }) => region)).toEqual([REGION]);
+  });
+
+  it.each([false, true])("keeps saved shows readable after discovery exclusion (alias: %s)", async (alias) => {
+    const { t, museumId } = await fixture({ region: REGION });
+    await t.action(internal.exhibitions.upsertBatch, { records: [exhibition()] });
+    const [stored] = await t.query(internal.exhibitions.exportByVenueKeys, { venueKeys: [VENUE_KEY] });
+    const args = { exhibitionIds: [stored.exhibitionId], asOf: NOW };
+    const before = await t.query(api.exhibitions.byIds, args);
+    if (alias) await t.run((ctx) => seedMuseum(ctx, { key: "survivor" }));
+    await t.action(internal.museumAudit.applyBatch, {
+      records: [{ key: VENUE_KEY, excludedFromDiscovery: true, ...(alias ? { duplicateOf: "survivor" } : {}) }],
+    });
+
+    expect(await t.query(api.exhibitions.byIds, args)).toEqual(before);
+    expect(await t.query(api.exhibitions.inRegion, { region: REGION, asOf: NOW })).toEqual({
+      museums: [],
+      exhibitions: [],
+    });
+    expect(await t.query(api.exhibitions.byIds, { ...args, asOf: stored.finalEndAt + 1 })).toEqual({
+      museums: [],
+      exhibitions: [],
+    });
+    await t.run((ctx) =>
+      ctx.db.insert("optOuts", { target: { kind: "venue", venueId: museumId }, requester: "museum", receivedAt: NOW }),
+    );
+    expect(await t.query(api.exhibitions.byIds, args)).toEqual({ museums: [], exhibitions: [] });
+  });
+
   it("looks up saved exhibitions and museum details independently of a browsing region", async () => {
     const { t, museumId } = await fixture({ region: REGION });
     const otherMuseumId = await t.run((ctx) =>

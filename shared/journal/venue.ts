@@ -11,5 +11,7 @@ export const journalVenue = v.object({
   city: v.optional(v.string()),
   cityKey: v.optional(v.string()),
   country: v.optional(v.string()),
+  excludedFromDiscovery: v.optional(v.boolean()),
+  mergedInto: v.optional(v.id("museums")),
 });
 export type JournalVenue = Infer<typeof journalVenue>;

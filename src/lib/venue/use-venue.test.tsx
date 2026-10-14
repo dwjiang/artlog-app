@@ -18,6 +18,7 @@ const mockPush = jest.fn();
 const mockMutation = jest.fn();
 const mockSearchNearby = jest.fn();
 const mockNearest = jest.fn();
+const mockFilterExcludedPlaces = jest.fn();
 const mockInsertConfirmed = jest.fn();
 const mockCoordinates = jest.fn();
 const mockVenueName = jest.fn();
@@ -131,6 +132,7 @@ jest.mock("./venue-db", () => ({
   venueNameById: (...args: unknown[]) => mockVenueName(...args),
   openVenueDb: async () => "venue-db",
   nearest: (...args: unknown[]) => mockNearest(...args),
+  filterExcludedPlaces: (...args: unknown[]) => mockFilterExcludedPlaces(...args),
   applyVenueMetadata: (...args: unknown[]) => mockInsertConfirmed(...args),
 }));
 let mockSyncRunning: Promise<void> | undefined;
@@ -246,6 +248,7 @@ beforeEach(() => {
     timestamp: mockNow,
   });
   mockNearest.mockResolvedValue([]);
+  mockFilterExcludedPlaces.mockImplementation(async (_db, places) => places);
   mockSearchNearby.mockResolvedValue([]);
   mockMutation.mockImplementation(async (ref: string) =>
     ref === "syncVisit"
@@ -491,6 +494,30 @@ describe("resolving the museum", () => {
     });
     expect(mockRequestPermission).toHaveBeenCalledTimes(1);
     expect(controller.getContext()).toEqual({ venueId: "id-met" });
+  });
+
+  it("removes known excluded MapKit fallback places while retaining unknown places and other branches", async () => {
+    const excluded = { ...place, name: "Transport Museum" };
+    const otherBranch = { ...excluded, lat: excluded.lat + 0.002, distanceMeters: 240 };
+    mockSearchNearby.mockResolvedValue([excluded, place, otherBranch]);
+    mockFilterExcludedPlaces.mockResolvedValue([place, otherBranch]);
+    await mountResolver();
+    expect(mockFilterExcludedPlaces).toHaveBeenCalledWith("venue-db", [excluded, place, otherBranch]);
+    expect(controller.getState().options).toEqual([
+      expect.objectContaining({ kind: "poi", name: place.name, lat: place.lat }),
+      expect.objectContaining({ kind: "poi", name: excluded.name, lat: otherBranch.lat }),
+    ]);
+    expect(mockMutation).not.toHaveBeenCalled();
+    expect(mockVisits.size).toBe(0);
+  });
+
+  it("leaves no fallback choice when every MapKit result is excluded", async () => {
+    mockSearchNearby.mockResolvedValue([place]);
+    mockFilterExcludedPlaces.mockResolvedValue([]);
+    await mountResolver();
+    expect(controller.getState()).toMatchObject({ status: "none", options: [] });
+    expect(mockMutation).not.toHaveBeenCalled();
+    expect(mockVisits.size).toBe(0);
   });
 
   it("pauses the visit while an expired Allow Once leaves location unanswered, and still only pauses it once declined", async () => {

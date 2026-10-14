@@ -74,6 +74,7 @@ export const catalog = query({
       const museum = await ctx.db.get("museums", row.venueId);
       if (
         museum
+        && !museum.excludedFromDiscovery
         && row.published?.count
         && row.published.modelVersion === model.modelVersion
         && !(await isVenueOptedOut(ctx, museum))

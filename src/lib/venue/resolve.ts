@@ -22,6 +22,7 @@ export type VenueRow = {
   city?: string | null;
   cityKey?: string | null;
   country?: string | null;
+  excludedFromDiscovery?: number;
 };
 
 export type VenueCandidate = VenueRow & { distanceM: number };

@@ -356,10 +356,13 @@ export default defineSchema({
     wikidataId: v.optional(v.string()),
     region: v.string(),
     optOut: v.boolean(),
+    excludedFromDiscovery: v.optional(v.boolean()),
+    mergedInto: v.optional(v.id("museums")),
     contributionRevision: v.number(),
   })
     .index("by_key", ["key"])
-    .index("by_lat", ["lat"]),
+    .index("by_lat", ["lat"])
+    .index("by_mergedInto", ["mergedInto"]),
 
   exhibitionSources: defineTable(exhibitionSource).index("by_museumId", ["museumId"]),
 

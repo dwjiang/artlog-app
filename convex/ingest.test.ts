@@ -177,6 +177,64 @@ describe("upserting museums and artworks", () => {
     expect(museums[0].optOut).toBe(false);
   });
 
+  it("inserts missing museums while atomically preserving existing documents when insertOnly is set", async () => {
+    const t = harness();
+    const { ids } = await t.mutation(internal.ingest.upsertMuseums, { rows: [met] });
+    const museumId = ids[met.key];
+    const survivor = await t.run((ctx) =>
+      ctx.db.insert("museums", {
+        ...met,
+        key: "survivor",
+        optOut: false,
+        contributionRevision: 0,
+      }),
+    );
+    await t.run((ctx) =>
+      ctx.db.patch("museums", museumId, {
+        optOut: true,
+        excludedFromDiscovery: true,
+        mergedInto: survivor,
+        contributionRevision: 9,
+        city: "New York City",
+        cityKey: "wikidata:Q60",
+        country: "US",
+        collectionSiteUrl: "https://www.metmuseum.org/art/collection",
+        platform: "emuseum",
+        accessionUrlPattern: "https://www.metmuseum.org/art/collection/search/{accession}",
+      }),
+    );
+    const before = await t.run((ctx) => ctx.db.get("museums", museumId));
+    const checkpoint = await t.query(internal.venueChanges.latestVersion, {});
+    const rows = [
+      {
+        ...met,
+        name: "Replacement name",
+        website: undefined,
+        lat: 1,
+        lng: 2,
+        region: "replacement",
+        seedSource: "manual" as const,
+      },
+      { ...met, key: "new-museum", name: "New Museum" },
+    ];
+    const result = await t.mutation(internal.ingest.upsertMuseums, { rows, insertOnly: true });
+    expect(result.ids[met.key]).toBe(museumId);
+    expect(await t.run((ctx) => ctx.db.get("museums", museumId))).toEqual(before);
+    expect(await t.run((ctx) => ctx.db.get("museums", result.ids["new-museum"]))).toMatchObject({
+      key: "new-museum",
+      name: "New Museum",
+      optOut: false,
+      contributionRevision: 0,
+    });
+    expect((await t.query(internal.ingest.counts, {})).museums).toBe(2);
+    const changes = await t.query(internal.venueChanges.latestVersion, {});
+    expect(changes).toBe(checkpoint + 1);
+    expect(await t.mutation(internal.ingest.upsertMuseums, { rows, insertOnly: true })).toEqual(result);
+    expect(await t.query(internal.venueChanges.latestVersion, {})).toBe(changes);
+    expect((await t.query(internal.ingest.counts, {})).museums).toBe(2);
+    expect(await t.run((ctx) => ctx.db.get("museums", museumId))).toEqual(before);
+  });
+
   it("keeps artwork enrichment while refreshing the ingested fields", async () => {
     const t = harness();
     const { ids } = await t.mutation(internal.ingest.upsertArtworks, {

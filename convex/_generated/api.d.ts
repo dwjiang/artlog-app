@@ -161,6 +161,7 @@ import type * as lib_wallLayouts from "../lib/wallLayouts.js";
 import type * as lib_wikidata from "../lib/wikidata.js";
 import type * as linkedViews from "../linkedViews.js";
 import type * as mentions from "../mentions.js";
+import type * as museumAudit from "../museumAudit.js";
 import type * as museumDownloads from "../museumDownloads.js";
 import type * as museumPhotos from "../museumPhotos.js";
 import type * as museumPicks from "../museumPicks.js";
@@ -362,6 +363,7 @@ declare const fullApi: ApiFromModules<{
   "lib/wikidata": typeof lib_wikidata;
   linkedViews: typeof linkedViews;
   mentions: typeof mentions;
+  museumAudit: typeof museumAudit;
   museumDownloads: typeof museumDownloads;
   museumPhotos: typeof museumPhotos;
   museumPicks: typeof museumPicks;
