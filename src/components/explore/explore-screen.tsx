@@ -13,9 +13,9 @@ import {
   type ExhibitionTiming,
 } from "@/lib/explore/exhibition-timing";
 import { friendPicks, nearbyMuseums } from "@/lib/explore/lists";
-import { chooseCity, museumById, useExplore } from "@/lib/explore/use-explore";
-import { useMyLocationAction } from "@/lib/explore/use-my-location";
+import { museumById, useExplore } from "@/lib/explore/use-explore";
 
+import { CityMenu } from "./city-menu";
 import { ExhibitionCard } from "./exhibition-card";
 import { ExhibitionRow } from "./exhibition-row";
 import { ExploreSectionHeading } from "./explore-section";
@@ -30,7 +30,6 @@ export function ExploreScreen() {
   const explore = useExplore();
   const [chosenTiming, setTiming] = useState<ExhibitionTiming>();
   const { data } = explore;
-  const myLocation = useMyLocationAction({ following: data?.following, home: data?.home });
   if (!data) return <ExploreState view={explore} />;
   const timing = chosenTiming ?? defaultTiming(data.exhibitions, data.today);
   const museums = nearbyMuseums(data);
@@ -38,32 +37,7 @@ export function ExploreScreen() {
   const picks = friendPicks(data).slice(0, FRIEND_PICKS_SHOWN);
   return (
     <>
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Menu accessibilityLabel={`City, ${data.city.name}`} tintColor={Gallery.ink}>
-          <Stack.Toolbar.Label>{data.city.name}</Stack.Toolbar.Label>
-          <Stack.Toolbar.Menu inline>
-            <Stack.Toolbar.MenuAction
-              icon={myLocation.icon}
-              isOn={myLocation.isOn}
-              subtitle={myLocation.subtitle}
-              onPress={myLocation.onPress}
-            >
-              {myLocation.label}
-            </Stack.Toolbar.MenuAction>
-          </Stack.Toolbar.Menu>
-          <Stack.Toolbar.Menu inline>
-            {data.cities.map((city) => (
-              <Stack.Toolbar.MenuAction
-                key={city.id}
-                isOn={!data.following && city.id === data.city.id}
-                onPress={() => chooseCity(city.id)}
-              >
-                {city.name}
-              </Stack.Toolbar.MenuAction>
-            ))}
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar.Menu>
-      </Stack.Toolbar>
+      <CityMenu city={data.city} cities={data.cities} following={data.following} home={data.home} />
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button
           icon="map"
