@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react-native";
+import { act, render, waitFor } from "@testing-library/react-native";
 import * as Notifications from "expo-notifications";
 
 import { db } from "@/db/client";
@@ -34,9 +34,11 @@ it("registers this iPhone's push token with the pushes it wants, again after a c
     }),
   );
 
-  await setNotificationPreference("reactions", false);
-  await setNotificationPreference("companions", false);
-  await setNotificationPreference("mentions", false);
+  await act(async () => {
+    await setNotificationPreference("reactions", false);
+    await setNotificationPreference("companions", false);
+    await setNotificationPreference("mentions", false);
+  });
 
   await waitFor(() =>
     expect(mockRegister).toHaveBeenLastCalledWith({

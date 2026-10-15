@@ -118,6 +118,16 @@ jest.mock("react-native-safe-area-context", () => {
   };
 });
 
+// Lists defer render-window updates to a 50 ms timer that fires outside act() when a loaded run is slow; running the
+// update immediately keeps it inside the act() that rendered the list.
+jest.mock("@react-native/virtualized-lists/Lists/VirtualizedList", () => {
+  const actual = jest.requireActual("@react-native/virtualized-lists/Lists/VirtualizedList");
+  actual.default.prototype._scheduleCellsToRenderUpdate = function (this: { _updateCellsToRender(): void }) {
+    this._updateCellsToRender();
+  };
+  return actual;
+});
+
 // Jest does not load .env files; route modules construct the Convex client at import time.
 process.env.EXPO_PUBLIC_CONVEX_URL ??= "https://test.convex.cloud";
 
