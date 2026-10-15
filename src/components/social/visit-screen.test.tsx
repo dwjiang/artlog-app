@@ -135,6 +135,15 @@ it("shows the shared visit as its feed card, opening each artwork and the author
   });
 });
 
+it("opens the visit’s museum from its location line", async () => {
+  await render(<VisitScreen postId="post-a" />);
+  await fireEvent.press(screen.getByRole("button", { name: "Musée d’Orsay, Paris" }));
+  expect(mockPush).toHaveBeenLastCalledWith({
+    pathname: "/museum/[museumId]",
+    params: { museumId: "museum" },
+  });
+});
+
 it("marks an artwork that has more than one shared photo", async () => {
   const photos = [1, 2, 3].map(() => works[0].artwork.media);
   mockVisit = {
