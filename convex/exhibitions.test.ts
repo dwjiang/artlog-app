@@ -581,6 +581,7 @@ describe("Explore region catalog", () => {
     expect(await t.query(api.exhibitions.discoverableMuseumIds, { region: REGION, museumIds: ids })).toEqual([
       museumId,
     ]);
+    expect(await t.query(api.exhibitions.discoverableMuseumIds, { museumIds: ids })).toEqual([museumId, ids[4]]);
     await t.run((ctx) => ctx.db.patch("museums", museumId, { optOut: true }));
     expect(await t.query(api.exhibitions.discoverableMuseumIds, { region: REGION, museumIds: ids })).toEqual([]);
   });
@@ -617,5 +618,115 @@ describe("Explore region catalog", () => {
     await expect(
       t.query(api.exhibitions.atMuseums, { museumIds: Array.from({ length: 21 }, () => museumId), asOf: NOW }),
     ).rejects.toThrow("batch_too_large");
+  });
+});
+
+describe("exhibition search", () => {
+  const today = "2026-10-09";
+  const lookedUp = (overrides: Partial<Import> = {}) => exhibition({ imageCheckedAt: NOW - 1000, ...overrides });
+  const titles = async (t: Awaited<ReturnType<typeof fixture>>["t"], query: string) =>
+    (await t.query(api.exhibitions.search, { query, today })).exhibitions.map((row) => row.title);
+
+  it("finds listed shows not yet closed by title words, ignoring case and accents, with their museums", async () => {
+    const { t, museumId } = await fixture();
+    await t.action(internal.exhibitions.upsertBatch, {
+      records: [
+        lookedUp({ title: "Cézanne and the Sea" }),
+        lookedUp({ title: "Late Cézanne", viewingPeriods: [{ startDate: "2026-09-01", endDate: "2026-10-08" }] }),
+        exhibition({ title: "Cézanne Drawings" }),
+        lookedUp({ title: "Paper Worlds" }),
+      ],
+    });
+    expect(await t.query(api.exhibitions.search, { query: "CEZANNE", today })).toEqual({
+      museums: [expect.objectContaining({ museumId, name: "Verified Museum" })],
+      exhibitions: [expect.objectContaining({ museumId, title: "Cézanne and the Sea" })],
+    });
+    expect(await titles(t, "  ")).toEqual([]);
+
+    await t.run((ctx) => ctx.db.patch("museums", museumId, { excludedFromDiscovery: true }));
+    expect(await t.query(api.exhibitions.search, { query: "cezanne", today })).toEqual({
+      museums: [],
+      exhibitions: [],
+    });
+  });
+
+  it("returns the first five matches", async () => {
+    const { t } = await fixture();
+    await t.action(internal.exhibitions.upsertBatch, {
+      records: Array.from({ length: 7 }, (_, index) => lookedUp({ title: `Prints ${index + 1}` })),
+    });
+    expect(await titles(t, "prints")).toHaveLength(5);
+  });
+
+  it("skips yesterday's shows before choosing five matches and keeps shows closing today", async () => {
+    const { t } = await fixture();
+    await t.action(internal.exhibitions.upsertBatch, {
+      records: Array.from({ length: 10 }, (_, index) =>
+        lookedUp({ title: `Prints ${index + 1}`, viewingPeriods: [{ startDate: null, endDate: today }] }),
+      ),
+    });
+    const first = await t.query(api.exhibitions.search, { query: "prints", today });
+    expect(first.exhibitions).toHaveLength(5);
+    await t.run(async (ctx) => {
+      for (const show of first.exhibitions) {
+        await ctx.db.patch("exhibitions", show.exhibitionId, {
+          viewingPeriods: [{ startDate: null, endDate: "2026-10-08" }],
+          finalEndAt: Date.parse("2026-10-09T06:59:59.999Z"),
+        });
+      }
+    });
+    const remaining = await t.query(api.exhibitions.search, { query: "prints", today });
+    expect(remaining.exhibitions).toHaveLength(5);
+    expect(
+      remaining.exhibitions.every((show) => !first.exhibitions.some((old) => old.exhibitionId === show.exhibitionId)),
+    ).toBe(true);
+    expect((await t.query(api.exhibitions.search, { query: "prints", today: "2026-10-10" })).exhibitions).toEqual([]);
+  });
+
+  it("rejects invalid device calendar dates", async () => {
+    const { t } = await fixture();
+    await expect(t.query(api.exhibitions.search, { query: "prints", today: "2026-02-30" })).rejects.toThrow(
+      "exhibition_metadata",
+    );
+  });
+
+  // convex-test fails a search over rows without the field, so each case searches only after every row has one.
+  async function storedWithoutSearchText(records: Import[]) {
+    const { t } = await fixture();
+    await t.action(internal.exhibitions.upsertBatch, { records });
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("exhibitions").collect()) {
+        await ctx.db.patch("exhibitions", row._id, { searchText: undefined });
+      }
+    });
+    return t;
+  }
+
+  it("indexes a show stored without search text when the same listing is imported again", async () => {
+    const record = lookedUp({ title: "Cézanne and the Sea" });
+    const t = await storedWithoutSearchText([record]);
+    expect(await t.action(internal.exhibitions.upsertBatch, { records: [record] })).toEqual({
+      inserted: 0,
+      updated: 1,
+      unchanged: 0,
+    });
+    expect(await titles(t, "cezanne")).toEqual(["Cézanne and the Sea"]);
+  });
+
+  it("indexes every show stored without search text in the backfill, leaving exports unchanged", async () => {
+    const t = await storedWithoutSearchText([
+      lookedUp({ title: "Cézanne and the Sea" }),
+      lookedUp({ title: "Paper Worlds" }),
+    ]);
+    const before = await t.query(internal.exhibitions.exportPage, { paginationOpts: { numItems: 10, cursor: null } });
+    await t.mutation(internal.exhibitions.backfillSearchText, {});
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect([...(await titles(t, "cezanne")), ...(await titles(t, "paper"))]).toEqual([
+      "Cézanne and the Sea",
+      "Paper Worlds",
+    ]);
+    expect(await t.query(internal.exhibitions.exportPage, { paginationOpts: { numItems: 10, cursor: null } })).toEqual(
+      before,
+    );
   });
 });

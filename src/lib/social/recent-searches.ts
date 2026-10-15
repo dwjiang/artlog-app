@@ -14,7 +14,9 @@ export type RecentSearch =
   | { kind: "tag"; tag: string }
   | { kind: "person"; profile: PublicProfile }
   | { kind: "artwork"; artwork: { artworkId: string; title: string; thumbnailUrl?: string } }
-  | { kind: "artist"; artist: { artistId: string; name: string; coverUrl?: string } };
+  | { kind: "artist"; artist: { artistId: string; name: string; coverUrl?: string } }
+  | { kind: "museum"; museum: { museumId: string; name: string } }
+  | { kind: "exhibition"; exhibition: { exhibitionId: string; title: string; imageUrl?: string } };
 
 const identity = (entry: RecentSearch) => {
   switch (entry.kind) {
@@ -26,6 +28,10 @@ const identity = (entry: RecentSearch) => {
       return `artwork:${entry.artwork.artworkId}`;
     case "artist":
       return `artist:${entry.artist.artistId}`;
+    case "museum":
+      return `museum:${entry.museum.museumId}`;
+    case "exhibition":
+      return `exhibition:${entry.exhibition.exhibitionId}`;
   }
 };
 
@@ -43,7 +49,7 @@ export async function readRecentSearches(): Promise<RecentSearch[]> {
   }
 }
 
-/** The artworks, artists, tags and people opened from Search, newest first. */
+/** The artworks, artists, museums, exhibitions, tags and people opened from Search, newest first. */
 export function useRecentSearches() {
   const installation = useSyncExternalStore(subscribeOwner, anonymousOwner, anonymousOwner);
   const [history, setHistory] = useState<History>({ installation, entries: [] });

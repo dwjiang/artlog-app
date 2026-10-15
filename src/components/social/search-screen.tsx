@@ -12,18 +12,22 @@ import {
 } from "@/components/catalog/catalog-rows";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { SearchEmptyState } from "@/components/empty-state";
+import { ExhibitionSearchRow } from "@/components/explore/exhibition-search-row";
 import { ListSection } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { ThemedText as Text } from "@/components/themed-text";
+import { MuseumSearchRow } from "@/components/venue/museum-search-row";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCatalogReady } from "@/lib/catalog/use-catalog-ready";
 import { useSavedCatalogWorks } from "@/lib/catalog/use-saved-catalog-works";
+import { useExhibitionSearch } from "@/lib/explore/use-exhibition-search";
 import { useRecentSearches } from "@/lib/social/recent-searches";
 import type { PublicProfile } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useSuggestions } from "@/lib/social/use-suggestions";
+import { useVenueSearch } from "@/lib/venue/use-venue-search";
 import { catalogSearchText } from "@/shared/catalog/text";
 import { validateSearch } from "@/shared/social/contracts";
 
@@ -54,8 +58,8 @@ function peopleSearch(text: string) {
 }
 
 /**
- * The Search tab: catalog artworks and artists, tags and people, with recent searches, popular tags and people to add
- * before anything is typed.
+ * The Search tab: catalog artworks and artists, museums, exhibitions, tags and people, with recent searches, popular
+ * tags and people to add before anything is typed.
  */
 export function SearchScreen() {
   const router = useRouter();
@@ -78,6 +82,15 @@ export function SearchScreen() {
     catalog.ready && art ? { query: art, limit: ARTWORK_PAGE } : "skip",
     catalog.scope,
   );
+  // `settled` has already waited for typing to pause.
+  const venues = useVenueSearch(art, 0);
+  const museumCandidates = venues.result?.rows ?? [];
+  const museumVisibility = useSocialQuery(
+    api.exhibitions.discoverableMuseumIds,
+    online && art && museumCandidates.length > 0 ? { museumIds: museumCandidates.map((museum) => museum.id) } : "skip",
+    "explore",
+  );
+  const shows = useExhibitionSearch(art);
   const popular = useSocialQuery(api.tags.popular, online ? {} : "skip", session.key);
   const tags = useSocialQuery(api.tags.search, online && tagPrefix ? { prefix: tagPrefix } : "skip", session.key);
   const profiles = useSocialQuery(
@@ -115,28 +128,45 @@ export function SearchScreen() {
     remember({ kind: "artist", artist });
     router.push({ pathname: "/artist/[artistId]", params: { artistId: artist.artistId } });
   };
+  const openMuseum = (museum: { museumId: string; name: string }) => {
+    remember({ kind: "museum", museum });
+    router.push({ pathname: "/museum/[museumId]", params: { museumId: museum.museumId } });
+  };
+  const openExhibition = (exhibition: { exhibitionId: string; title: string; imageUrl?: string }) => {
+    remember({ kind: "exhibition", exhibition });
+    router.push({ pathname: "/exhibition/[exhibitionId]", params: { exhibitionId: exhibition.exhibitionId } });
+  };
   const artistResults = art ? (catalogResults.data?.artists ?? []) : [];
   const artworkPage = art ? catalogResults.data?.artworks : undefined;
   const artworkResults = (artworkPage?.page ?? []).slice(0, SHOWN_ARTWORKS);
   const moreArtworks = !!artworkPage && (artworkPage.page.length > SHOWN_ARTWORKS || !artworkPage.isDone);
+  const visibleMuseumIds = new Set(museumVisibility.data);
+  const museumResults = art ? museumCandidates.filter((museum) => visibleMuseumIds.has(museum.id)).slice(0, SHOWN) : [];
+  const exhibitionResults = art ? (shows.data?.exhibitions ?? []) : [];
   const tagResults = settled && tagPrefix ? (tags.data ?? []).slice(0, SHOWN) : [];
   const peopleResults = people ? (profiles.data?.page ?? []) : [];
   const searching =
     settled !== query
     || (!!tagPrefix && tags.loading)
     || (!!people && profiles.loading)
-    || (!!art && (!catalog.ready || catalogResults.loading));
-  const searchError = (!!tagPrefix && tags.error) || (!!people && profiles.error) || (!!art && catalogResults.error);
-  const results = artistResults.length + artworkResults.length + tagResults.length + peopleResults.length;
+    || (!!art
+      && (!catalog.ready || catalogResults.loading || !venues.result || museumVisibility.loading || shows.loading));
+  const searchError =
+    (!!tagPrefix && tags.error)
+    || (!!people && profiles.error)
+    || (!!art && (catalogResults.error || venues.result?.failed || museumVisibility.error || shows.error));
+  const results =
+    artistResults.length
+    + artworkResults.length
+    + museumResults.length
+    + exhibitionResults.length
+    + tagResults.length
+    + peopleResults.length;
   let content;
   let state;
   if (!online) {
     state = (
-      <SocialState
-        title="You’re offline."
-        detail="Connect to search artworks, artists, tags and people."
-        icon="wifi.slash"
-      />
+      <SocialState title="You’re offline." detail="Connect to search artworks, museums and people." icon="wifi.slash" />
     );
   } else if (!query) {
     const popularTags = popular.data ?? [];
@@ -208,6 +238,41 @@ export function SearchScreen() {
                         onRemove={() => forget(entry)}
                       />
                     );
+                  case "museum":
+                    return (
+                      <SearchChip
+                        key={`museum:${entry.museum.museumId}`}
+                        label={entry.museum.name}
+                        leading={
+                          <Image
+                            source="sf:building.columns"
+                            tintColor={Gallery.muted}
+                            accessible={false}
+                            style={styles.chipSymbol}
+                          />
+                        }
+                        accessibilityLabel={entry.museum.name}
+                        onPress={() => openMuseum(entry.museum)}
+                        onRemove={() => forget(entry)}
+                      />
+                    );
+                  case "exhibition": {
+                    const { exhibition } = entry;
+                    return (
+                      <SearchChip
+                        key={`exhibition:${exhibition.exhibitionId}`}
+                        label={exhibition.title}
+                        leading={
+                          exhibition.imageUrl ? (
+                            <Image source={exhibition.imageUrl} accessible={false} style={styles.chipThumbnail} />
+                          ) : undefined
+                        }
+                        accessibilityLabel={exhibition.title}
+                        onPress={() => openExhibition(exhibition)}
+                        onRemove={() => forget(entry)}
+                      />
+                    );
+                  }
                 }
               })}
             </SearchChips>
@@ -239,8 +304,8 @@ export function SearchScreen() {
     if (empty) {
       state = (
         <SearchEmptyState
-          title="Find artworks, artists and people."
-          detail="Search by title, artist, name, @username or #tag."
+          title="Find artworks, museums and people."
+          detail="Search by title, artist, museum, name, @username or #tag."
         />
       );
     }
@@ -270,7 +335,7 @@ export function SearchScreen() {
         </View>
       );
     } else {
-      state = <SearchEmptyState detail="Try another title, artist, name or tag." />;
+      state = <SearchEmptyState detail="Try another title, artist, museum, name or tag." />;
     }
   } else {
     content = (
@@ -317,6 +382,46 @@ export function SearchScreen() {
             ))}
           </ListSection>
         )}
+        {!!art && (venues.result?.failed || museumVisibility.error) && (
+          <SearchFailure noun="museums" onRetry={venues.result?.failed ? venues.retry : museumVisibility.refresh} />
+        )}
+        {museumResults.length > 0 && (
+          <ListSection title="Museums">
+            {museumResults.map((venue, index) => (
+              <MuseumSearchRow
+                key={venue.id}
+                venue={venue}
+                query={art}
+                first={index === 0}
+                last={index === museumResults.length - 1}
+                onPress={() => openMuseum({ museumId: venue.id, name: venue.name })}
+              />
+            ))}
+          </ListSection>
+        )}
+        {!!art && shows.error && <SearchFailure noun="exhibitions" onRetry={shows.refresh} />}
+        {exhibitionResults.length > 0 && (
+          <ListSection title="Exhibitions">
+            {exhibitionResults.map((exhibition, index) => (
+              <ExhibitionSearchRow
+                key={exhibition.id}
+                exhibition={exhibition}
+                museum={shows.data?.museums.find((museum) => museum.id === exhibition.museumId)}
+                today={shows.today}
+                query={art}
+                first={index === 0}
+                last={index === exhibitionResults.length - 1}
+                onPress={() =>
+                  openExhibition({
+                    exhibitionId: exhibition.id,
+                    title: exhibition.title,
+                    ...(exhibition.image ? { imageUrl: exhibition.image.uri } : {}),
+                  })
+                }
+              />
+            ))}
+          </ListSection>
+        )}
         {!!tagPrefix && tags.error && <SearchFailure noun="tags" onRetry={tags.refresh} />}
         {tagResults.length > 0 && (
           <ListSection title="Tags">
@@ -355,7 +460,7 @@ export function SearchScreen() {
   return (
     <>
       <Stack.SearchBar
-        placeholder="Artworks, artists and people"
+        placeholder="Artworks, museums and people"
         autoCapitalize="none"
         hideWhenScrolling={false}
         onChangeText={(event) => setText(event.nativeEvent.text)}
@@ -400,4 +505,5 @@ const styles = StyleSheet.create({
   sections: { gap: Spacing.four, paddingHorizontal: Spacing.content },
   people: { paddingTop: Spacing.four },
   chipThumbnail: { width: 24, height: 24, borderRadius: Radius.thumbnail },
+  chipSymbol: { width: 20, height: 18 },
 });

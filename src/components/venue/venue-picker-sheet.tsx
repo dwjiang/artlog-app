@@ -18,14 +18,14 @@ import { reportError } from "@/lib/observability";
 import { deviceMeasurementUnits, type MeasurementUnits } from "@/lib/settings/measurement-units";
 import { useMeasurementUnits } from "@/lib/settings/use-measurement-units";
 import { playErrorHaptic } from "@/lib/ui/haptics";
-import { type VenueRow, formatDistance } from "@/lib/venue/resolve";
-import { searchVenues } from "@/lib/venue/search-venues";
+import { formatDistance } from "@/lib/venue/resolve";
 import { confirmVisitStarted } from "@/lib/venue/use-start-visit";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
-import { venueLocation } from "@/lib/venue/venue-location";
+import { useVenueSearch } from "@/lib/venue/use-venue-search";
 import { venueOptionKey, type VenueOption } from "@/lib/venue/venue-reducer";
 
 import { MuseumMap, useOptionCoordinates } from "./museum-map";
+import { MuseumSearchRow } from "./museum-search-row";
 
 function optionDistance(option: VenueOption, units: MeasurementUnits | undefined): string | undefined {
   return (units && formatDistance(option.distanceM ?? Number.NaN, units)) || undefined;
@@ -83,36 +83,8 @@ function ChooserSheet({
   const coordinates = useOptionCoordinates(picking ? options : []);
   const [location, requestLocation] = Location.useForegroundPermissions();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<{
-    query: string;
-    rows: VenueRow[];
-    error?: string;
-  }>();
   const searching = !!query.trim();
-  useEffect(() => {
-    if (!searching) return;
-    let active = true;
-    const timer = setTimeout(() => {
-      void searchVenues(query)
-        .then((rows) => {
-          if (active) setResults({ query, rows });
-        })
-        .catch((cause) => {
-          reportError(cause, "venue.search");
-          if (active) {
-            setResults({
-              query,
-              rows: [],
-              error: "Museums could not load. Try another search.",
-            });
-          }
-        });
-    }, 200);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [query, searching]);
+  const { result: results } = useVenueSearch(query, 200);
   const [busy, setBusy] = useState<string>();
   const [failure, setFailure] = useState<string>();
   const searchInput = useRef<TextInput>(null);
@@ -308,11 +280,11 @@ function ChooserSheet({
         onClear={() => setQuery("")}
       />
       {searching ? (
-        results?.query !== query ? (
+        !results ? (
           <LoadingRing accessibilityLabel="Searching museums" />
-        ) : results.error ? (
+        ) : results.failed ? (
           <ThemedText themeColor="error" accessibilityRole="alert">
-            {results.error}
+            Museums could not load. Try another search.
           </ThemedText>
         ) : results.rows.length === 0 ? (
           <EmptyState
@@ -324,15 +296,12 @@ function ChooserSheet({
         ) : (
           <ListSection>
             {results.rows.map((row, index) => (
-              <ListRow
+              <MuseumSearchRow
                 key={row.id}
+                venue={row}
                 first={index === 0}
                 last={index === results.rows.length - 1}
-                title={row.name}
                 query={query}
-                subtitle={venueLocation(row).location}
-                leading={<ListIcon name="building.columns" />}
-                accessory="chevron"
                 busy={busy === row.id}
                 disabled={!!busy}
                 onPress={() => {

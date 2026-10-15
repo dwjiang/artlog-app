@@ -6,6 +6,7 @@ import { ListIcon, ListRow, ListSection } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
+import { MuseumSearchRow } from "@/components/venue/museum-search-row";
 import { captureOwner } from "@/lib/account/owner-store";
 import { countryName } from "@/lib/journal/history";
 import { reportError } from "@/lib/observability";
@@ -13,7 +14,6 @@ import { showErrorToast } from "@/lib/ui/toast";
 import type { VenueRow } from "@/lib/venue/resolve";
 import { MUSEUM_SEARCH_LIMIT, searchVenues } from "@/lib/venue/search-venues";
 import { confirmPlace, useVenue } from "@/lib/venue/use-venue";
-import { venueLocation } from "@/lib/venue/venue-location";
 import type { PoiOption } from "@/lib/venue/venue-reducer";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
@@ -168,24 +168,17 @@ export function MuseumSearch({
       ) : null}
       {venues.length > 0 && (
         <ListSection>
-          {venues.map((row, index) => {
-            const { location } = venueLocation(row);
-            return (
-              <ListRow
-                key={row.id}
-                first={index === 0}
-                last={index === venues.length - 1}
-                title={row.name}
-                query={query}
-                subtitle={location}
-                leading={<ListIcon name="building.columns" />}
-                accessory="chevron"
-                accessibilityLabel={`${row.name}, ${location || row.name}`}
-                disabled={disabled}
-                onPress={() => choose(row)}
-              />
-            );
-          })}
+          {venues.map((row, index) => (
+            <MuseumSearchRow
+              key={row.id}
+              venue={row}
+              first={index === 0}
+              last={index === venues.length - 1}
+              query={query}
+              disabled={disabled}
+              onPress={() => choose(row)}
+            />
+          ))}
         </ListSection>
       )}
       {venues.length === 0 && places.length > 0 && (
