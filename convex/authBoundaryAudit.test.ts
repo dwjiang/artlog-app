@@ -42,12 +42,16 @@ it("keeps device, account and catalog reads inaccessible to anonymous and unregi
       () => caller.query(api.catalog.search, { query: "Monet" }),
       () => caller.query(api.museumPicks.forVenue, { venueId, day: "2026-10-10" }),
       () => caller.query(api.wantToSee.mine, {}),
+      () => caller.query(api.wantToSee.museums, {}),
     ];
     for (const read of reads) await expect(read()).rejects.toMatchObject({ data: { code } });
     await expect(caller.mutation(api.accounts.unlink, {})).rejects.toMatchObject({ data: { code } });
     await expect(caller.mutation(api.accounts.deleteAccount, {})).rejects.toMatchObject({ data: { code } });
     await expect(caller.mutation(api.artworks.research, { artworkId })).rejects.toMatchObject({ data: { code } });
     await expect(caller.mutation(api.wantToSee.set, { exhibitionId, saved: true })).rejects.toMatchObject({
+      data: { code },
+    });
+    await expect(caller.mutation(api.wantToSee.setMuseum, { museumId: venueId, saved: true })).rejects.toMatchObject({
       data: { code },
     });
   }

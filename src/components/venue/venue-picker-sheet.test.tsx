@@ -184,7 +184,11 @@ describe("the location prompt", () => {
 
   it("pins Start visit and the search below a long museum list, and scrolls them with it at accessibility text sizes", async () => {
     const window = Dimensions.get("window");
-    mockView.options = Array.from({ length: 12 }, (_, index) => ({ ...neighbour, name: `Gallery ${index + 1}` }));
+    mockView.options = Array.from({ length: 12 }, (_, index) => ({
+      ...neighbour,
+      venueId: `id-gallery-${index + 1}` as never,
+      name: `Gallery ${index + 1}`,
+    }));
     try {
       Dimensions.set({ window: { ...window, fontScale: 1 } });
       await render(<VenuePickerSheet />);
@@ -196,7 +200,7 @@ describe("the location prompt", () => {
       expect(list().getByRole("button", { name: "Start visit" })).toBeOnTheScreen();
       expect(list().getByRole("button", { name: "Search for another museum" })).toBeOnTheScreen();
     } finally {
-      Dimensions.set({ window });
+      await act(() => Dimensions.set({ window }));
     }
   });
 });

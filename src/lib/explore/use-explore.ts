@@ -95,6 +95,13 @@ function useHomeRegion(fix: Coordinate | undefined): string | null | undefined {
 
 const NO_MUSEUMS: VenueRow[] = [];
 
+/** `ids` in slices of at most `size`, one per backend read. */
+function inBatches<T>(ids: readonly T[], size: number): T[][] {
+  const batches = [];
+  for (let index = 0; index < ids.length; index += size) batches.push(ids.slice(index, index + size));
+  return batches;
+}
+
 /** Local candidates appear only after the server confirms they are still discoverable in this region. */
 function useCityMuseums(cityId: string | undefined) {
   const [read, setRead] = useState<{ cityId: string; museums: VenueRow[] }>();
@@ -117,12 +124,9 @@ function useCityMuseums(cityId: string | undefined) {
     };
   }, [cityId]);
   const candidates = read && read.cityId === cityId ? read.museums : NO_MUSEUMS;
-  const batches = [];
-  if (cityId) {
-    for (let index = 0; index < candidates.length; index += 100) {
-      batches.push({ region: cityId, museumIds: candidates.slice(index, index + 100).map((museum) => museum.id) });
-    }
-  }
+  const batches = cityId
+    ? inBatches(candidates, 100).map((batch) => ({ region: cityId, museumIds: batch.map((museum) => museum.id) }))
+    : [];
   const visibility = useBatchedSocialQuery(api.exhibitions.discoverableMuseumIds, batches, "explore");
   const allowed = new Set(visibility.data?.flat());
   return { ...visibility, museums: candidates.filter((museum) => allowed.has(museum.id)) };
@@ -189,22 +193,29 @@ function useCatalogView(
  */
 export function useExhibitions(ids: readonly string[], { friends = true } = {}): ExploreView {
   const context = useCatalogContext({ friends });
-  const batches = [];
-  for (let index = 0; index < ids.length; index += 100) {
-    batches.push({ exhibitionIds: ids.slice(index, index + 100) as Id<"exhibitions">[], asOf: 0 });
-  }
+  const batches = inBatches(ids as Id<"exhibitions">[], 100).map((exhibitionIds) => ({ exhibitionIds, asOf: 0 }));
   const result = useBatchedSocialQuery(api.exhibitions.byIds, batches, "explore");
-  const data = useMemo(
-    () =>
-      result.data && {
-        museums: [
-          ...new Map(result.data.flatMap((batch) => batch.museums).map((museum) => [museum.museumId, museum])).values(),
-        ],
-        exhibitions: result.data.flatMap((batch) => batch.exhibitions),
-      },
-    [result.data],
-  );
+  const data = useMemo(() => result.data && mergeCatalogs(result.data), [result.data]);
   return useCatalogView({ ...result, data }, context);
+}
+
+/** Saved museums with the shows on or ahead at each, independently of the browsing city. */
+export function useMuseums(ids: readonly string[]): ExploreView {
+  const context = useCatalogContext({ friends: false });
+  const batches = inBatches(ids as Id<"museums">[], 20).map((museumIds) => ({ museumIds, asOf: context.asOf }));
+  const result = useBatchedSocialQuery(api.exhibitions.atMuseums, batches, "explore");
+  const data = useMemo(() => result.data && mergeCatalogs(result.data), [result.data]);
+  return useCatalogView({ ...result, data }, context);
+}
+
+/** One catalog from batched reads, listing a museum that several batches return once. */
+function mergeCatalogs(batches: Catalog[]): Catalog {
+  return {
+    museums: [
+      ...new Map(batches.flatMap((batch) => batch.museums).map((museum) => [museum.museumId, museum])).values(),
+    ],
+    exhibitions: batches.flatMap((batch) => batch.exhibitions),
+  };
 }
 
 export function useMuseum(museumId: string): ExploreView {

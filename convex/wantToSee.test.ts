@@ -210,3 +210,108 @@ describe("accounts", () => {
     expect(await savedRows(t)).toEqual([]);
   });
 });
+
+describe("museums", () => {
+  const seedMuseums = (t: Harness, count: number) =>
+    t.run(async (ctx) => {
+      const ids = [];
+      for (let index = 0; index < count; index++) ids.push(await seedMuseum(ctx, { name: `Museum ${index}` }));
+      return ids;
+    });
+  const museumRows = (t: Harness) => t.run((ctx) => ctx.db.query("museumSaves").collect());
+
+  it("keeps a guest's saved museums, newest first, and ignores repeated taps", async () => {
+    vi.useFakeTimers({ now: Date.UTC(2026, 9, 14) });
+    const t = harness();
+    const guest = await seedDevice(t);
+    const [first, second] = await seedMuseums(t, 2);
+
+    await guest.as.mutation(api.wantToSee.setMuseum, { museumId: first, saved: true });
+    vi.advanceTimersByTime(1000);
+    await guest.as.mutation(api.wantToSee.setMuseum, { museumId: second, saved: true });
+    await guest.as.mutation(api.wantToSee.setMuseum, { museumId: first, saved: true });
+    expect(await guest.as.query(api.wantToSee.museums, {})).toEqual([second, first]);
+
+    await guest.as.mutation(api.wantToSee.setMuseum, { museumId: first, saved: false });
+    await guest.as.mutation(api.wantToSee.setMuseum, { museumId: first, saved: false });
+    expect(await guest.as.query(api.wantToSee.museums, {})).toEqual([second]);
+    expect(await museumRows(t)).toHaveLength(1);
+  });
+
+  it("refuses a museum that is not listed", async () => {
+    const t = harness();
+    const guest = await seedDevice(t);
+    const [gone] = await seedMuseums(t, 1);
+    await t.run((ctx) => ctx.db.delete("museums", gone));
+    await expect(guest.as.mutation(api.wantToSee.setMuseum, { museumId: gone, saved: true })).rejects.toMatchObject({
+      data: { code: "not_found" },
+    });
+  });
+
+  it("counts a save of a merged duplicate for the museum it merged into, and removes both together", async () => {
+    vi.useFakeTimers({ now: Date.UTC(2026, 9, 14) });
+    const t = harness();
+    const guest = await seedDevice(t);
+    const [survivor, duplicate] = await seedMuseums(t, 2);
+    await guest.as.mutation(api.wantToSee.setMuseum, { museumId: duplicate, saved: true });
+    vi.advanceTimersByTime(1000);
+    await guest.as.mutation(api.wantToSee.setMuseum, { museumId: survivor, saved: true });
+    await t.run((ctx) => ctx.db.patch("museums", duplicate, { excludedFromDiscovery: true, mergedInto: survivor }));
+
+    expect(await guest.as.query(api.wantToSee.museums, {})).toEqual([survivor]);
+    await guest.as.mutation(api.wantToSee.setMuseum, { museumId: survivor, saved: false });
+    expect(await guest.as.query(api.wantToSee.museums, {})).toEqual([]);
+    expect(await museumRows(t)).toEqual([]);
+  });
+
+  it("keeps saved museums private from friends", async () => {
+    const t = harness();
+    const ada = await socialUser(t, "Ada");
+    const ben = await socialUser(t, "Ben");
+    await befriend(ada, ben);
+    const [museum] = await seedMuseums(t, 1);
+    await ada.as.mutation(api.wantToSee.setMuseum, { museumId: museum, saved: true });
+
+    expect(await ben.as.query(api.wantToSee.friends, {})).toEqual([]);
+    expect(await ben.as.query(api.wantToSee.museums, {})).toEqual([]);
+  });
+
+  it("moves a guest's saved museums to the account on sign-in, keeping one row per museum", async () => {
+    const t = harness();
+    const user = await socialUser(t, "Ada");
+    const device = await seedDevice(t);
+    const [both, guestOnly] = await seedMuseums(t, 2);
+    const [show] = await seedShows(t, 1);
+    await user.as.mutation(api.wantToSee.setMuseum, { museumId: both, saved: true });
+    await device.as.mutation(api.wantToSee.setMuseum, { museumId: both, saved: true });
+    await device.as.mutation(api.wantToSee.setMuseum, { museumId: guestOnly, saved: true });
+    await device.as.mutation(api.wantToSee.set, { exhibitionId: show, saved: true });
+    await t.run(async (ctx) => {
+      await ctx.db.patch("devices", device.deviceId, { accountId: user.accountId });
+      await ctx.db.insert("journalClaims", { deviceId: device.deviceId, accountId: user.accountId, phase: "saves" });
+    });
+
+    await expect(
+      device.as.mutation(api.wantToSee.setMuseum, { museumId: guestOnly, saved: false }),
+    ).rejects.toMatchObject({ data: { code: "claim_required" } });
+    const scope = `account:${user.accountId}:0`;
+    while (!(await device.as.mutation(api.journalClaims.resume, { scope })).complete) {}
+
+    expect(new Set(await device.as.query(api.wantToSee.museums, {}))).toEqual(new Set([both, guestOnly]));
+    expect(await device.as.query(api.wantToSee.mine, {})).toEqual([show]);
+    expect(await museumRows(t)).toHaveLength(2);
+  });
+
+  it("deletes saved museums with the account", async () => {
+    vi.useFakeTimers();
+    const t = harness();
+    const user = await socialUser(t, "Ada");
+    const [museum] = await seedMuseums(t, 1);
+    await user.as.mutation(api.wantToSee.setMuseum, { museumId: museum, saved: true });
+
+    await user.as.mutation(api.accounts.deleteAccount, {});
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(await museumRows(t)).toEqual([]);
+  });
+});

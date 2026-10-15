@@ -1,4 +1,4 @@
-import { friendPicks, nearbyMuseums, savedExhibitions } from "./lists";
+import { friendPicks, nearbyMuseums, savedExhibitions, savedMuseums } from "./lists";
 import { museumExhibitions, museumSummary } from "./museum-summary";
 import type { Exhibition, ExploreData, ExploreFriend, ExploreMuseum } from "./types";
 
@@ -55,6 +55,13 @@ it("lists saved shows still on or ahead, closing soonest first, then closed ones
   );
   expect(ids(current)).toEqual(["four", "two-later", "upcoming"]);
   expect(ids(closed)).toEqual(["closed", "closed-earlier"]);
+});
+
+it("lists saved museums nearest first, or most recently saved first without a location", () => {
+  const saved = new Set(["far", "near"]);
+  expect(savedMuseums(data, saved).map((place) => place.id)).toEqual(["near", "far"]);
+  const unplaced = { ...data, museums: [museum("near"), museum("empty"), museum("far")] };
+  expect(savedMuseums(unplaced, saved).map((place) => place.id)).toEqual(["far", "near"]);
 });
 
 it("lists a museum's running shows by closing date, then its upcoming ones", () => {

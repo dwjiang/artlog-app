@@ -35,3 +35,11 @@ export function savedExhibitions(data: ExploreCatalog, ids: ReadonlySet<string>)
       .sort((a, b) => b.endsOn.localeCompare(a.endsOn)),
   };
 }
+
+/** Saved museums: nearest first when the phone's location is known, else the most recently saved first. */
+export function savedMuseums(data: ExploreCatalog, ids: ReadonlySet<string>) {
+  const order = [...ids];
+  return data.museums
+    .filter((museum) => ids.has(museum.id))
+    .sort((a, b) => (a.distanceM ?? 0) - (b.distanceM ?? 0) || order.indexOf(a.id) - order.indexOf(b.id));
+}

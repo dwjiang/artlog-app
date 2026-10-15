@@ -5,6 +5,7 @@ import { LIMITS, utf8Bytes } from "../shared/journal/limits";
 import { mutation } from "./functions";
 import { claimExhibitionSaves } from "./lib/exhibitionSaves";
 import { recordArtworkScore, recordVisitScore } from "./lib/leaderboard";
+import { claimMuseumSaves } from "./lib/museumSaves";
 import { findOwnedSave, findOwnedVisit, nextChangeVersion, resolveOwner } from "./lib/ownership";
 
 export const resume = mutation({
@@ -116,6 +117,11 @@ export const resume = mutation({
       const exhibitionSaves = await claimExhibitionSaves(ctx, source, owner);
       complete = exhibitionSaves.complete;
       moved += exhibitionSaves.moved;
+    }
+    if (complete) {
+      const museumSaves = await claimMuseumSaves(ctx, source, owner);
+      complete = museumSaves.complete;
+      moved += museumSaves.moved;
     }
     if (complete) {
       await ctx.db.patch("journalClaims", claim._id, {

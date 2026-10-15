@@ -2,6 +2,7 @@ import { Image } from "expo-image";
 import { openBrowserAsync } from "expo-web-browser";
 import { Linking, StyleSheet, View, useWindowDimensions } from "react-native";
 
+import { GalleryButton } from "@/components/collection/gallery-button";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
@@ -17,6 +18,51 @@ export function openDirections(museum: ExploreMuseum) {
 /** Opens a page credited for a show or a photo; `context` names it in error reports. */
 export function openSourcePage(url: string, context: string) {
   openBrowserAsync(url).catch((error: unknown) => reportError(error, context, { level: "warning" }));
+}
+
+// The filled button's own height, so an outlined neighbor lines up with it.
+const BUTTON_HEIGHT = 52;
+
+/** A detail page's Want to see toggle beside directions to `museum`, side by side while both fit. */
+export function DetailActions({
+  saved,
+  ready,
+  onToggle,
+  museum,
+}: {
+  saved: boolean;
+  ready: boolean;
+  onToggle: () => void;
+  museum: ExploreMuseum | undefined;
+}) {
+  return (
+    <View style={styles.actions}>
+      <View style={styles.action}>
+        <GalleryButton
+          label={saved ? "Saved" : "Want to see"}
+          accessibilityLabel={saved ? "Remove from Want to see" : "Want to see"}
+          icon={saved ? "bookmark.fill" : "bookmark"}
+          variant={saved ? "outlined" : "filled"}
+          fullWidth
+          minHeight={BUTTON_HEIGHT}
+          disabled={!ready}
+          onPress={onToggle}
+        />
+      </View>
+      <View style={styles.action}>
+        {museum && (
+          <GalleryButton
+            label="Directions"
+            icon="arrow.triangle.turn.up.right.diamond"
+            variant="outlined"
+            fullWidth
+            minHeight={BUTTON_HEIGHT}
+            onPress={() => openDirections(museum)}
+          />
+        )}
+      </View>
+    </View>
+  );
 }
 
 const CHIPS = {
@@ -76,6 +122,8 @@ export function FactRow({
 }
 
 const styles = StyleSheet.create({
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.compact },
+  action: { flexGrow: 1, flexBasis: 140 },
   chip: {
     alignSelf: "flex-start",
     flexDirection: "row",

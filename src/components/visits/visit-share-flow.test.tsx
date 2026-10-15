@@ -384,7 +384,7 @@ it("saves a dragged order and offers Move earlier and Move later as its accessib
   mockSharing.draft = { ...mockSharing.draft!, saveLocalIds: ["a", "b", "c"] };
   await render(<VisitShareLayout />);
   const { data, onDragEnd } = mockGrid.mock.lastCall![0];
-  onDragEnd({ data: [data[2], data[0], data[1]] });
+  await act(() => onDragEnd({ data: [data[2], data[0], data[1]] }));
   expect(mockController.edit).toHaveBeenLastCalledWith({ saveLocalIds: ["c", "a", "b"] });
   const workC = screen.getByRole("checkbox", { name: "Share Work c" });
   await fireEvent(workC, "accessibilityAction", { nativeEvent: { actionName: "moveEarlier" } });

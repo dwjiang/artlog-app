@@ -15,7 +15,7 @@ import { useDeviceReady } from "@/lib/use-device-ready";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import type { Exhibition } from "./types";
+import type { Exhibition, ExploreMuseum } from "./types";
 
 /** Tells the person what saving earns them: the first reminder's date, or how to turn reminders on. */
 async function confirmSave(exhibition: Exhibition) {
@@ -39,23 +39,38 @@ async function confirmSave(exhibition: Exhibition) {
   showToast(`Saved. You’ll get a reminder ${reminderDay(next.at)}, ${when}.`);
 }
 
-/** Shows saved to Want to see, kept with the account or, before sign-in, this iPhone's install. */
-export function useWantToSee(): {
+type SavedList<T> = {
   saved: ReadonlySet<string>;
   ready: boolean;
   error?: Error;
   retry: () => void;
-  toggle: (exhibition: Exhibition) => void;
-} {
+  toggle: (item: T) => void;
+};
+
+// Collection sync publishes the account scope only after the guest claim completes.
+function useSavedIds(query: typeof api.wantToSee.mine | typeof api.wantToSee.museums) {
   const deviceReady = useDeviceReady();
-  // Collection sync publishes the account scope only after the guest claim completes.
   const scope = useServerScope();
-  const mine = useSocialQuery(api.wantToSee.mine, deviceReady && scope ? {} : "skip", "explore");
+  return useSocialQuery(query, deviceReady && scope ? {} : "skip", "explore");
+}
+
+/** `ids` with `id` moved to the front when saved, or left out when removed. */
+const toggled = <T extends string>(ids: T[], id: T, saved: boolean) => {
+  const others = ids.filter((other) => other !== id);
+  return saved ? [id, ...others] : others;
+};
+
+function updateFailed(cause: unknown, retry: () => void) {
+  if (!isNetworkError(cause)) reportError(cause, "explore.want_to_see");
+  showErrorToast("Couldn’t update Want to see.", retry);
+}
+
+/** Shows saved to Want to see, kept with the account or, before sign-in, this iPhone's install. */
+export function useWantToSee(): SavedList<Exhibition> {
+  const mine = useSavedIds(api.wantToSee.mine);
   const set = useMutation(api.wantToSee.set).withOptimisticUpdate((store, { exhibitionId, saved }) => {
     const current = store.getQuery(api.wantToSee.mine, {});
-    if (!current) return;
-    const others = current.filter((id) => id !== exhibitionId);
-    store.setQuery(api.wantToSee.mine, {}, saved ? [exhibitionId, ...others] : others);
+    if (current) store.setQuery(api.wantToSee.mine, {}, toggled(current, exhibitionId, saved));
   });
   const saved = useMemo(() => new Set<string>(mine.data), [mine.data]);
 
@@ -63,8 +78,7 @@ export function useWantToSee(): {
     try {
       await set({ exhibitionId: exhibition.id as Id<"exhibitions">, saved: on });
     } catch (cause) {
-      if (!isNetworkError(cause)) reportError(cause, "explore.want_to_see");
-      showErrorToast("Couldn’t update Want to see.", () => void apply(exhibition, on));
+      updateFailed(cause, () => void apply(exhibition, on));
       return;
     }
     if (on) {
@@ -81,6 +95,34 @@ export function useWantToSee(): {
     retry: mine.refresh,
     toggle: (exhibition) => {
       if (mine.data !== undefined) void apply(exhibition, !saved.has(exhibition.id));
+    },
+  };
+}
+
+/** Museums saved to Want to see, kept like saved shows; they have no reminders. */
+export function useWantToSeeMuseums(): SavedList<ExploreMuseum> {
+  const mine = useSavedIds(api.wantToSee.museums);
+  const set = useMutation(api.wantToSee.setMuseum).withOptimisticUpdate((store, { museumId, saved }) => {
+    const current = store.getQuery(api.wantToSee.museums, {});
+    if (current) store.setQuery(api.wantToSee.museums, {}, toggled(current, museumId, saved));
+  });
+  const saved = useMemo(() => new Set<string>(mine.data), [mine.data]);
+
+  async function apply(museum: ExploreMuseum, on: boolean) {
+    try {
+      await set({ museumId: museum.id as Id<"museums">, saved: on });
+    } catch (cause) {
+      updateFailed(cause, () => void apply(museum, on));
+    }
+  }
+
+  return {
+    saved,
+    ready: mine.data !== undefined,
+    error: mine.error,
+    retry: mine.refresh,
+    toggle: (museum) => {
+      if (mine.data !== undefined) void apply(museum, !saved.has(museum.id));
     },
   };
 }

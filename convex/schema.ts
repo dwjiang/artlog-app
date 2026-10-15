@@ -399,6 +399,15 @@ export default defineSchema({
     .index("by_owner_exhibitionId", ["owner", "exhibitionId"])
     .index("by_owner_savedAt", ["owner", "savedAt"]),
 
+  // Museums each journal owner wants to see; friends don't see these.
+  museumSaves: defineTable({
+    owner: journalOwner,
+    museumId: v.id("museums"),
+    savedAt: v.number(),
+  })
+    .index("by_owner_museumId", ["owner", "museumId"])
+    .index("by_owner_savedAt", ["owner", "savedAt"]),
+
   // A museum's Commons photo for the Now card, looked up the first time someone sees the museum there.
   // `checkedAt` stays unset while a lookup is pending; a checked row without `file` means no usable photo.
   museumPhotos: defineTable({
