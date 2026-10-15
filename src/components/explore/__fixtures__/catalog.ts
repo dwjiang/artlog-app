@@ -59,11 +59,8 @@ export const cornwall = {
   exhibitions: [show("harbour", "tate", "Harbour Drawings", period(-40, 10))],
 };
 
-// Long runs only, so nothing closes within the Ending soon window.
+// Nothing has opened yet, so nothing is open now.
 export const london = {
   museums: [{ museumId: "london-museum", name: "London Museum", city: "London", lat: 51.5176, lng: -0.0968 }],
-  exhibitions: [
-    show("river", "london-museum", "River Rooms", period(-45, 90)),
-    show("undated", "london-museum", "Undated Collection", period(null, 200)),
-  ],
+  exhibitions: [show("river", "london-museum", "River Rooms", period(20, 90))],
 };

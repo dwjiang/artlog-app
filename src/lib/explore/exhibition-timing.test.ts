@@ -4,6 +4,7 @@ import {
   exhibitionStatus,
   exhibitionsByTiming,
   friendNames,
+  isEndingSoon,
 } from "./exhibition-timing";
 import type { Exhibition, ExploreFriend } from "./types";
 
@@ -99,8 +100,12 @@ describe("exhibitions by timing", () => {
   const ids = (timing: Parameters<typeof exhibitionsByTiming>[1]) =>
     exhibitionsByTiming(all, timing, TODAY).map((exhibition) => exhibition.id);
 
-  it("lists shows closing within 30 days, soonest first", () => {
-    expect(ids("ending")).toEqual(["ending-first", "ending-later", "closing-only"]);
+  it("counts only shows on view that close within 30 days as ending soon", () => {
+    expect(all.filter((exhibition) => isEndingSoon(exhibition, TODAY)).map((exhibition) => exhibition.id)).toEqual([
+      "ending-later",
+      "ending-first",
+      "closing-only",
+    ]);
   });
 
   it("lists shows that opened within 30 days, newest first", () => {
@@ -122,11 +127,11 @@ describe("exhibitions by timing", () => {
     ]);
   });
 
-  it("opens on what ends soon, else what is on view, else what opens next", () => {
-    expect(defaultTiming(all, TODAY)).toBe("ending");
+  it("opens on what is on view, even while some of it ends soon, else what opens next", () => {
+    expect(defaultTiming(all, TODAY)).toBe("now");
     expect(defaultTiming([closed, longRunning, opensFirst], TODAY)).toBe("now");
     expect(defaultTiming([closed, opensFirst], TODAY)).toBe("upcoming");
-    expect(defaultTiming([closed], TODAY)).toBe("ending");
+    expect(defaultTiming([closed], TODAY)).toBe("now");
   });
 });
 
