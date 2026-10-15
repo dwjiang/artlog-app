@@ -22,11 +22,19 @@ it("turns each kind of notification on or off on this iPhone", async () => {
   await render(<NotificationPreferences />);
   const reactions = await screen.findByRole("switch", { name: "Likes and comments" });
   await waitFor(() => expect(reactions).toBeEnabled());
-  expect(screen.getByRole("switch", { name: "Friend requests" })).toBeChecked();
-  expect(screen.getByRole("switch", { name: "Mentions" })).toBeChecked();
-  expect(screen.getByRole("switch", { name: "Visits you’re added to" })).toBeChecked();
-  expect(screen.getByRole("switch", { name: "Visit reminders" })).toBeChecked();
-  expect(screen.getByRole("switch", { name: "Exhibition reminders" })).toBeChecked();
+  const names = [
+    "Friend requests",
+    "Likes and comments",
+    "Mentions",
+    "Exhibition reminders",
+    "Visits you’re added to",
+    "Visit reminders",
+  ];
+  const switches = screen.getAllByRole("switch");
+  names.forEach((name, index) => {
+    expect(switches[index]).toHaveAccessibleName(name);
+    expect(switches[index]).toBeChecked();
+  });
 
   await fireEvent.press(reactions);
   await fireEvent.press(screen.getByRole("switch", { name: "Visits you’re added to" }));
