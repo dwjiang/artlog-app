@@ -2,8 +2,11 @@ import { fireEvent, render, screen, within } from "@testing-library/react-native
 import { Pressable, StyleSheet } from "react-native";
 
 import { Gallery } from "@/constants/theme";
+import { playToggleHaptic } from "@/lib/ui/haptics";
 
 import { ListIcon, ListRow, ListSection } from "./list-row";
+
+jest.mock("@/lib/ui/haptics");
 
 it("opens a chosen row and highlights the letters that match the search", async () => {
   const onPress = jest.fn();
@@ -52,6 +55,22 @@ it("announces the selected choice and blocks taps while disabled", async () => {
   expect(other).toBeDisabled();
   await fireEvent.press(other);
   expect(onPress).not.toHaveBeenCalled();
+});
+
+it("answers a multi-select tap with the toggle haptic for the state it moves to, and a single choice with none", async () => {
+  const onPress = jest.fn();
+  const view = await render(<ListRow first last title="Maya Chen" accessory="toggle" onPress={onPress} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Maya Chen" }));
+  expect(playToggleHaptic).toHaveBeenLastCalledWith(true);
+
+  await view.rerender(<ListRow first last title="Maya Chen" accessory="toggle" selected onPress={onPress} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Maya Chen" }));
+  expect(playToggleHaptic).toHaveBeenLastCalledWith(false);
+
+  await view.rerender(<ListRow first last title="Maya Chen" accessory="check" onPress={onPress} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Maya Chen" }));
+  expect(playToggleHaptic).toHaveBeenCalledTimes(2);
+  expect(onPress).toHaveBeenCalledTimes(3);
 });
 
 it("renders a row without a tap target when it has no action", async () => {

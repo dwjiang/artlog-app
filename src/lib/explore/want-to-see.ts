@@ -10,6 +10,7 @@ import { notificationPermission } from "@/lib/notifications/permission";
 import { getNotificationPreferences } from "@/lib/notifications/preferences";
 import { reportError } from "@/lib/observability";
 import { useSocialQuery } from "@/lib/social/use-social-query";
+import { playToggleHaptic } from "@/lib/ui/haptics";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
 import { useDeviceReady } from "@/lib/use-device-ready";
 
@@ -94,7 +95,10 @@ export function useWantToSee(): SavedList<Exhibition> {
     error: mine.error,
     retry: mine.refresh,
     toggle: (exhibition) => {
-      if (mine.data !== undefined) void apply(exhibition, !saved.has(exhibition.id));
+      if (mine.data === undefined) return;
+      const on = !saved.has(exhibition.id);
+      playToggleHaptic(on);
+      void apply(exhibition, on);
     },
   };
 }
@@ -122,7 +126,10 @@ export function useWantToSeeMuseums(): SavedList<ExploreMuseum> {
     error: mine.error,
     retry: mine.refresh,
     toggle: (museum) => {
-      if (mine.data !== undefined) void apply(museum, !saved.has(museum.id));
+      if (mine.data === undefined) return;
+      const on = !saved.has(museum.id);
+      playToggleHaptic(on);
+      void apply(museum, on);
     },
   };
 }

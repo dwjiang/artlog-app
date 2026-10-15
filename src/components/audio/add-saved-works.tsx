@@ -11,6 +11,7 @@ import type { SavedWork } from "@/db/schema";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { useListening } from "@/lib/audio/use-listening";
 import { captureFileUri } from "@/lib/files/photos";
+import { playLightHaptic } from "@/lib/ui/haptics";
 
 import { api } from "../../../convex/_generated/api";
 import { ArtworkThumbnail } from "./artwork-thumbnail";
@@ -37,6 +38,7 @@ export function AddSavedWorks() {
         setError(`Narration isn’t available for ${work.title} yet.`);
         return;
       }
+      playLightHaptic();
       audio.controller.enqueue({
         work: {
           artworkId: work.artworkId,

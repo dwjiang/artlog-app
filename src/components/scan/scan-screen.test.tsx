@@ -77,8 +77,10 @@ jest.mock("react-native-reanimated", () => {
     cubicBezier: () => "ease-out",
     useSharedValue: (value: number) => useRef({ get: () => value, set: jest.fn() }).current,
     withTiming: (value: number) => value,
+    withSequence: (...values: number[]) => values.at(-1),
+    useAnimatedStyle: (style: () => object) => style(),
     cancelAnimation: jest.fn(),
-    Easing: { linear: jest.fn() },
+    Easing: { linear: jest.fn(), bezier: () => jest.fn() },
     Keyframe: class {
       duration() {
         return this;

@@ -1,5 +1,5 @@
 import { Host, Icon, Row, Text as NativeText } from "@expo/ui";
-import { Menu, Button, Spacer, useNativeState } from "@expo/ui/swift-ui";
+import { Menu, Button, Spacer } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel,
   accessibilityValue,
@@ -8,10 +8,9 @@ import {
   disabled,
   frame,
   shapes,
-  symbolEffect,
 } from "@expo/ui/swift-ui/modifiers";
 import { router } from "expo-router";
-import { useEffect, type ComponentProps, type ReactElement, type ReactNode } from "react";
+import { type ComponentProps, type ReactElement, type ReactNode } from "react";
 import { Alert, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -20,7 +19,7 @@ import { ButtonGhost, LoadingSkeleton } from "@/components/loading-skeleton";
 import { NativeLoadingRing } from "@/components/native-loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
-import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { useSymbolBounce } from "@/hooks/use-symbol-bounce";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { friendshipActions } from "@/lib/social/presentation";
 import type { FriendshipAction, PublicProfile } from "@/lib/social/types";
@@ -28,20 +27,6 @@ import { useFriendship, type RelationshipSource } from "@/lib/social/use-friends
 import type { SocialSession } from "@/lib/social/use-social-session";
 
 import { socialStyles } from "./social-styles";
-
-/**
- * Modifiers that bounce the checkmark a confirmed request or accept puts on screen. The trigger moves a frame after
- * `confirmations` rises, once that newly shown checkmark is mounted and has a value to change from.
- */
-function useCheckmarkBounce(confirmations: number): ComponentProps<typeof Icon>["modifiers"] {
-  const reduced = useReducedMotion();
-  const trigger = useNativeState(0);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => trigger.set(confirmations));
-    return () => cancelAnimationFrame(frame);
-  }, [trigger, confirmations]);
-  return reduced ? [] : [symbolEffect({ effect: "bounce" }, { value: trigger })];
-}
 
 const labels: Record<FriendshipAction, string> = {
   request: "Add Friend",
@@ -115,7 +100,7 @@ function CompactFriendshipAction({
   declinable: boolean;
 }) {
   const { state, pending, confirmations, error, act, refresh } = useFriendship(profileId, session, relationship);
-  const bounce = useCheckmarkBounce(confirmations);
+  const bounce = useSymbolBounce(confirmations);
   const busy = pending !== undefined;
   const action =
     state?.state === "pending" ? (state.requesterId === session.profileId ? "cancel" : "accept") : "request";
@@ -242,7 +227,7 @@ export function FriendshipControls({
   onUnblock: () => void;
 }) {
   const { state, pending, confirmations, error, act, refresh } = useFriendship(profileId, session);
-  const bounce = useCheckmarkBounce(confirmations);
+  const bounce = useSymbolBounce(confirmations);
   if (profileId === session.profileId) return null;
   const busy = pending !== undefined;
   const ready = session.status === "ready";

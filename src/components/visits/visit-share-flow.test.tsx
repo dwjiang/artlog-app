@@ -3,7 +3,7 @@ import { Alert, type AlertButton } from "react-native";
 
 import type { ArtworkPhoto } from "@/db/schema";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
-import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
+import { playErrorHaptic, playSuccessHaptic, playToggleHaptic } from "@/lib/ui/haptics";
 import type { useVisitSharing } from "@/lib/visits/use-visit-sharing";
 
 import { VisitShareLayout } from "./visit-share-flow";
@@ -406,6 +406,7 @@ it("keeps a left-out artwork in its place and includes it there again", async ()
   const view = await render(<VisitShareLayout />);
   await fireEvent.press(screen.getByRole("checkbox", { name: "Share Work b", checked: true }));
   expect(mockController.edit).toHaveBeenLastCalledWith({ saveLocalIds: ["a", "c"] });
+  expect(playToggleHaptic).toHaveBeenLastCalledWith(false);
   mockSharing.draft = { ...mockSharing.draft, saveLocalIds: ["a", "c"] };
   await view.rerender(<VisitShareLayout />);
   const grid = mockGrid.mock.lastCall![0].data.map((work: { localId: string }) => work.localId);
@@ -413,6 +414,7 @@ it("keeps a left-out artwork in its place and includes it there again", async ()
   expect(screen.getByRole("checkbox", { name: "Share Work c", value: { text: "2" } })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("checkbox", { name: "Share Work b", checked: false }));
   expect(mockController.edit).toHaveBeenLastCalledWith({ saveLocalIds: ["a", "b", "c"] });
+  expect(playToggleHaptic).toHaveBeenLastCalledWith(true);
 });
 
 it("chooses an artwork's shared photos on its own screen, all at once or one by one, without captions", async () => {
@@ -437,6 +439,8 @@ it("chooses an artwork's shared photos on its own screen, all at once or one by 
   });
   await fireEvent.press(screen.getByRole("checkbox", { name: "Share full artwork photo", checked: true }));
   expect(mockController.edit).toHaveBeenLastCalledWith({ photoSelections: [] });
+  expect(playToggleHaptic).toHaveBeenCalledTimes(1);
+  expect(playToggleHaptic).toHaveBeenLastCalledWith(false);
   mockSharing.draft = {
     ...mockSharing.draft,
     photoSelections: [{ saveLocalId: "save", photoLocalIds: ["full", "label"] }],
@@ -674,8 +678,10 @@ it("picks friends who came along into the draft, up to ten", async () => {
   expect(screen.getByRole("checkbox", { name: "Jonah Park" })).toBeChecked();
   await fireEvent.press(screen.getByRole("checkbox", { name: "Maya Chen" }));
   expect(mockController.edit).toHaveBeenLastCalledWith({ companionIds: ["jonah", "maya"] });
+  expect(playToggleHaptic).toHaveBeenLastCalledWith(true);
   await fireEvent.press(screen.getByRole("checkbox", { name: "Jonah Park" }));
   expect(mockController.edit).toHaveBeenLastCalledWith({ companionIds: [] });
+  expect(playToggleHaptic).toHaveBeenLastCalledWith(false);
 
   mockFriends = Array.from({ length: 11 }, (_, index) => mockFriend(`f${index}`, `Friend ${index}`, `f${index}`));
   mockSharing.draft!.companionIds = mockFriends.slice(1).map((friend) => friend.profileId) as never;

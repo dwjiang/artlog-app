@@ -8,6 +8,7 @@ import { durationLabel, trackKey, researchKey, type ListeningWork } from "@/lib/
 import { preparationLabel } from "@/lib/audio/narration-preparation";
 import { useCachedNarrationDuration } from "@/lib/audio/use-cached-narration-duration";
 import { useListening } from "@/lib/audio/use-listening";
+import { playLightHaptic } from "@/lib/ui/haptics";
 import { useArtworkEnrichment } from "@/lib/use-artwork-enrichment";
 
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -84,6 +85,7 @@ export function ListenActions({
     openPlayer();
   }
   function enqueue() {
+    playLightHaptic();
     if (!audio.current) void audio.controller.play(track, false, true);
     else audio.controller.enqueue(track);
   }
@@ -119,6 +121,7 @@ export function ListenActions({
               }
               size={20}
               color={another && queued ? Gallery.ink : Gallery.surface}
+              popOn={another && queued}
             />
           )}
         </View>
@@ -139,6 +142,7 @@ export function ListenActions({
           label={another ? "Listen now" : inPlayer ? "Already in player" : queued ? "Added to queue" : "Add to queue"}
           color={Gallery.accent}
           size={20}
+          popOn={!another && queuedHere}
           disabled={!another && queuedHere}
           onPress={another ? listen : enqueue}
           style={styles.queue}

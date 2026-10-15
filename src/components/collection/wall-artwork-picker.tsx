@@ -14,6 +14,7 @@ import type { SavedWork } from "@/db/schema";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { cropSyncing } from "@/lib/account/photo-sync";
 import { formatVisitDate } from "@/lib/journal/history";
+import { playToggleHaptic } from "@/lib/ui/haptics";
 import { canHangArtwork, libraryArtworks, type ArtworkSort, type LibraryVisit } from "@/lib/wall/artwork-library";
 import type { WallPiece } from "@/lib/wall/wall-layout";
 import { LIMITS } from "@/shared/journal/limits";
@@ -183,9 +184,10 @@ export function WallArtworkPicker({
                 accessibilityHint={hung ? "Already on your wall" : syncing ? "Available after syncing" : item.artist}
                 accessibilityState={{ checked, disabled: unavailable }}
                 disabled={unavailable}
-                onPress={() =>
-                  onChange(checked ? selectedIds.filter((id) => id !== item.localId) : [...selectedIds, item.localId])
-                }
+                onPress={() => {
+                  playToggleHaptic(!checked);
+                  onChange(checked ? selectedIds.filter((id) => id !== item.localId) : [...selectedIds, item.localId]);
+                }}
                 style={[styles.card, { width: cardWidth }]}
               >
                 <View style={[styles.mat, checked && styles.checked]}>
@@ -196,7 +198,7 @@ export function WallArtworkPicker({
                     contain
                     style={styles.image}
                   />
-                  <PopOnTurnOn on={checked} style={[styles.check, checked && styles.checkSelected]}>
+                  <PopOnTurnOn on={checked} dipOnTurnOff style={[styles.check, checked && styles.checkSelected]}>
                     {checked && (
                       <Image source="sf:checkmark" style={{ width: 12, height: 12 }} tintColor={Gallery.paper} />
                     )}

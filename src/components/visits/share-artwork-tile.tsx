@@ -5,6 +5,7 @@ import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { PopInBadge } from "@/components/pop-on-turn-on";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius } from "@/constants/theme";
+import { playToggleHaptic } from "@/lib/ui/haptics";
 
 import { VisitSymbol } from "./visit-ui";
 
@@ -79,7 +80,10 @@ export function ShareArtworkTile({
         }
         onAccessibilityAction={(event) => onMove?.(event.nativeEvent.actionName === "moveEarlier" ? -1 : 1)}
         disabled={disabled || !selectable}
-        onPress={onToggle}
+        onPress={() => {
+          playToggleHaptic(!included);
+          onToggle();
+        }}
       >
         <ShareTileImage
           size={size}

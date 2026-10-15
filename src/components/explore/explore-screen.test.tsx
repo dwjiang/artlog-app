@@ -5,6 +5,7 @@ import { AppState, Linking } from "react-native";
 
 import { chooseCity } from "@/lib/explore/use-explore";
 import { offerNotifications } from "@/lib/notifications/offer";
+import { playToggleHaptic } from "@/lib/ui/haptics";
 import * as toast from "@/lib/ui/toast";
 import type { VenueRow } from "@/lib/venue/resolve";
 
@@ -97,6 +98,7 @@ jest.mock("@/lib/social/use-query-refresh", () => ({
   }),
 }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
+jest.mock("@/lib/ui/haptics");
 jest.mock("../../../modules/look-around/src", () => ({
   ...jest.requireActual("../../../modules/look-around/src"),
   getLookAround: () => ({ snapshot: mockLookAroundStill, open: mockOpenLookAround }),
@@ -245,6 +247,7 @@ beforeEach(() => {
   mockSetWantToSee.mockClear();
   mockSetMuseum.mockClear();
   jest.mocked(offerNotifications).mockClear();
+  jest.mocked(playToggleHaptic).mockClear();
   mockSaved = [];
   mockSavedMuseums = [];
   mockFriendSaves = [];
@@ -991,6 +994,18 @@ describe("Want to see", () => {
     await act(() => showErrorToast.mock.lastCall![1]!());
     expect(mockSetMuseum).toHaveBeenCalledTimes(2);
     expect(mockSetMuseum).toHaveBeenLastCalledWith({ museumId: "omca", saved: true });
+  });
+
+  it("answers a save with a turn-on haptic and a removal with a turn-off one", async () => {
+    mockSaved = ["tides"];
+    const view = await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Remove Tides of Memory from Want to see" }));
+    expect(playToggleHaptic).toHaveBeenLastCalledWith(false);
+
+    await view.rerender(<MuseumScreen museumId="bampfa" />);
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see" }));
+    expect(playToggleHaptic).toHaveBeenLastCalledWith(true);
+    expect(playToggleHaptic).toHaveBeenCalledTimes(2);
   });
 
   it("keeps saved museums on their own tab, most recently saved first", async () => {

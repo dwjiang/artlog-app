@@ -21,6 +21,12 @@ export function playMediumHaptic() {
   play(Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium));
 }
 
+/** A toggle the user flipped, such as a like or a bookmark: a light commit turning on, a softer tick turning off. */
+export function playToggleHaptic(on: boolean) {
+  if (on) playLightHaptic();
+  else playSelectionHaptic();
+}
+
 /** An operation the user started has finished. */
 export function playSuccessHaptic() {
   play(Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));

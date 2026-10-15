@@ -2,12 +2,14 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { useState } from "react";
 
 import type { SavedWork } from "@/db/schema";
+import { playToggleHaptic } from "@/lib/ui/haptics";
 import type { WallPiece } from "@/lib/wall/wall-layout";
 import { LIMITS } from "@/shared/journal/limits";
 
 import { WallArtworkPicker } from "./wall-artwork-picker";
 
 jest.mock("expo-router", () => ({ useSegments: () => [] }));
+jest.mock("@/lib/ui/haptics");
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 34 }) }));
 const work = (localId: string, title: string, artist: string, savedAt = 1): SavedWork =>
   ({
@@ -49,12 +51,15 @@ function Picker({
 }
 
 it("limits selection to remaining wall space and releases space when unchecked", async () => {
+  jest.mocked(playToggleHaptic).mockClear();
   await render(<Picker count={LIMITS.wallItems - 1} />);
   expect(screen.getByRole("button", { name: "Add artworks to wall" })).toBeDisabled();
   await fireEvent.press(screen.getByRole("checkbox", { name: "Sunflowers" }));
   expect(screen.getByRole("checkbox", { name: "Sunflowers" })).toBeChecked();
+  expect(playToggleHaptic).toHaveBeenLastCalledWith(true);
   expect(screen.getByRole("checkbox", { name: "Water Lilies" })).toBeDisabled();
   await fireEvent.press(screen.getByRole("checkbox", { name: "Sunflowers" }));
+  expect(playToggleHaptic).toHaveBeenLastCalledWith(false);
   expect(screen.getByRole("checkbox", { name: "Water Lilies" })).toBeEnabled();
 });
 

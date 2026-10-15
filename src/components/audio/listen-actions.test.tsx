@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import type { ListeningState } from "@/lib/audio/listening-controller";
 import type { ListeningTrack } from "@/lib/audio/narration";
+import { playLightHaptic } from "@/lib/ui/haptics";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import { ListenActions } from "./listen-actions";
@@ -30,6 +31,7 @@ let mockEnrichment: { narrationAvailable: boolean; narrationFacts?: typeof facts
 let mockCachedDuration: number | undefined;
 
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
+jest.mock("@/lib/ui/haptics");
 jest.mock("convex/react", () => ({
   useQueries: () => ({
     enrichment: { ...mockEnrichment, narrationOpening: opening },
@@ -194,6 +196,7 @@ it("queues a newly recognized artwork while another guide continues playing", as
   expect(mockController.enqueue).toHaveBeenCalledWith({
     work: expect.objectContaining({ artworkId }),
   });
+  expect(playLightHaptic).toHaveBeenCalledTimes(1);
   expect(mockController.play).not.toHaveBeenCalled();
   expect(mockOpenPlayer).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Listen now" }));

@@ -2,6 +2,7 @@ import { Image, type ImageSource } from "expo-image";
 import { type ColorValue, type StyleProp, type ViewStyle } from "react-native";
 
 import { MotionPressable } from "@/components/motion-pressable";
+import { PopOnTurnOn } from "@/components/pop-on-turn-on";
 import { Gallery, Motion } from "@/constants/theme";
 
 // Play, pause and retry morph into each other the way the system players' glyphs do.
@@ -12,13 +13,16 @@ export function AudioIcon({
   size = 22,
   color = Gallery.ink,
   morphs = false,
+  popOn,
 }: {
   name: string;
   size?: number;
   color?: ColorValue;
   morphs?: boolean;
+  /** Pops the glyph when this turns on, such as a checkmark for an added track. */
+  popOn?: boolean;
 }) {
-  return (
+  const image = (
     <Image
       source={`sf:${name}` as ImageSource}
       style={{ width: size, height: size, color }}
@@ -26,6 +30,7 @@ export function AudioIcon({
       accessible={false}
     />
   );
+  return popOn === undefined ? image : <PopOnTurnOn on={popOn}>{image}</PopOnTurnOn>;
 }
 export function AudioIconButton({
   name,
@@ -36,6 +41,7 @@ export function AudioIconButton({
   disabled,
   style,
   morphs,
+  popOn,
 }: {
   name: string;
   label: string;
@@ -45,6 +51,7 @@ export function AudioIconButton({
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   morphs?: boolean;
+  popOn?: boolean;
 }) {
   return (
     <MotionPressable
@@ -64,7 +71,7 @@ export function AudioIconButton({
         style,
       ]}
     >
-      <AudioIcon name={name} size={size} color={color} morphs={morphs} />
+      <AudioIcon name={name} size={size} color={color} morphs={morphs} popOn={popOn} />
     </MotionPressable>
   );
 }
