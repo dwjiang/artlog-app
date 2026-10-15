@@ -23,6 +23,7 @@ import { getLookAround, isExpectedLookAroundError } from "../../../modules/look-
 import { DetailActions, openSourcePage } from "./detail-parts";
 import { ExhibitionRow } from "./exhibition-row";
 import { ExploreState } from "./explore-state";
+import { LocationMap } from "./location-map";
 
 export function MuseumScreen({ museumId }: { museumId: string }) {
   const explore = useMuseum(museumId);
@@ -82,6 +83,12 @@ export function MuseumScreen({ museumId }: { museumId: string }) {
           onToggle={() => wantToSee.toggle(museum)}
           museum={museum}
         />
+      </View>
+      <View style={styles.location}>
+        <Text variant="section" accessibilityRole="header">
+          Location
+        </Text>
+        <LocationMap museum={museum} />
       </View>
       <View style={styles.section}>
         <Text variant="section" accessibilityRole="header" style={styles.sectionTitle}>
@@ -168,6 +175,7 @@ const styles = StyleSheet.create({
   factDivider: { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: Gallery.separator },
   factLabel: { ...Typography.metadata, color: Gallery.muted },
   factValue: { fontSize: 15, lineHeight: 20, fontWeight: "600", color: Gallery.ink },
+  location: { paddingTop: Spacing.four, paddingHorizontal: Spacing.content, gap: Spacing.compact },
   section: { paddingTop: Spacing.four, gap: Spacing.one },
   sectionTitle: { paddingHorizontal: Spacing.content },
   empty: { ...Typography.secondary, color: Gallery.muted, paddingHorizontal: Spacing.content },

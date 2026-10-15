@@ -16,6 +16,7 @@ import { DetailActions, FactRow, openSourcePage, StatusChip } from "./detail-par
 import { openMuseum } from "./explore-routes";
 import { ExploreState } from "./explore-state";
 import { FriendStack } from "./friend-stack";
+import { LocationMap } from "./location-map";
 
 export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
   const explore = useExhibitions([exhibitionId]);
@@ -106,6 +107,14 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
             {`Details on ${host}`}
           </FactRow>
         </View>
+        {museum && (
+          <View style={styles.location}>
+            <LocationMap museum={museum} />
+            <Text variant="secondary" themeColor="textSecondary">
+              {museum.distance ? `${museum.name} · ${museum.distance} away` : museum.name}
+            </Text>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -120,4 +129,5 @@ const styles = StyleSheet.create({
   museumLink: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center", marginVertical: -Spacing.two },
   museum: { fontSize: 17, lineHeight: 22, color: Gallery.accent },
   section: { gap: Spacing.compact },
+  location: { gap: Spacing.two },
 });
