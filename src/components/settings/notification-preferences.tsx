@@ -16,9 +16,9 @@ const rows: { preference: NotificationPreference; label: string }[] = [
   { preference: "friends", label: "Friend requests" },
   { preference: "reactions", label: "Likes and comments" },
   { preference: "mentions", label: "Mentions" },
+  { preference: "exhibitionReminders", label: "Exhibition reminders" },
   { preference: "companions", label: "Visits you’re added to" },
   { preference: "visitReminders", label: "Visit reminders" },
-  { preference: "exhibitionReminders", label: "Exhibition reminders" },
 ];
 
 export function NotificationPreferences() {
