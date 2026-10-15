@@ -5,6 +5,7 @@ import { ActionSheetIOS, StyleSheet, useWindowDimensions, View } from "react-nat
 
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { openMuseum } from "@/components/explore/explore-routes";
 import { LoadingRing } from "@/components/loading-ring";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -144,32 +145,48 @@ export function VisitCard({
   return (
     <View style={styles.card}>
       <View style={[styles.feedHeading, fontScale > 1.4 && { flexDirection: "column" }]}>
-        <MotionPressable
-          accessibilityRole="button"
-          accessibilityLabel={`View ${author.name}’s profile`}
-          accessibilityHint={`Visit to ${venue.name} on ${visitDate(visitedOn)}`}
-          onPress={openProfile}
-          style={styles.feedIdentity}
-        >
-          <ProfileAvatar name={author.name} photoUrl={author.photoUrl} avatar={author.avatar} size={40} />
+        <View style={styles.feedIdentity}>
+          {/* VoiceOver reaches the profile through the name row; the avatar is only a larger touch target. */}
+          <MotionPressable
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            onPress={openProfile}
+          >
+            <ProfileAvatar name={author.name} photoUrl={author.photoUrl} avatar={author.avatar} size={40} />
+          </MotionPressable>
           <View style={{ flex: 1, gap: 1 }}>
-            <View style={styles.nameRow}>
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel={`View ${author.name}’s profile`}
+              accessibilityHint={`Visit to ${venue.name} on ${visitDate(visitedOn)}`}
+              onPress={openProfile}
+              hitSlop={{ top: 8 }}
+              style={styles.nameRow}
+            >
               <Text style={styles.feedName}>{author.name}</Text>
               <Text accessible={false} style={styles.feedDate}>
                 ·
               </Text>
               {date}
               {reach}
-            </View>
-            <View style={styles.location}>
+            </MotionPressable>
+            <MotionPressable
+              accessibilityRole="button"
+              accessibilityLabel={venue.city ? `${venue.name}, ${venue.city}` : venue.name}
+              accessibilityHint="Opens the museum"
+              onPress={() => openMuseum(venue.venueId)}
+              // Stops short of the went-with line tucked under the heading.
+              hitSlop={{ bottom: 5 }}
+              style={styles.location}
+            >
               <VisitSymbol name="mappin.and.ellipse" size={12} />
               <Text numberOfLines={1} style={styles.locationText}>
                 {venue.name}
                 {venue.city ? ` · ${venue.city}` : ""}
               </Text>
-            </View>
+            </MotionPressable>
           </View>
-        </MotionPressable>
+        </View>
         <GalleryIconButton icon="ellipsis" label="More options" onPress={openMenu} />
       </View>
       {companions.length > 0 && (
