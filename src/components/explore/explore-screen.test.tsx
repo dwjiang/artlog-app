@@ -1,6 +1,6 @@
+import type { MenuProps } from "@expo/ui/swift-ui";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as Notifications from "expo-notifications";
-import type { ReactNode } from "react";
 import { AppState, Linking } from "react-native";
 
 import { chooseCity } from "@/lib/explore/use-explore";
@@ -181,13 +181,13 @@ jest.mock("convex/react", () => ({
     );
   },
 }));
-// The heading menu draws its label as the trigger; the shared mock's Menu drops it.
+// The city and heading menus draw their labels as triggers; the shared mock's Menu drops them.
 jest.mock("@expo/ui/swift-ui", () => {
   const { View } = jest.requireActual("react-native");
   return {
     ...jest.requireActual("@/__mocks__/@expo/ui/swift-ui"),
-    Menu: ({ label, children }: { label: ReactNode; children: ReactNode }) => (
-      <View>
+    Menu: ({ label, children, modifiers }: MenuProps) => (
+      <View accessibilityLabel={modifiers?.find((modifier) => modifier.$type === "accessibilityLabel")?.label}>
         {label}
         {children}
       </View>
@@ -207,6 +207,8 @@ function reminderDay(date: string, back = 0, options: Intl.DateTimeFormatOptions
 }
 
 const card = (title: string) => screen.queryByRole("button", { name: new RegExp(`^${title}, .*(Museum|Tate)`) });
+/** The city menu's location row, named by its title and then any subtitle. */
+const locationRow = (title: string) => screen.getByRole("checkbox", { name: new RegExp(`^${title}( |$)`) });
 
 beforeEach(() => {
   mockPush.mockClear();
@@ -251,10 +253,10 @@ describe("Explore", () => {
   it("opens on the city nearest the phone, then the one picked from the city menu", async () => {
     mockFix = { lat: 50.21, lng: -5.48 };
     await render(<ExploreScreen />);
-    expect(screen.getByLabelText("City, United Kingdom")).toBeOnTheScreen();
+    expect(screen.getByLabelText("City, United Kingdom, My Location")).toBeOnTheScreen();
     expect(card("Harbour Drawings")).toBeOnTheScreen();
 
-    await fireEvent.press(screen.getByRole("button", { name: "San Francisco Bay Area" }));
+    await fireEvent.press(screen.getByRole("checkbox", { name: "San Francisco Bay Area" }));
 
     expect(screen.getByLabelText("City, San Francisco Bay Area")).toBeOnTheScreen();
     expect(card("Tides of Memory")).toBeOnTheScreen();
@@ -401,7 +403,7 @@ describe("Explore", () => {
 
   it("never asks the backend to read museum listings when a city opens", async () => {
     await render(<ExploreScreen />);
-    await fireEvent.press(screen.getByRole("button", { name: "San Francisco Bay Area" }));
+    await fireEvent.press(screen.getByRole("checkbox", { name: "San Francisco Bay Area" }));
 
     expect(mockRequestRegion).not.toHaveBeenCalled();
   });
@@ -420,42 +422,42 @@ describe("Explore", () => {
     mockHome = "paris";
     await render(<ExploreScreen />);
 
-    expect(await screen.findByLabelText("City, United Kingdom")).toBeOnTheScreen();
+    expect(await screen.findByLabelText("City, United Kingdom, My Location")).toBeOnTheScreen();
     expect(screen.getByText("Nothing listed in Paris yet. Showing United Kingdom, 363 mi away.")).toBeOnTheScreen();
     expect(screen.getByRole("header", { name: "Museums" })).toBeOnTheScreen();
     expect(mockRequestRegion).not.toHaveBeenCalled();
 
-    await fireEvent.press(screen.getByRole("button", { name: "San Francisco Bay Area" }));
+    await fireEvent.press(screen.getByRole("checkbox", { name: "San Francisco Bay Area" }));
     expect(screen.getByLabelText("City, San Francisco Bay Area")).toBeOnTheScreen();
     expect(screen.queryByText(/^Nothing listed in Paris/)).toBeNull();
   });
 
-  it("follows the phone from the top of the city menu, naming its area, until a city is picked", async () => {
+  it("follows the phone from the top of the city menu, naming its area and marking the chip, until a city is picked", async () => {
     mockFix = { lat: 37.870804, lng: -122.26634 };
     mockHome = "sf-bay-area";
     await render(<ExploreScreen />);
-    const myLocation = await screen.findByRole("button", { name: "My Location" });
-    expect(myLocation).toBeSelected();
-    expect(screen.getByHintText("San Francisco Bay Area")).toBe(myLocation);
-    expect(screen.getByRole("button", { name: "San Francisco Bay Area" })).not.toBeSelected();
+    expect(await screen.findByLabelText("City, San Francisco Bay Area, My Location")).toBeOnTheScreen();
+    expect(locationRow("My Location")).toBeChecked();
+    expect(locationRow("My Location")).toHaveAccessibleName("My Location San Francisco Bay Area");
+    expect(screen.getByRole("checkbox", { name: "San Francisco Bay Area" })).not.toBeChecked();
 
-    await fireEvent.press(screen.getByRole("button", { name: "United Kingdom" }));
+    await fireEvent.press(screen.getByRole("checkbox", { name: "United Kingdom" }));
     expect(screen.getByLabelText("City, United Kingdom")).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "United Kingdom" })).toBeSelected();
-    expect(screen.getByRole("button", { name: "My Location" })).not.toBeSelected();
+    expect(screen.getByRole("checkbox", { name: "United Kingdom" })).toBeChecked();
+    expect(locationRow("My Location")).not.toBeChecked();
 
-    await fireEvent.press(screen.getByRole("button", { name: "My Location" }));
-    expect(screen.getByLabelText("City, San Francisco Bay Area")).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "My Location" })).toBeSelected();
+    await fireEvent.press(locationRow("My Location"));
+    expect(screen.getByLabelText("City, San Francisco Bay Area, My Location")).toBeOnTheScreen();
+    expect(locationRow("My Location")).toBeChecked();
   });
 
   it.each(["denied", "resolved"])("asks for location even when the museum status is %s", async (status) => {
     mockVenueStatus = status;
     mockPermission = { granted: false, canAskAgain: true };
     await render(<ExploreScreen />);
-    await fireEvent.press(screen.getByRole("button", { name: "United Kingdom" }));
-    const useMyLocation = screen.getByRole("button", { name: "Use My Location" });
-    expect(screen.queryByHintText("Turn on in Settings")).toBeNull();
+    await fireEvent.press(screen.getByRole("checkbox", { name: "United Kingdom" }));
+    const useMyLocation = locationRow("Use My Location");
+    expect(useMyLocation).toHaveAccessibleName("Use My Location");
 
     await fireEvent.press(useMyLocation);
 
@@ -471,9 +473,9 @@ describe("Explore", () => {
     mockVenueStatus = "denied";
     mockPermission = { granted: false, canAskAgain: false };
     await render(<ExploreScreen />);
-    await fireEvent.press(screen.getByRole("button", { name: "United Kingdom" }));
-    const useMyLocation = screen.getByHintText("Turn on in Settings");
-    expect(useMyLocation).toHaveAccessibleName("Use My Location");
+    await fireEvent.press(screen.getByRole("checkbox", { name: "United Kingdom" }));
+    const useMyLocation = locationRow("Use My Location");
+    expect(useMyLocation).toHaveAccessibleName("Use My Location Turn on in Settings");
 
     await fireEvent.press(useMyLocation);
 
@@ -487,26 +489,28 @@ describe("Explore", () => {
     await act(async () => {
       for (const [event, listener] of appState.mock.calls) if (event === "change") listener("active");
     });
-    expect(await screen.findByLabelText("City, San Francisco Bay Area")).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: "My Location" })).toBeSelected();
+    // The venue store re-renders its readers when the fix arrives.
+    await screen.rerender(<ExploreScreen />);
+    expect(await screen.findByLabelText("City, San Francisco Bay Area, My Location")).toBeOnTheScreen();
+    expect(locationRow("My Location")).toBeChecked();
   });
 
   it("keeps the chosen city when the location prompt is declined", async () => {
     mockPermission = { granted: false, canAskAgain: true };
     mockRequestPermission.mockResolvedValueOnce({ granted: false, canAskAgain: false });
     await render(<ExploreScreen />);
-    await fireEvent.press(screen.getByRole("button", { name: "United Kingdom" }));
-    await fireEvent.press(screen.getByRole("button", { name: "Use My Location" }));
+    await fireEvent.press(screen.getByRole("checkbox", { name: "United Kingdom" }));
+    await fireEvent.press(locationRow("Use My Location"));
 
     expect(screen.getByLabelText("City, United Kingdom")).toBeOnTheScreen();
-    expect(screen.getByHintText("Turn on in Settings")).toBeOnTheScreen();
+    expect(locationRow("Use My Location")).toHaveAccessibleName("Use My Location Turn on in Settings");
     expect(mockResolve).not.toHaveBeenCalled();
   });
 
   it("opens a city where nothing ends soon on what is on view", async () => {
     mockRegions = [...regions, { region: "london", lat: 51.5, lng: -0.12 }];
     await render(<ExploreScreen />);
-    await fireEvent.press(screen.getByRole("button", { name: "London" }));
+    await fireEvent.press(screen.getByRole("checkbox", { name: "London" }));
 
     expect(screen.getByText("On now")).toBeOnTheScreen();
     expect(card("River Rooms")).toBeOnTheScreen();

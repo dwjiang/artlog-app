@@ -4,6 +4,9 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-nativ
 
 export { Text };
 export { useNativeState } from "../ui";
+export function Image() {
+  return null;
+}
 export function Label({ title }: { title?: string }) {
   return <Text>{title}</Text>;
 }
