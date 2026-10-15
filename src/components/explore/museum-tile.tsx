@@ -7,11 +7,16 @@ import { Fonts, Gallery, Radius, Spacing } from "@/constants/theme";
 import { useMuseumImage } from "@/lib/explore/museum-image";
 import { museumLine, museumSummary } from "@/lib/explore/museum-summary";
 import type { ExploreData, ExploreMuseum } from "@/lib/explore/types";
+import { photoCredit } from "@/lib/venue/use-museum-photo";
 
 import { ExploreImage } from "./explore-image";
 import { openMuseum } from "./explore-routes";
 
-/** The museum's photo, else a Look Around still, else its most pressing show's artwork, else a placeholder. */
+/**
+ * The museum's photo, else a Look Around still, else its most pressing show's artwork, else a placeholder. Card-sized
+ * Commons photos carry their credit. A still carries Apple's logo, and a show's artwork comes from the museum's own site,
+ * which the card already names.
+ */
 export function MuseumPhoto({
   data,
   museum,
@@ -33,7 +38,8 @@ export function MuseumPhoto({
       </View>
     );
   }
-  return <ExploreImage image={image} icon="building.columns" style={style} />;
+  const credit = card && image?.source.kind === "commons" ? photoCredit(image.source.photo) : "";
+  return <ExploreImage image={image} icon="building.columns" credit={credit} style={style} />;
 }
 
 const MUSEUM_TILE_WIDTH = 264;

@@ -14,7 +14,7 @@ import { formatVisitStart } from "@/lib/journal/history";
 import { useVisitWorks } from "@/lib/journal/use-visit-works";
 import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
-import { useCurrentMuseumPhoto, type MuseumPhoto } from "@/lib/venue/use-museum-photo";
+import { photoCredit, useCurrentMuseumPhoto, type MuseumPhoto } from "@/lib/venue/use-museum-photo";
 import { useStartVisit } from "@/lib/venue/use-start-visit";
 import { useVenue } from "@/lib/venue/use-venue";
 
@@ -219,7 +219,7 @@ function ReadyCard({
 
 /** A plain line of status over the card, in place of a chip, and the credit for the museum's photo across from it. */
 function TopLine({ photo, children }: { photo?: MuseumPhoto; children?: string }) {
-  const credit = [photo?.author, photo?.license].filter(Boolean).join(" · ");
+  const credit = photo ? photoCredit(photo) : "";
   return (
     <View style={styles.topLine}>
       {children && <Text style={[styles.top, styles.passThrough]}>{children}</Text>}

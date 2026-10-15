@@ -24,7 +24,10 @@ jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => "device:tes
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("@/lib/ui/toast", () => ({ showToast: jest.fn(), showErrorToast: jest.fn() }));
 jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn() }));
-jest.mock("@/lib/venue/use-museum-photo", () => ({ useCurrentMuseumPhoto: () => mockMuseumPhoto }));
+jest.mock("@/lib/venue/use-museum-photo", () => ({
+  ...jest.requireActual("@/lib/venue/use-museum-photo"),
+  useCurrentMuseumPhoto: () => mockMuseumPhoto,
+}));
 jest.mock("@/lib/venue/use-venue", () => ({
   useVenue: () => ({
     visit: mockVisit,

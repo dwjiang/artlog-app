@@ -33,6 +33,7 @@ const expectedCodes = new Set([
   "sign_in_required",
   "already_linked",
   "account_device_limit",
+  "sign_in_unavailable",
   "nothing_read",
   "label_flagged",
   "feature_off",

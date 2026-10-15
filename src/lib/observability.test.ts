@@ -45,6 +45,7 @@ it.each([
   new ConvexError({ code: "identity_unresolved" }),
   new ConvexError({ code: "album_full" }),
   new ConvexError({ code: "label_unverified" }),
+  new ConvexError({ code: "sign_in_unavailable" }),
   Object.assign(new Error("Couldn’t open the museum’s page"), {
     code: "page_unavailable",
     cause: new ConvexError({ code: "page_unavailable", reason: "http_429" }),

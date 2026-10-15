@@ -605,6 +605,42 @@ describe("museum pictures", () => {
     expect(mockLookAroundStill).toHaveBeenCalledWith(37.870804, -122.26634, 400, 250);
   });
 
+  it("credits a tile's Commons photo along its edge once the photo loads", async () => {
+    mockMuseumPhotos.set("omca", commonsPhoto("OMCA.jpg", { author: "Jane Doe", license: "CC BY-SA 4.0" }));
+    await render(<ExploreScreen />);
+    const row = await screen.findByTestId("museum-row");
+    const photo = await within(row).findByLabelText("Photo of Oakland Museum of California");
+    expect(within(row).queryByText("Jane Doe · CC BY-SA 4.0")).toBeNull();
+
+    await fireEvent(photo, "load", { nativeEvent: { source: { width: 1280, height: 853 } } });
+
+    expect(within(row).getByText("Jane Doe · CC BY-SA 4.0")).toBeOnTheScreen();
+  });
+
+  it("leaves a show's artwork uncredited on its card and its museum's tile, which name the museum it came from", async () => {
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("checkbox", { name: "On now" }));
+    // Signal and Noise's card, and SFMOMA's tile, which shows the show's artwork without a photo or Look Around still.
+    await waitFor(() => expect(screen.getAllByLabelText("Signal and Noise")).toHaveLength(2));
+
+    for (const artwork of screen.getAllByLabelText("Signal and Noise")) {
+      await fireEvent(artwork, "load", { nativeEvent: { source: { width: 1200, height: 800 } } });
+    }
+
+    expect(screen.queryByText(/sfmoma\.org/)).toBeNull();
+  });
+
+  it("leaves list thumbnails uncredited", async () => {
+    mockMuseumPhotos.set("omca", commonsPhoto("OMCA.jpg", { author: "Jane Doe", license: "CC BY-SA 4.0" }));
+    await render(<MuseumListScreen />);
+
+    await fireEvent(await screen.findByLabelText("Photo of Oakland Museum of California"), "load", {
+      nativeEvent: { source: { width: 330, height: 220 } },
+    });
+
+    expect(screen.queryByText("Jane Doe · CC BY-SA 4.0")).toBeNull();
+  });
+
   it("credits the museum's photo on its page and opens the photo's Commons page", async () => {
     mockMuseumPhotos.set("omca", commonsPhoto("OMCA.jpg", { author: "Jane Doe", license: "CC BY-SA 4.0" }));
     await render(<MuseumScreen museumId="omca" />);

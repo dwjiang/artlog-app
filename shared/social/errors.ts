@@ -28,6 +28,8 @@ export const ERROR_MESSAGES = {
   sign_in_required: "Sign in to continue.",
   already_linked: "Sign out before linking another account.",
   account_device_limit: "This account has reached its device limit.",
+  sign_in_unavailable: "Signing in isn’t available on this device. Use Artlog on your iPhone instead.",
+  device_not_attested: "This device isn’t set up for Artlog yet. Try again in a moment.",
 } as const;
 export function socialErrorMessage(error: unknown): string | undefined {
   if (!error || typeof error !== "object") return;

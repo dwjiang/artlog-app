@@ -13,6 +13,9 @@ import { useVenue } from "./use-venue";
 type MuseumPhotoResult = FunctionReturnType<typeof api.museumPhotos.forVenue>;
 export type MuseumPhoto = NonNullable<MuseumPhotoResult["photo"]>;
 
+/** "Jane Doe · CC BY-SA 4.0": the credit the photo's licence asks for, empty when it asks for none. */
+export const photoCredit = (photo: MuseumPhoto) => [photo.author, photo.license].filter(Boolean).join(" · ");
+
 /**
  * The museum's Commons photo. The first person to see a museum asks the backend to look its photo up. `settled` is
  * false only while the backend's first answer loads; an unfinished lookup or a failed read settles without a photo.

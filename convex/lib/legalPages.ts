@@ -174,7 +174,7 @@ const terms: LegalDocument = {
     {
       heading: "Acceptable use",
       paragraphs: [
-        "We don’t tolerate objectionable content or abusive users. Artlog automatically checks the comments, reflections, artwork details and profiles you share, and won’t post or show content it finds offensive.",
+        "We don’t tolerate objectionable content or abusive users. Artlog automatically checks the text of the comments, visit notes, artwork details and profiles you share, and won’t post or show text it finds offensive.",
         "Don’t use Artlog to break the law or a museum’s photography rules; to post content that harasses, threatens or demeans others, or is sexually explicit, violent or hateful; to share other people’s private information, or photos of them without their permission; to impersonate anyone; to post spam; or to infringe anyone’s rights.",
         "Don’t interfere with Artlog: no scraping, overloading, probing for vulnerabilities, getting around limits, or accessing accounts or data that aren’t yours.",
       ],
