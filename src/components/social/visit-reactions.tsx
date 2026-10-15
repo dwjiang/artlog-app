@@ -12,7 +12,7 @@ import { withPendingLike } from "@/lib/social/presentation";
 import type { SharedVisit } from "@/lib/social/types";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession, type SocialSession } from "@/lib/social/use-social-session";
-import { playLightHaptic } from "@/lib/ui/haptics";
+import { playToggleHaptic } from "@/lib/ui/haptics";
 import { showErrorToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
 
@@ -61,7 +61,7 @@ function LiveReactions({
     const liked = !summary.data.liked;
     pending.current = true;
     setLikeTarget(liked);
-    if (liked) playLightHaptic();
+    playToggleHaptic(liked);
     try {
       await setLike({ postId: visit.postId, liked });
     } catch (cause) {

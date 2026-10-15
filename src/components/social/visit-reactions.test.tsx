@@ -3,7 +3,7 @@ import type { FunctionReference } from "convex/server";
 import { ActionSheetIOS, Alert, type AlertButton } from "react-native";
 
 import type { SocialSession } from "@/lib/social/use-social-session";
-import { playErrorHaptic, playLightHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
+import { playErrorHaptic, playSuccessHaptic, playToggleHaptic } from "@/lib/ui/haptics";
 import { dismissToast, showErrorToast, useToast } from "@/lib/ui/toast";
 import { MAX_COMMENT_LENGTH } from "@/shared/social/visit-reactions";
 
@@ -81,7 +81,7 @@ beforeEach(() => {
   mockMutate.mockResolvedValue("new-comment");
 });
 
-it("shows an unlike at once, silently, and submits only one while it is pending", async () => {
+it("shows an unlike at once with a turn-off haptic, and submits only one while it is pending", async () => {
   let resolve!: () => void;
   mockMutate.mockImplementation(
     () =>
@@ -103,11 +103,12 @@ it("shows an unlike at once, silently, and submits only one while it is pending"
     screen.getByRole("button", { name: "Like visit", selected: false, busy: true, value: { text: "12 likes" } }),
   ).toBeDisabled();
   expect(screen.getByText("12 people like this")).toBeOnTheScreen();
-  expect(playLightHaptic).not.toHaveBeenCalled();
+  expect(playToggleHaptic).toHaveBeenCalledTimes(1);
+  expect(playToggleHaptic).toHaveBeenCalledWith(false);
   await act(() => resolve());
 });
 
-it("fills the heart with one light haptic as soon as a visit is liked", async () => {
+it("fills the heart with one turn-on haptic as soon as a visit is liked", async () => {
   mockSummary = { ...mockSummary, likeCount: 12, liked: false };
   let resolve!: () => void;
   mockMutate.mockImplementation(
@@ -122,7 +123,8 @@ it("fills the heart with one light haptic as soon as a visit is liked", async ()
     screen.getByRole("button", { name: "Unlike visit", selected: true, value: { text: "13 likes" } }),
   ).toBeDisabled();
   expect(screen.getByText("Liked by you and 12 others")).toBeOnTheScreen();
-  expect(playLightHaptic).toHaveBeenCalledTimes(1);
+  expect(playToggleHaptic).toHaveBeenCalledTimes(1);
+  expect(playToggleHaptic).toHaveBeenCalledWith(true);
   await act(() => resolve());
   // The mocked summary never receives the saved like, so the heart falls back to the server's state.
   expect(screen.getByRole("button", { name: "Like visit", selected: false })).toBeEnabled();
@@ -325,12 +327,28 @@ it("shows a comment heart at once while its write is in flight", async () => {
     value: { text: "3 likes" },
   });
   expect(pending).toBeDisabled();
-  expect(playLightHaptic).toHaveBeenCalledTimes(1);
+  expect(playToggleHaptic).toHaveBeenCalledTimes(1);
+  expect(playToggleHaptic).toHaveBeenCalledWith(true);
   await act(() => resolve());
   // The mocked list never receives the saved like, so the heart falls back to the server's state.
   expect(
     screen.getByRole("button", { name: "Like Jules Morgan’s comment", selected: false, value: { text: "2 likes" } }),
   ).toBeOnTheScreen();
+});
+
+it("answers a comment unlike with a turn-off haptic", async () => {
+  mockComments = [
+    { ...comment("theirs", "Beautiful light.", { profileId: "friend", name: "Jules Morgan" }, 2), liked: true },
+  ];
+  await render(<VisitReactions visit={visit} openComments />);
+  await fireEvent.press(screen.getByRole("button", { name: "Unlike Jules Morgan’s comment" }));
+  expect(mockMutate).toHaveBeenCalledWith("visitReactions:setCommentLike", {
+    postId: "visit-a",
+    commentId: "theirs",
+    liked: false,
+  });
+  expect(playToggleHaptic).toHaveBeenCalledTimes(1);
+  expect(playToggleHaptic).toHaveBeenCalledWith(false);
 });
 
 const theirs = { profileId: "friend", name: "Jules Morgan", username: "jules" };

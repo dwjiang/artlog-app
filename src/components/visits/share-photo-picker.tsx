@@ -12,6 +12,7 @@ import { selectVisitArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
+import { playToggleHaptic } from "@/lib/ui/haptics";
 
 import { ShareTileImage } from "./share-artwork-tile";
 import { VisitSymbol, visitStyles } from "./visit-ui";
@@ -97,9 +98,10 @@ export function SharePhotoPicker({
               accessibilityRole="checkbox"
               accessibilityLabel={`Share ${KIND_LABELS[photo.kind]} photo`}
               accessibilityState={{ checked: on }}
-              onPress={() =>
-                onChange(on ? selected.filter((id) => id !== photo.localId) : [...selected, photo.localId])
-              }
+              onPress={() => {
+                playToggleHaptic(!on);
+                onChange(on ? selected.filter((id) => id !== photo.localId) : [...selected, photo.localId]);
+              }}
             >
               <ShareTileImage
                 size={size}

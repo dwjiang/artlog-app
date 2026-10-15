@@ -34,7 +34,7 @@ import type { PublicProfile } from "@/lib/social/types";
 import { useBlock } from "@/lib/social/use-block";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import type { SocialSession } from "@/lib/social/use-social-session";
-import { playErrorHaptic, playLightHaptic, playMediumHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
+import { playErrorHaptic, playMediumHaptic, playSuccessHaptic, playToggleHaptic } from "@/lib/ui/haptics";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
 import { socialErrorMessage } from "@/shared/social/errors";
 import { extractHashtags } from "@/shared/social/hashtags";
@@ -302,7 +302,7 @@ function Comments({
     if (session.status !== "ready" || likeRequests.current.has(item.commentId)) return;
     likeRequests.current.set(item.commentId, !item.liked);
     setLikeTargets(new Map(likeRequests.current));
-    if (!item.liked) playLightHaptic();
+    playToggleHaptic(!item.liked);
     try {
       await setCommentLike({ postId: visit.postId, commentId: item.commentId, liked: !item.liked });
     } catch (cause) {

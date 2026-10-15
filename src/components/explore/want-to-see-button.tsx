@@ -1,4 +1,5 @@
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { useToggleBounce } from "@/hooks/use-symbol-bounce";
 import type { Exhibition, ExploreMuseum } from "@/lib/explore/types";
 import { useWantToSee, useWantToSeeMuseums } from "@/lib/explore/want-to-see";
 
@@ -13,7 +14,7 @@ export function WantToSeeButton({ exhibition, closed = false }: { exhibition: Ex
       name={exhibition.title}
       on={saved.has(exhibition.id)}
       muted={closed}
-      disabled={!ready}
+      ready={ready}
       onPress={() => toggle(exhibition)}
     />
   );
@@ -21,28 +22,30 @@ export function WantToSeeButton({ exhibition, closed = false }: { exhibition: Ex
 
 export function WantToSeeMuseumButton({ museum }: { museum: ExploreMuseum }) {
   const { saved, ready, toggle } = useWantToSeeMuseums();
-  return <Bookmark name={museum.name} on={saved.has(museum.id)} disabled={!ready} onPress={() => toggle(museum)} />;
+  return <Bookmark name={museum.name} on={saved.has(museum.id)} ready={ready} onPress={() => toggle(museum)} />;
 }
 
 function Bookmark({
   name,
   on,
   muted = false,
-  disabled,
+  ready,
   onPress,
 }: {
   name: string;
   on: boolean;
   muted?: boolean;
-  disabled: boolean;
+  ready: boolean;
   onPress: () => void;
 }) {
+  const bounce = useToggleBounce(ready ? on : undefined);
   return (
     <GalleryIconButton
       icon={on ? "bookmark.fill" : "bookmark"}
       label={on ? `Remove ${name} from Want to see` : `Want to see ${name}`}
       tone={on && !muted ? "accent" : "muted"}
-      disabled={disabled}
+      disabled={!ready}
+      iconModifiers={bounce}
       onPress={onPress}
     />
   );

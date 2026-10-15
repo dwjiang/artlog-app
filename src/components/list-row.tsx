@@ -7,6 +7,7 @@ import { LoadingRing } from "@/components/loading-ring";
 import { PopOnTurnOn } from "@/components/pop-on-turn-on";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, SettingsOutline, Spacing, Typography } from "@/constants/theme";
+import { playToggleHaptic } from "@/lib/ui/haptics";
 import { highlightMatch } from "@/lib/ui/highlight-match";
 
 /** `check` marks the one chosen row; `toggle` shows a circle on every row of a multi-select list. */
@@ -116,7 +117,13 @@ export function ListRow({
         : {}),
     },
     disabled,
-    onPress,
+    onPress:
+      accessory === "toggle"
+        ? () => {
+            playToggleHaptic(!selected);
+            onPress();
+          }
+        : onPress,
   };
   if (behind) {
     return (
@@ -154,7 +161,7 @@ function RowAccessory({ kind, selected }: { kind?: Accessory; selected: boolean 
   }
   if (kind === "toggle") {
     return (
-      <PopOnTurnOn on={selected}>
+      <PopOnTurnOn on={selected} dipOnTurnOff>
         <Image
           source={selected ? "sf:checkmark.circle.fill" : "sf:circle"}
           tintColor={selected ? Gallery.accent : Gallery.controlBorder}

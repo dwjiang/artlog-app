@@ -6,6 +6,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
+import { useToggleBounce } from "@/hooks/use-symbol-bounce";
 import type { ExhibitionStatus } from "@/lib/explore/exhibition-timing";
 import type { ExploreMuseum } from "@/lib/explore/types";
 import { reportError } from "@/lib/observability";
@@ -35,6 +36,7 @@ export function DetailActions({
   onToggle: () => void;
   museum: ExploreMuseum | undefined;
 }) {
+  const bounce = useToggleBounce(ready ? saved : undefined);
   return (
     <View style={styles.actions}>
       <View style={styles.action}>
@@ -42,6 +44,7 @@ export function DetailActions({
           label={saved ? "Saved" : "Want to see"}
           accessibilityLabel={saved ? "Remove from Want to see" : "Want to see"}
           icon={saved ? "bookmark.fill" : "bookmark"}
+          iconModifiers={bounce}
           variant={saved ? "outlined" : "filled"}
           fullWidth
           minHeight={BUTTON_HEIGHT}
