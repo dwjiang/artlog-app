@@ -147,7 +147,7 @@ describe("the location prompt", () => {
     await render(<VenuePickerSheet />);
     await fireEvent.press(screen.getByRole("button", { name: "Search for another museum" }));
     await fireEvent.changeText(screen.getByLabelText("Search museums"), "Frick");
-    await fireEvent.press(await screen.findByRole("button", { name: "The Frick Collection" }));
+    await fireEvent.press(await screen.findByRole("button", { name: "The Frick Collection, New York, United States" }));
     expect(mockStartVisit).toHaveBeenCalledWith("id-frick", {
       signal: expect.any(AbortSignal),
       replaceVisitLocalId: undefined,
@@ -268,7 +268,9 @@ describe("choosing a museum", () => {
     ]);
     await render(<VenuePickerSheet />);
     await fireEvent.changeText(screen.getByLabelText("Search museums"), "Metropolitan");
-    await fireEvent.press(await screen.findByRole("button", { name: "Metropolitan Museum of Art" }));
+    await fireEvent.press(
+      await screen.findByRole("button", { name: "Metropolitan Museum of Art, New York, United States" }),
+    );
     expect(mockConfirm).toHaveBeenCalledWith(
       {
         kind: "seeded",

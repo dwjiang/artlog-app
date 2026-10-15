@@ -4,6 +4,7 @@ import { ConvexError, v, type Infer } from "convex/values";
 import moment from "moment-timezone";
 
 import { stableStringify } from "../shared/attestation/stable-stringify";
+import { catalogSearchText, normalizeText } from "../shared/catalog/text";
 import { isCalendarDate, isTimeZone, isTimestamp, utf8Bytes } from "../shared/journal/limits";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -30,6 +31,10 @@ const MAX_REGION_EXHIBITIONS = 1000;
 // Saved museums load in batches with their current shows, so a batch stays well within one query's reads.
 const MAX_MUSEUM_BATCH = 20;
 const MAX_MUSEUM_EXHIBITIONS = 100;
+// Closed shows stay in the search index, so a search reads past them to find current ones.
+const SEARCH_SCAN = 100;
+const SEARCH_RESULTS = 5;
+const BACKFILL_PAGE = 200;
 // A new show waits for the daily picture lookup, two hours after the listing reads begin; one unchecked by then is
 // listed without a picture.
 const PICTURE_WAIT_MS = 2 * 60 * 60 * 1000;
@@ -119,7 +124,14 @@ async function requireVenue(ctx: QueryCtx, venueKey: string) {
 }
 
 function exportRow(row: Doc<"exhibitions">, venueKey: string): Infer<typeof exhibitionExport> {
-  const { _id, _creationTime, titleKey: _titleKey, imagePending: _imagePending, ...fields } = row;
+  const {
+    _id,
+    _creationTime,
+    titleKey: _titleKey,
+    imagePending: _imagePending,
+    searchText: _searchText,
+    ...fields
+  } = row;
   return { exhibitionId: _id, venueKey, ...fields };
 }
 
@@ -163,6 +175,8 @@ export async function saveExhibition(
     titleKey: titleKey(record.title),
     finalEndAt,
   };
+  // Derived from the title, so it stays out of the evidence comparisons below.
+  const searchText = normalizeText(record.title);
   const existing = await ctx.db
     .query("exhibitions")
     .withIndex("by_museum_title", (q) => q.eq("museumId", museum._id).eq("titleKey", saved.titleKey))
@@ -171,6 +185,7 @@ export async function saveExhibition(
     const imagePending = record.imageCheckedAt === undefined;
     const exhibitionId = await ctx.db.insert("exhibitions", {
       ...saved,
+      searchText,
       ...(imagePending ? { imagePending: true as const } : {}),
     });
     if (imagePending) {
@@ -178,7 +193,7 @@ export async function saveExhibition(
     }
     return "inserted";
   }
-  const { _id, _creationTime, imagePending, ...prior } = existing;
+  const { _id, _creationTime, imagePending, searchText: storedSearchText, ...prior } = existing;
   const { imageUrl: priorImage, imageCheckedAt: priorImageAt, ...priorEvidence } = prior;
   const { imageUrl, imageCheckedAt, ...evidence } = saved;
   if (existing.checkedAt > record.checkedAt) {
@@ -197,9 +212,10 @@ export async function saveExhibition(
     if (nextAt < previousAt) throw new ConvexError({ code: "conflict", reason: "stale_image" });
     if (nextAt === previousAt) throw new ConvexError({ code: "conflict", reason: "image_timestamp_collision" });
   }
-  if (stableStringify(prior) === stableStringify(saved)) return "unchanged";
+  if (stableStringify(prior) === stableStringify(saved) && storedSearchText === searchText) return "unchanged";
   await ctx.db.replace("exhibitions", _id, {
     ...saved,
+    searchText,
     ...(imagePending && saved.imageCheckedAt === undefined ? { imagePending } : {}),
   });
   return "updated";
@@ -351,16 +367,16 @@ export const inRegion = query({
 
 /** Local venue tables are candidate lists; discovery still follows the live visibility rules. */
 export const discoverableMuseumIds = query({
-  args: { region: v.string(), museumIds: v.array(v.id("museums")) },
+  args: { region: v.optional(v.string()), museumIds: v.array(v.id("museums")) },
   returns: v.array(v.id("museums")),
   handler: async (ctx, { region, museumIds }) => {
-    if (!region || region.length > 100) invalidMetadata();
+    if (region !== undefined && (!region || region.length > 100)) invalidMetadata();
     if (museumIds.length > MAX_BATCH_SIZE) throw new ConvexError({ code: "batch_too_large" });
     const cache = new Map<Id<"museums">, Doc<"museums"> | null>();
     const visible: Id<"museums">[] = [];
     for (const id of new Set(museumIds)) {
       const museum = await visibleMuseum(ctx, cache, id);
-      if (museum?.region === region) visible.push(id);
+      if (museum && (region === undefined || museum.region === region)) visible.push(id);
     }
     return visible;
   },
@@ -402,6 +418,45 @@ export const atMuseums = query({
     const rows = [];
     for (const museumId of ids) rows.push(...(await currentAtMuseum(ctx, museumId, asOf).take(MAX_MUSEUM_EXHIBITIONS)));
     return buildCatalog(ctx, rows.filter(pictureSettled), { museumIds: ids });
+  },
+});
+
+/** Shows not yet closed whose titles match the search, best match first, with their museums. */
+export const search = query({
+  args: { query: v.string(), today: v.string() },
+  returns: exploreRegionCatalog,
+  handler: async (ctx, args) => {
+    if (!isCalendarDate(args.today)) invalidMetadata();
+    const text = catalogSearchText(args.query);
+    if (!text) return { museums: [], exhibitions: [] };
+    const matches = await ctx.db
+      .query("exhibitions")
+      .withSearchIndex("search_text", (q) => q.search("searchText", text))
+      .take(SEARCH_SCAN);
+    const found = await buildCatalog(
+      ctx,
+      matches.filter((row) => row.viewingPeriods.some((period) => period.endDate >= args.today) && pictureSettled(row)),
+    );
+    const exhibitions = found.exhibitions.slice(0, SEARCH_RESULTS);
+    const shown = new Set(exhibitions.map((row) => row.museumId));
+    return { museums: found.museums.filter((museum) => shown.has(museum.museumId)), exhibitions };
+  },
+});
+
+/** Sets each show's search text from its title, a page at a time; reruns change nothing already set. */
+export const backfillSearchText = internalMutation({
+  args: { cursor: v.optional(v.union(v.string(), v.null())) },
+  returns: v.null(),
+  handler: async (ctx, { cursor = null }) => {
+    const page = await ctx.db.query("exhibitions").paginate({ cursor, numItems: BACKFILL_PAGE });
+    for (const row of page.page) {
+      const searchText = normalizeText(row.title);
+      if (row.searchText !== searchText) await ctx.db.patch("exhibitions", row._id, { searchText });
+    }
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(0, internal.exhibitions.backfillSearchText, { cursor: page.continueCursor });
+    }
+    return null;
   },
 });
 

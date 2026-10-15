@@ -13,6 +13,7 @@ let mockOffline = false;
 let mockSession: { status: string; key: string; profileId?: string; token?: string };
 let mockResults: Record<string, unknown>;
 let mockSaved = new Map<string, { localId: string }>();
+const mockSearchVenues = jest.fn();
 jest.mock("convex/browser", () => ({
   ConvexHttpClient: function () {
     return { mutation: mockMutation };
@@ -42,6 +43,9 @@ jest.mock("@/lib/social/use-social-session", () => ({
 jest.mock("@/lib/catalog/use-catalog-ready", () => ({
   useCatalogReady: () => ({ ready: !mockOffline, offline: mockOffline, scope: "catalog" }),
 }));
+jest.mock("@/lib/venue/search-venues", () => ({
+  searchVenues: (query: string) => mockSearchVenues(query),
+}));
 jest.mock("@/lib/catalog/use-saved-catalog-works", () => ({
   useSavedCatalogWorks: () => mockSaved,
 }));
@@ -54,7 +58,7 @@ jest.mock("@/lib/social/use-social-query", () => ({
     return {
       data: result instanceof Error ? undefined : result,
       error: result instanceof Error ? result : undefined,
-      loading: false,
+      loading: result === undefined,
       refresh: () => mockRefresh(name),
     };
   },
@@ -77,6 +81,7 @@ beforeEach(() => {
   mockMutation.mockReset().mockResolvedValue(null);
   mockSettings.clear();
   mockSaved = new Map();
+  mockSearchVenues.mockReset().mockResolvedValue([]);
   mockOffline = false;
   mockSession = { status: "signed-out", key: "guest" };
   mockResults = {
@@ -90,6 +95,8 @@ beforeEach(() => {
     ],
     "profiles:search": { page: [monica], cursor: null, isDone: true },
     "catalog:search": { artists: [], artworks: { page: [], cursor: null, isDone: true } },
+    "exhibitions:search": { museums: [], exhibitions: [] },
+    "exhibitions:discoverableMuseumIds": ["museu-picasso"],
   };
 });
 
@@ -99,13 +106,15 @@ afterEach(() => {
 });
 
 async function type(text: string) {
-  await fireEvent.changeText(screen.getByLabelText("Artworks, artists and people"), text);
+  await fireEvent.changeText(screen.getByLabelText("Artworks, museums and people"), text);
   await act(() => jest.advanceTimersByTime(300));
+  // The museum search starts once the settled text has rendered.
+  await act(async () => jest.advanceTimersByTime(0));
 }
 
 it("waits for typing to pause before searching", async () => {
   await render(<SearchScreen />);
-  await fireEvent.changeText(screen.getByLabelText("Artworks, artists and people"), "monet");
+  await fireEvent.changeText(screen.getByLabelText("Artworks, museums and people"), "monet");
   await act(() => jest.advanceTimersByTime(299));
   expect(mockArgs).not.toHaveBeenCalledWith("catalog:search", expect.anything());
   await act(() => jest.advanceTimersByTime(1));
@@ -265,6 +274,137 @@ it("reopens recent artworks and artists", async () => {
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/catalog/[artworkId]", params: { artworkId: "wheat" } });
 });
 
+const museuPicasso = {
+  id: "museu-picasso",
+  key: "wikidata:Q666",
+  name: "Museu Picasso",
+  lat: 41.385,
+  lng: 2.181,
+  website: null,
+  region: "country:ES",
+  city: "Barcelona",
+  country: "ES",
+};
+const chicago = { museumId: "aic", name: "Art Institute of Chicago", city: "Chicago", lat: 41.88, lng: -87.62 };
+const bluePeriod = {
+  exhibitionId: "blue-period",
+  museumId: "aic",
+  title: "Picasso: Painting the Blue Period",
+  sourceUrl: "https://www.artic.edu/exhibitions/blue-period",
+  imageUrl: "https://www.artic.edu/blue-period.jpg",
+  viewingPeriods: [{ startDate: "2026-09-01", endDate: "2027-01-10" }],
+};
+
+it("finds museums and exhibitions as you type, between artworks and tags", async () => {
+  jest.setSystemTime(new Date("2026-10-15T12:00:00Z"));
+  mockSearchVenues.mockResolvedValue([museuPicasso]);
+  mockResults["exhibitions:search"] = {
+    museums: [chicago],
+    exhibitions: [bluePeriod],
+  };
+  await render(<SearchScreen />);
+  await type("picasso");
+  expect(mockSearchVenues).toHaveBeenCalledWith("picasso");
+  expect(mockArgs).toHaveBeenCalledWith("exhibitions:search", { query: "picasso", today: "2026-10-15" });
+  expect(screen.getAllByRole("header").map((header) => header.props.children)).toEqual([
+    "Museums",
+    "Exhibitions",
+    "Tags",
+    "People",
+  ]);
+
+  await fireEvent.press(screen.getByRole("button", { name: "Museu Picasso, Barcelona, Spain" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/museum/[museumId]", params: { museumId: "museu-picasso" } });
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Picasso: Painting the Blue Period, Until Jan 10, Art Institute of Chicago" }),
+  );
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/exhibition/[exhibitionId]",
+    params: { exhibitionId: "blue-period" },
+  });
+  expect(JSON.parse(mockSettings.get("search.recent")!)).toEqual([
+    {
+      kind: "exhibition",
+      exhibition: { exhibitionId: "blue-period", title: bluePeriod.title, imageUrl: bluePeriod.imageUrl },
+    },
+    { kind: "museum", museum: { museumId: "museu-picasso", name: "Museu Picasso" } },
+  ]);
+});
+
+it("waits for live museum visibility and chooses five from the allowed candidates", async () => {
+  const museums = Array.from({ length: 7 }, (_, index) => ({
+    ...museuPicasso,
+    id: `museum-${index}`,
+    name: `Museum ${index}`,
+  }));
+  mockSearchVenues.mockResolvedValue(museums);
+  mockResults["exhibitions:discoverableMuseumIds"] = undefined;
+  const view = await render(<SearchScreen />);
+  await type("museum");
+  expect(screen.queryByRole("button", { name: /^Museum 0,/ })).toBeNull();
+  expect(mockArgs).toHaveBeenCalledWith("exhibitions:discoverableMuseumIds", {
+    museumIds: museums.map(({ id }) => id),
+  });
+
+  mockResults["exhibitions:discoverableMuseumIds"] = museums.slice(2).map(({ id }) => id);
+  await view.rerender(<SearchScreen />);
+  expect(screen.queryByRole("button", { name: /^Museum 0,/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Museum 1,/ })).toBeNull();
+  expect(screen.getAllByRole("button", { name: /^Museum \d,/ })).toHaveLength(5);
+
+  mockResults["exhibitions:discoverableMuseumIds"] = [museums[6].id];
+  await view.rerender(<SearchScreen />);
+  expect(screen.getAllByRole("button", { name: /^Museum \d,/ })).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "Museum 6, Barcelona, Spain" })).toBeOnTheScreen();
+});
+
+it("retries failed museum visibility checks while keeping other results", async () => {
+  mockSearchVenues.mockResolvedValue([museuPicasso]);
+  mockResults["exhibitions:discoverableMuseumIds"] = new Error("Server unavailable");
+  const view = await render(<SearchScreen />);
+  await type("picasso");
+  expect(screen.queryByRole("button", { name: "Museu Picasso, Barcelona, Spain" })).toBeNull();
+  expect(screen.getByRole("button", { name: "View Monica Reyes’s profile" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Retry museums" }));
+  expect(mockRefresh).toHaveBeenCalledWith("exhibitions:discoverableMuseumIds");
+  mockResults["exhibitions:discoverableMuseumIds"] = [museuPicasso.id];
+  await view.rerender(<SearchScreen />);
+  expect(screen.getByRole("button", { name: "Museu Picasso, Barcelona, Spain" })).toBeOnTheScreen();
+});
+
+it("reopens recent museums and exhibitions", async () => {
+  mockSettings.set(
+    "search.recent",
+    JSON.stringify([
+      { kind: "museum", museum: { museumId: "museu-picasso", name: "Museu Picasso" } },
+      { kind: "exhibition", exhibition: { exhibitionId: "blue-period", title: bluePeriod.title } },
+    ]),
+  );
+  await render(<SearchScreen />);
+  await fireEvent.press(await screen.findByRole("button", { name: "Museu Picasso" }));
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/museum/[museumId]", params: { museumId: "museu-picasso" } });
+  await fireEvent.press(screen.getByRole("button", { name: bluePeriod.title }));
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/exhibition/[exhibitionId]",
+    params: { exhibitionId: "blue-period" },
+  });
+});
+
+it("offers a retry when the museum or exhibition search fails, keeping other results", async () => {
+  mockSearchVenues.mockRejectedValueOnce(new Error("disk I/O error")).mockResolvedValue([museuPicasso]);
+  mockResults["exhibitions:search"] = new Error("Server unavailable");
+  await render(<SearchScreen />);
+  await type("picasso");
+  expect(screen.getByRole("button", { name: "View Monica Reyes’s profile" })).toBeOnTheScreen();
+  expect(screen.queryByText("No results found.")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Retry exhibitions" }));
+  expect(mockRefresh.mock.calls).toEqual([["exhibitions:search"]]);
+  await fireEvent.press(screen.getByRole("button", { name: "Retry museums" }));
+  await act(() => jest.advanceTimersByTime(0));
+  expect(screen.getByRole("button", { name: "Museu Picasso, Barcelona, Spain" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Retry museums" })).toBeNull();
+});
+
 it("offers a retry when the catalog search fails", async () => {
   mockResults["catalog:search"] = new Error("Server unavailable");
   await render(<SearchScreen />);
@@ -275,7 +415,8 @@ it("offers a retry when the catalog search fails", async () => {
 });
 
 it("says when nothing matches and when the phone is offline", async () => {
-  mockResults = { "tags:search": [], "profiles:search": { page: [], cursor: null, isDone: true } };
+  mockResults["tags:search"] = [];
+  mockResults["profiles:search"] = { page: [], cursor: null, isDone: true };
   const view = await render(<SearchScreen />);
   await type("zzz");
   expect(screen.getByText("No results found.")).toBeOnTheScreen();
@@ -376,7 +517,7 @@ it("says how to search when there is nothing to show yet", async () => {
   mockResults["tags:popular"] = [];
   mockResults["profiles:discover"] = { page: [], cursor: null, isDone: true };
   await render(<SearchScreen />);
-  expect(screen.getByText("Find artworks, artists and people.")).toBeOnTheScreen();
+  expect(screen.getByText("Find artworks, museums and people.")).toBeOnTheScreen();
 });
 
 it.each(["resolve", "reject"] as const)(
@@ -424,7 +565,7 @@ it("offers a retry when people discovery fails on an otherwise empty screen", as
   const view = await render(<SearchScreen />);
 
   expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t load people.");
-  expect(screen.queryByText("Find artworks, artists and people.")).toBeNull();
+  expect(screen.queryByText("Find artworks, museums and people.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Retry people" }));
   expect(mockRefresh).toHaveBeenCalledWith("profiles:discover");
 

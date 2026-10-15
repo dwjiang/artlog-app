@@ -30,6 +30,8 @@ export const exhibition = v.object({
   finalEndAt: v.number(),
   // The cutoff clears this independently of imageCheckedAt so unavailable images can still retry.
   imagePending: v.optional(v.literal(true)),
+  /** The title without case, accents or punctuation, for search. */
+  searchText: v.optional(v.string()),
   ...verifiedExhibitionFields,
 });
 
