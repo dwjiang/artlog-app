@@ -5,7 +5,7 @@ import { ArtworkFrame } from "@/components/artwork/artwork-frame";
 import { ArtworkIdentity } from "@/components/artwork/artwork-identity";
 import { ArtworkStory } from "@/components/artwork/artwork-story";
 import { ArtworkSkeleton } from "@/components/loading-skeleton";
-import { SocialState } from "@/components/social/social-state";
+import { SocialState, StateScreen } from "@/components/social/social-state";
 import { Gallery, Spacing } from "@/constants/theme";
 import { pageSizedImage } from "@/lib/catalog/catalog-image";
 import { useCatalogReady } from "@/lib/catalog/use-catalog-ready";
@@ -96,9 +96,9 @@ export function CatalogArtworkScreen({ artworkId }: { artworkId: Id<"artworks"> 
 
 function State(props: Parameters<typeof SocialState>[0]) {
   return (
-    <ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.centered}>
+    <StateScreen>
       <SocialState {...props} />
-    </ScrollView>
+    </StateScreen>
   );
 }
 
@@ -110,5 +110,4 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.five,
     gap: Spacing.three,
   },
-  centered: { flexGrow: 1, justifyContent: "center" },
 });

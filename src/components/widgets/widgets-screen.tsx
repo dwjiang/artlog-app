@@ -226,6 +226,7 @@ export function WidgetsScreen() {
               <FlatList
                 data={visitOptions}
                 keyExtractor={({ visit }) => visit.localId}
+                alwaysBounceVertical={false}
                 onContentSizeChange={fitted.onContentSizeChange}
                 contentContainerStyle={{
                   paddingHorizontal: 20,
@@ -259,6 +260,7 @@ export function WidgetsScreen() {
               <FlatList
                 data={allArtworks}
                 keyExtractor={(art) => art.id}
+                alwaysBounceVertical={false}
                 onContentSizeChange={fitted.onContentSizeChange}
                 contentContainerStyle={{
                   paddingHorizontal: 20,

@@ -53,8 +53,6 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const args = profileId && !session.offline ? { profileId: profileId as Id<"profiles"> } : "skip";
   const profile = useSocialQuery(api.profiles.getPublic, args, session.key);
   const { scrollRef, headingRef, measureHeading, onScroll: onTitleScroll } = useScrollTitle(profile.data?.name ?? "");
-  const room = usePaneRoom(scrollRef);
-  usePaneSwitch(tab, () => room);
   const own = session.profileId === profileId;
   const relationship = useSocialQuery(
     api.friendships.getState,
@@ -84,6 +82,14 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
     visitPage,
     visitId,
   );
+  const room = usePaneRoom(scrollRef, {
+    empty:
+      blocked
+      || (tab === "wall"
+        ? !!wall.error || wall.data?.items.length === 0
+        : !canReadVisits || (visits.done && visits.items.length === 0)),
+  });
+  usePaneSwitch(tab, () => room);
   // The header rises under the bar into the spinner's place, so the spinner rises with it to stay clear of the photo.
   const raisedBy = isIOS26OrLater() ? headerHeight - top : 0;
   const pull = usePullToRefresh({
@@ -186,6 +192,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         ref={scrollRef}
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
+        bounces={!room.empty || !!pull.refreshControl}
         stickyHeaderIndices={blocked ? [] : [1]}
         refreshControl={pull.refreshControl}
         onLayout={room.onLayout}
@@ -194,7 +201,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
           room.onScroll(event);
           onTitleScroll(event);
         }}
-        contentContainerStyle={{ paddingBottom: 30, minHeight: room.minHeight }}
+        contentContainerStyle={{ paddingBottom: room.empty ? 0 : 30, minHeight: room.minHeight }}
       >
         <View style={pulledToSafeArea}>
           <ProfileHeader

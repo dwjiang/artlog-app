@@ -100,7 +100,7 @@ jest.mock("./collection-wall", () => {
   return {
     CollectionWall: ({ header, controls, paneRef }: { header: ReactNode; controls: ReactNode; paneRef: unknown }) => {
       const scroll = useRef(null);
-      const room = usePaneRoom(scroll, paneRef);
+      const room = usePaneRoom(scroll, { handle: paneRef });
       return (
         <ScrollView ref={scroll} testID="wall" onLayout={room.onLayout} onScroll={room.onScroll}>
           {header}
@@ -192,17 +192,42 @@ it("keeps the public wall as the account collection view", async () => {
   expect(screen.queryByText("Keep your collection across devices")).toBeNull();
 });
 
+async function openVisitsFromScrolledWall() {
+  await render(<CollectionScreen />);
+  await fireEvent(screen.getByTestId("wall-controls"), "layout", {
+    nativeEvent: { layout: { x: 0, y: 300, width: 402, height: 60 } },
+  });
+  await fireEvent.scroll(screen.getByTestId("wall"), { nativeEvent: { contentOffset: { x: 0, y: 83 } } });
+  await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
+}
+
 it("opens Visits with the header where the scrolled wall left it", async () => {
+  switchOwner("device:pane-switch", "scope-pane-switch");
+  await upsertVisit({
+    visitedOn: "2026-09-08",
+    timeZone: "UTC",
+    localId: "88888888-1111-4111-8111-111111111111",
+    venueId,
+    venueName: "Pane Museum",
+    startedAt: new Date(2026, 8, 8, 14).getTime(),
+  });
   const scrollToOffset = jest.spyOn(FlatList.prototype, "scrollToOffset");
   try {
-    await render(<CollectionScreen />);
-    await fireEvent(screen.getByTestId("wall-controls"), "layout", {
-      nativeEvent: { layout: { x: 0, y: 300, width: 402, height: 60 } },
-    });
-    await fireEvent.scroll(screen.getByTestId("wall"), { nativeEvent: { contentOffset: { x: 0, y: 83 } } });
-    await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
-    expect(await screen.findByText("No visits yet.")).toBeVisible();
+    await openVisitsFromScrolledWall();
+    expect(await screen.findByRole("button", { name: "List" })).toBeVisible();
     expect(scrollToOffset).toHaveBeenLastCalledWith({ offset: 83, animated: false });
+  } finally {
+    scrollToOffset.mockRestore();
+  }
+});
+
+it("opens empty Visits at rest, since its empty state has no room to scroll", async () => {
+  switchOwner("device:empty-pane-switch", "scope-empty-pane-switch");
+  const scrollToOffset = jest.spyOn(FlatList.prototype, "scrollToOffset");
+  try {
+    await openVisitsFromScrolledWall();
+    expect(await screen.findByText("No visits yet.")).toBeVisible();
+    expect(scrollToOffset).not.toHaveBeenCalled();
   } finally {
     scrollToOffset.mockRestore();
   }

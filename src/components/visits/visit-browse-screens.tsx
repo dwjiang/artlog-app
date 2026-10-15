@@ -45,7 +45,7 @@ export function VisitPlaceScreen() {
           </VisitMessage>
         </VisitPage>
       ) : matches.length === 0 ? (
-        <VisitPage>
+        <VisitPage bounces={false}>
           <EmptyState
             inset={false}
             title="No visits here yet."

@@ -38,6 +38,7 @@ function VisitPost({
       style={socialStyles.root}
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
+      bounces={!!visit.data}
       contentContainerStyle={socialStyles.content}
     >
       {!ready ? (

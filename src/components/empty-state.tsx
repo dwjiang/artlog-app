@@ -10,6 +10,11 @@ import { ThemedText as Text } from "./themed-text";
 
 export type EmptyAction = { label: string; icon?: ComponentProps<typeof GalleryButton>["icon"]; onPress: () => void };
 
+/**
+ * A page that shows only an empty state stays put unless it overflows the screen: its scroll view sets
+ * `bounces={false}`, since iOS lets a large title drag content that fits even when `alwaysBounceVertical` is off.
+ * A page with pull-to-refresh keeps bouncing so the pull still works.
+ */
 export function EmptyState({
   title,
   detail,
@@ -154,7 +159,8 @@ export function SearchEmptyState({
 
 const styles = StyleSheet.create({
   root: { gap: 24, width: "100%", maxWidth: 520, alignSelf: "center" },
-  inset: { paddingHorizontal: 20, paddingTop: 36, paddingBottom: 28 },
+  // No bottom padding: trailing space would make an empty page that fits the screen scroll.
+  inset: { paddingHorizontal: 20, paddingTop: 36 },
   compact: {
     gap: 12,
     padding: 20,

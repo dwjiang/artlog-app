@@ -4,7 +4,7 @@ import { Gallery, Spacing, Typography } from "@/constants/theme";
 
 export const socialStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  content: { paddingBottom: Spacing.four, flexGrow: 1 },
+  content: { paddingBottom: Spacing.four },
   section: {
     paddingHorizontal: Spacing.content,
     paddingVertical: Spacing.four,

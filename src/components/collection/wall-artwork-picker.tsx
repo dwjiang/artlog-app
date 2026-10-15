@@ -141,6 +141,7 @@ export function WallArtworkPicker({
           numColumns={columns}
           keyExtractor={(item) => item.localId}
           style={{ flex: 1 }}
+          bounces={data.length > 0}
           initialNumToRender={12}
           maxToRenderPerBatch={8}
           windowSize={5}

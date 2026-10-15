@@ -131,9 +131,10 @@ function LinkPicker({
       <FlatList
         style={{ backgroundColor: Gallery.groupedBackground }}
         contentInsetAdjustmentBehavior="automatic"
+        bounces={filtered.length > 0}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingHorizontal: Spacing.content, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: Spacing.content, paddingBottom: filtered.length > 0 ? 32 : 0 }}
         data={filtered}
         keyExtractor={(row) => row.id}
         ListHeaderComponent={

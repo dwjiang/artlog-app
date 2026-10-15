@@ -61,6 +61,7 @@ export function CollectionVisits({
         controls={collectionControls}
         paneRef={paneRef}
         footer={<CollectionEmptyState kind="visits" />}
+        empty
       />
     );
   }
@@ -146,6 +147,7 @@ export function CollectionVisits({
       controls={controls}
       paneRef={paneRef}
       pane={mode}
+      empty={!showContent}
       footer={
         mode === "globe" ? (
           <>

@@ -121,10 +121,11 @@ export function CollectionArtworks({
       data={rows}
       keyExtractor={(row) => row.key}
       contentInsetAdjustmentBehavior="automatic"
+      bounces={!empty}
       automaticallyAdjustKeyboardInsets
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingBottom: 28 }}
+      contentContainerStyle={{ paddingBottom: empty ? 0 : 28 }}
       ListHeaderComponent={header}
       ListFooterComponent={
         <>

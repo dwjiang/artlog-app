@@ -98,8 +98,9 @@ export function HomeScreen() {
     && suggestions.friendCount !== undefined
     && suggestions.friendCount < STRIP_FRIEND_LIMIT
     && suggestions.people.length > 0;
+  const items = canBrowse ? feed.items : [];
   const list = useRef<FlatList<SharedVisit>>(null);
-  const room = usePaneRoom(list);
+  const room = usePaneRoom(list, { empty: items.length === 0 });
   usePaneSwitch(tab ?? "", () => room);
   const { onCardLayout, onScroll: onNowCardScroll } = useNowCardScroll();
   // During a visit the Now card leads Home, so an empty feed sits beneath it as a card instead of filling the page.
@@ -121,14 +122,18 @@ export function HomeScreen() {
         ref={list}
         keyboardShouldPersistTaps="handled"
         style={socialStyles.root}
-        contentContainerStyle={[socialStyles.content, { paddingBottom: 28, minHeight: room.minHeight }]}
+        contentContainerStyle={[
+          socialStyles.content,
+          { paddingBottom: room.empty ? 0 : 28, minHeight: room.minHeight },
+        ]}
         contentInsetAdjustmentBehavior="automatic"
+        bounces={!room.empty || !!pull.refreshControl}
         onLayout={room.onLayout}
         onScroll={(event) => {
           room.onScroll(event);
           onNowCardScroll(event);
         }}
-        data={canBrowse ? feed.items : []}
+        data={items}
         keyExtractor={visitId}
         ItemSeparatorComponent={VisitSeparator}
         initialNumToRender={4}

@@ -70,6 +70,7 @@ export function VisitTimeline({
   groupByMuseum = false,
   pane,
   paneRef,
+  empty = false,
 }: {
   visits: VisitSummary[];
   header?: ReactElement;
@@ -79,10 +80,12 @@ export function VisitTimeline({
   /** The view shown below the controls; changing it keeps the header still. */
   pane?: string;
   paneRef?: Ref<PaneRoom>;
+  /** The footer shows only an empty state. */
+  empty?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
   const list = useRef<FlatList<Row>>(null);
-  const room = usePaneRoom(list, paneRef);
+  const room = usePaneRoom(list, { handle: paneRef, empty });
   usePaneSwitch(pane ?? "", () => room);
   const session = useSocialSession();
   const sharing = useSocialQuery(api.sharedVisits.listShared, session.status === "ready" ? {} : "skip", session.key);
@@ -119,6 +122,7 @@ export function VisitTimeline({
       data={rows}
       keyExtractor={(row) => row.key}
       contentInsetAdjustmentBehavior="automatic"
+      bounces={!empty}
       onLayout={room.onLayout}
       onScroll={room.onScroll}
       keyboardDismissMode="on-drag"
@@ -126,7 +130,7 @@ export function VisitTimeline({
       automaticallyAdjustKeyboardInsets
       ListHeaderComponent={header && <View onLayout={room.onHeaderLayout}>{header}</View>}
       stickyHeaderIndices={controls && fontScale < 1.5 ? [header ? 1 : 0] : undefined}
-      contentContainerStyle={{ paddingBottom: 30, minHeight: room.minHeight }}
+      contentContainerStyle={{ paddingBottom: empty ? 0 : 30, minHeight: room.minHeight }}
       ListFooterComponent={footer}
       renderItem={({ item }) =>
         item.kind === "element" ? (

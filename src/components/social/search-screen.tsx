@@ -236,12 +236,15 @@ export function SearchScreen() {
       && !suggestions.loading
       && !newest.loading
       && !newest.error;
-    content = empty ? (
-      <SearchEmptyState
-        title="Find artworks, artists and people."
-        detail="Search by title, artist, name, @username or #tag."
-      />
-    ) : (
+    if (empty) {
+      state = (
+        <SearchEmptyState
+          title="Find artworks, artists and people."
+          detail="Search by title, artist, name, @username or #tag."
+        />
+      );
+    }
+    content = (
       <>
         <View style={styles.sections}>{sections}</View>
         {strip.length > 0 && (
@@ -360,8 +363,9 @@ export function SearchScreen() {
       />
       <ScrollView
         style={[socialStyles.root, styles.page]}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, state && { paddingBottom: 0 }]}
         contentInsetAdjustmentBehavior="automatic"
+        bounces={!state}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
@@ -392,7 +396,7 @@ const publicFields = ({ profileId, username, name, bio, photoUrl, avatar, publis
 
 const styles = StyleSheet.create({
   page: { backgroundColor: Gallery.groupedBackground },
-  content: { flexGrow: 1, paddingTop: Spacing.two, paddingBottom: Spacing.five },
+  content: { paddingTop: Spacing.two, paddingBottom: Spacing.five },
   sections: { gap: Spacing.four, paddingHorizontal: Spacing.content },
   people: { paddingTop: Spacing.four },
   chipThumbnail: { width: 24, height: 24, borderRadius: Radius.thumbnail },

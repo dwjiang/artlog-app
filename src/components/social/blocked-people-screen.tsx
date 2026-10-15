@@ -37,8 +37,9 @@ export function BlockedPeopleScreen() {
   return (
     <FlatList
       style={styles.page}
-      contentContainerStyle={[socialStyles.content, styles.content]}
+      contentContainerStyle={[socialStyles.content, styles.content, blocked.items.length === 0 && { paddingBottom: 0 }]}
       contentInsetAdjustmentBehavior="automatic"
+      bounces={blocked.items.length > 0}
       data={blocked.items}
       keyExtractor={profileId}
       renderItem={({ item, index }) => (

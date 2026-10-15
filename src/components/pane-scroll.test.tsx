@@ -36,6 +36,13 @@ describe("usePaneRoom", () => {
     expect(result.current.pinned).toBe(250);
     expect(result.current.minHeight).toBe(950);
   });
+
+  it("gives an empty pane no extra room, so its empty state scrolls only when it overflows", async () => {
+    const { result } = await renderHook(() => usePaneRoom(scrollView(), { empty: true }));
+    await act(() => result.current.onLayout(layout(0, 700)));
+    await act(() => result.current.onPinnedLayout(layout(310, 60)));
+    expect(result.current.minHeight).toBeUndefined();
+  });
 });
 
 describe("usePaneSwitch", () => {
@@ -43,7 +50,7 @@ describe("usePaneSwitch", () => {
     const scroll = scrollView();
     const view = await renderHook(
       ({ pane }: { pane: string }) => {
-        const room = usePaneRoom(scroll);
+        const room = usePaneRoom(scroll, { empty: pane === "empty" });
         const prepare = usePaneSwitch(pane, () => room);
         return { ...room, prepare };
       },
@@ -77,13 +84,20 @@ describe("usePaneSwitch", () => {
     expect(scrollTo).toHaveBeenLastCalledWith({ y: 900, animated: false });
   });
 
-  async function renderSeparateViews() {
+  it("leaves an empty pane where it rests rather than pinning the switch", async () => {
+    const { result, rerender, scrollTo } = await renderSharedView();
+    await act(() => result.current.onScroll(scrolled(900)));
+    await rerender({ pane: "empty" });
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  async function renderSeparateViews({ emptyVisits = false } = {}) {
     const wallScroll = scrollView();
     const visitsList = { current: { scrollToOffset: jest.fn() } };
     const view = await renderHook(
       ({ pane }: { pane: "wall" | "visits" }) => {
         const wall = usePaneRoom(wallScroll);
-        const visits = usePaneRoom(visitsList);
+        const visits = usePaneRoom(visitsList, { empty: emptyVisits });
         const rooms: Record<string, PaneRoom> = { wall, visits };
         const prepare = usePaneSwitch(pane, (key) => rooms[key]);
         return { wall, visits, prepare };
@@ -113,5 +127,12 @@ describe("usePaneSwitch", () => {
     expect(visitsScroll).toHaveBeenCalledWith({ offset: 83, animated: false });
     await rerender({ pane: "visits" });
     expect(visitsScroll).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves an empty scroll view at rest when it is switched in", async () => {
+    const { result, rerender, visitsScroll } = await renderSeparateViews({ emptyVisits: true });
+    await act(() => result.current.prepare("visits"));
+    await rerender({ pane: "visits" });
+    expect(visitsScroll).not.toHaveBeenCalled();
   });
 });

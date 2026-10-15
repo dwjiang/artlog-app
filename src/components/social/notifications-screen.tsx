@@ -78,11 +78,13 @@ export function NotificationsScreen() {
     { title: "New", data: groupNotifications(items.filter((item) => item.createdAt > boundary)) },
     { title: "Earlier", data: groupNotifications(items.filter((item) => item.createdAt <= boundary)) },
   ].filter((section) => section.data.length > 0);
+  const empty = !ready || sections.length === 0;
   return (
     <SectionList
       style={socialStyles.root}
-      contentContainerStyle={socialStyles.content}
+      contentContainerStyle={[socialStyles.content, empty && { paddingBottom: 0 }]}
       contentInsetAdjustmentBehavior="automatic"
+      bounces={!empty}
       sections={ready ? sections : []}
       keyExtractor={(row) => row[0].id}
       stickySectionHeadersEnabled={false}

@@ -1,9 +1,7 @@
 import { useRouter } from "expo-router";
-import { ScrollView } from "react-native";
 
 import { ArtworkSkeleton } from "@/components/loading-skeleton";
-import { SocialState } from "@/components/social/social-state";
-import { Gallery } from "@/constants/theme";
+import { SocialState, StateScreen } from "@/components/social/social-state";
 
 export function ArtworkQueryState({
   item,
@@ -18,14 +16,7 @@ export function ArtworkQueryState({
 }) {
   const router = useRouter();
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: Gallery.paper }}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{
-        flexGrow: 1,
-        justifyContent: loading && !error ? "flex-start" : "center",
-      }}
-    >
+    <StateScreen>
       {loading && !error ? (
         <ArtworkSkeleton label={`Opening ${item.toLowerCase()}…`} />
       ) : (
@@ -40,6 +31,6 @@ export function ArtworkQueryState({
           onAction={error ? onRetry : () => router.back()}
         />
       )}
-    </ScrollView>
+    </StateScreen>
   );
 }

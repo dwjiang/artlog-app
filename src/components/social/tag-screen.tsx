@@ -45,6 +45,7 @@ function TagFeed({ tag, session }: { tag: string; session: SocialSession }) {
     },
   });
   const postCount = summary.data?.postCount ?? 0;
+  const items = ready && !unavailable ? feed.items : [];
   return (
     <>
       <Stack.Screen options={{ title: `#${tag}` }} />
@@ -52,9 +53,10 @@ function TagFeed({ tag, session }: { tag: string; session: SocialSession }) {
       <FlatList
         style={socialStyles.root}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[socialStyles.content, { paddingBottom: 28 }]}
+        contentContainerStyle={[socialStyles.content, { paddingBottom: items.length > 0 ? 28 : 0 }]}
         contentInsetAdjustmentBehavior="automatic"
-        data={ready && !unavailable ? feed.items : []}
+        bounces={items.length > 0 || !!pull.refreshControl}
+        data={items}
         keyExtractor={visitId}
         ItemSeparatorComponent={VisitSeparator}
         initialNumToRender={4}

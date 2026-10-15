@@ -91,7 +91,6 @@ export function CollectionWallContent({
   const [picker, setPicker] = useState<string[]>();
   const [selectedId, setSelectedId] = useState<string>();
   const scroll = useRef<ScrollView>(null);
-  const room = usePaneRoom(scroll, paneRef);
   const scrollGesture = useMemo(() => Gesture.Native(), []);
   const wallTop = useRef(0);
   const controlsHeight = useRef(0);
@@ -106,6 +105,7 @@ export function CollectionWallContent({
   const count = wall.draft?.items.filter((item) => !hiddenIds.includes(item.saveLocalId)).length ?? 0;
   const opening = wall.loading && !wall.draft && !wall.error;
   const blank = !wall.draft?.items.length && !editing && !opening && !wall.error;
+  const room = usePaneRoom(scroll, { handle: paneRef, empty: blank });
   const hasSavedArt = works.some((work) => work.owner === owner && !hiddenIds.includes(work.localId));
   const wallInk = isLightWall(color) ? Gallery.ink : Gallery.paper;
   const pull = usePullToRefresh({ enabled: wall.signedIn && !editing, onRefresh: () => wall.refresh() });
@@ -322,7 +322,9 @@ export function CollectionWallContent({
           ref={scroll}
           style={{ flex: 1 }}
           contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={{ flexGrow: 1, minHeight: editing ? undefined : room.minHeight }}
+          // Grown to the screen, the content plus the tab bar inset overflows, so a blank wall keeps its own height.
+          contentContainerStyle={{ flexGrow: blank ? 0 : 1, minHeight: editing ? undefined : room.minHeight }}
+          bounces={!blank || !!pull.refreshControl}
           scrollEnabled={!wall.pending}
           stickyHeaderIndices={editing ? undefined : [header ? 1 : 0]}
           onLayout={room.onLayout}
@@ -601,7 +603,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: Gallery.fill,
   },
-  blank: { paddingHorizontal: Spacing.content, paddingTop: Spacing.two, paddingBottom: Spacing.four },
+  blank: { paddingHorizontal: Spacing.content, paddingTop: Spacing.two },
   empty: {
     minHeight: 440,
     padding: 32,

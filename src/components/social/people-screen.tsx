@@ -104,7 +104,7 @@ export function PeopleScreen() {
         ? "New on Artlog"
         : undefined;
   const list = useRef<FlatList<BrowsedProfile>>(null);
-  const room = usePaneRoom(list);
+  const room = usePaneRoom(list, { empty: rows.length === 0 });
   usePaneSwitch(filter, () => room);
   return (
     <>
@@ -121,8 +121,13 @@ export function PeopleScreen() {
       <FlatList
         ref={list}
         style={styles.page}
-        contentContainerStyle={[socialStyles.content, { minHeight: room.minHeight }]}
+        contentContainerStyle={[
+          socialStyles.content,
+          room.empty && { paddingBottom: 0 },
+          { minHeight: room.minHeight },
+        ]}
         contentInsetAdjustmentBehavior="automatic"
+        bounces={!room.empty}
         onLayout={room.onLayout}
         onScroll={room.onScroll}
         keyboardDismissMode="on-drag"
