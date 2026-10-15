@@ -21,7 +21,7 @@ import { listStyles } from "./list-styles";
 /** Every show for one timing, opened from the Explore row's See all with that row's choice. */
 export function ExhibitionListScreen() {
   const params = useLocalSearchParams<{ timing?: string }>();
-  const [timing, setTiming] = useState<ExhibitionTiming>(isTiming(params.timing) ? params.timing : "ending");
+  const [timing, setTiming] = useState<ExhibitionTiming>(isTiming(params.timing) ? params.timing : "now");
   const explore = useExplore();
   const { data } = explore;
   if (!data) return <ExploreState view={explore} />;

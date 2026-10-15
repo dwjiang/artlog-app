@@ -503,17 +503,23 @@ describe("Explore", () => {
     expect(mockResolve).not.toHaveBeenCalled();
   });
 
-  it("opens a city where nothing ends soon on what is on view", async () => {
+  it("opens on every show on view, not only those ending soon", async () => {
+    await render(<ExploreScreen />);
+
+    expect(screen.getByText("Open now")).toBeOnTheScreen();
+    expect(card("Tides of Memory")).toBeOnTheScreen();
+    expect(card("Signal and Noise")).toBeOnTheScreen();
+    expect(card("Collection in Focus")).toBeOnTheScreen();
+    expect(card("Orchard Light")).toBeNull();
+  });
+
+  it("opens a city with nothing open now on what opens next", async () => {
     mockRegions = [...regions, { region: "london", lat: 51.5, lng: -0.12 }];
     await render(<ExploreScreen />);
     await fireEvent.press(screen.getByRole("button", { name: "London" }));
 
-    expect(screen.getByText("On now")).toBeOnTheScreen();
+    expect(screen.getByText("Opening soon")).toBeOnTheScreen();
     expect(card("River Rooms")).toBeOnTheScreen();
-    expect(card("Undated Collection")).toBeOnTheScreen();
-
-    await fireEvent.press(screen.getByRole("checkbox", { name: "Ending soon" }));
-    expect(screen.getByText("No exhibitions close in the next 30 days.")).toBeOnTheScreen();
   });
 });
 
@@ -524,9 +530,17 @@ describe("Exhibitions list", () => {
     expect(screen.getByRole("button", { name: /^Orchard Light, Opens/ })).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: /^Tides of Memory/ })).toBeNull();
 
-    await fireEvent.press(screen.getByRole("button", { name: "Ending soon" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Open now" }));
 
     expect(screen.getByRole("button", { name: /^Tides of Memory, Ends in 8 days/ })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: /^Orchard Light/ })).toBeNull();
+  });
+
+  it("opens on every show on view without a timing from Explore", async () => {
+    await render(<ExhibitionListScreen />);
+
+    expect(screen.getByRole("button", { name: /^Tides of Memory, Ends in 8 days/ })).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: /^Collection in Focus/ })).toBeOnTheScreen();
     expect(screen.queryByRole("button", { name: /^Orchard Light/ })).toBeNull();
   });
 });
@@ -638,7 +652,6 @@ describe("museum pictures", () => {
 
   it("leaves a show's artwork uncredited on its card and its museum's tile, which name the museum it came from", async () => {
     await render(<ExploreScreen />);
-    await fireEvent.press(screen.getByRole("checkbox", { name: "On now" }));
     // Signal and Noise's card, and SFMOMA's tile, which shows the show's artwork without a photo or Look Around still.
     await waitFor(() => expect(screen.getAllByLabelText("Signal and Noise")).toHaveLength(2));
 

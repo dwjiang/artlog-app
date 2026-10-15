@@ -1,16 +1,14 @@
 import type { Exhibition, ExploreFriend } from "./types";
 
-export type ExhibitionTiming = "ending" | "now" | "opened" | "upcoming";
+export type ExhibitionTiming = "now" | "opened" | "upcoming";
 
 export const TIMING_OPTIONS: { value: ExhibitionTiming; label: string }[] = [
-  { value: "ending", label: "Ending soon" },
-  { value: "now", label: "On now" },
+  { value: "now", label: "Open now" },
   { value: "opened", label: "Just opened" },
   { value: "upcoming", label: "Opening soon" },
 ];
 
 export const NO_EXHIBITIONS: Record<ExhibitionTiming, string> = {
-  ending: "No exhibitions close in the next 30 days.",
   now: "No exhibitions on view.",
   opened: "No exhibitions opened in the last 30 days.",
   upcoming: "No upcoming exhibitions listed.",
@@ -45,6 +43,9 @@ export function isRunning(exhibition: Exhibition, today: string): boolean {
 }
 
 export const isClosed = (exhibition: Exhibition, today: string) => today > exhibition.endsOn;
+
+export const isEndingSoon = (exhibition: Exhibition, today: string) =>
+  isRunning(exhibition, today) && days(today, exhibition.endsOn) <= WINDOW_DAYS;
 
 /** "Oct 1 – Dec 11, 2026", or "Through Dec 11, 2026" for a show listed only with its closing date. */
 export function exhibitionDates(exhibition: Exhibition): string {
@@ -82,17 +83,15 @@ export function exhibitionsByTiming(exhibitions: Exhibition[], timing: Exhibitio
   }
   const running = exhibitions.filter((exhibition) => isRunning(exhibition, today));
   if (timing === "now") return running.sort(byEnd);
-  return timing === "ending"
-    ? running.filter((exhibition) => days(today, exhibition.endsOn) <= WINDOW_DAYS).sort(byEnd)
-    : running
-        .filter((exhibition) => exhibition.startsOn && days(exhibition.startsOn, today) <= WINDOW_DAYS)
-        .sort((a, b) => byStart(b, a));
+  return running
+    .filter((exhibition) => exhibition.startsOn && days(exhibition.startsOn, today) <= WINDOW_DAYS)
+    .sort((a, b) => byStart(b, a));
 }
 
-/** Ending soon while anything closes within the window, else everything on view, else what opens next. */
+/** Everything on view, which already leads with what closes soonest, else what opens next. */
 export function defaultTiming(exhibitions: Exhibition[], today: string): ExhibitionTiming {
-  const timings = ["ending", "now", "upcoming"] as const;
-  return timings.find((timing) => exhibitionsByTiming(exhibitions, timing, today).length > 0) ?? "ending";
+  const timings = ["now", "upcoming"] as const;
+  return timings.find((timing) => exhibitionsByTiming(exhibitions, timing, today).length > 0) ?? "now";
 }
 
 // Only lists of shows with opening dates sort by them.
