@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "asc-shots-pipeline": {
+      "source": "rorkai/app-store-connect-cli-skills",
+      "sourceType": "github",
+      "skillPath": "skills/asc-shots-pipeline/SKILL.md",
+      "computedHash": "3b1e906630dc988bfa4fde2effb2b02fa7fc26b123bd7227c13382ecaa6ab7a6"
+    },
     "convex": {
       "source": "get-convex/agent-skills",
       "sourceType": "github",
