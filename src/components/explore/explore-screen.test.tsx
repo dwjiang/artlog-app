@@ -195,6 +195,32 @@ jest.mock("@expo/ui/swift-ui", () => {
   };
 });
 
+jest.mock("expo-maps", () => {
+  const { View } = jest.requireActual("react-native");
+  return {
+    AppleMaps: {
+      MapColorScheme: { LIGHT: "light" },
+      View: ({
+        cameraPosition: { coordinates },
+        markers,
+      }: {
+        cameraPosition: { coordinates: { latitude: number; longitude: number } };
+        markers: { id: string; title: string; coordinates: { latitude: number; longitude: number } }[];
+      }) => (
+        <View accessible accessibilityLabel={`Map around ${coordinates.latitude}, ${coordinates.longitude}`}>
+          {markers.map((marker) => (
+            <View
+              key={marker.id}
+              accessible
+              accessibilityLabel={`${marker.title} pin at ${marker.coordinates.latitude}, ${marker.coordinates.longitude}`}
+            />
+          ))}
+        </View>
+      ),
+    },
+  };
+});
+
 const permission = (status: number) => ({ status: "", granted: status === 2, ios: { status } }) as never;
 const orchard = bayArea.exhibitions.find((show) => show.exhibitionId === "orchard")!.viewingPeriods[0];
 const tides = bayArea.exhibitions.find((show) => show.exhibitionId === "tides")!.viewingPeriods[0];
@@ -703,6 +729,29 @@ describe("museum pictures", () => {
     expect(await screen.findByRole("button", { name: /^Signal and Noise/ })).toBeOnTheScreen();
     expect(screen.queryByText(/^Photo: |^Look Around · /)).toBeNull();
     expect(screen.queryByLabelText("Loading photo")).toBeNull();
+  });
+});
+
+describe("location map", () => {
+  it("maps the museum under Location on its page", async () => {
+    await render(<MuseumScreen museumId="sfmoma" />);
+
+    expect(screen.getByRole("header", { name: "Location" })).toBeOnTheScreen();
+    expect(screen.getByLabelText("Map around 37.785718, -122.401051")).toBeOnTheScreen();
+    expect(screen.getByLabelText("San Francisco Museum of Modern Art pin at 37.785718, -122.401051")).toBeOnTheScreen();
+  });
+
+  it("maps a show's museum under its details, with the museum's distance once the phone has a fix", async () => {
+    const view = await render(<ExhibitionScreen exhibitionId="collection" />);
+
+    expect(screen.getByLabelText("Map around 37.785718, -122.401051")).toBeOnTheScreen();
+    expect(screen.getByLabelText("San Francisco Museum of Modern Art pin at 37.785718, -122.401051")).toBeOnTheScreen();
+    expect(screen.queryByText(/ away$/)).toBeNull();
+
+    mockFix = { lat: 37.78, lng: -122.4 };
+    await view.rerender(<ExhibitionScreen exhibitionId="collection" />);
+
+    expect(screen.getByText("San Francisco Museum of Modern Art · 2110 ft away")).toBeOnTheScreen();
   });
 });
 
