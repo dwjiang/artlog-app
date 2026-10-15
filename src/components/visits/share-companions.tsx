@@ -89,9 +89,10 @@ export function CompanionPicker({
     <FlatList
       style={{ backgroundColor: Gallery.groupedBackground }}
       contentInsetAdjustmentBehavior="automatic"
+      bounces={rows.length > 0}
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingHorizontal: Spacing.content, paddingBottom: 32 }}
+      contentContainerStyle={{ paddingHorizontal: Spacing.content, paddingBottom: rows.length > 0 ? 32 : 0 }}
       data={rows}
       keyExtractor={(person) => person.profileId}
       ListHeaderComponent={

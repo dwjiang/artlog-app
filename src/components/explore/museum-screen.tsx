@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/empty-state";
 import { LoadingImage } from "@/components/loading-image";
 import { ImageSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
+import { StateScreen } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
@@ -33,9 +34,9 @@ export function MuseumScreen({ museumId }: { museumId: string }) {
   if (!data) return <ExploreState view={explore} />;
   if (!museum) {
     return (
-      <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
+      <StateScreen>
         <EmptyState title="This museum isn’t listed." />
-      </ScrollView>
+      </StateScreen>
     );
   }
   const shows = museumExhibitions(data, museum);

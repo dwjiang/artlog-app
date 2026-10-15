@@ -9,6 +9,8 @@ type Scrollable =
 export type PaneRoom = {
   /** The offset where the header has scrolled away: a sticky pane switch pins here, and pane content starts. */
   pinned: number;
+  /** The pane shows only an empty state, so it gets no room to scroll the header away. */
+  empty: boolean;
   offset(): number;
   scrollTo(y: number): void;
 };
@@ -29,14 +31,19 @@ export function paneOffset(from: PanePosition, to: PanePosition) {
  * the screen can still reach the pinned point instead of dragging the header down when it opens. Attach `onLayout` and
  * `onScroll` to the scroll view, and either `onPinnedLayout` to the sticky row that holds the switch or
  * `onHeaderLayout` to the view whose bottom edge the pane content starts below. `handle` exposes the room to a parent
- * that switches between several scroll views.
+ * that switches between several scroll views. An `empty` pane gets no extra room, so its empty state scrolls only when
+ * it overflows the screen; pair it with `bounces={!room.empty}` on the scroll view.
  */
-export function usePaneRoom(scroll: { readonly current: Scrollable | null }, handle?: Ref<PaneRoom>) {
+export function usePaneRoom(
+  scroll: { readonly current: Scrollable | null },
+  { handle, empty = false }: { handle?: Ref<PaneRoom>; empty?: boolean } = {},
+) {
   const [viewport, setViewport] = useState(0);
   const [pinned, setPinned] = useState(0);
   const offset = useRef(0);
   const room: PaneRoom = {
     pinned,
+    empty,
     offset: () => offset.current,
     scrollTo(y) {
       offset.current = y;
@@ -50,7 +57,7 @@ export function usePaneRoom(scroll: { readonly current: Scrollable | null }, han
   return {
     ...room,
     viewport,
-    minHeight: viewport > 0 ? viewport + pinned : undefined,
+    minHeight: viewport > 0 && !empty ? viewport + pinned : undefined,
     onLayout: (event: LayoutChangeEvent) => setViewport(event.nativeEvent.layout.height),
     onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       offset.current = event.nativeEvent.contentOffset.y;
@@ -79,6 +86,8 @@ export function usePaneSwitch<K extends string>(pane: K, roomOf: (pane: K) => Pa
     if (!source || !target) return;
     const offset = source.offset();
     remembered.current.set(from, offset);
+    // An empty pane has no room to reach the header's position; UIKit settles it where it rests as its content shrinks.
+    if (target.empty) return;
     const shared = source === target;
     const current = shared ? (remembered.current.get(to) ?? target.pinned) : target.offset();
     const y = paneOffset({ offset, pinned: source.pinned }, { offset: current, pinned: target.pinned });

@@ -51,7 +51,8 @@ export function WantToSeeScreen() {
     <SectionList<Saved, Section>
       style={listStyles.root}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={[listStyles.content, sections.length === 0 && { flexGrow: 1 }]}
+      bounces={sections.length > 0}
+      contentContainerStyle={[listStyles.content, sections.length === 0 && { paddingBottom: 0 }]}
       sections={sections}
       keyExtractor={(item) => (item.kind === "museum" ? item.museum.id : item.exhibition.id)}
       stickySectionHeadersEnabled={false}

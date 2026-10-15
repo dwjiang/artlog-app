@@ -172,7 +172,12 @@ function CaptureContext({
   ];
 
   return (
-    <ScrollView style={styles.screen} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentInsetAdjustmentBehavior="automatic"
+      bounces={!noVisits}
+      contentContainerStyle={styles.content}
+    >
       <Stack.Screen options={{ title: "Save This Artwork To…" }} />
       <ThemedText themeColor="textSecondary">
         Only this artwork changes. The next scan joins the visit you are at.

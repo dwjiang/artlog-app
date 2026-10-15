@@ -45,6 +45,7 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
         ref={scrollRef}
         style={socialStyles.root}
         contentInsetAdjustmentBehavior="automatic"
+        bounces={!!data}
         contentContainerStyle={socialStyles.content}
         onContentSizeChange={measureHeading}
         onScroll={onScroll}

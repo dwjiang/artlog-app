@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native"
 import { EmptyState } from "@/components/empty-state";
 import { LoadingImage } from "@/components/loading-image";
 import { MotionPressable } from "@/components/motion-pressable";
+import { StateScreen } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
@@ -28,9 +29,9 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
   if (!data) return <ExploreState view={explore} />;
   if (!exhibition) {
     return (
-      <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic">
+      <StateScreen>
         <EmptyState title="This exhibition isn’t listed." />
-      </ScrollView>
+      </StateScreen>
     );
   }
   const status = exhibitionStatus(exhibition, data.today);

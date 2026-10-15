@@ -42,8 +42,9 @@ export function ProfileFriendsScreen({ profileId }: { profileId: string }) {
       <Stack.Screen options={{ title: firstName ? `${firstName}’s Friends` : "Friends" }} />
       <FlatList
         style={styles.page}
-        contentContainerStyle={[socialStyles.content, styles.content]}
+        contentContainerStyle={[socialStyles.content, styles.content, people.length === 0 && { paddingBottom: 0 }]}
         contentInsetAdjustmentBehavior="automatic"
+        bounces={people.length > 0}
         data={people}
         keyExtractor={(item) => item.profileId}
         renderItem={({ item, index }) => (

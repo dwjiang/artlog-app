@@ -24,10 +24,16 @@ export function ArtworkResultsScreen({ query, onOpen }: { query: string; onOpen?
     workId,
   );
   const saved = useSavedCatalogWorks();
+  const offline = !catalog.ready && catalog.offline;
   const empty = results.done && results.items.length === 0;
   return (
-    <ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
-      {!catalog.ready && catalog.offline ? (
+    <ScrollView
+      style={styles.page}
+      contentInsetAdjustmentBehavior="automatic"
+      bounces={!offline && !empty}
+      contentContainerStyle={[styles.content, (offline || empty) && { paddingBottom: 0 }]}
+    >
+      {offline ? (
         <SocialState title="You’re offline." detail="Connect to search artworks." icon="wifi.slash" />
       ) : empty ? (
         <SearchEmptyState detail="Try another title or artist." />
@@ -63,6 +69,6 @@ export function ArtworkResultsScreen({ query, onOpen }: { query: string; onOpen?
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: Gallery.groupedBackground },
-  content: { flexGrow: 1, paddingTop: Spacing.two, paddingBottom: Spacing.five },
+  content: { paddingTop: Spacing.two, paddingBottom: Spacing.five },
   rows: { paddingHorizontal: Spacing.content },
 });

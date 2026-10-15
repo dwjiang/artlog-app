@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArtworkTile } from "@/components/collection/collection-artworks";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ProfileHeader } from "@/components/social/profile-header";
-import { PageFooter, SocialState } from "@/components/social/social-state";
+import { PageFooter, SocialState, StateScreen } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import type { SavedWork } from "@/db/schema";
@@ -184,16 +184,15 @@ function CatalogTile({ work, saved, width }: { work: CatalogArtwork; saved?: Sav
 
 function State(props: Parameters<typeof SocialState>[0]) {
   return (
-    <ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.centered}>
+    <StateScreen>
       <SocialState {...props} />
-    </ScrollView>
+    </StateScreen>
   );
 }
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: Gallery.paper },
   content: { paddingBottom: Spacing.five },
-  centered: { flexGrow: 1, justifyContent: "center" },
   section: { gap: Spacing.compact, paddingTop: Spacing.four },
   heading: { paddingHorizontal: Spacing.content },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: GAP, rowGap: 22, paddingHorizontal: Spacing.content },

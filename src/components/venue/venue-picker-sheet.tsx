@@ -291,6 +291,7 @@ function ChooserSheet({
       style={sheetStyle}
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
+      bounces={false}
       contentContainerStyle={styles.content}
     >
       <ThemedText type="title" accessibilityRole="header">

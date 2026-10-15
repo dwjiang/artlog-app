@@ -559,7 +559,7 @@ function StateCard({
 }) {
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" bounces={false} contentContainerStyle={styles.content}>
         {illustrated && title ? (
           <EmptyState inset={false} visual={<EmptyPaper />} title={title} detail={detail ?? ""}>
             {children}

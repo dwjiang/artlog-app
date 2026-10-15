@@ -49,7 +49,7 @@ export function LeaderboardScreen() {
   }
   const rows = board.data?.rows ?? [];
   const list = useRef<FlatList<(typeof rows)[number]>>(null);
-  const room = usePaneRoom(list);
+  const room = usePaneRoom(list, { empty: rows.length === 0 });
   usePaneSwitch(`${audience}:${metric}`, () => room);
   const pull = usePullToRefresh({
     enabled: canBrowse,
@@ -76,7 +76,8 @@ export function LeaderboardScreen() {
         ref={list}
         style={styles.root}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ paddingBottom: 24, minHeight: room.minHeight }}
+        bounces={!room.empty || !!pull.refreshControl}
+        contentContainerStyle={{ paddingBottom: room.empty ? 0 : 24, minHeight: room.minHeight }}
         onLayout={room.onLayout}
         onScroll={room.onScroll}
         initialNumToRender={15}
@@ -215,20 +216,22 @@ export function LeaderboardScreen() {
           )
         }
         ListFooterComponent={
-          <View style={styles.explainer}>
-            {preferenceError && (
-              <Text accessibilityRole="alert" style={styles.caption}>
-                {preferenceError}
-              </Text>
-            )}
-            {rows.length > 0 && metric === "artworks" && (
-              <View>
-                <Text style={styles.explanation}>
-                  Each artwork counts once. Extra photos and encounters don’t add to the total.
+          preferenceError || (rows.length > 0 && metric === "artworks") ? (
+            <View style={styles.explainer}>
+              {preferenceError && (
+                <Text accessibilityRole="alert" style={styles.caption}>
+                  {preferenceError}
                 </Text>
-              </View>
-            )}
-          </View>
+              )}
+              {rows.length > 0 && metric === "artworks" && (
+                <View>
+                  <Text style={styles.explanation}>
+                    Each artwork counts once. Extra photos and encounters don’t add to the total.
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : null
         }
       />
       {participationOpen && <LeaderboardParticipation onDismiss={() => setParticipationOpen(false)} />}

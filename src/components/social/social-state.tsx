@@ -21,6 +21,7 @@ export function StateScreen({ grouped = false, children }: { grouped?: boolean; 
     <ScrollView
       style={[socialStyles.root, grouped && { backgroundColor: Gallery.groupedBackground }]}
       contentInsetAdjustmentBehavior="automatic"
+      bounces={false}
     >
       {children}
     </ScrollView>

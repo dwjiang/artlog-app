@@ -30,7 +30,8 @@ export function ExhibitionListScreen() {
     <FlatList
       style={listStyles.root}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={listStyles.content}
+      bounces={shows.length > 0}
+      contentContainerStyle={[listStyles.content, shows.length === 0 && { paddingBottom: 0 }]}
       data={shows}
       keyExtractor={(exhibition) => exhibition.id}
       ListHeaderComponent={
