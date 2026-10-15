@@ -22,7 +22,9 @@ const mockSavedRefresh = jest.fn();
 const mockOpenBrowser = jest.fn(async (_url: string) => undefined);
 const mockRequestRegion = jest.fn(async (_args: { region: string }) => null);
 const mockSetWantToSee = jest.fn(async (_args: { exhibitionId: string; saved: boolean }) => null);
+const mockSetMuseum = jest.fn(async (_args: { museumId: string; saved: boolean }) => null);
 let mockSaved: string[] | Error | undefined;
+let mockSavedMuseums: string[] | Error | undefined;
 let mockFriendSaves: unknown[];
 let mockOwner: string;
 let mockServerScope: string | undefined;
@@ -87,8 +89,11 @@ jest.mock("@/lib/settings/use-measurement-units", () => ({
 jest.mock("@/lib/social/use-query-refresh", () => ({
   useQueryBatchRefresh: (query: unknown) => ({
     refreshing: false,
-    refresh:
-      jest.requireActual("convex/server").getFunctionName(query) === "wantToSee:mine" ? mockSavedRefresh : mockRefresh,
+    refresh: ["wantToSee:mine", "wantToSee:museums"].includes(
+      jest.requireActual("convex/server").getFunctionName(query),
+    )
+      ? mockSavedRefresh
+      : mockRefresh,
   }),
 }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
@@ -109,10 +114,12 @@ jest.mock("@/lib/notifications/offer", () => ({
   offerNotifications: jest.fn(),
 }));
 jest.mock("convex/react", () => ({
-  useMutation: (mutation: unknown) =>
-    jest.requireActual("convex/server").getFunctionName(mutation) === "wantToSee:set"
-      ? { withOptimisticUpdate: () => mockSetWantToSee }
-      : mockRequestRegion,
+  useMutation: (mutation: unknown) => {
+    const name = jest.requireActual("convex/server").getFunctionName(mutation);
+    if (name === "wantToSee:set") return { withOptimisticUpdate: () => mockSetWantToSee };
+    if (name === "wantToSee:setMuseum") return { withOptimisticUpdate: () => mockSetMuseum };
+    return mockRequestRegion;
+  },
   useQueries: (
     requests: Record<
       string,
@@ -135,6 +142,8 @@ jest.mock("convex/react", () => ({
           data = mockRegions;
         } else if (name === "wantToSee:mine") {
           data = mockSaved;
+        } else if (name === "wantToSee:museums") {
+          data = mockSavedMuseums;
         } else if (name === "wantToSee:friends") {
           data = mockFriendSaves;
         } else if (name === "museumPhotos:forVenue") {
@@ -147,6 +156,15 @@ jest.mock("convex/react", () => ({
             mockDiscoverable === undefined
               ? undefined
               : args.museumIds!.filter((id) => mockDiscoverable === null || mockDiscoverable?.has(id));
+        } else if (name === "exhibitions:atMuseums") {
+          if (args.museumIds!.length > 20) return [key, new Error("batch_too_large")];
+          const museums = [...bayArea.museums, ...cornwall.museums];
+          data = {
+            museums: args.museumIds!.flatMap((id) => museums.filter((museum) => museum.museumId === id)),
+            exhibitions: [...bayArea.exhibitions, ...cornwall.exhibitions].filter((show) =>
+              args.museumIds!.includes(show.museumId),
+            ),
+          };
         } else {
           const exhibitions = [...bayArea.exhibitions, ...cornwall.exhibitions].filter((show) =>
             args.museumId ? show.museumId === args.museumId : args.exhibitionIds?.includes(show.exhibitionId),
@@ -197,8 +215,10 @@ beforeEach(() => {
   mockOpenBrowser.mockClear();
   mockRequestRegion.mockClear();
   mockSetWantToSee.mockClear();
+  mockSetMuseum.mockClear();
   jest.mocked(offerNotifications).mockClear();
   mockSaved = [];
+  mockSavedMuseums = [];
   mockFriendSaves = [];
   mockOwner = "device:test";
   mockServerScope = "device:test:0";
@@ -290,10 +310,9 @@ describe("Explore", () => {
     await render(<ExploreScreen />);
 
     const row = await screen.findByTestId("museum-row");
-    await waitFor(() =>
-      expect(within(row).getAllByRole("button")[3]).toHaveAccessibleName("Gallery 01, San Francisco"),
-    );
-    expect(within(row).getAllByRole("button")[2]).toHaveAccessibleName(/^San Francisco Museum of Modern Art, /);
+    const tiles = () => within(row).getAllByRole("button", { name: /^(?!Want to see )/ });
+    await waitFor(() => expect(tiles()[3]).toHaveAccessibleName("Gallery 01, San Francisco"));
+    expect(tiles()[2]).toHaveAccessibleName(/^San Francisco Museum of Modern Art, /);
     expect(screen.queryByText("No exhibitions listed")).toBeNull();
 
     // Jest has no layout, so the row is given its size and scrolled to its end.
@@ -586,7 +605,7 @@ describe("museum pictures", () => {
       await within(row).findByLabelText("Look Around view of Berkeley Art Museum and Pacific Film Archive"),
     ).toHaveProp("contentPosition", { left: 0, bottom: 0 });
     expect(within(row).getByLabelText("Signal and Noise")).toBeOnTheScreen();
-    expect(within(row).queryByLabelText(/Oakland Museum of California$/)).toBeNull();
+    expect(within(row).queryByLabelText(/^(Photo|Look Around view) of Oakland Museum of California$/)).toBeNull();
     expect(mockLookAroundStill).not.toHaveBeenCalledWith(37.7701, -122.3919, expect.any(Number), expect.any(Number));
     // Cards fit a double-size still, which shows Apple's fixed-size logo at half the size.
     expect(mockLookAroundStill).toHaveBeenCalledWith(37.870804, -122.26634, 800, 500);
@@ -695,7 +714,7 @@ describe("Want to see", () => {
     expect(screen.getByRole("button", { name: "Want to see" })).toBeDisabled();
     await view.rerender(<WantToSeeScreen />);
     expect(screen.getByRole("progressbar", { name: "Loading exhibitions…" })).toBeOnTheScreen();
-    expect(screen.queryByText("Nothing saved yet.")).toBeNull();
+    expect(screen.queryByText("No saved exhibitions yet.")).toBeNull();
 
     mockOwner = "account:test";
     mockServerScope = "account:test:1";
@@ -717,7 +736,7 @@ describe("Want to see", () => {
     mockSaved = undefined;
     const view = await render(<WantToSeeScreen />);
     expect(screen.getByRole("progressbar", { name: "Loading exhibitions…" })).toBeOnTheScreen();
-    expect(screen.queryByText("Nothing saved yet.")).toBeNull();
+    expect(screen.queryByText("No saved exhibitions yet.")).toBeNull();
 
     mockSaved = ["collection"];
     await view.rerender(<WantToSeeScreen />);
@@ -728,21 +747,21 @@ describe("Want to see", () => {
     mockSaved = new Error("Saved list failed");
     const view = await render(<WantToSeeScreen />);
     expect(screen.getByText("Couldn’t load exhibitions.")).toBeOnTheScreen();
-    expect(screen.queryByText("Nothing saved yet.")).toBeNull();
+    expect(screen.queryByText("No saved exhibitions yet.")).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
     expect(mockSavedRefresh).toHaveBeenCalledTimes(1);
     expect(mockRefresh).not.toHaveBeenCalled();
 
     mockSaved = [];
     await view.rerender(<WantToSeeScreen />);
-    expect(screen.getByText("Nothing saved yet.")).toBeOnTheScreen();
+    expect(screen.getByText("No saved exhibitions yet.")).toBeOnTheScreen();
   });
 
   it("shows the offline state when saved IDs cannot load", async () => {
     mockOffline = true;
     await render(<WantToSeeScreen />);
     expect(screen.getByText("You’re offline.")).toBeOnTheScreen();
-    expect(screen.queryByText("Nothing saved yet.")).toBeNull();
+    expect(screen.queryByText("No saved exhibitions yet.")).toBeNull();
   });
 
   it("shows saved exhibitions beyond the backend's per-query limit", async () => {
@@ -773,7 +792,7 @@ describe("Want to see", () => {
 
   it("lists saved shows until they are removed", async () => {
     const view = await render(<WantToSeeScreen />);
-    expect(screen.getByText("Nothing saved yet.")).toBeOnTheScreen();
+    expect(screen.getByText("No saved exhibitions yet.")).toBeOnTheScreen();
 
     mockSaved = ["collection"];
     await view.rerender(<WantToSeeScreen />);
@@ -782,7 +801,7 @@ describe("Want to see", () => {
 
     mockSaved = [];
     await view.rerender(<WantToSeeScreen />);
-    expect(screen.getByText("Nothing saved yet.")).toBeOnTheScreen();
+    expect(screen.getByText("No saved exhibitions yet.")).toBeOnTheScreen();
   });
 
   it("says when a saved show's first reminder comes", async () => {
@@ -868,6 +887,92 @@ describe("Want to see", () => {
     expect(mockSetWantToSee).toHaveBeenLastCalledWith({ exhibitionId: "orchard", saved: true });
     expect(offerNotifications).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: /^Remind me/ })).toBeNull();
+  });
+
+  it("saves a museum from its tile, its list row and its page once its saved state is known", async () => {
+    mockSavedMuseums = undefined;
+    const view = await render(<ExploreScreen />);
+    expect(screen.getByRole("button", { name: "Want to see Oakland Museum of California" })).toBeDisabled();
+
+    mockSavedMuseums = [];
+    await view.rerender(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see Oakland Museum of California" }));
+    expect(mockSetMuseum).toHaveBeenLastCalledWith({ museumId: "omca", saved: true });
+
+    await view.rerender(<MuseumListScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see San Francisco Museum of Modern Art" }));
+    expect(mockSetMuseum).toHaveBeenLastCalledWith({ museumId: "sfmoma", saved: true });
+
+    await view.rerender(<MuseumScreen museumId="bampfa" />);
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see" }));
+    expect(mockSetMuseum).toHaveBeenLastCalledWith({ museumId: "bampfa", saved: true });
+
+    mockSavedMuseums = ["bampfa"];
+    await view.rerender(<MuseumScreen museumId="bampfa" />);
+    await fireEvent.press(screen.getByRole("button", { name: "Remove from Want to see" }));
+    expect(mockSetMuseum).toHaveBeenLastCalledWith({ museumId: "bampfa", saved: false });
+    expect(mockSetWantToSee).not.toHaveBeenCalled();
+  });
+
+  it("offers a retry when saving a museum fails", async () => {
+    mockSetMuseum.mockRejectedValueOnce(new Error("Save failed"));
+    const showErrorToast = jest.spyOn(toast, "showErrorToast");
+    await render(<ExploreScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Want to see Oakland Museum of California" }));
+    await act(async () => {});
+
+    expect(showErrorToast).toHaveBeenCalledWith("Couldn’t update Want to see.", expect.any(Function));
+    await act(() => showErrorToast.mock.lastCall![1]!());
+    expect(mockSetMuseum).toHaveBeenCalledTimes(2);
+    expect(mockSetMuseum).toHaveBeenLastCalledWith({ museumId: "omca", saved: true });
+  });
+
+  it("keeps saved museums on their own tab, most recently saved first", async () => {
+    mockSaved = ["tides"];
+    mockSavedMuseums = ["tate", "bampfa"];
+    const view = await render(<WantToSeeScreen />);
+    const tabs = ["Exhibitions", "Museums"].map((name) => screen.getByRole("button", { name }));
+    expect(tabs[0]).toBeSelected();
+    expect(screen.getByRole("button", { name: /^Tides of Memory, Ends/ })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: /^Tate St Ives, / })).toBeNull();
+
+    await fireEvent.press(tabs[1]);
+
+    expect(screen.getByRole("button", { name: "Museums" })).toBeSelected();
+    expect(screen.queryByRole("button", { name: /^Tides of Memory, / })).toBeNull();
+    const rows = screen.getAllByRole("button", { name: /^(Tate St Ives|Berkeley .*), / });
+    expect(rows.map((row) => row.props.accessibilityLabel)).toEqual([
+      expect.stringMatching(/^Tate St Ives, St Ives, 1 exhibition/),
+      "Berkeley Art Museum and Pacific Film Archive, Berkeley, 2 exhibitions",
+    ]);
+    await fireEvent.press(screen.getByRole("button", { name: "Remove Tate St Ives from Want to see" }));
+    expect(mockSetMuseum).toHaveBeenCalledWith({ museumId: "tate", saved: false });
+
+    mockSavedMuseums = [];
+    await view.rerender(<WantToSeeScreen />);
+    expect(screen.getByText("No saved museums yet.")).toBeOnTheScreen();
+    expect(screen.getByText("Tap the bookmark on a museum to save it here.")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Exhibitions" })).toBeOnTheScreen();
+  });
+
+  it("keeps the tabs while one tab's saved list is loading or failed", async () => {
+    mockSavedMuseums = new Error("Saved museums failed");
+    await render(<WantToSeeScreen />);
+    expect(screen.getByText("No saved exhibitions yet.")).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole("button", { name: "Museums" }));
+
+    expect(screen.getByText("Couldn’t load museums.")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+    expect(mockSavedRefresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Exhibitions" })).toBeOnTheScreen();
+  });
+
+  it("loads saved museums beyond the backend's per-query limit", async () => {
+    mockSavedMuseums = [...Array.from({ length: 20 }, (_, index) => `removed-${index}`), "tate"];
+    await render(<WantToSeeScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Museums" }));
+    expect(screen.getByRole("button", { name: /^Tate St Ives, / })).toBeOnTheScreen();
   });
 
   it("shows which friends want to see a show once signed in", async () => {

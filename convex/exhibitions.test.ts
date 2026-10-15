@@ -585,6 +585,27 @@ describe("Explore region catalog", () => {
     expect(await t.query(api.exhibitions.discoverableMuseumIds, { region: REGION, museumIds: ids })).toEqual([]);
   });
 
+  it("reads saved museums in the order asked, with their current shows, leaving out hidden ones", async () => {
+    const { t, museumId } = await fixture({ region: REGION });
+    const [london, hidden] = await t.run(async (ctx) => [
+      await seedMuseum(ctx, { key: "london-museum", region: "london", name: "London Museum", lat: 51.5, lng: -0.13 }),
+      await seedMuseum(ctx, { region: REGION, name: "Hidden Museum", excludedFromDiscovery: true }),
+    ]);
+    await t.action(internal.exhibitions.upsertBatch, { records: [lookedUp()] });
+
+    const catalog = await t.query(api.exhibitions.atMuseums, {
+      museumIds: [london, hidden, museumId, london],
+      asOf: NOW,
+    });
+
+    expect(catalog.museums.map((row) => row.name)).toEqual(["London Museum", "Verified Museum"]);
+    expect(catalog.exhibitions.map((row) => [row.museumId, row.title])).toEqual([[museumId, "Between Worlds"]]);
+    expect(await t.query(api.exhibitions.atMuseums, { museumIds: [museumId], asOf: Date.UTC(2026, 11, 1) })).toEqual({
+      museums: [expect.objectContaining({ museumId })],
+      exhibitions: [],
+    });
+  });
+
   it("bounds museum visibility reads", async () => {
     const { t, museumId } = await fixture({ region: REGION });
     await expect(
@@ -592,6 +613,9 @@ describe("Explore region catalog", () => {
         region: REGION,
         museumIds: Array.from({ length: 101 }, () => museumId),
       }),
+    ).rejects.toThrow("batch_too_large");
+    await expect(
+      t.query(api.exhibitions.atMuseums, { museumIds: Array.from({ length: 21 }, () => museumId), asOf: NOW }),
     ).rejects.toThrow("batch_too_large");
   });
 });
