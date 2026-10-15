@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
-import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingImage } from "@/components/loading-image";
 import { ImageSkeleton } from "@/components/loading-skeleton";
@@ -13,18 +12,20 @@ import { useMuseumImage, type MuseumImage } from "@/lib/explore/museum-image";
 import { museumExhibitions } from "@/lib/explore/museum-summary";
 import type { ExploreMuseum } from "@/lib/explore/types";
 import { museumById, useMuseum } from "@/lib/explore/use-explore";
+import { useWantToSeeMuseums } from "@/lib/explore/want-to-see";
 import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 import { LOOK_AROUND_STILL_ASPECT } from "@/lib/venue/look-around-still";
 import { photoCredit } from "@/lib/venue/use-museum-photo";
 
 import { getLookAround, isExpectedLookAroundError } from "../../../modules/look-around/src";
-import { openDirections, openSourcePage } from "./detail-parts";
+import { DetailActions, openSourcePage } from "./detail-parts";
 import { ExhibitionRow } from "./exhibition-row";
 import { ExploreState } from "./explore-state";
 
 export function MuseumScreen({ museumId }: { museumId: string }) {
   const explore = useMuseum(museumId);
+  const wantToSee = useWantToSeeMuseums();
   const { data } = explore;
   const museum = data && museumById(data, museumId);
   const { scrollRef, headingRef, measureHeading, onScroll } = useScrollTitle(museum?.name ?? "");
@@ -74,12 +75,11 @@ export function MuseumScreen({ museumId }: { museumId: string }) {
             ))}
           </View>
         )}
-        <GalleryButton
-          label="Directions"
-          icon="arrow.triangle.turn.up.right.diamond"
-          variant="outlined"
-          fullWidth
-          onPress={() => openDirections(museum)}
+        <DetailActions
+          saved={wantToSee.saved.has(museum.id)}
+          ready={wantToSee.ready}
+          onToggle={() => wantToSee.toggle(museum)}
+          museum={museum}
         />
       </View>
       <View style={styles.section}>

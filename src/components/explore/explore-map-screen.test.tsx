@@ -20,7 +20,10 @@ jest.mock("@/lib/venue/venue-db", () => ({
   museumsInRegion: async () => mockCityMuseums,
   onVenueMetadataChange: () => () => {},
 }));
-jest.mock("convex/react", () => ({ useMutation: () => jest.fn(), useQueries: () => ({}) }));
+jest.mock("convex/react", () => ({
+  useMutation: () => ({ withOptimisticUpdate: () => jest.fn() }),
+  useQueries: () => ({}),
+}));
 jest.mock("@/lib/social/use-social-query", () => ({
   useBatchedSocialQuery: (_query: unknown, batches: { museumIds: string[] }[]) => ({
     data: batches.map(({ museumIds }) => museumIds),
@@ -30,7 +33,8 @@ jest.mock("@/lib/social/use-social-query", () => ({
     if (args === "skip") return { data: undefined, refresh: jest.fn() };
     const { getFunctionName } = jest.requireActual("convex/server");
     const { bayArea, regions } = jest.requireActual("./__fixtures__/catalog");
-    return { data: getFunctionName(query) === "exhibitions:regions" ? regions : bayArea, refresh: jest.fn() };
+    const data = { "exhibitions:regions": regions, "wantToSee:museums": [] }[getFunctionName(query) as string];
+    return { data: data ?? bayArea, refresh: jest.fn() };
   },
 }));
 

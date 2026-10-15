@@ -103,6 +103,7 @@ import type * as lib_moderation from "../lib/moderation.js";
 import type * as lib_museumDownloadValidators from "../lib/museumDownloadValidators.js";
 import type * as lib_museumPhotos from "../lib/museumPhotos.js";
 import type * as lib_museumPicks from "../lib/museumPicks.js";
+import type * as lib_museumSaves from "../lib/museumSaves.js";
 import type * as lib_museumWorkIdentity from "../lib/museumWorkIdentity.js";
 import type * as lib_narrationCache from "../lib/narrationCache.js";
 import type * as lib_narrationEvidence from "../lib/narrationEvidence.js";
@@ -310,6 +311,7 @@ declare const fullApi: ApiFromModules<{
   "lib/museumDownloadValidators": typeof lib_museumDownloadValidators;
   "lib/museumPhotos": typeof lib_museumPhotos;
   "lib/museumPicks": typeof lib_museumPicks;
+  "lib/museumSaves": typeof lib_museumSaves;
   "lib/museumWorkIdentity": typeof lib_museumWorkIdentity;
   "lib/narrationCache": typeof lib_narrationCache;
   "lib/narrationEvidence": typeof lib_narrationEvidence;

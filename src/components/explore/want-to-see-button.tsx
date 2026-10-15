@@ -1,6 +1,6 @@
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
-import type { Exhibition } from "@/lib/explore/types";
-import { useWantToSee } from "@/lib/explore/want-to-see";
+import type { Exhibition, ExploreMuseum } from "@/lib/explore/types";
+import { useWantToSee, useWantToSeeMuseums } from "@/lib/explore/want-to-see";
 
 /**
  * Saves a show to Want to see, which also reminds about it when it opens and before it closes. A `closed` show's
@@ -8,14 +8,42 @@ import { useWantToSee } from "@/lib/explore/want-to-see";
  */
 export function WantToSeeButton({ exhibition, closed = false }: { exhibition: Exhibition; closed?: boolean }) {
   const { saved, ready, toggle } = useWantToSee();
-  const on = saved.has(exhibition.id);
+  return (
+    <Bookmark
+      name={exhibition.title}
+      on={saved.has(exhibition.id)}
+      muted={closed}
+      disabled={!ready}
+      onPress={() => toggle(exhibition)}
+    />
+  );
+}
+
+export function WantToSeeMuseumButton({ museum }: { museum: ExploreMuseum }) {
+  const { saved, ready, toggle } = useWantToSeeMuseums();
+  return <Bookmark name={museum.name} on={saved.has(museum.id)} disabled={!ready} onPress={() => toggle(museum)} />;
+}
+
+function Bookmark({
+  name,
+  on,
+  muted = false,
+  disabled,
+  onPress,
+}: {
+  name: string;
+  on: boolean;
+  muted?: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
   return (
     <GalleryIconButton
       icon={on ? "bookmark.fill" : "bookmark"}
-      label={on ? `Remove ${exhibition.title} from Want to see` : `Want to see ${exhibition.title}`}
-      tone={on && !closed ? "accent" : "muted"}
-      disabled={!ready}
-      onPress={() => toggle(exhibition)}
+      label={on ? `Remove ${name} from Want to see` : `Want to see ${name}`}
+      tone={on && !muted ? "accent" : "muted"}
+      disabled={disabled}
+      onPress={onPress}
     />
   );
 }

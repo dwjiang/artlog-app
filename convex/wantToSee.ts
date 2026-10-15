@@ -2,10 +2,12 @@ import { ConvexError, v } from "convex/values";
 
 import { LIMITS } from "../shared/journal/limits";
 import { avatarId } from "../shared/social/avatars";
+import type { Id } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import { mutation } from "./functions";
 import { findExhibitionSave, newestExhibitionSaves } from "./lib/exhibitionSaves";
 import { acceptedRelationships, blockedEitherWay } from "./lib/friendships";
+import { findMuseumSaves, newestMuseumSaves } from "./lib/museumSaves";
 import { activeProfile, optionalProfile, requireClaimComplete, resolveOwner } from "./lib/ownership";
 import { projectProfile } from "./lib/projections";
 import { limitDevice } from "./lib/rateLimits";
@@ -49,6 +51,43 @@ export const set = mutation({
     }
     if (!(await ctx.db.get("exhibitions", exhibitionId))) throw new ConvexError({ code: "not_found" });
     await ctx.db.insert("exhibitionSaves", { owner, exhibitionId, savedAt: Date.now() });
+    return null;
+  },
+});
+
+/**
+ * The caller's saved museums, newest first. A save of a duplicate the museum audit merged away counts for the museum it
+ * merged into.
+ */
+export const museums = query({
+  args: {},
+  returns: v.array(v.id("museums")),
+  handler: async (ctx) => {
+    const { owner } = await resolveOwner(ctx);
+    const ids = new Set<Id<"museums">>();
+    for (const { museumId } of await newestMuseumSaves(ctx, owner)) {
+      const museum = await ctx.db.get("museums", museumId);
+      if (museum) ids.add(museum.mergedInto ?? museumId);
+    }
+    return [...ids];
+  },
+});
+
+export const setMuseum = mutation({
+  args: { museumId: v.id("museums"), saved: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { museumId, saved }) => {
+    const { device, owner } = await resolveOwner(ctx);
+    await requireClaimComplete(ctx, device._id);
+    const current = await findMuseumSaves(ctx, owner, museumId);
+    if (current.length > 0 === saved) return null;
+    await limitDevice(ctx, "wantToSee", device._id);
+    if (!saved) {
+      for (const save of current) await ctx.db.delete("museumSaves", save._id);
+      return null;
+    }
+    if (!(await ctx.db.get("museums", museumId))) throw new ConvexError({ code: "not_found" });
+    await ctx.db.insert("museumSaves", { owner, museumId, savedAt: Date.now() });
     return null;
   },
 });

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
-import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingImage } from "@/components/loading-image";
 import { MotionPressable } from "@/components/motion-pressable";
@@ -12,13 +11,10 @@ import { exhibitionDates, exhibitionStatus, friendNames } from "@/lib/explore/ex
 import { exhibitionById, museumById, useExhibitions } from "@/lib/explore/use-explore";
 import { useWantToSee } from "@/lib/explore/want-to-see";
 
-import { FactRow, openDirections, openSourcePage, StatusChip } from "./detail-parts";
+import { DetailActions, FactRow, openSourcePage, StatusChip } from "./detail-parts";
 import { openMuseum } from "./explore-routes";
 import { ExploreState } from "./explore-state";
 import { FriendStack } from "./friend-stack";
-
-// The filled button's own height, so an outlined neighbor lines up with it.
-const BUTTON_HEIGHT = 52;
 
 export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
   const explore = useExhibitions([exhibitionId]);
@@ -87,32 +83,12 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
             </MotionPressable>
           )}
         </View>
-        <View style={styles.actions}>
-          <View style={styles.action}>
-            <GalleryButton
-              label={saved ? "Saved" : "Want to see"}
-              accessibilityLabel={saved ? "Remove from Want to see" : "Want to see"}
-              icon={saved ? "bookmark.fill" : "bookmark"}
-              variant={saved ? "outlined" : "filled"}
-              fullWidth
-              minHeight={BUTTON_HEIGHT}
-              disabled={!wantToSee.ready}
-              onPress={() => wantToSee.toggle(exhibition)}
-            />
-          </View>
-          <View style={styles.action}>
-            {museum && (
-              <GalleryButton
-                label="Directions"
-                icon="arrow.triangle.turn.up.right.diamond"
-                variant="outlined"
-                fullWidth
-                minHeight={BUTTON_HEIGHT}
-                onPress={() => openDirections(museum)}
-              />
-            )}
-          </View>
-        </View>
+        <DetailActions
+          saved={saved}
+          ready={wantToSee.ready}
+          onToggle={() => wantToSee.toggle(exhibition)}
+          museum={museum}
+        />
         {exhibition.friends.length > 0 && (
           <View style={styles.section}>
             <Text variant="section" accessibilityRole="header">
@@ -142,7 +118,5 @@ const styles = StyleSheet.create({
   heading: { gap: Spacing.two },
   museumLink: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center", marginVertical: -Spacing.two },
   museum: { fontSize: 17, lineHeight: 22, color: Gallery.accent },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.compact },
-  action: { flexGrow: 1, flexBasis: 140 },
   section: { gap: Spacing.compact },
 });

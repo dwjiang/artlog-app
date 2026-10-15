@@ -27,6 +27,9 @@ const MAX_PAGE_SIZE = 100;
 const MAX_EXPORT_ROWS = 1000;
 // Explore loads a region's current shows in one read; a busier region needs a narrower one.
 const MAX_REGION_EXHIBITIONS = 1000;
+// Saved museums load in batches with their current shows, so a batch stays well within one query's reads.
+const MAX_MUSEUM_BATCH = 20;
+const MAX_MUSEUM_EXHIBITIONS = 100;
 // A new show waits for the daily picture lookup, two hours after the listing reads begin; one unchecked by then is
 // listed without a picture.
 const PICTURE_WAIT_MS = 2 * 60 * 60 * 1000;
@@ -248,6 +251,12 @@ function currentInRegion(ctx: QueryCtx, region: string, asOf: number) {
     .withIndex("by_region_finalEndAt", (q) => q.eq("region", region).gte("finalEndAt", asOf));
 }
 
+function currentAtMuseum(ctx: QueryCtx, museumId: Id<"museums">, asOf: number) {
+  return ctx.db
+    .query("exhibitions")
+    .withIndex("by_museum_finalEndAt", (q) => q.eq("museumId", museumId).gte("finalEndAt", asOf));
+}
+
 const pictureSettled = (row: Doc<"exhibitions">) => row.imageCheckedAt !== undefined || !row.imagePending;
 
 async function visibleMuseum(
@@ -377,11 +386,22 @@ export const atMuseum = query({
   returns: exploreRegionCatalog,
   handler: async (ctx, { museumId, asOf }) => {
     if (!isTimestamp(asOf)) invalidMetadata();
-    const rows = await ctx.db
-      .query("exhibitions")
-      .withIndex("by_museum_finalEndAt", (q) => q.eq("museumId", museumId).gte("finalEndAt", asOf))
-      .take(MAX_REGION_EXHIBITIONS);
+    const rows = await currentAtMuseum(ctx, museumId, asOf).take(MAX_REGION_EXHIBITIONS);
     return buildCatalog(ctx, rows.filter(pictureSettled), { museumIds: [museumId] });
+  },
+});
+
+/** Saved museums in the order asked, each with its current shows, independently of a browsing region. */
+export const atMuseums = query({
+  args: { museumIds: v.array(v.id("museums")), asOf: v.number() },
+  returns: exploreRegionCatalog,
+  handler: async (ctx, { museumIds, asOf }) => {
+    if (!isTimestamp(asOf)) invalidMetadata();
+    if (museumIds.length > MAX_MUSEUM_BATCH) throw new ConvexError({ code: "batch_too_large" });
+    const ids = [...new Set(museumIds)];
+    const rows = [];
+    for (const museumId of ids) rows.push(...(await currentAtMuseum(ctx, museumId, asOf).take(MAX_MUSEUM_EXHIBITIONS)));
+    return buildCatalog(ctx, rows.filter(pictureSettled), { museumIds: ids });
   },
 });
 

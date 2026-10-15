@@ -294,6 +294,12 @@ async function purgeJournalBatch(ctx: MutationCtx, owner: JournalOwner): Promise
     .take(PURGE_BATCH);
   for (const save of exhibitionSaves) await ctx.db.delete("exhibitionSaves", save._id);
   if (exhibitionSaves.length === PURGE_BATCH) return true;
+  const museumSaves = await ctx.db
+    .query("museumSaves")
+    .withIndex("by_owner_savedAt", (q) => q.eq("owner", owner))
+    .take(PURGE_BATCH);
+  for (const save of museumSaves) await ctx.db.delete("museumSaves", save._id);
+  if (museumSaves.length === PURGE_BATCH) return true;
   const state = await ctx.db
     .query("journalSyncState")
     .withIndex("by_owner", (q) => q.eq("owner", owner))

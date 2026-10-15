@@ -3,14 +3,16 @@ import { StyleSheet, View } from "react-native";
 import { ImageSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Fonts, Gallery, Radius, Spacing } from "@/constants/theme";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { useMuseumImage } from "@/lib/explore/museum-image";
 import { museumLine, museumSummary } from "@/lib/explore/museum-summary";
-import type { ExploreData, ExploreMuseum } from "@/lib/explore/types";
+import type { ExploreCatalog, ExploreMuseum } from "@/lib/explore/types";
 import { photoCredit } from "@/lib/venue/use-museum-photo";
 
+import { CardBookmark, cardText } from "./card-bookmark";
 import { ExploreImage } from "./explore-image";
 import { openMuseum } from "./explore-routes";
+import { WantToSeeMuseumButton } from "./want-to-see-button";
 
 /**
  * The museum's photo, else a Look Around still, else its most pressing show's artwork, else a placeholder. Card-sized
@@ -23,7 +25,7 @@ export function MuseumPhoto({
   width,
   height,
 }: {
-  data: ExploreData;
+  data: ExploreCatalog;
   museum: ExploreMuseum;
   width: number;
   height: number;
@@ -43,34 +45,40 @@ export function MuseumPhoto({
 }
 
 const MUSEUM_TILE_WIDTH = 264;
+const MUSEUM_PHOTO_HEIGHT = 160;
 
-export function MuseumTile({ data, museum }: { data: ExploreData; museum: ExploreMuseum }) {
+export function MuseumTile({ data, museum }: { data: ExploreCatalog; museum: ExploreMuseum }) {
   const summary = museumSummary(data, museum);
   const line = museumLine(museum);
   return (
-    <MotionPressable
-      accessibilityRole="button"
-      accessibilityLabel={[museum.name, line, summary.count, summary.ending].filter(Boolean).join(", ")}
-      onPress={() => openMuseum(museum.id)}
-      style={styles.tile}
-    >
-      <MuseumPhoto data={data} museum={museum} width={MUSEUM_TILE_WIDTH} height={160} />
-      <View style={styles.text}>
-        <Text style={styles.name} numberOfLines={1}>
-          {museum.name}
-        </Text>
-        {line !== "" && (
-          <Text style={styles.line} numberOfLines={1}>
-            {line}
+    <View style={styles.tile}>
+      <MotionPressable
+        accessibilityRole="button"
+        accessibilityLabel={[museum.name, line, summary.count, summary.ending].filter(Boolean).join(", ")}
+        onPress={() => openMuseum(museum.id)}
+        style={styles.content}
+      >
+        <MuseumPhoto data={data} museum={museum} width={MUSEUM_TILE_WIDTH} height={MUSEUM_PHOTO_HEIGHT} />
+        <View style={[cardText.text, styles.text]}>
+          <Text style={cardText.title} numberOfLines={1}>
+            {museum.name}
           </Text>
-        )}
-        <MuseumSummaryLine data={data} museum={museum} />
-      </View>
-    </MotionPressable>
+          {line !== "" && (
+            <Text style={styles.line} numberOfLines={1}>
+              {line}
+            </Text>
+          )}
+          <MuseumSummaryLine data={data} museum={museum} />
+        </View>
+      </MotionPressable>
+      <CardBookmark imageHeight={MUSEUM_PHOTO_HEIGHT}>
+        <WantToSeeMuseumButton museum={museum} />
+      </CardBookmark>
+    </View>
   );
 }
 
-export function MuseumSummaryLine({ data, museum }: { data: ExploreData; museum: ExploreMuseum }) {
+export function MuseumSummaryLine({ data, museum }: { data: ExploreCatalog; museum: ExploreMuseum }) {
   const summary = museumSummary(data, museum);
   if (!summary.count) return null;
   return (
@@ -83,9 +91,9 @@ export function MuseumSummaryLine({ data, museum }: { data: ExploreData; museum:
 
 const styles = StyleSheet.create({
   clip: { overflow: "hidden" },
-  tile: { width: MUSEUM_TILE_WIDTH, gap: Spacing.two },
-  text: { gap: 1, paddingTop: 2 },
-  name: { fontFamily: Fonts.display, fontSize: 17, lineHeight: 22, letterSpacing: -0.2, color: Gallery.ink },
+  tile: { width: MUSEUM_TILE_WIDTH },
+  content: { gap: Spacing.two },
+  text: { gap: 1 },
   line: { fontSize: 14, lineHeight: 20, color: Gallery.muted },
   ending: { color: Gallery.warning, fontWeight: "600" },
 });
