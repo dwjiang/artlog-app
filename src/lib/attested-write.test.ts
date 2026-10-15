@@ -1,4 +1,6 @@
-import { signPayload } from "./attested-write";
+import { ConvexError } from "convex/values";
+
+import { canAttest, signPayload } from "./attested-write";
 
 const mockGetItem = jest.fn();
 const mockMutation = jest.fn();
@@ -49,6 +51,7 @@ it("signs the stored key with the exact nonce.payloadJson contract", async () =>
 
 it("returns null only for unsupported physical devices without requesting a challenge", async () => {
   mockGetAppAttest.mockReturnValue(null);
+  expect(canAttest()).toBe(false);
   expect(await signPayload({ a: 1 })).toBeNull();
   expect(mockGetItem).not.toHaveBeenCalled();
   expect(mockMutation).not.toHaveBeenCalled();
@@ -57,6 +60,7 @@ it("returns null only for unsupported physical devices without requesting a chal
 it("sends a challenge with an empty assertion from a simulator, where attestation is unsupported", async () => {
   mockGetAppAttest.mockReturnValue(null);
   mockIsDevice = false;
+  expect(canAttest()).toBe(true);
   expect(await signPayload({ a: 1 })).toEqual({
     nonce: "server-nonce",
     assertionBase64: "",
@@ -68,7 +72,9 @@ it("sends a challenge with an empty assertion from a simulator, where attestatio
 
 it("requires a saved key before requesting a challenge", async () => {
   mockGetItem.mockResolvedValue(null);
-  await expect(signPayload({})).rejects.toThrow("Device attestation is not ready");
+  const failure = signPayload({});
+  await expect(failure).rejects.toBeInstanceOf(ConvexError);
+  await expect(failure).rejects.toMatchObject({ data: { code: "device_not_attested" } });
   expect(mockMutation).not.toHaveBeenCalled();
 });
 

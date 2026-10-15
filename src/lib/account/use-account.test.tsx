@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react-native";
+import { ConvexError } from "convex/values";
 
 import * as settings from "@/db/repos/settings";
 
@@ -12,6 +13,7 @@ const mockAnonymous = jest.fn();
 const mockApple = jest.fn();
 const mockGoogle = jest.fn();
 const mockSignPayload = jest.fn();
+const mockCanAttest = jest.fn();
 const mockPause = jest.fn();
 const mockResume = jest.fn();
 const mockClaim = jest.fn();
@@ -61,6 +63,7 @@ jest.mock("@/lib/convex-client", () => ({
   },
 }));
 jest.mock("@/lib/attested-write", () => ({
+  canAttest: () => mockCanAttest(),
   signPayload: (args: unknown) => mockSignPayload(args),
 }));
 jest.mock("@/lib/device-identity", () => ({
@@ -89,6 +92,7 @@ beforeEach(async () => {
   takeProfileSetupOffer();
   mockAccount = { linked: false, deviceCount: 0 };
   mockAvailable.mockResolvedValue(true);
+  mockCanAttest.mockReturnValue(true);
   mockMutation.mockResolvedValue({ nonce: "apple-nonce" });
   mockApple.mockResolvedValue({
     identityToken: "apple-token",
@@ -305,6 +309,27 @@ it("does not link when token verification fails", async () => {
   expect(mockSignPayload).not.toHaveBeenCalled();
   expect(mockResume).toHaveBeenCalled();
   expect(mockReportError).toHaveBeenCalledWith(failure, "auth.apple_sign_in");
+});
+
+it.each(["signInWithApple", "signInWithGoogle"] as const)(
+  "explains that %s is unavailable on a device that can't attest, before asking the provider",
+  async (operation) => {
+    mockCanAttest.mockReturnValue(false);
+    const { result } = await renderHook(useAccount);
+    await act(() => result.current[operation]());
+    expect(result.current.error).toBe("Signing in isn’t available on this device. Use Artlog on your iPhone instead.");
+    expect(mockApple).not.toHaveBeenCalled();
+    expect(mockGoogle).not.toHaveBeenCalled();
+    expect(mockSignIn).not.toHaveBeenCalled();
+  },
+);
+
+it("asks to try again while this device's attestation isn't ready", async () => {
+  mockSignPayload.mockRejectedValueOnce(new ConvexError({ code: "device_not_attested" }));
+  const { result } = await renderHook(useAccount);
+  await act(() => result.current.signInWithApple());
+  expect(result.current.error).toBe("This device isn’t set up for Artlog yet. Try again in a moment.");
+  expect(mockMutation).not.toHaveBeenCalledWith("accounts:linkAccount", expect.anything());
 });
 
 it("reports a native availability failure while keeping sign-in unavailable", async () => {

@@ -1,12 +1,13 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
 import { setSetting } from "@/db/repos/settings";
-import { signPayload } from "@/lib/attested-write";
+import { canAttest, signPayload } from "@/lib/attested-write";
 import { convex } from "@/lib/convex-client";
 import { resumeDeviceIdentity, signInAnonymously, suspendDeviceIdentity } from "@/lib/device-identity";
 import { addBreadcrumb, reportError } from "@/lib/observability";
@@ -24,6 +25,11 @@ import { carrySafetyChecksAnswer, takeSafetyChecksAnswer } from "./safety-checks
 
 const isCancellation = (cause: unknown) =>
   !!cause && typeof cause === "object" && "code" in cause && cause.code === "ERR_REQUEST_CANCELED";
+
+// Linking an account is an attested write, so refuse before the provider's sheet rather than after it.
+function requireAttestation() {
+  if (!canAttest()) throw new ConvexError({ code: "sign_in_unavailable" });
+}
 
 // Revoking Sign in with Apple needs a fresh authorization code. Cancelling keeps the account; any other
 // failure still deletes it and leaves Artlog in the person's Sign in with Apple apps.
@@ -88,7 +94,7 @@ export function useAccount() {
   async function linkIdentity(provider: "apple" | "google", providerUserId: string, name?: string) {
     const identity = { provider, providerUserId };
     const signed = await signPayload({ action: "linkAccount", ...identity });
-    if (!signed) throw new Error("Device attestation is not ready");
+    if (!signed) throw new ConvexError({ code: "sign_in_unavailable" });
     const safetyChecksAnswer = await takeSafetyChecksAnswer();
     await convex.mutation(api.accounts.linkAccount, {
       ...identity,
@@ -101,6 +107,7 @@ export function useAccount() {
 
   const signInWithApple = () =>
     perform("auth.apple_sign_in", async () => {
+      requireAttestation();
       const { nonce } = await convex.mutation(api.devices.createChallenge, {
         purpose: "apple",
       });
@@ -124,6 +131,7 @@ export function useAccount() {
 
   const signInWithGoogle = () =>
     perform("auth.google_sign_in", async () => {
+      requireAttestation();
       const credential = await googleSignIn();
       if (!credential) return false;
       const { nonce } = await convex.mutation(api.devices.createChallenge, { purpose: "google" });

@@ -16,6 +16,7 @@ import { museumById, useMuseum } from "@/lib/explore/use-explore";
 import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 import { LOOK_AROUND_STILL_ASPECT } from "@/lib/venue/look-around-still";
+import { photoCredit } from "@/lib/venue/use-museum-photo";
 
 import { getLookAround, isExpectedLookAroundError } from "../../../modules/look-around/src";
 import { openDirections, openSourcePage } from "./detail-parts";
@@ -121,7 +122,7 @@ function HeaderImage({ museum, image }: { museum: ExploreMuseum; image: MuseumIm
   const credit =
     source.kind === "commons"
       ? {
-          text: `Photo: ${[source.photo.author, source.photo.license].filter(Boolean).join(" · ") || "Wikimedia Commons"}`,
+          text: `Photo: ${photoCredit(source.photo) || "Wikimedia Commons"}`,
           hint: "Opens the photo’s page on Wikimedia Commons",
           open: () => openSourcePage(source.photo.pageUrl, "explore.museum_photo_page"),
         }
