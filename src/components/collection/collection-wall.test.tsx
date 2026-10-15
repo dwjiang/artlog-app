@@ -82,6 +82,7 @@ jest.mock("./wall-gallery", () => {
       onDeselect,
       selectedId,
       editing,
+      header,
       children,
     }: {
       pieces: WallPiece[];
@@ -90,9 +91,11 @@ jest.mock("./wall-gallery", () => {
       selectedId?: string;
       editing: boolean;
       onSelect: (piece: unknown) => void;
+      header?: ReactNode;
       children: ReactNode;
     }) => (
       <View>
+        {header}
         {editing && selectedId && (
           <Pressable accessibilityRole="button" accessibilityLabel="Deselect artwork" onPress={onDeselect} />
         )}
@@ -121,6 +124,7 @@ jest.mock("./wall-gallery", () => {
     ),
   };
 });
+jest.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 jest.mock("./wall-profile-sheet", () => {
   const { Text } = jest.requireActual("react-native");
   return {

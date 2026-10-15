@@ -36,7 +36,7 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush }),
   useNavigation: () => ({ setOptions: mockSetOptions }),
 }));
-jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
+jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116, useIsFocused: () => true }));
 jest.mock("@/components/collection/wall-gallery", () => ({ WallGallery: () => null }));
 jest.mock("./friendship-controls", () => {
   const { Text } = jest.requireActual("react-native");

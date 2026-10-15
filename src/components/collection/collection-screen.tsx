@@ -148,6 +148,7 @@ function OwnedCollection({
         paneRef={wallPane}
         header={header}
         controls={controls}
+        shown={mode === "collection"}
       />
     </CollectionSection>
   );

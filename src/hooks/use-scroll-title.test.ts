@@ -68,3 +68,16 @@ it("measures a nested heading against the scroll view", async () => {
   await act(() => result.current.onScroll(scrolled(224)));
   expect(titleColors()).toEqual([Gallery.ink]);
 });
+
+it("tints the shown title, follows a new color while shown, and leaves a hidden title clear", async () => {
+  const view = await renderHook(({ color }: { color: string }) => useScrollTitle("Ana Ruiz", color), {
+    initialProps: { color: Gallery.ink },
+  });
+  await act(() => view.result.current.onHeadingLayout(heading(200, 40)));
+  await view.rerender({ color: Gallery.paper });
+  expect(titleColors()).toEqual([]);
+  await act(() => view.result.current.onScroll(scrolled(400)));
+  expect(titleColors()).toEqual([Gallery.paper]);
+  await view.rerender({ color: Gallery.ink });
+  expect(titleColors()).toEqual([Gallery.paper, Gallery.ink]);
+});
