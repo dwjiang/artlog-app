@@ -1,8 +1,11 @@
 import { randomUUID } from "expo-crypto";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useIsFocused } from "expo-router/react-navigation";
+import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type Ref } from "react";
-import { Image, ScrollView, StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, { useAnimatedRef } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/empty-state";
@@ -40,7 +43,9 @@ import { WallArtworkPicker } from "./wall-artwork-picker";
 import { WallEditorPalette } from "./wall-editor-palette";
 import { WallGallery } from "./wall-gallery";
 import { WallProfileSheet } from "./wall-profile-sheet";
+import { WallTopEdge, useWallScrollEdge } from "./wall-scroll-edge";
 import { WallArtworkSheet } from "./wall-sheets";
+import { WallToolbar } from "./wall-toolbar";
 import { WallpaperEditor } from "./wallpaper-editor";
 
 type CollectionWallProps = {
@@ -54,6 +59,8 @@ type CollectionWallProps = {
   header?: ReactElement;
   controls?: ReactElement;
   paneRef?: Ref<PaneRoom>;
+  /** Whether this pane is on screen; only then may a dark wall turn the status bar light. */
+  shown?: boolean;
 };
 export function CollectionWall({ works, ...props }: CollectionWallProps) {
   const wall = useCollectionWall(works);
@@ -73,6 +80,7 @@ export function CollectionWallContent({
   header,
   controls,
   paneRef,
+  shown = true,
 }: CollectionWallProps & { wall: ReturnType<typeof useCollectionWall> }) {
   const router = useRouter();
   const owner = useLocalOwner();
@@ -90,10 +98,9 @@ export function CollectionWallContent({
   const addingRef = useRef(false);
   const [picker, setPicker] = useState<string[]>();
   const [selectedId, setSelectedId] = useState<string>();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useAnimatedRef<Animated.ScrollView>();
   const scrollGesture = useMemo(() => Gesture.Native(), []);
   const wallTop = useRef(0);
-  const controlsHeight = useRef(0);
   const revealId = useRef<string | undefined>(undefined);
   const pieces = wall.pieces.filter((piece) => !hiddenIds.includes(piece.saveLocalId ?? piece.localId));
   const selected = pieces.find((piece) => piece.localId === selectedId);
@@ -108,6 +115,9 @@ export function CollectionWallContent({
   const room = usePaneRoom(scroll, { handle: paneRef, empty: blank });
   const hasSavedArt = works.some((work) => work.owner === owner && !hiddenIds.includes(work.localId));
   const wallInk = isLightWall(color) ? Gallery.ink : Gallery.paper;
+  const canvas = !opening && !blank;
+  const { edge, darkTop } = useWallScrollEdge(scroll, color, !isLightWall(color));
+  const focused = useIsFocused();
   const pull = usePullToRefresh({ enabled: wall.signedIn && !editing, onRefresh: () => wall.refresh() });
   const available = works.filter((item) => item.owner === owner && !hiddenIds.includes(item.localId));
   const failedSave = !!wall.layoutDraft && !!wall.error;
@@ -117,7 +127,7 @@ export function CollectionWallContent({
     if (!piece || !width) return;
     const frame = requestAnimationFrame(() => {
       scroll.current?.scrollTo({
-        y: Math.max(0, wallTop.current + piece.layout.y * width - (editing ? 0 : controlsHeight.current) - 24),
+        y: Math.max(0, wallTop.current + piece.layout.y * width - 24),
         animated: false,
       });
       revealId.current = undefined;
@@ -300,8 +310,19 @@ export function CollectionWallContent({
     setOptions(false);
   }
 
+  const toolbar = (
+    <WallToolbar
+      works={available}
+      onEdit={wall.draft ? edit : undefined}
+      onAllArtworks={() => router.push("/all-artworks")}
+      disabled={blocked}
+      refreshing={wall.loading && !!wall.draft && !wall.error && !pull.refreshing}
+    />
+  );
+
   return (
-    <GestureHandlerRootView style={[styles.root, !blank && { backgroundColor: color }]}>
+    <GestureHandlerRootView style={styles.root}>
+      {shown && focused && canvas && !editing && darkTop && <StatusBar style="light" />}
       {editing && (
         <View style={[styles.toolbar, { backgroundColor: Gallery.paper }]}>
           <Text variant="section" accessibilityRole="header">
@@ -318,7 +339,7 @@ export function CollectionWallContent({
         </View>
       )}
       <GestureDetector gesture={scrollGesture}>
-        <ScrollView
+        <Animated.ScrollView
           ref={scroll}
           style={{ flex: 1 }}
           contentInsetAdjustmentBehavior="automatic"
@@ -326,45 +347,12 @@ export function CollectionWallContent({
           contentContainerStyle={{ flexGrow: blank ? 0 : 1, minHeight: editing ? undefined : room.minHeight }}
           bounces={!blank || !!pull.refreshControl}
           scrollEnabled={!wall.pending}
-          stickyHeaderIndices={editing ? undefined : [header ? 1 : 0]}
           onLayout={room.onLayout}
           onScroll={room.onScroll}
           refreshControl={pull.refreshControl}
         >
           {!editing && header}
-          {!editing && (
-            <View
-              style={{ backgroundColor: Gallery.paper }}
-              onLayout={(event) => {
-                controlsHeight.current = event.nativeEvent.layout.height;
-                room.onPinnedLayout(event);
-              }}
-            >
-              {controls}
-              <View style={styles.toolbar}>
-                {wall.draft && (
-                  <GalleryButton
-                    label="Edit wall"
-                    icon="slider.horizontal.3"
-                    disabled={blocked || !wall.draft}
-                    onPress={edit}
-                  />
-                )}
-                <View style={styles.toolbarTrailing}>
-                  {wall.loading && wall.draft && !wall.error && !pull.refreshing && (
-                    <LoadingRing accessibilityLabel="Refreshing wall" />
-                  )}
-                  <GalleryButton
-                    label="All artworks"
-                    icon="chevron.right"
-                    iconPosition="trailing"
-                    disabled={blocked}
-                    onPress={() => router.push("/all-artworks")}
-                  />
-                </View>
-              </View>
-            </View>
-          )}
+          {!editing && <View onLayout={room.onPinnedLayout}>{controls}</View>}
           {collectionError && (
             <View style={styles.error}>
               <Text accessibilityRole="alert" style={styles.caption}>
@@ -399,6 +387,7 @@ export function CollectionWallContent({
               )}
             </View>
           )}
+          {!canvas && !editing && toolbar}
           {opening ? (
             <WallSkeleton label="Opening your wall…" />
           ) : blank ? (
@@ -442,9 +431,12 @@ export function CollectionWallContent({
               onLayout={(event) => {
                 setWidth(event.nativeEvent.layout.width);
                 wallTop.current = event.nativeEvent.layout.y;
+                edge.wallTop.set(event.nativeEvent.layout.y);
                 setCanvasTop(event.nativeEvent.layout.y);
               }}
             >
+              {/* Until the wall is measured, its toolbar shows without the wallpaper. */}
+              {width === 0 && !editing && toolbar}
               {width > 0 && (
                 <WallGallery
                   pieces={pieces}
@@ -456,6 +448,7 @@ export function CollectionWallContent({
                   editing={editing && !wallpaperPreview}
                   locked={blocked}
                   scrollGesture={scrollGesture}
+                  header={!editing && toolbar}
                   selectedId={selectedId}
                   onDeselect={() => setSelectedId(undefined)}
                   onArrange={arrange}
@@ -511,10 +504,11 @@ export function CollectionWallContent({
               )}
             </View>
           )}
-          {/* The root carries the wall color so bottom overscroll continues the wall; the header above it is paper, so top overscroll stays paper too. */}
-          <View pointerEvents="none" style={styles.topOverscroll} />
-        </ScrollView>
+          {/* Bottom overscroll continues the wall; above the header, the paper root shows. */}
+          {canvas && <View pointerEvents="none" style={[styles.bottomOverscroll, { backgroundColor: color }]} />}
+        </Animated.ScrollView>
       </GestureDetector>
+      {canvas && !editing && <WallTopEdge edge={edge} height={insets.top} />}
       {editing
         && (wallpaperPreview ? (
           <View style={styles.tray}>
@@ -580,13 +574,12 @@ export function CollectionWallContent({
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
-  topOverscroll: {
+  bottomOverscroll: {
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: "100%",
+    top: "100%",
     height: 1000,
-    backgroundColor: Gallery.paper,
   },
   toolbar: {
     flexDirection: "row",
@@ -596,7 +589,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     minHeight: 52,
   },
-  toolbarTrailing: { flexDirection: "row", alignItems: "center", gap: 12 },
   caption: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
   error: {
     paddingHorizontal: 20,

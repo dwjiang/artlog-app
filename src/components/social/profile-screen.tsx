@@ -1,5 +1,6 @@
 import { Stack, useRouter } from "expo-router";
-import { useHeaderHeight } from "expo-router/react-navigation";
+import { useHeaderHeight, useIsFocused } from "expo-router/react-navigation";
+import { StatusBar } from "expo-status-bar";
 import { Fragment, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -19,6 +20,7 @@ import { useBlock } from "@/lib/social/use-block";
 import { isMutualFriend, useFriends } from "@/lib/social/use-friends";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import { isLightWall } from "@/lib/wall/wall-layout";
 import type { VisitVisibility } from "@/shared/journal/contracts";
 import { socialErrorMessage } from "@/shared/social/errors";
 
@@ -33,6 +35,7 @@ import { PageFooter, SocialGate, SocialState, StateScreen } from "./social-state
 import { socialStyles } from "./social-styles";
 import { VisitCard } from "./visit-card";
 import { VisitSeparator } from "./visit-separator";
+import { useWallBehindBar } from "./wall-behind-bar";
 
 const visitPage = (page: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => page;
 const visitId = (visit: SharedVisit) => visit.postId;
@@ -52,7 +55,6 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const [visitCount, setVisitCount] = useState<number>();
   const args = profileId && !session.offline ? { profileId: profileId as Id<"profiles"> } : "skip";
   const profile = useSocialQuery(api.profiles.getPublic, args, session.key);
-  const { scrollRef, headingRef, measureHeading, onScroll: onTitleScroll } = useScrollTitle(profile.data?.name ?? "");
   const own = session.profileId === profileId;
   const relationship = useSocialQuery(
     api.friendships.getState,
@@ -67,6 +69,18 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
       : router.push({ pathname: "/profile-friends", params: { profileId } });
   const blocking = useBlock(session);
   const wall = useSocialQuery(api.walls.getPublic, profile.data && !blocked ? args : "skip", session.key);
+  const behindBar = useWallBehindBar();
+  const shownWall = tab === "wall" && !blocked && wall.data?.items.length ? wall.data : undefined;
+  // iOS 26 bars are clear over the content, so over a dark wall their title and status bar take its light ink; older
+  // bars blur to a light material and keep ink.
+  const darkWall = !!shownWall && isIOS26OrLater() && !isLightWall(shownWall.color);
+  const {
+    scrollRef,
+    headingRef,
+    measureHeading,
+    onScroll: onTitleScroll,
+  } = useScrollTitle(profile.data?.name ?? "", darkWall && behindBar.title ? Gallery.paper : Gallery.ink);
+  const focused = useIsFocused();
   const canReadVisits = !session.offline && !!profile.data && !blocked;
   const audiences: VisitVisibility[] = own
     ? ["private", "friends", "public"]
@@ -148,6 +162,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const countingVisits = !person || (canReadVisits && audience === "all" && visits.loading && !visits.error);
   return (
     <GestureHandlerRootView style={socialStyles.root}>
+      {focused && darkWall && behindBar.status && <StatusBar style="light" />}
       {own && (
         <Stack.Toolbar placement="right">
           <Stack.Toolbar.Button
@@ -193,13 +208,13 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
         bounces={!room.empty || !!pull.refreshControl}
-        stickyHeaderIndices={blocked ? [] : [1]}
         refreshControl={pull.refreshControl}
         onLayout={room.onLayout}
         onContentSizeChange={measureHeading}
         onScroll={(event) => {
           room.onScroll(event);
           onTitleScroll(event);
+          behindBar.onScroll(event);
         }}
         contentContainerStyle={{ paddingBottom: room.empty ? 0 : 30, minHeight: room.minHeight }}
       >
@@ -233,9 +248,9 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
           {person && !own && !blocked && <InCommonSection profileId={person.profileId} session={session} />}
         </View>
         {blocked && person && <SocialState title={`You blocked ${person.name}.`} icon="hand.raised" />}
-        {/* Sticky headers pin to the scroll view's top edge, which sits under the transparent bar. A see-through
-            spacer the bar's height pins Wall/Visits just below it. box-none keeps the header's buttons under the spacer
-            tappable, and must be a style: the sticky wrapper takes this View's style but not its props. */}
+        {/* The scroll view's top edge sits under the transparent bar, so a see-through spacer the bar's height puts the
+            pane switch's pinned point where Wall/Visits meet the bar. box-none keeps the header's buttons under the
+            spacer tappable. */}
         {!blocked && (
           <View
             style={{ pointerEvents: "box-none", marginTop: -headerHeight, paddingTop: headerHeight }}
@@ -265,16 +280,18 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
           wall.error ? (
             <SocialState title="Couldn’t load this wall." action="Try again" onAction={wall.refresh} />
           ) : wall.data && person ? (
-            <PublicWallView
-              wall={wall.data}
-              arrangedBy={person.name.split(" ")[0]}
-              onSelect={(item) =>
-                router.push({
-                  pathname: "/artwork",
-                  params: { kind: "wall", itemId: item.itemId },
-                })
-              }
-            />
+            <View onLayout={behindBar.onWallLayout}>
+              <PublicWallView
+                wall={wall.data}
+                arrangedBy={person.name.split(" ")[0]}
+                onSelect={(item) =>
+                  router.push({
+                    pathname: "/artwork",
+                    params: { kind: "wall", itemId: item.itemId },
+                  })
+                }
+              />
+            </View>
           ) : (
             <WallSkeleton />
           )

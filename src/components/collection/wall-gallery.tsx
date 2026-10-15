@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { PixelRatio, Pressable, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, type NativeGesture } from "react-native-gesture-handler";
 import Animated, {
@@ -69,6 +69,7 @@ export function WallGallery({
   selectedId,
   scrollGesture,
   onDeselect,
+  header,
   children,
 }: {
   pieces: WallPiece[];
@@ -85,9 +86,12 @@ export function WallGallery({
   onSelect: (piece: WallPiece) => void;
   // Returns whether the wall saved the arrangement; artworks in an unsaved one glide back.
   onArrange?: (arrangement: WallArrangement) => boolean;
-  children?: React.ReactNode;
+  /** Sits on the wallpaper above the artworks, which keep their positions below it. */
+  header?: ReactNode;
+  children?: ReactNode;
 }) {
   const light = isLightWall(wallpaper.color);
+  const [headerHeight, setHeaderHeight] = useState(0);
   // Placements the wall has not saved yet: a resting drag's preview, then the release until the save lands.
   const arrangement = useSharedValue<WallArrangement>({});
   const drag = useSharedValue<Drag | null>(null);
@@ -126,40 +130,42 @@ export function WallGallery({
     if (!onArrange?.(next)) arrangement.set({});
   }
 
+  const canvasMinHeight = minHeight - (header ? headerHeight : 0);
   return (
-    <View
-      style={{ width, minHeight, height: Math.max(minHeight, wallBottom(pieces, width) * width + 85) + bottomInset }}
-    >
+    <View style={{ width }}>
       <View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, wallpaperStyle(wallpaper), { bottom: -backgroundBottomInset }]}
       />
-      {editing && selectedId && onDeselect && (
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          accessibilityRole="button"
-          accessibilityLabel="Deselect artwork"
-          onPress={onDeselect}
-        />
-      )}
-      {pieces.map((piece) => (
-        <Hanging
-          key={piece.localId}
-          piece={piece}
-          pieces={pieces}
-          scrollGesture={scrollGesture}
-          width={width}
-          editing={editing}
-          movable={editing && !locked && !!onArrange}
-          selected={selectedId === piece.localId}
-          labelColor={light ? Gallery.ink : Gallery.paper}
-          arrangement={arrangement}
-          drag={drag}
-          onSelect={onSelect}
-          onArrange={arrange}
-        />
-      ))}
-      {children}
+      {header && <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>{header}</View>}
+      <View style={{ height: Math.max(canvasMinHeight, wallBottom(pieces, width) * width + 85) + bottomInset }}>
+        {editing && selectedId && onDeselect && (
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            accessibilityRole="button"
+            accessibilityLabel="Deselect artwork"
+            onPress={onDeselect}
+          />
+        )}
+        {pieces.map((piece) => (
+          <Hanging
+            key={piece.localId}
+            piece={piece}
+            pieces={pieces}
+            scrollGesture={scrollGesture}
+            width={width}
+            editing={editing}
+            movable={editing && !locked && !!onArrange}
+            selected={selectedId === piece.localId}
+            labelColor={light ? Gallery.ink : Gallery.paper}
+            arrangement={arrangement}
+            drag={drag}
+            onSelect={onSelect}
+            onArrange={arrange}
+          />
+        ))}
+        {children}
+      </View>
     </View>
   );
 }
