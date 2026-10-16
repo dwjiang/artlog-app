@@ -64,3 +64,16 @@ export const london = {
   museums: [{ museumId: "london-museum", name: "London Museum", city: "London", lat: 51.5176, lng: -0.0968 }],
   exhibitions: [show("river", "london-museum", "River Rooms", period(20, 90))],
 };
+
+// Outside the Bay Area's region: Santa Cruz is within 100 km of San Jose, Sacramento is not.
+export const SAN_JOSE = { lat: 37.333698, lng: -121.890587 };
+export const centralCalifornia = {
+  museums: [
+    { museumId: "mah", name: "Santa Cruz Museum of Art & History", city: "Santa Cruz", lat: 36.974117, lng: -122.026 },
+    { museumId: "crocker", name: "Crocker Art Museum", city: "Sacramento", lat: 38.577359, lng: -121.505226 },
+  ],
+  exhibitions: [
+    show("coast", "mah", "Coastlines", period(-20, 30)),
+    show("valley", "crocker", "Valley Light", period(-10, 40)),
+  ],
+};

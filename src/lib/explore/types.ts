@@ -44,7 +44,7 @@ export type ExploreCatalog = {
 export type ExploreData = ExploreCatalog & {
   city: ExploreCity;
   cities: ExploreCity[];
-  /** The city is the one the phone is in. */
+  /** The city is the one the phone is in; its lists then also hold every museum within 100 km of the phone. */
   nearby: boolean;
   /** Explore chose the city from the phone's location rather than a person's pick. */
   following: boolean;
