@@ -182,7 +182,7 @@ describe("the location prompt", () => {
     expect(screen.getByRole("button", { name: seeded.name })).toBeOnTheScreen();
   });
 
-  it("pins Start visit and the search below a long museum list, and scrolls them with it at accessibility text sizes", async () => {
+  it("pins Start visit and Not at a museum below a long museum list that ends in search, and scrolls them with it at accessibility text sizes", async () => {
     const window = Dimensions.get("window");
     mockView.options = Array.from({ length: 12 }, (_, index) => ({
       ...neighbour,
@@ -195,10 +195,11 @@ describe("the location prompt", () => {
       const list = () => within(screen.getByLabelText("Nearby museums"));
       expect(list().getByRole("radio", { name: "Gallery 12" })).toBeOnTheScreen();
       expect(list().queryByRole("button", { name: "Start visit" })).toBeNull();
-      expect(list().queryByRole("button", { name: "Search for another museum" })).toBeNull();
+      expect(list().queryByRole("button", { name: "Not at a museum" })).toBeNull();
+      expect(list().getByRole("button", { name: "Search for another museum" })).toBeOnTheScreen();
       await act(() => Dimensions.set({ window: { ...window, fontScale: 3.12 } }));
       expect(list().getByRole("button", { name: "Start visit" })).toBeOnTheScreen();
-      expect(list().getByRole("button", { name: "Search for another museum" })).toBeOnTheScreen();
+      expect(list().getByRole("button", { name: "Not at a museum" })).toBeOnTheScreen();
     } finally {
       await act(() => Dimensions.set({ window }));
     }
@@ -215,7 +216,6 @@ describe("choosing a museum", () => {
     await act(() => setMeasurementUnits("metric"));
     expect(screen.getByText("40 m")).toBeOnTheScreen();
     expect(screen.getByText("3.2 km")).toBeOnTheScreen();
-    expect(screen.getByText("Nearest")).toBeOnTheScreen();
     expect(screen.getByText("landmark")).toBeOnTheScreen();
   });
 
@@ -223,7 +223,7 @@ describe("choosing a museum", () => {
     await render(<VenuePickerSheet />);
     expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
     expect(screen.getByText("40 m")).toBeOnTheScreen();
-    expect(screen.getByText("Nearest")).toBeOnTheScreen();
+    expect(screen.queryByText("Nearest")).toBeNull();
     expect(screen.getByText("310 m")).toBeOnTheScreen();
     await fireEvent.press(screen.getByRole("button", { name: seeded.name }));
     expect(mockConfirm).toHaveBeenCalledWith(seeded, expect.any(AbortSignal));
@@ -335,14 +335,14 @@ describe("choosing a museum", () => {
     mockView = { ...mockView, status: "none", options: [poi] };
     const view = await render(<VenuePickerSheet />);
     expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
-    expect(screen.getByText("landmark · Nearest")).toBeOnTheScreen();
+    expect(screen.getByText("landmark")).toBeOnTheScreen();
     mockView = {
       ...mockView,
       options: [poi, { ...poi, name: "Side Street Studio", distanceM: 1400 }],
     };
     await view.rerender(<VenuePickerSheet />);
     expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
-    expect(screen.getByText("landmark · Nearest")).toBeOnTheScreen();
+    expect(screen.getAllByText("landmark")).toHaveLength(2);
   });
 
   it("keeps the sheet open with the reason when confirmation fails", async () => {
