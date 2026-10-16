@@ -76,6 +76,7 @@ it("shows the exact spoken script with its sources rather than the artwork card 
   await render(<NowPlayingScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Transcript and sources" }));
   expect(screen.getByText("Take a moment to notice the lilies.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "1 source" }));
   expect(screen.getByText("Museum")).toBeOnTheScreen();
   expect(screen.queryByText("The original research.")).toBeNull();
 });

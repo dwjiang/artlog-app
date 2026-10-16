@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -7,16 +6,15 @@ import { HighlightHeading } from "@/components/highlight-heading";
 import { ParagraphSkeleton } from "@/components/loading-skeleton";
 import { ReportableHeading } from "@/components/reportable-heading";
 import { ThemedText } from "@/components/themed-text";
-import { Gallery, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { useScreenActive } from "@/hooks/use-screen-active";
 import { isNetworkError } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
-import { sourceLicences } from "@/lib/result/source-licence";
 import type { ContentReportTarget } from "@/lib/social/report";
 import { showErrorToast } from "@/lib/ui/toast";
 
 import type { DocentSentence, DocentStatus, FactChip } from "../../../../convex/lib/validators";
-import { SourceLink } from "./source-chip";
+import { type NumberedSource, SourceList, SourceNumber } from "./source-list";
 
 /** How long the card waits on a run before treating it as stalled and offering a retry. */
 export const DOCENT_WAIT_MS = 60_000;
@@ -36,8 +34,6 @@ export type DocentSectionProps = {
   /** Offered at the end of the title while there are sentences to report. */
   report?: ContentReportTarget;
 };
-
-type NumberedSource = { number: number; label: string; url: string };
 
 // Numbers each cited page once, in order of first citation, and marks only the last sentence of
 // each run that rests on the same pages, so a single-source paragraph carries one marker.
@@ -205,79 +201,9 @@ export function SourceMarkers({ markers }: { markers: number[] }) {
   ));
 }
 
-export function SourceList({ sources }: { sources: NumberedSource[] }) {
-  if (sources.length === 0) return null;
-  return (
-    <View style={styles.sources}>
-      <ThemedText variant="metadata" themeColor="textSecondary" style={styles.sourcesHeading}>
-        Sources
-      </ThemedText>
-      <View>
-        {sources.map(({ number, label, url }) => (
-          <SourceLink key={url} label={label} url={url} style={styles.source}>
-            <SourceNumber number={number} />
-            <ThemedText variant="metadata" style={styles.sourceLabel}>
-              {label}
-            </ThemedText>
-            <Image source="sf:arrow.up.right" tintColor={Gallery.muted} style={styles.open} />
-          </SourceLink>
-        ))}
-        {sourceLicences(sources.map(({ url }) => url)).map(({ publisher, name, url }) => (
-          <SourceLink
-            key={url}
-            label={`Adapted with AI from ${publisher}, licensed ${name}`}
-            url={url}
-            style={styles.source}
-          >
-            <ThemedText variant="metadata" themeColor="textSecondary" style={styles.licence}>
-              {`Adapted with AI from ${publisher} · ${name}`}
-            </ThemedText>
-            <Image source="sf:arrow.up.right" tintColor={Gallery.muted} style={styles.open} />
-          </SourceLink>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function SourceNumber({ number }: { number: number }) {
-  return (
-    <View style={styles.number}>
-      <ThemedText style={styles.numberText}>{number}</ThemedText>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   section: { gap: Spacing.two, paddingTop: Spacing.one },
   prose: { gap: Spacing.two },
   failed: { gap: Spacing.one, alignItems: "flex-start" },
   marker: { paddingLeft: Spacing.one },
-  number: {
-    minWidth: 18,
-    minHeight: 18,
-    paddingHorizontal: Spacing.one,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Gallery.highlight,
-  },
-  numberText: {
-    fontSize: 11,
-    lineHeight: 13,
-    fontWeight: "600",
-    fontVariant: ["tabular-nums"],
-    color: Gallery.accent,
-  },
-  sources: { gap: Spacing.two, paddingTop: Spacing.one },
-  sourcesHeading: { fontWeight: "600" },
-  source: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.two,
-    minHeight: 44,
-    paddingVertical: Spacing.two,
-  },
-  sourceLabel: { flex: 1, fontWeight: "500", color: Gallery.accent },
-  licence: { flex: 1 },
-  open: { width: 10, height: 10 },
 });

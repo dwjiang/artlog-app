@@ -53,8 +53,10 @@ beforeEach(() => {
   mockActive = true;
 });
 
-it("lists each cited page once, in citation order, and opens it on tap", async () => {
+it("counts the cited pages and lists each once, in citation order, opening it on tap", async () => {
   await render(<DocentSection docent={docent} factSheet={factSheet} />);
+  await fireEvent.press(screen.getByRole("button", { name: "2 sources" }));
+  expect(screen.getAllByText("Source text summarized")).toHaveLength(1);
   expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
   expect(screen.getByText("It entered the collection in 1959.")).toBeOnTheScreen();
   expect(screen.getAllByRole("link").map((link) => link.props.accessibilityLabel)).toEqual(["Wikidata", "Test Museum"]);
@@ -62,14 +64,36 @@ it("lists each cited page once, in citation order, and opens it on tap", async (
   expect(mockOpenBrowser).toHaveBeenCalledWith("https://museum.example/lilies");
 });
 
-it("names the open licence of adapted Wikipedia text and links to it", async () => {
-  const wikipedia = { id: "w1", sourceUrl: "https://en.wikipedia.org/wiki/Water_Lilies", sourceLabel: "Wikipedia" };
+it.each([
+  {
+    sourceLabel: "Wikipedia",
+    sourceUrl: "https://en.wikipedia.org/wiki/Water_Lilies",
+    licence: "CC BY-SA 4.0",
+    licenceUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+  },
+  {
+    sourceLabel: "Art Institute of Chicago",
+    sourceUrl: "https://www.artic.edu/artworks/16568/water-lilies",
+    licence: "CC BY 4.0",
+    licenceUrl: "https://creativecommons.org/licenses/by/4.0/",
+  },
+])("discloses summarization of $sourceLabel text and links its licence", async (source) => {
+  const { sourceLabel, licence, licenceUrl } = source;
   await render(
-    <DocentSection docent={[{ sentence: "Monet painted it at Giverny.", factIds: ["w1"] }]} factSheet={[wikipedia]} />,
+    <DocentSection
+      docent={[{ sentence: "Monet painted it at Giverny.", factIds: ["f1"] }]}
+      factSheet={[{ id: "f1", ...source }]}
+    />,
   );
-  expect(screen.getByText("Adapted with AI from Wikipedia · CC BY-SA 4.0")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("link", { name: "Adapted with AI from Wikipedia, licensed CC BY-SA 4.0" }));
-  expect(mockOpenBrowser).toHaveBeenCalledWith("https://creativecommons.org/licenses/by-sa/4.0/");
+  await fireEvent.press(screen.getByRole("button", { name: "1 source" }));
+  expect(screen.getByText("Source text summarized")).toBeOnTheScreen();
+  expect(screen.getByText(licence)).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("link", { name: sourceLabel }));
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith(source.sourceUrl);
+  await fireEvent.press(screen.getByRole("link", { name: `${sourceLabel}, licensed ${licence}` }));
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith(licenceUrl);
+  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
+  expect(screen.queryByText("Source text summarized")).toBeNull();
 });
 
 it("marks only the last sentence of each run that rests on the same pages", async () => {
@@ -85,6 +109,7 @@ it("marks only the last sentence of each run that rests on the same pages", asyn
       factSheet={factSheet}
     />,
   );
+  await fireEvent.press(screen.getByRole("button", { name: "2 sources" }));
   const paragraph = screen.getByLabelText(
     "One. Two. Source: Test Museum. Three. Source: Wikidata. Four. Source: Test Museum.",
   );
@@ -222,6 +247,7 @@ describe("after a failed run", () => {
 it("keeps the source visible and explains a browser failure", async () => {
   mockOpenBrowser.mockRejectedValueOnce(new Error("Unavailable"));
   await render(<DocentSection docent={docent} factSheet={factSheet} />);
+  await fireEvent.press(screen.getByRole("button", { name: "2 sources" }));
   await fireEvent.press(screen.getByRole("link", { name: "Test Museum" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(/Couldn’t open this source\./);
   await fireEvent.press(screen.getByRole("link", { name: "Test Museum" }));
