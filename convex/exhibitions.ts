@@ -26,8 +26,10 @@ const venueArgs = { venueKeys: v.array(v.string()) };
 const MAX_BATCH_SIZE = 100;
 const MAX_PAGE_SIZE = 100;
 const MAX_EXPORT_ROWS = 1000;
-// Explore loads a region's current shows in one read; a busier region needs a narrower one.
-const MAX_REGION_EXHIBITIONS = 1000;
+// Explore loads a region's current shows in one read, which the phone sorts by distance. Each show's museum costs up to
+// two index reads (the museum and its opt-out), so this many shows stay within a query's 4,096 reads even when no two
+// share a museum; a busier region needs a narrower one.
+const MAX_REGION_EXHIBITIONS = 2000;
 // Saved museums load in batches with their current shows, so a batch stays well within one query's reads.
 const MAX_MUSEUM_BATCH = 20;
 const MAX_MUSEUM_EXHIBITIONS = 100;

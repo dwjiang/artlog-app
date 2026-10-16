@@ -5,14 +5,8 @@ import { FlatList, ScrollView, StyleSheet, View, useWindowDimensions } from "rea
 
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
-import {
-  defaultTiming,
-  exhibitionsByTiming,
-  NO_EXHIBITIONS,
-  timingLabel,
-  type ExhibitionTiming,
-} from "@/lib/explore/exhibition-timing";
-import { friendPicks, nearbyMuseums } from "@/lib/explore/lists";
+import { defaultTiming, NO_EXHIBITIONS, timingLabel, type ExhibitionTiming } from "@/lib/explore/exhibition-timing";
+import { cityExhibitions, friendPicks, nearbyMuseums } from "@/lib/explore/lists";
 import { museumById, useExplore } from "@/lib/explore/use-explore";
 
 import { CityMenu } from "./city-menu";
@@ -33,7 +27,7 @@ export function ExploreScreen() {
   if (!data) return <ExploreState view={explore} />;
   const timing = chosenTiming ?? defaultTiming(data.exhibitions, data.today);
   const museums = nearbyMuseums(data);
-  const shows = exhibitionsByTiming(data.exhibitions, timing, data.today);
+  const shows = cityExhibitions(data, timing);
   const picks = friendPicks(data).slice(0, FRIEND_PICKS_SHOWN);
   return (
     <>
@@ -63,22 +57,19 @@ export function ExploreScreen() {
             onSeeAll={() => router.push({ pathname: "/exhibitions", params: { timing } })}
           />
           {shows.length > 0 ? (
-            // Keyed by timing so a new choice starts at its first show.
-            <ScrollView
+            // Keyed by timing so a new choice starts at its first show. A country lists over a thousand, so cards are
+            // drawn as the row scrolls to them.
+            <FlatList
               key={timing}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.row}
-            >
-              {shows.map((exhibition) => (
-                <ExhibitionCard
-                  key={exhibition.id}
-                  exhibition={exhibition}
-                  museum={museumById(data, exhibition.museumId)}
-                  today={data.today}
-                />
-              ))}
-            </ScrollView>
+              data={shows}
+              keyExtractor={(exhibition) => exhibition.id}
+              renderItem={({ item }) => (
+                <ExhibitionCard exhibition={item} museum={museumById(data, item.museumId)} today={data.today} />
+              )}
+            />
           ) : (
             <Text style={styles.empty}>{NO_EXHIBITIONS[timing]}</Text>
           )}

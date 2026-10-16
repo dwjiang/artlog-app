@@ -1,5 +1,7 @@
-import { isClosed, isRunning, isUpcoming } from "./exhibition-timing";
-import type { Exhibition, ExploreCatalog } from "./types";
+import { isCountryRegion } from "@/shared/sources/region-country";
+
+import { exhibitionsByTiming, isClosed, isRunning, isUpcoming, type ExhibitionTiming } from "./exhibition-timing";
+import type { Exhibition, ExploreCatalog, ExploreData } from "./types";
 
 const current = (data: ExploreCatalog, exhibition: Exhibition) =>
   isRunning(exhibition, data.today) || isUpcoming(exhibition, data.today);
@@ -9,6 +11,18 @@ export function friendPicks(data: ExploreCatalog): Exhibition[] {
   return data.exhibitions
     .filter((exhibition) => exhibition.friends.length > 0 && current(data, exhibition))
     .sort((a, b) => b.friends.length - a.friends.length || a.endsOn.localeCompare(b.endsOn));
+}
+
+/**
+ * One timing's shows in the browsed city. Across the phone's own country the nearest museum's come first, each museum's
+ * still in the timing's order; elsewhere the timing's order alone decides.
+ */
+export function cityExhibitions(data: ExploreData, timing: ExhibitionTiming): Exhibition[] {
+  const shows = exhibitionsByTiming(data.exhibitions, timing, data.today);
+  if (!data.nearby || !isCountryRegion(data.city.id)) return shows;
+  const distances = new Map(data.museums.map((museum) => [museum.id, museum.distanceM ?? 0]));
+  const distance = (show: Exhibition) => distances.get(show.museumId) ?? 0;
+  return shows.sort((a, b) => distance(a) - distance(b));
 }
 
 /** Nearest first when the phone's location is known, else those listing shows first, then by name. */

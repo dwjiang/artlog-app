@@ -464,6 +464,16 @@ describe("Explore region catalog", () => {
     ).toEqual([]);
   });
 
+  it("lists every current show in a region with more than a thousand", async () => {
+    const { t } = await fixture({ region: REGION });
+    const records = Array.from({ length: 1200 }, (_, index) => lookedUp({ title: `Show ${index}` }));
+    for (let start = 0; start < records.length; start += 100) {
+      await t.action(internal.exhibitions.upsertBatch, { records: records.slice(start, start + 100) });
+    }
+    const { exhibitions } = await t.query(api.exhibitions.inRegion, { region: REGION, asOf: NOW });
+    expect(exhibitions).toHaveLength(records.length);
+  });
+
   it("returns a show's preview image when the import found one", async () => {
     const { t } = await fixture({ region: REGION });
     const imageUrl = "https://images.ctfassets.example/tides.jpg";

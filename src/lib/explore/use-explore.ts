@@ -71,7 +71,7 @@ function useCatalogContext({ friends = true } = {}) {
   return { today, asOf, timeZone, offline, fix, units, friendSaves: useFriendSaves(friends) };
 }
 
-/** The phone's region from the venue table: undefined while it is read, null without a fix or a museum near it. */
+/** The phone's region from the venue table: undefined while it is read, null without a fix or a museum within reach. */
 function useHomeRegion(fix: Coordinate | undefined): string | null | undefined {
   const [region, setRegion] = useState<string | null>();
   useEffect(() => {

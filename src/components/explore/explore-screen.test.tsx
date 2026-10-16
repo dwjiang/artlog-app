@@ -9,7 +9,7 @@ import { playToggleHaptic } from "@/lib/ui/haptics";
 import * as toast from "@/lib/ui/toast";
 import type { VenueRow } from "@/lib/venue/resolve";
 
-import { bayArea, regions } from "./__fixtures__/catalog";
+import { bayArea, regions, SF_MOMA } from "./__fixtures__/catalog";
 import { ExhibitionListScreen } from "./exhibition-list-screen";
 import { ExhibitionScreen } from "./exhibition-screen";
 import { ExploreScreen } from "./explore-screen";
@@ -235,6 +235,11 @@ function reminderDay(date: string, back = 0, options: Intl.DateTimeFormatOptions
 }
 
 const card = (title: string) => screen.queryByRole("button", { name: new RegExp(`^${title}, .*(Museum|Tate)`) });
+/** The shows on view, by title, in the order the screen lists them. */
+const onViewOrder = () =>
+  screen
+    .getAllByRole("button", { name: /^(Tides of Memory|Fog Studies|Signal and Noise|Collection in Focus), / })
+    .map((show) => String(show.props.accessibilityLabel).split(", ")[0]);
 /** The city menu's location row, named by its title and then any subtitle. */
 const locationRow = (title: string) => screen.getByRole("checkbox", { name: new RegExp(`^${title}( |$)`) });
 
@@ -553,6 +558,24 @@ describe("Explore", () => {
 
     expect(screen.getByText("Opening soon")).toBeOnTheScreen();
     expect(card("River Rooms")).toBeOnTheScreen();
+  });
+
+  it("leads with the shows nearest the phone across its own country, and with those closing soonest in a metro", async () => {
+    mockFix = SF_MOMA;
+    mockHome = "country:US";
+    mockRegions = [...regions, { region: "country:US", ...SF_MOMA }];
+    const nearestFirst = ["Fog Studies", "Signal and Noise", "Collection in Focus", "Tides of Memory"];
+    await render(<ExploreScreen />);
+    expect(await screen.findByLabelText("City, United States, My Location")).toBeOnTheScreen();
+    expect(onViewOrder()).toEqual(nearestFirst);
+    await render(<ExhibitionListScreen />);
+    expect(await screen.findByRole("button", { name: /^Fog Studies, / })).toBeOnTheScreen();
+    expect(onViewOrder()).toEqual(nearestFirst);
+
+    mockHome = "sf-bay-area";
+    await render(<ExploreScreen />);
+    expect(await screen.findByLabelText("City, San Francisco Bay Area, My Location")).toBeOnTheScreen();
+    expect(onViewOrder()).toEqual(["Tides of Memory", "Fog Studies", "Signal and Noise", "Collection in Focus"]);
   });
 });
 

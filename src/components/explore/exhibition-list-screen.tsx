@@ -5,13 +5,8 @@ import { FlatList, StyleSheet, View } from "react-native";
 import { ChoiceMenu } from "@/components/choice-menu";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
-import {
-  exhibitionsByTiming,
-  isTiming,
-  NO_EXHIBITIONS,
-  TIMING_OPTIONS,
-  type ExhibitionTiming,
-} from "@/lib/explore/exhibition-timing";
+import { isTiming, NO_EXHIBITIONS, TIMING_OPTIONS, type ExhibitionTiming } from "@/lib/explore/exhibition-timing";
+import { cityExhibitions } from "@/lib/explore/lists";
 import { museumById, useExplore } from "@/lib/explore/use-explore";
 
 import { ExhibitionRow } from "./exhibition-row";
@@ -25,7 +20,7 @@ export function ExhibitionListScreen() {
   const explore = useExplore();
   const { data } = explore;
   if (!data) return <ExploreState view={explore} />;
-  const shows = exhibitionsByTiming(data.exhibitions, timing, data.today);
+  const shows = cityExhibitions(data, timing);
   return (
     <FlatList
       style={listStyles.root}
