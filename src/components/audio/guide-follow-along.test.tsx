@@ -56,6 +56,7 @@ it("highlights the sentence being spoken, under the titles of the guide's sectio
   expect(screen.getAllByRole("button", { selected: true })).toHaveLength(1);
   expect(screen.getByRole("button", { name: "She sold it to pay her rent.", selected: true })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Its sea still looks so cold. Source: Museum." })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "1 source" }));
   expect(screen.getByText("Museum")).toBeOnTheScreen();
 });
 

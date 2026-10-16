@@ -341,6 +341,7 @@ it("shows listen controls and the audio guide transcript inline once narration e
   expect(screen.getByRole("button", { name: "Add to queue" })).toBeEnabled();
   expect(await screen.findByText("Audio guide transcript")).toBeOnTheScreen();
   expect(screen.getByText("Monet grew these lilies in his garden at Giverny.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "1 source" }));
   expect(screen.getByRole("link", { name: "Test Museum" })).toBeOnTheScreen();
 });
 
@@ -364,6 +365,7 @@ it("shows a confident match with its fields, chip, prose and sources", async () 
   expect(screen.getByLabelText("Institution").props.defaultValue).toBe("Metropolitan Museum of Art");
   expect(screen.getByRole("header", { name: "About this work" })).toBeOnTheScreen();
   expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "2 sources" }));
   expect(screen.getByRole("link", { name: "The Met" })).toBeOnTheScreen();
   expect(screen.queryByText("From the web")).toBeNull();
   expect(screen.queryByText(news.text)).toBeNull();

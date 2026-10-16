@@ -470,6 +470,7 @@ it.each(["wall", "visit"])("renders sourced artwork stories in %s details", asyn
   await render(<ArtworkScreen kind={kind} itemId="art-a" postId="post-a" />);
   expect(screen.getByText("About this work")).toBeOnTheScreen();
   expect(screen.getByText("Painted beside the garden.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "1 source" }));
   expect(screen.getByText("Museum source")).toBeOnTheScreen();
 });
 

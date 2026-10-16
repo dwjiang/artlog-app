@@ -313,6 +313,7 @@ it("renders the artwork enrichment when the backend has it", async () => {
   await render(detail("lilies"));
   expect(await screen.findByText("About this work")).toBeOnTheScreen();
   expect(screen.getByText("Monet painted this pond at Giverny in 1916.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "1 source" }));
   expect(screen.getByRole("link", { name: "Wikidata" })).toBeOnTheScreen();
   expect(client.watchQuery).toHaveBeenCalledWith(expect.anything(), { artworkId: "artwork-1" }, {});
   expect(screen.queryByText("Audio guide transcript")).toBeNull();
@@ -330,6 +331,7 @@ it("shows the audio guide transcript and its sources once the narration exists",
   await render(detail("lilies"));
   expect(await screen.findByText("Audio guide transcript")).toBeOnTheScreen();
   expect(screen.getByText("Monet grew these lilies in his garden at Giverny.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "1 source" }));
   expect(screen.getByRole("link", { name: "Test Museum" })).toBeOnTheScreen();
   expect(screen.queryByText("About this work")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Report transcript" }));
