@@ -31,12 +31,8 @@ function optionDistance(option: VenueOption, units: MeasurementUnits | undefined
   return (units && formatDistance(option.distanceM ?? Number.NaN, units)) || undefined;
 }
 
-function optionNote(option: VenueOption, nearest: boolean): string | undefined {
-  const parts = [
-    option.kind === "poi" && option.category !== "unknown" ? option.category : "",
-    nearest ? "Nearest" : "",
-  ];
-  return parts.filter(Boolean).join(" · ") || undefined;
+function optionCategory(option: VenueOption): string | undefined {
+  return option.kind === "poi" && option.category !== "unknown" ? option.category : undefined;
 }
 
 /**
@@ -191,7 +187,10 @@ function ChooserSheet({
           </ThemedText>
         )}
         <ActionStack
-          textActions={<GalleryButton label="Search for another museum" fullWidth onPress={() => setPicking(false)} />}
+          textActions={
+            // Stays live while a confirmation is pending: it cancels that confirmation, like the list's exit does.
+            <GalleryButton label="Not at a museum" fullWidth onPress={notHere} />
+          }
         >
           <GalleryButton
             label="Start visit"
@@ -236,9 +235,8 @@ function ChooserSheet({
                 <ListRow
                   key={key}
                   first={index === 0}
-                  last={index === options.length - 1}
                   title={option.name}
-                  subtitle={optionNote(option, index === 0)}
+                  subtitle={optionCategory(option)}
                   detail={optionDistance(option, displayUnits)}
                   leading={<ListIcon name="building.columns" />}
                   accessory="check"
@@ -249,9 +247,14 @@ function ChooserSheet({
                 />
               );
             })}
+            <ListRow
+              last
+              title="Search for another museum"
+              leading={<ListIcon name="magnifyingglass" />}
+              accessory="chevron"
+              onPress={() => setPicking(false)}
+            />
           </ListSection>
-          {/* Stays live while a confirmation is pending: it cancels that confirmation, like the list's exit does. */}
-          <ListRow first last title="Not at a museum" onPress={notHere} />
           {!pinned && actions}
         </ScrollView>
         {pinned && <View style={styles.pickerFooter}>{actions}</View>}
@@ -364,7 +367,7 @@ function ChooserSheet({
               first={index === 0}
               last={index === options.length - 1}
               title={option.name}
-              subtitle={optionNote(option, index === 0)}
+              subtitle={optionCategory(option)}
               detail={optionDistance(option, displayUnits)}
               leading={<ListIcon name="building.columns" />}
               accessory="chevron"
