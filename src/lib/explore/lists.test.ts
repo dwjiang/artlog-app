@@ -1,4 +1,4 @@
-import { friendPicks, nearbyMuseums, savedExhibitions, savedMuseums } from "./lists";
+import { cityExhibitions, friendPicks, nearbyMuseums, savedExhibitions, savedMuseums } from "./lists";
 import { museumExhibitions, museumSummary } from "./museum-summary";
 import type { Exhibition, ExploreData, ExploreFriend, ExploreMuseum } from "./types";
 
@@ -35,6 +35,23 @@ const ids = (list: Exhibition[]) => list.map((exhibition) => exhibition.id);
 
 it("ranks friends' picks by how many friends want to see them, skipping closed shows", () => {
   expect(ids(friendPicks(data))).toEqual(["four", "two-sooner", "two-later"]);
+});
+
+it("leads with the nearest museum's shows across the phone's own country, each museum's in the timing's order", () => {
+  const country: ExploreData = {
+    ...data,
+    city: { id: "country:US", name: "United States" },
+    exhibitions: [
+      show("far-soonest", "2026-09-01", "2026-10-10", [], "far"),
+      show("near-later", "2026-09-01", "2026-12-01"),
+      show("near-sooner", "2026-09-01", "2026-11-01"),
+    ],
+  };
+  expect(ids(cityExhibitions(country, "now"))).toEqual(["near-sooner", "near-later", "far-soonest"]);
+  // A metro, or a country the phone isn't in, leads with what closes soonest.
+  const closingFirst = ["far-soonest", "near-sooner", "near-later"];
+  expect(ids(cityExhibitions({ ...country, city: data.city }, "now"))).toEqual(closingFirst);
+  expect(ids(cityExhibitions({ ...country, nearby: false }, "now"))).toEqual(closingFirst);
 });
 
 it("orders museums nearest first, or by name without a location", () => {
