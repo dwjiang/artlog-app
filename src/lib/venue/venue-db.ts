@@ -197,6 +197,11 @@ export async function regionAt(origin: Coordinate): Promise<string | undefined> 
   return undefined;
 }
 
+/** Every discoverable museum within `radiusM` of `origin`, whatever its region, nearest first. */
+export async function museumsNear(origin: Coordinate, radiusM: number): Promise<VenueCandidate[]> {
+  return nearest(await openVenueDb(), origin, radiusM);
+}
+
 /** Every discoverable museum in Explore's `region`, whether or not it lists shows. */
 export async function museumsInRegion(region: string): Promise<VenueRow[]> {
   return (await openVenueDb()).getAllAsync<VenueRow>(

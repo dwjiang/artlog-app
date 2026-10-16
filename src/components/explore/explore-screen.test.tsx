@@ -9,7 +9,7 @@ import { playToggleHaptic } from "@/lib/ui/haptics";
 import * as toast from "@/lib/ui/toast";
 import type { VenueRow } from "@/lib/venue/resolve";
 
-import { bayArea, regions, SF_MOMA } from "./__fixtures__/catalog";
+import { bayArea, centralCalifornia, regions, SAN_JOSE, SF_MOMA } from "./__fixtures__/catalog";
 import { ExhibitionListScreen } from "./exhibition-list-screen";
 import { ExhibitionScreen } from "./exhibition-screen";
 import { ExploreScreen } from "./explore-screen";
@@ -38,6 +38,9 @@ let mockFailure: Error | undefined;
 let mockRegions: unknown[];
 let mockHome: string | undefined;
 let mockCityMuseums: Record<string, VenueRow[]>;
+let mockNearby: VenueRow[];
+let mockNeighborsPending: boolean;
+let mockNeighborCatalog: typeof centralCalifornia;
 let mockDiscoverable: Set<string> | null | undefined;
 let mockVenueStatus: string;
 let mockPermission: { granted: boolean; canAskAgain: boolean } | null;
@@ -82,6 +85,10 @@ jest.mock("expo-location", () => {
 jest.mock("@/lib/venue/venue-db", () => ({
   regionAt: async () => mockHome,
   museumsInRegion: async (region: string) => mockCityMuseums[region] ?? [],
+  museumsNear: async (origin: { lat: number; lng: number }, radiusM: number) => {
+    const { rankCandidates } = jest.requireActual("@/lib/venue/resolve");
+    return rankCandidates(mockNearby, origin, radiusM);
+  },
   onVenueMetadataChange: () => () => {},
 }));
 jest.mock("@/lib/settings/use-measurement-units", () => ({
@@ -160,11 +167,12 @@ jest.mock("convex/react", () => ({
               : args.museumIds!.filter((id) => mockDiscoverable === null || mockDiscoverable?.has(id));
         } else if (name === "exhibitions:atMuseums") {
           if (args.museumIds!.length > 20) return [key, new Error("batch_too_large")];
-          const museums = [...bayArea.museums, ...cornwall.museums];
+          if (mockNeighborsPending) return [key, undefined];
+          const museums = [...bayArea.museums, ...cornwall.museums, ...mockNeighborCatalog.museums];
           data = {
             museums: args.museumIds!.flatMap((id) => museums.filter((museum) => museum.museumId === id)),
-            exhibitions: [...bayArea.exhibitions, ...cornwall.exhibitions].filter((show) =>
-              args.museumIds!.includes(show.museumId),
+            exhibitions: [...bayArea.exhibitions, ...cornwall.exhibitions, ...mockNeighborCatalog.exhibitions].filter(
+              (show) => args.museumIds!.includes(show.museumId),
             ),
           };
         } else {
@@ -243,6 +251,17 @@ const onViewOrder = () =>
 /** The city menu's location row, named by its title and then any subtitle. */
 const locationRow = (title: string) => screen.getByRole("checkbox", { name: new RegExp(`^${title}( |$)`) });
 
+const neighborVenue = ({ museumId, name, city, lat, lng }: (typeof centralCalifornia.museums)[number]): VenueRow => ({
+  id: museumId as VenueRow["id"],
+  key: museumId,
+  name,
+  lat,
+  lng,
+  website: null,
+  region: "country:US",
+  city,
+});
+
 beforeEach(() => {
   mockPush.mockClear();
   mockRefresh.mockClear();
@@ -269,6 +288,9 @@ beforeEach(() => {
   mockRegions = regions;
   mockHome = undefined;
   mockCityMuseums = {};
+  mockNearby = [];
+  mockNeighborsPending = false;
+  mockNeighborCatalog = centralCalifornia;
   mockDiscoverable = null;
   mockVenueStatus = "resolved";
   mockPermission = { granted: true, canAskAgain: true };
@@ -576,6 +598,64 @@ describe("Explore", () => {
     await render(<ExploreScreen />);
     expect(await screen.findByLabelText("City, San Francisco Bay Area, My Location")).toBeOnTheScreen();
     expect(onViewOrder()).toEqual(["Tides of Memory", "Fog Studies", "Signal and Noise", "Collection in Focus"]);
+  });
+
+  it("adds the museums within 100 km of the phone from other regions to its own, all at once", async () => {
+    mockFix = SAN_JOSE;
+    mockHome = "sf-bay-area";
+    mockNearby = centralCalifornia.museums.map(neighborVenue);
+    mockNeighborsPending = true;
+    await render(<ExploreScreen />);
+    expect(await screen.findByRole("progressbar", { name: "Loading exhibitions…" })).toBeOnTheScreen();
+    expect(card("Tides of Memory")).toBeNull();
+
+    mockNeighborsPending = false;
+    await screen.rerender(<ExploreScreen />);
+
+    expect(await screen.findByLabelText("City, San Francisco Bay Area, My Location")).toBeOnTheScreen();
+    expect(card("Coastlines")).toBeOnTheScreen();
+    expect(card("Tides of Memory")).toBeOnTheScreen();
+    expect(card("Valley Light")).toBeNull();
+    const museums = screen.getAllByRole("button", { name: / exhibitions?(,|$)/ });
+    expect(museums[0]).toHaveAccessibleName(
+      "Santa Cruz Museum of Art & History, 25.9 mi · Santa Cruz, 1 exhibition, 1 ending soon",
+    );
+    expect(screen.queryByRole("button", { name: /^Crocker Art Museum/ })).toBeNull();
+
+    await fireEvent.press(screen.getByRole("checkbox", { name: "United Kingdom" }));
+    expect(card("Harbour Drawings")).toBeOnTheScreen();
+    expect(card("Coastlines")).toBeNull();
+  });
+
+  it("keeps live removals and additions while a changed nearby lookup is pending", async () => {
+    mockFix = SAN_JOSE;
+    mockHome = "sf-bay-area";
+    mockNearby = centralCalifornia.museums.map(neighborVenue);
+    await render(<ExploreScreen />);
+    expect(await screen.findByRole("button", { name: /^Coastlines, / })).toBeOnTheScreen();
+
+    mockNeighborCatalog = {
+      ...centralCalifornia,
+      exhibitions: centralCalifornia.exhibitions.map((show) =>
+        show.exhibitionId === "coast" ? { ...show, exhibitionId: "new-coast", title: "New Coastlines" } : show,
+      ),
+    };
+    await screen.rerender(<ExploreScreen />);
+    expect(card("Coastlines")).toBeNull();
+    expect(card("New Coastlines")).toBeOnTheScreen();
+
+    mockNeighborsPending = true;
+    mockFix = { lat: 37.85, lng: -121.7 };
+    await screen.rerender(<ExploreScreen />);
+    expect(card("Tides of Memory")).toBeOnTheScreen();
+    expect(card("Coastlines")).toBeNull();
+    expect(card("New Coastlines")).toBeOnTheScreen();
+    expect(card("Valley Light")).toBeNull();
+
+    mockNeighborsPending = false;
+    await screen.rerender(<ExploreScreen />);
+    expect(card("Valley Light")).toBeOnTheScreen();
+    expect(card("New Coastlines")).toBeNull();
   });
 });
 

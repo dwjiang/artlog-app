@@ -11,7 +11,7 @@ import { useBatchedSocialQuery, useSocialQuery } from "@/lib/social/use-social-q
 import { useDeviceReady } from "@/lib/use-device-ready";
 import type { Coordinate, VenueRow } from "@/lib/venue/resolve";
 import { useVenue } from "@/lib/venue/use-venue";
-import { museumsInRegion, onVenueMetadataChange, regionAt } from "@/lib/venue/venue-db";
+import { museumsInRegion, museumsNear, onVenueMetadataChange, regionAt } from "@/lib/venue/venue-db";
 import { regionName } from "@/lib/venue/venue-location";
 import { calendarDate } from "@/shared/journal/limits";
 
@@ -28,6 +28,8 @@ import {
   type FriendSaves,
 } from "./catalog";
 import type { ExploreCatalog, ExploreData } from "./types";
+
+type Catalog = FunctionReturnType<typeof api.exhibitions.inRegion>;
 
 export type ExploreView<T = ExploreCatalog> = {
   status: "loading" | "offline" | "error" | "empty" | "ready";
@@ -94,6 +96,11 @@ function useHomeRegion(fix: Coordinate | undefined): string | null | undefined {
 }
 
 const NO_MUSEUMS: VenueRow[] = [];
+// Museums this close to the phone join its own region's lists whatever their region, so a metro's edge or a border
+// doesn't hide the museum next door.
+const NEARBY_RADIUS_M = 100_000;
+// `exhibitions.atMuseums` reads at most this many museums at a time.
+const MUSEUM_BATCH = 20;
 
 /** `ids` in slices of at most `size`, one per backend read. */
 function inBatches<T>(ids: readonly T[], size: number): T[][] {
@@ -133,6 +140,45 @@ function useCityMuseums(cityId: string | undefined) {
 }
 
 /**
+ * While Explore browses the phone's own region, the discoverable museums of other regions within reach of the phone,
+ * with their current shows. Undefined until first read; after a move the last ones stay until the new ones arrive.
+ */
+function useNeighborCatalog(home: string | undefined, fix: Coordinate | undefined, asOf: number) {
+  const [read, setRead] = useState<{ home: string; ids: Id<"museums">[] }>();
+  useEffect(() => {
+    if (!home || !fix) return;
+    let current = true;
+    const refresh = () => {
+      museumsNear(fix, NEARBY_RADIUS_M).then(
+        (museums) => {
+          // Sorted so the batches, and their subscriptions, stay put until a museum enters or leaves the radius.
+          const ids = museums.filter((museum) => museum.region !== home).map((museum) => museum.id);
+          if (current) setRead({ home, ids: ids.sort() });
+        },
+        (cause: unknown) => {
+          reportError(cause, "explore.nearby.museums");
+          if (current) setRead({ home, ids: [] });
+        },
+      );
+    };
+    refresh();
+    const unsubscribe = onVenueMetadataChange(refresh);
+    return () => {
+      current = false;
+      unsubscribe();
+    };
+  }, [home, fix]);
+  const ids = home && read?.home === home ? read.ids : undefined;
+  const batches = inBatches(ids ?? [], MUSEUM_BATCH).map((museumIds) => ({ museumIds, asOf }));
+  const result = useBatchedSocialQuery(api.exhibitions.atMuseums, batches, "explore");
+  const fresh = ids && result.data ? mergeCatalogs(result.data) : undefined;
+  const key = JSON.stringify([home, fresh]);
+  const [held, setHeld] = useState<{ home: string; key: string; catalog: Catalog }>();
+  if (home && fresh && held?.key !== key) setHeld({ home, key, catalog: fresh });
+  return { ...result, data: fresh ?? (held && held.home === home ? held.catalog : undefined) };
+}
+
+/**
  * Browse the chosen city, else the phone's own, else the nearest city with shows to the phone or, without a location
  * fix, to its time zone, measured from today on this device.
  */
@@ -149,10 +195,16 @@ export function useExplore(): ExploreView<ExploreData> {
     picked ?? (home === undefined ? undefined : defaultCity(listed, { fix, home: home ?? undefined, timeZone }));
   const catalog = useSocialQuery(api.exhibitions.inRegion, !cityId ? "skip" : { region: cityId, asOf }, "explore");
   const cityMuseums = useCityMuseums(cityId);
+  const local = home && cityId === home ? home : undefined;
+  const neighbors = useNeighborCatalog(local, fix, asOf);
   const city = cities.find((candidate) => candidate.id === cityId);
   const following = !picked && fix !== undefined;
   const data = useMemo(() => {
-    if (!catalog.data || !city) return undefined;
+    // The phone's own region waits for the museums near it, so its lists don't reorder as they arrive.
+    const shown = local
+      ? catalog.data && neighbors.data && mergeCatalogs([catalog.data, neighbors.data])
+      : catalog.data;
+    if (!shown || !city) return undefined;
     const place = {
       city,
       cities,
@@ -161,17 +213,28 @@ export function useExplore(): ExploreView<ExploreData> {
       home: home ? regionName(home) : undefined,
       today,
     };
-    return withFriends(exploreData(catalog.data, cityMuseums.museums, place, fix, units), friendSaves);
-  }, [catalog.data, cityMuseums.museums, city, cities, home, following, today, fix, units, friendSaves]);
-  const retry = () =>
-    regions.error ? regions.refresh() : cityMuseums.error ? cityMuseums.refresh() : catalog.refresh();
+    return withFriends(exploreData(shown, cityMuseums.museums, place, fix, units), friendSaves);
+  }, [
+    local,
+    catalog.data,
+    neighbors.data,
+    cityMuseums.museums,
+    city,
+    cities,
+    home,
+    following,
+    today,
+    fix,
+    units,
+    friendSaves,
+  ]);
+  const failed = [regions, cityMuseums, neighbors, catalog].find((read) => read.error);
+  const retry = () => (failed ?? catalog).refresh();
   if (offline && !data) return { status: "offline", retry };
-  if (regions.error || catalog.error || cityMuseums.error) return { status: "error", retry };
+  if (failed) return { status: "error", retry };
   if (regions.data && listed.length === 0) return { status: "empty", retry };
   return data ? { status: "ready", data, retry } : { status: "loading", retry };
 }
-
-type Catalog = FunctionReturnType<typeof api.exhibitions.inRegion>;
 
 function useCatalogView(
   result: { data?: Catalog; error?: Error; refresh: () => void },
@@ -202,19 +265,24 @@ export function useExhibitions(ids: readonly string[], { friends = true } = {}):
 /** Saved museums with the shows on or ahead at each, independently of the browsing city. */
 export function useMuseums(ids: readonly string[]): ExploreView {
   const context = useCatalogContext({ friends: false });
-  const batches = inBatches(ids as Id<"museums">[], 20).map((museumIds) => ({ museumIds, asOf: context.asOf }));
+  const batches = inBatches(ids as Id<"museums">[], MUSEUM_BATCH).map((museumIds) => ({
+    museumIds,
+    asOf: context.asOf,
+  }));
   const result = useBatchedSocialQuery(api.exhibitions.atMuseums, batches, "explore");
   const data = useMemo(() => result.data && mergeCatalogs(result.data), [result.data]);
   return useCatalogView({ ...result, data }, context);
 }
 
-/** One catalog from batched reads, listing a museum that several batches return once. */
+/** One catalog from several reads, listing a museum or show that more than one returns once. */
 function mergeCatalogs(batches: Catalog[]): Catalog {
   return {
     museums: [
       ...new Map(batches.flatMap((batch) => batch.museums).map((museum) => [museum.museumId, museum])).values(),
     ],
-    exhibitions: batches.flatMap((batch) => batch.exhibitions),
+    exhibitions: [
+      ...new Map(batches.flatMap((batch) => batch.exhibitions).map((show) => [show.exhibitionId, show])).values(),
+    ],
   };
 }
 
