@@ -38,29 +38,40 @@ jest.mock("@/lib/social/use-social-query", () => ({
   },
 }));
 
+let mockLocationGranted = true;
+jest.mock("expo-location", () => ({
+  useForegroundPermissions: () => [{ granted: mockLocationGranted }, jest.fn(), jest.fn()],
+}));
+const mockSetCameraPosition = jest.fn();
 jest.mock("expo-maps", () => {
+  const { useImperativeHandle } = jest.requireActual("react");
   const { Pressable, View } = jest.requireActual("react-native");
   return {
     AppleMaps: {
       MapColorScheme: { LIGHT: "light" },
-      View: ({
+      View: function MockMap({
+        ref,
         markers,
         onMarkerClick,
       }: {
+        ref: unknown;
         markers: { id: string; title: string }[];
         onMarkerClick?: (marker: { id: string }) => void;
-      }) => (
-        <View>
-          {markers.map((marker) => (
-            <Pressable
-              key={marker.id}
-              accessibilityRole="button"
-              accessibilityLabel={`${marker.title} pin`}
-              onPress={() => onMarkerClick?.(marker)}
-            />
-          ))}
-        </View>
-      ),
+      }) {
+        useImperativeHandle(ref, () => ({ setCameraPosition: mockSetCameraPosition }));
+        return (
+          <View>
+            {markers.map((marker) => (
+              <Pressable
+                key={marker.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${marker.title} pin`}
+                onPress={() => onMarkerClick?.(marker)}
+              />
+            ))}
+          </View>
+        );
+      },
     },
   };
 });
@@ -68,6 +79,8 @@ jest.mock("expo-maps", () => {
 afterEach(() => {
   jest.restoreAllMocks();
   mockCityMuseums = [];
+  mockLocationGranted = true;
+  mockSetCameraPosition.mockClear();
 });
 
 it("pins a region's nearest 200 museums, then 200 more as the list reaches its end", async () => {
@@ -109,4 +122,16 @@ it("reveals the selected museum at the top of the panel on every pin tap", async
     expect(screen.getAllByRole("button", { name: / exhibitions?(,|$)/ })[0]).toBe(selected);
     expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: false });
   }
+});
+
+it("centers the map on the phone from the header, once location is on", async () => {
+  mockLocationGranted = false;
+  const view = await render(<ExploreMapScreen />);
+  expect(await screen.findByText(/museums nearby$/)).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "My Location" })).toBeNull();
+
+  mockLocationGranted = true;
+  await view.rerender(<ExploreMapScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "My Location" }));
+  expect(mockSetCameraPosition).toHaveBeenCalledWith();
 });
