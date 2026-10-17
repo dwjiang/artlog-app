@@ -45,34 +45,48 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
   }
 
   let keyId = storedKeyId;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (keyId === null) {
-      keyId = await appAttest.generateKey();
-      await installationStorage.setItem(APP_ATTEST_KEY_ID, keyId);
+  let recoveredSystemFailure: unknown;
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (keyId === null) {
+        keyId = await appAttest.generateKey();
+        await installationStorage.setItem(APP_ATTEST_KEY_ID, keyId);
+      }
+      if (pendingAttestation?.keyId !== keyId || pendingAttestation.deviceId !== result.deviceId) {
+        const { nonce } = await fns.createChallenge({ purpose: "attest" });
+        pendingAttestation = { deviceId: result.deviceId, keyId, nonce };
+      }
+      const request = pendingAttestation;
+      try {
+        request.attestationBase64 ??= await appAttest.attestKey(keyId, request.nonce);
+        await fns.attestDevice({
+          keyId,
+          attestationBase64: request.attestationBase64,
+          nonce: request.nonce,
+        });
+        pendingAttestation = null;
+        if (recoveredSystemFailure !== undefined) {
+          reportError(recoveredSystemFailure, "auth.device_registration", { data: { recovered: true } });
+        }
+        addBreadcrumb("auth.device_registration.success");
+        return;
+      } catch (error) {
+        const code = errorCode(error);
+        if (!requiresNewKey(code)) throw error;
+        await installationStorage.removeItem(APP_ATTEST_KEY_ID);
+        pendingAttestation = null;
+        keyId = null;
+        if (attempt === 1) throw error;
+        if (code === "ERR_APP_INTEGRITY_SYSTEM_FAILURE") {
+          recoveredSystemFailure = error;
+        }
+      }
     }
-    if (pendingAttestation?.keyId !== keyId || pendingAttestation.deviceId !== result.deviceId) {
-      const { nonce } = await fns.createChallenge({ purpose: "attest" });
-      pendingAttestation = { deviceId: result.deviceId, keyId, nonce };
+  } catch (error) {
+    if (recoveredSystemFailure !== undefined && errorCode(error) !== "ERR_APP_INTEGRITY_SYSTEM_FAILURE") {
+      reportError(recoveredSystemFailure, "auth.device_registration", { data: { recovered: false } });
     }
-    const request = pendingAttestation;
-    try {
-      request.attestationBase64 ??= await appAttest.attestKey(keyId, request.nonce);
-      await fns.attestDevice({
-        keyId,
-        attestationBase64: request.attestationBase64,
-        nonce: request.nonce,
-      });
-      pendingAttestation = null;
-      addBreadcrumb("auth.device_registration.success");
-      return;
-    } catch (error) {
-      const code = errorCode(error);
-      if (!requiresNewKey(code)) throw error;
-      await installationStorage.removeItem(APP_ATTEST_KEY_ID);
-      pendingAttestation = null;
-      keyId = null;
-      if (attempt === 1) throw error;
-    }
+    throw error;
   }
 }
 
@@ -83,6 +97,7 @@ function requiresNewKey(code: string | undefined): boolean {
     || code === "challenge_invalid"
     || code === "ERR_APP_INTEGRITY_INVALID_KEY"
     || code === "ERR_APP_INTEGRITY_INVALID_INPUT"
+    || code === "ERR_APP_INTEGRITY_SYSTEM_FAILURE"
   );
 }
 

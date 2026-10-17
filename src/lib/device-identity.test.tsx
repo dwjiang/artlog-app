@@ -298,7 +298,7 @@ it("preserves the key and retries later when Apple is temporarily unavailable", 
   expect(mockAttest).toHaveBeenCalledTimes(1);
 });
 
-it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT"])(
+it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT", "ERR_APP_INTEGRITY_SYSTEM_FAILURE"])(
   "replaces a key Apple rejects with %s",
   async (code) => {
     mockAuth.isLoading = false;
@@ -314,11 +314,35 @@ it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT"])(
     ]);
     expect(mockAttest).toHaveBeenCalledWith({ keyId: "new-key", nonce: "second", attestationBase64: "attestation" });
     expect(mockStorage.get("appAttestKeyId")).toBe("new-key");
-    expect(mockReportError).not.toHaveBeenCalled();
+    const expectedReports =
+      code === "ERR_APP_INTEGRITY_SYSTEM_FAILURE"
+        ? [[{ code }, "auth.device_registration", { data: { recovered: true } }]]
+        : [];
+    expect(mockReportError.mock.calls).toEqual(expectedReports);
   },
 );
 
-it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT"])(
+it("reports the original system failure when fresh-key challenge recovery goes offline", async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockStorage.set("appAttestKeyId", "saved-key");
+  mockAppAttest.isSupported.mockReturnValue(true);
+  const systemFailure = { code: "ERR_APP_INTEGRITY_SYSTEM_FAILURE" };
+  const offline = new Error("offline");
+  mockAppAttest.attestKey.mockRejectedValueOnce(systemFailure);
+  mockChallenge.mockResolvedValueOnce({ nonce: "first" }).mockRejectedValueOnce(offline);
+  await renderHook(useDeviceIdentity);
+  expect(mockReportError).toHaveBeenCalledWith(systemFailure, "auth.device_registration", {
+    data: { recovered: false },
+  });
+  expect(mockAttest).not.toHaveBeenCalled();
+  await act(() => jest.advanceTimersByTimeAsync(1000));
+  expect(mockAttest).toHaveBeenCalledTimes(1);
+  expect(mockStorage.get("appAttestKeyId")).toBe("new-key");
+  expect(mockReportError.mock.calls.filter(([error]) => error === systemFailure)).toHaveLength(1);
+});
+
+it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT", "ERR_APP_INTEGRITY_SYSTEM_FAILURE"])(
   "bounds recovery when Apple repeatedly rejects keys with %s",
   async (code) => {
     mockAuth.isLoading = false;
@@ -330,6 +354,7 @@ it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT"])(
     await act(() => jest.advanceTimersByTimeAsync(60_000));
     expect(mockAppAttest.attestKey).toHaveBeenCalledTimes(2);
     expect(mockStorage.has("appAttestKeyId")).toBe(false);
+    expect(mockReportError).toHaveBeenCalledTimes(1);
     expect(console.warn).toHaveBeenCalledWith("Device identity setup failed", error);
     expect(mockReportError).toHaveBeenCalledWith(error, "auth.device_registration", {
       data: { attempt: 1, retrying: false },
@@ -493,5 +518,24 @@ it("waits for keychain persistence before making any sign-in request", async () 
   await act(() => jest.advanceTimersByTimeAsync(1000));
   expect(mockSignIn).toHaveBeenCalledWith("anonymous", {
     secret: "a1".repeat(32),
+  });
+});
+
+it("does not rotate or retry when key generation has a system failure", async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockAppAttest.isSupported.mockReturnValue(true);
+  const error = { code: "ERR_APP_INTEGRITY_SYSTEM_FAILURE" };
+  mockAppAttest.generateKey.mockRejectedValue(error);
+  await renderHook(useDeviceIdentity);
+  await act(() => jest.advanceTimersByTimeAsync(60_000));
+  expect(mockAppAttest.generateKey).toHaveBeenCalledTimes(1);
+  expect(mockChallenge).not.toHaveBeenCalled();
+  expect(mockAppAttest.attestKey).not.toHaveBeenCalled();
+  expect(mockAttest).not.toHaveBeenCalled();
+  expect(mockSetItem).not.toHaveBeenCalled();
+  expect(mockDeleteItem).not.toHaveBeenCalled();
+  expect(mockReportError).toHaveBeenCalledWith(error, "auth.device_registration", {
+    data: { attempt: 1, retrying: false },
   });
 });
