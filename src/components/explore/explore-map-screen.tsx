@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/react-native";
+import * as Location from "expo-location";
 import { AppleMaps } from "expo-maps";
 import { Stack } from "expo-router";
 import { useRef, useState } from "react";
@@ -29,6 +30,8 @@ export function ExploreMapScreen() {
   const [selected, setSelected] = useState<string>();
   const [loaded, setLoaded] = useState(PAGE);
   const list = useRef<FlatList<ExploreMuseum>>(null);
+  const map = useRef<AppleMaps.MapView>(null);
+  const [location] = Location.useForegroundPermissions();
   const { data } = explore;
   if (!data) return <ExploreState view={explore} />;
   const all = nearbyMuseums(data);
@@ -40,8 +43,19 @@ export function ExploreMapScreen() {
   return (
     <View style={styles.root}>
       <Stack.Screen options={{ title: data.city.name }} />
+      {location?.granted && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button
+            icon="location"
+            accessibilityLabel="My Location"
+            tintColor={Gallery.ink}
+            onPress={() => map.current?.setCameraPosition()}
+          />
+        </Stack.Toolbar>
+      )}
       <Sentry.Mask style={styles.map} onLayout={(event) => setMapHeight(event.nativeEvent.layout.height)}>
         <AppleMaps.View
+          ref={map}
           style={StyleSheet.absoluteFill}
           colorScheme={AppleMaps.MapColorScheme.LIGHT}
           cameraPosition={camera}
@@ -53,7 +67,14 @@ export function ExploreMapScreen() {
             coordinates: { latitude: museum.lat, longitude: museum.lng },
           }))}
           properties={{ isMyLocationEnabled: true, selectionEnabled: false }}
-          uiSettings={{ compassEnabled: false, scaleBarEnabled: false, togglePitchEnabled: false }}
+          // MapKit keeps its own controls inside the safe area, below the transparent header, so the location button
+          // lives in the header instead.
+          uiSettings={{
+            compassEnabled: false,
+            myLocationButtonEnabled: false,
+            scaleBarEnabled: false,
+            togglePitchEnabled: false,
+          }}
           onMarkerClick={
             canSelect
               ? (marker) => {
