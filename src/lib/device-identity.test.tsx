@@ -322,6 +322,26 @@ it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT", "ER
   },
 );
 
+it("reports the original system failure when fresh-key challenge recovery goes offline", async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockStorage.set("appAttestKeyId", "saved-key");
+  mockAppAttest.isSupported.mockReturnValue(true);
+  const systemFailure = { code: "ERR_APP_INTEGRITY_SYSTEM_FAILURE" };
+  const offline = new Error("offline");
+  mockAppAttest.attestKey.mockRejectedValueOnce(systemFailure);
+  mockChallenge.mockResolvedValueOnce({ nonce: "first" }).mockRejectedValueOnce(offline);
+  await renderHook(useDeviceIdentity);
+  expect(mockReportError).toHaveBeenCalledWith(systemFailure, "auth.device_registration", {
+    data: { recovered: false },
+  });
+  expect(mockAttest).not.toHaveBeenCalled();
+  await act(() => jest.advanceTimersByTimeAsync(1000));
+  expect(mockAttest).toHaveBeenCalledTimes(1);
+  expect(mockStorage.get("appAttestKeyId")).toBe("new-key");
+  expect(mockReportError.mock.calls.filter(([error]) => error === systemFailure)).toHaveLength(1);
+});
+
 it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT", "ERR_APP_INTEGRITY_SYSTEM_FAILURE"])(
   "bounds recovery when Apple repeatedly rejects keys with %s",
   async (code) => {
