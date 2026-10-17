@@ -21,7 +21,6 @@ import { CollectionSync } from "@/lib/account/collection-sync";
 import { ListeningProvider } from "@/lib/audio/listening-provider";
 import { convex } from "@/lib/convex-client";
 import { DeviceIdentity } from "@/lib/device-identity";
-import { warmUpEmbedder } from "@/lib/embed/embedder";
 import { PhotoMaintenance } from "@/lib/files/photo-maintenance-lifecycle";
 import { limitImageCache } from "@/lib/image-cache";
 import { installationStorage } from "@/lib/installation-storage";
@@ -60,7 +59,6 @@ function RootLayout() {
 
 function AppContent() {
   const reduced = useReducedMotion();
-  useEffect(warmUpEmbedder, []);
   useEffect(limitImageCache, []);
   return (
     <DatabaseGate>

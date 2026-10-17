@@ -1,6 +1,5 @@
 import type { Embedder } from "@/lib/capture/stages";
 import { filePath } from "@/lib/file-uri";
-import { reportError } from "@/lib/observability";
 import model from "@/shared/model/model-version.json";
 
 import { getCoremlEmbed, type CoremlEmbed, type WarmUpResult } from "../../../modules/coreml-embed/src";
@@ -56,16 +55,3 @@ export function createEmbedder(native: () => CoremlEmbed = getCoremlEmbed): Mode
 }
 
 export const embedder = createEmbedder();
-
-/** Starts loading the model at launch so the first capture does not wait for it. */
-export function warmUpEmbedder(): void {
-  embedder.warmUp().then(
-    (result) => {
-      if (__DEV__) console.debug("Embedding model ready", result);
-    },
-    (error: unknown) => {
-      reportError(error, "embedding.warm_up");
-      console.warn("Embedding model warm-up failed", error);
-    },
-  );
-}
