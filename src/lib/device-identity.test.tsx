@@ -298,7 +298,7 @@ it("preserves the key and retries later when Apple is temporarily unavailable", 
   expect(mockAttest).toHaveBeenCalledTimes(1);
 });
 
-it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT"])(
+it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT", "ERR_APP_INTEGRITY_SYSTEM_FAILURE"])(
   "replaces a key Apple rejects with %s",
   async (code) => {
     mockAuth.isLoading = false;
@@ -318,7 +318,7 @@ it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT"])(
   },
 );
 
-it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT"])(
+it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT", "ERR_APP_INTEGRITY_SYSTEM_FAILURE"])(
   "bounds recovery when Apple repeatedly rejects keys with %s",
   async (code) => {
     mockAuth.isLoading = false;
@@ -493,5 +493,24 @@ it("waits for keychain persistence before making any sign-in request", async () 
   await act(() => jest.advanceTimersByTimeAsync(1000));
   expect(mockSignIn).toHaveBeenCalledWith("anonymous", {
     secret: "a1".repeat(32),
+  });
+});
+
+it("does not rotate or retry when key generation has a system failure", async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockAppAttest.isSupported.mockReturnValue(true);
+  const error = { code: "ERR_APP_INTEGRITY_SYSTEM_FAILURE" };
+  mockAppAttest.generateKey.mockRejectedValue(error);
+  await renderHook(useDeviceIdentity);
+  await act(() => jest.advanceTimersByTimeAsync(60_000));
+  expect(mockAppAttest.generateKey).toHaveBeenCalledTimes(1);
+  expect(mockChallenge).not.toHaveBeenCalled();
+  expect(mockAppAttest.attestKey).not.toHaveBeenCalled();
+  expect(mockAttest).not.toHaveBeenCalled();
+  expect(mockSetItem).not.toHaveBeenCalled();
+  expect(mockDeleteItem).not.toHaveBeenCalled();
+  expect(mockReportError).toHaveBeenCalledWith(error, "auth.device_registration", {
+    data: { attempt: 1, retrying: false },
   });
 });

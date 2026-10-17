@@ -83,6 +83,7 @@ function requiresNewKey(code: string | undefined): boolean {
     || code === "challenge_invalid"
     || code === "ERR_APP_INTEGRITY_INVALID_KEY"
     || code === "ERR_APP_INTEGRITY_INVALID_INPUT"
+    || code === "ERR_APP_INTEGRITY_SYSTEM_FAILURE"
   );
 }
 
