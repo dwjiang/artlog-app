@@ -314,7 +314,11 @@ it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT", "ER
     ]);
     expect(mockAttest).toHaveBeenCalledWith({ keyId: "new-key", nonce: "second", attestationBase64: "attestation" });
     expect(mockStorage.get("appAttestKeyId")).toBe("new-key");
-    expect(mockReportError).not.toHaveBeenCalled();
+    const expectedReports =
+      code === "ERR_APP_INTEGRITY_SYSTEM_FAILURE"
+        ? [[{ code }, "auth.device_registration", { data: { recovered: true } }]]
+        : [];
+    expect(mockReportError.mock.calls).toEqual(expectedReports);
   },
 );
 
@@ -330,6 +334,7 @@ it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT", "ER
     await act(() => jest.advanceTimersByTimeAsync(60_000));
     expect(mockAppAttest.attestKey).toHaveBeenCalledTimes(2);
     expect(mockStorage.has("appAttestKeyId")).toBe(false);
+    expect(mockReportError).toHaveBeenCalledTimes(1);
     expect(console.warn).toHaveBeenCalledWith("Device identity setup failed", error);
     expect(mockReportError).toHaveBeenCalledWith(error, "auth.device_registration", {
       data: { attempt: 1, retrying: false },

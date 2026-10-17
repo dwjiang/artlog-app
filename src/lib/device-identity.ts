@@ -45,6 +45,7 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
   }
 
   let keyId = storedKeyId;
+  let recoveredSystemFailure: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     if (keyId === null) {
       keyId = await appAttest.generateKey();
@@ -63,6 +64,9 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
         nonce: request.nonce,
       });
       pendingAttestation = null;
+      if (recoveredSystemFailure !== undefined) {
+        reportError(recoveredSystemFailure, "auth.device_registration", { data: { recovered: true } });
+      }
       addBreadcrumb("auth.device_registration.success");
       return;
     } catch (error) {
@@ -72,6 +76,9 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
       pendingAttestation = null;
       keyId = null;
       if (attempt === 1) throw error;
+      if (code === "ERR_APP_INTEGRITY_SYSTEM_FAILURE") {
+        recoveredSystemFailure = error;
+      }
     }
   }
 }
