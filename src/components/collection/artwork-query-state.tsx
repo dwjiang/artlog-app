@@ -15,9 +15,10 @@ export function ArtworkQueryState({
   onRetry: () => void;
 }) {
   const router = useRouter();
+  const opening = loading && !error;
   return (
-    <StateScreen>
-      {loading && !error ? (
+    <StateScreen scrollEnabled={!opening}>
+      {opening ? (
         <ArtworkSkeleton label={`Opening ${item.toLowerCase()}…`} />
       ) : (
         <SocialState

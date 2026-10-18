@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArtworkTile } from "@/components/collection/collection-artworks";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ProfileHeader } from "@/components/social/profile-header";
-import { PageFooter, SocialState, StateScreen } from "@/components/social/social-state";
+import { loadingFirstPage, PageFooter, SocialState, StateScreen } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import type { SavedWork } from "@/db/schema";
@@ -66,6 +66,7 @@ export function ArtistScreen({ artistId }: { artistId: Id<"artists"> }) {
   const person = artist.data;
   const key = person?.key;
   const yourSaves = key ? [...saved.values()].filter((work) => artistKey(work.artist) === key) : [];
+  const opening = !person || (yourSaves.length === 0 && loadingFirstPage(works, works.items.length));
   // The avatar fits between iOS 26 bar items, as on a profile; older bars blur their full width.
   const raisedBy = isIOS26OrLater() ? headerHeight - top : 0;
   return (
@@ -74,6 +75,7 @@ export function ArtistScreen({ artistId }: { artistId: Id<"artists"> }) {
       style={styles.page}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
+      scrollEnabled={!opening}
       onContentSizeChange={measureHeading}
       onScroll={onScroll}
     >

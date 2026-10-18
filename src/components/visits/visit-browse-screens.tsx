@@ -34,7 +34,7 @@ export function VisitPlaceScreen() {
   return (
     <>
       {error || loading ? (
-        <VisitPage>
+        <VisitPage scrollEnabled={!!error}>
           <VisitMessage
             loading={loading && !error}
             skeleton="list"

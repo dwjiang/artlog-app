@@ -34,6 +34,7 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
   const result = shared ? visit : wall;
   const { data } = result;
   const unavailable = invalid || data === null || convexErrorCode(result.error) === "not_found";
+  const opening = !session.offline && (!shared || sessionReady) && !unavailable && !result.error && !data;
   const owner = data?.profileId;
   const { scrollRef, headingRef, measureHeading, onScroll } = useScrollTitle(data?.artwork.title ?? "");
   return (
@@ -46,6 +47,7 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
         style={socialStyles.root}
         contentInsetAdjustmentBehavior="automatic"
         bounces={!!data}
+        scrollEnabled={!opening}
         contentContainerStyle={socialStyles.content}
         onContentSizeChange={measureHeading}
         onScroll={onScroll}

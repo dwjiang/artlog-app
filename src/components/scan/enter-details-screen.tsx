@@ -43,7 +43,11 @@ function EnterDetails({ scanId }: { scanId: Id<"scans"> }) {
   if (scan === undefined || (loaded && !form)) {
     return (
       <ThemedView style={styles.container}>
-        <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+        <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={styles.content}
+          scrollEnabled={false}
+        >
           <FormSkeleton label="Loading the details…" />
         </ScrollView>
       </ThemedView>

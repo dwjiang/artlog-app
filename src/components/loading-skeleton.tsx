@@ -51,6 +51,10 @@ export function ButtonGhost() {
   return <Ghost height={44} style={{ borderRadius: Radius.button }} />;
 }
 
+/**
+ * A page whose content, or open pane, is a skeleton holds still: its scroll view sets `scrollEnabled={false}` until
+ * content arrives. Skeletons inside loaded content leave the page scrolling.
+ */
 export function LoadingSkeleton({
   label,
   children,

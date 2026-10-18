@@ -48,6 +48,7 @@ export function LeaderboardScreen() {
     }
   }
   const rows = board.data?.rows ?? [];
+  const opening = canBrowse && !board.data && !board.error && !board.refreshing;
   const list = useRef<FlatList<(typeof rows)[number]>>(null);
   const room = usePaneRoom(list, { empty: rows.length === 0 });
   usePaneSwitch(`${audience}:${metric}`, () => room);
@@ -77,6 +78,7 @@ export function LeaderboardScreen() {
         style={styles.root}
         contentInsetAdjustmentBehavior="automatic"
         bounces={!room.empty || !!pull.refreshControl}
+        scrollEnabled={!opening}
         contentContainerStyle={{ paddingBottom: room.empty ? 0 : 24, minHeight: room.minHeight }}
         onLayout={room.onLayout}
         onScroll={room.onScroll}

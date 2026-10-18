@@ -49,11 +49,13 @@ export function VisitPage({
   style,
   contentContainerStyle,
   bounces,
-}: Pick<ScrollViewProps, "children" | "style" | "contentContainerStyle" | "bounces">) {
+  scrollEnabled,
+}: Pick<ScrollViewProps, "children" | "style" | "contentContainerStyle" | "bounces" | "scrollEnabled">) {
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       bounces={bounces}
+      scrollEnabled={scrollEnabled}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
       automaticallyAdjustKeyboardInsets

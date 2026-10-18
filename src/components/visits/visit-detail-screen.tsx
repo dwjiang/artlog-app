@@ -55,14 +55,10 @@ export function VisitDetailScreen() {
   const { owner, visits, loading, error } = useVisits();
   const visit = visits.find((row) => row.localId === visitId);
   if (!visit) {
+    const opening = loading && !error;
     return (
-      <VisitPage style={detail.page}>
-        <VisitMessage
-          loading={loading && !error}
-          skeleton="visit"
-          action="Back to Collection"
-          onAction={() => router.back()}
-        >
+      <VisitPage style={detail.page} scrollEnabled={!opening}>
+        <VisitMessage loading={opening} skeleton="visit" action="Back to Collection" onAction={() => router.back()}>
           {error
             ? "This visit could not load."
             : loading

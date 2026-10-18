@@ -52,7 +52,7 @@ export function CatalogArtworkScreen({ artworkId }: { artworkId: Id<"artworks"> 
   const work = artwork.data;
   if (!work) {
     return (
-      <ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic">
+      <ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" scrollEnabled={false}>
         <ArtworkSkeleton />
       </ScrollView>
     );

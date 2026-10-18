@@ -346,7 +346,7 @@ export function CollectionWallContent({
           // Grown to the screen, the content plus the tab bar inset overflows, so a blank wall keeps its own height.
           contentContainerStyle={{ flexGrow: blank ? 0 : 1, minHeight: editing ? undefined : room.minHeight }}
           bounces={!blank || !!pull.refreshControl}
-          scrollEnabled={!wall.pending}
+          scrollEnabled={!wall.pending && !opening}
           onLayout={room.onLayout}
           onScroll={room.onScroll}
           refreshControl={pull.refreshControl}
