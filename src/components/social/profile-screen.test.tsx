@@ -3,6 +3,7 @@ import { getFunctionName as mockGetFunctionName } from "convex/server";
 import { ActionSheetIOS, type HostInstance, ScrollView, Text } from "react-native";
 
 import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
+import { scrollViewHolding } from "@/components/scroll-view.testing";
 import { Gallery } from "@/constants/theme";
 import type { BrowsedProfile, InCommon, SharedVisit } from "@/lib/social/types";
 
@@ -28,6 +29,7 @@ const mockPerson = {
   publishedWallCount: 0,
 };
 let mockProfile: typeof mockPerson | undefined;
+let mockWall: { color: string; items: never[] } | undefined;
 const mockPush = jest.fn();
 const mockSetOptions = jest.fn();
 jest.mock("expo-router", () => ({
@@ -63,7 +65,7 @@ jest.mock("@/lib/social/use-social-query", () => ({
               ? mockInCommon
               : mockGetFunctionName(query) === "profiles:friends"
                 ? mockFriends
-                : { color: "#45524B", items: [] },
+                : mockWall,
     refresh: () => mockQueryRefresh(mockGetFunctionName(query)),
   }),
   useCursorPages: (...args: unknown[]) => {
@@ -125,6 +127,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockRelationship = { state: "none", blocked: false };
   mockProfile = mockPerson;
+  mockWall = { color: "#45524B", items: [] };
   mockVisits = [];
   mockVisitsDone = true;
   mockVisitsLoading = false;
@@ -180,6 +183,8 @@ it("requests only the selected friend’s shared visits and stops after a block"
 it("draws the profile’s layout as ghosts until the profile arrives", async () => {
   mockProfile = undefined;
   const view = await render(<ProfileScreen profileId="friend" />);
+  const scroll = scrollViewHolding(screen.getByRole("progressbar", { name: "Opening profile…" }));
+  expect(scroll.props.scrollEnabled).toBe(false);
   for (const loading of ["Opening profile…", "Loading counts", "Loading profile actions…", "Opening wall…"]) {
     expect(screen.getByRole("progressbar", { name: loading })).toBeOnTheScreen();
   }
@@ -190,8 +195,33 @@ it("draws the profile’s layout as ghosts until the profile arrives", async () 
   mockProfile = mockPerson;
   await view.rerender(<ProfileScreen profileId="friend" />);
   expect(screen.getByRole("header", { name: "Jamie Chen" })).toBeOnTheScreen();
+  expect(scroll.props.scrollEnabled).toBe(true);
   expect(screen.getByText("No artworks on this wall yet.")).toBeOnTheScreen();
   expect(screen.queryByRole("progressbar")).toBeNull();
+});
+
+it.each(["Wall", "Visits"])("keeps loaded profile content scrollable while %s loads", async (section) => {
+  mockWall = undefined;
+  mockVisitsLoading = true;
+  mockVisitsDone = false;
+  mockInCommon = {
+    artworks: [
+      {
+        itemId: "lilies" as never,
+        artwork: { title: "Water Lilies", artist: "Claude Monet", media: { kind: "placeholder", width: 1, height: 1 } },
+      },
+    ],
+    museums: [],
+  };
+  await render(<ProfileScreen profileId="friend" />);
+  await fireEvent.press(screen.getByRole("button", { name: section }));
+  expect(
+    screen.getByRole("progressbar", { name: section === "Wall" ? "Opening wall…" : "Loading visits…" }),
+  ).toBeOnTheScreen();
+  const artwork = screen.getByRole("button", { name: "Water Lilies, Claude Monet" });
+  expect(scrollViewHolding(artwork).props.scrollEnabled).toBe(true);
+  await fireEvent.press(artwork);
+  expect(mockPush).toHaveBeenCalledWith({ pathname: "/artwork", params: { kind: "wall", itemId: "lilies" } });
 });
 
 it("links the tags in a bio to their pages", async () => {

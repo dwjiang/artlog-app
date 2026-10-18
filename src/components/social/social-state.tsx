@@ -16,12 +16,21 @@ import { SocialInvitation } from "./social-invitation";
 import { socialStyles } from "./social-styles";
 
 /** Holds a full-screen state below a transparent navigation bar, on paper or on the gray of a grouped page. */
-export function StateScreen({ grouped = false, children }: { grouped?: boolean; children: ReactNode }) {
+export function StateScreen({
+  grouped = false,
+  scrollEnabled,
+  children,
+}: {
+  grouped?: boolean;
+  scrollEnabled?: boolean;
+  children: ReactNode;
+}) {
   return (
     <ScrollView
       style={[socialStyles.root, grouped && { backgroundColor: Gallery.groupedBackground }]}
       contentInsetAdjustmentBehavior="automatic"
       bounces={false}
+      scrollEnabled={scrollEnabled}
     >
       {children}
     </ScrollView>
@@ -134,6 +143,11 @@ export function SocialGate({
     );
   }
   return <SocialState title="Loading your account…" loading />;
+}
+
+/** A list shows only its first page's skeleton, so its page holds still; a pull-to-refresh keeps its gesture. */
+export function loadingFirstPage(page: { loading: boolean; refreshing: boolean; error?: Error }, count: number) {
+  return page.loading && !page.refreshing && !page.error && count === 0;
 }
 
 export function PageFooter({

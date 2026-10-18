@@ -26,7 +26,7 @@ import { api } from "../../../convex/_generated/api";
 import { AvatarStack } from "./avatar-stack";
 import { HomeToolbar, type Feed } from "./home-toolbar";
 import { SocialInvitation } from "./social-invitation";
-import { PageFooter, SocialGate } from "./social-state";
+import { loadingFirstPage, PageFooter, SocialGate } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { SuggestionList, SuggestionStrip } from "./suggested-people";
 import { VisitCard } from "./visit-card";
@@ -99,8 +99,11 @@ export function HomeScreen() {
     && suggestions.friendCount < STRIP_FRIEND_LIMIT
     && suggestions.people.length > 0;
   const items = canBrowse ? feed.items : [];
+  const opening = canBrowse ? loadingFirstPage(feed, items.length) : session.status === "loading";
   const list = useRef<FlatList<SharedVisit>>(null);
   const room = usePaneRoom(list, { empty: items.length === 0 });
+  // Header cards load independently of the feed; padding alone does not count as content.
+  const hasHeaderContent = room.pinned > Spacing.two;
   usePaneSwitch(tab ?? "", () => room);
   const { onCardLayout, onScroll: onNowCardScroll } = useNowCardScroll();
   // During a visit the Now card leads Home, so an empty feed sits beneath it as a card instead of filling the page.
@@ -128,6 +131,7 @@ export function HomeScreen() {
         ]}
         contentInsetAdjustmentBehavior="automatic"
         bounces={!room.empty || !!pull.refreshControl}
+        scrollEnabled={!opening || hasHeaderContent}
         onLayout={room.onLayout}
         onScroll={(event) => {
           room.onScroll(event);
@@ -164,7 +168,7 @@ export function HomeScreen() {
             <NowCard onLayout={onCardLayout} />
             <VisitlessSavesCard />
             {/* Each feed starts here; the suggestion strip below belongs to Friends. */}
-            <View onLayout={room.onPinnedLayout} />
+            <View testID="home-feed-start" onLayout={room.onPinnedLayout} />
             {showStrip && <SuggestionStrip people={suggestions.people} {...suggestionActions} />}
           </>
         }

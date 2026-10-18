@@ -87,6 +87,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
+      scrollEnabled={!!wall.draft || !wall.loading}
       onScroll={onScroll}
     >
       {!wall.draft ? (

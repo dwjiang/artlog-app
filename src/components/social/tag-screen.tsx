@@ -10,7 +10,7 @@ import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession, type SocialSession } from "@/lib/social/use-social-session";
 
 import { api } from "../../../convex/_generated/api";
-import { PageFooter, SocialGate, SocialState } from "./social-state";
+import { loadingFirstPage, PageFooter, SocialGate, SocialState } from "./social-state";
 import { socialStyles } from "./social-styles";
 import { VisitCard } from "./visit-card";
 import { VisitSeparator } from "./visit-separator";
@@ -46,6 +46,7 @@ function TagFeed({ tag, session }: { tag: string; session: SocialSession }) {
   });
   const postCount = summary.data?.postCount ?? 0;
   const items = ready && !unavailable ? feed.items : [];
+  const opening = ready && !unavailable && loadingFirstPage(feed, items.length);
   return (
     <>
       <Stack.Screen options={{ title: `#${tag}` }} />
@@ -56,6 +57,7 @@ function TagFeed({ tag, session }: { tag: string; session: SocialSession }) {
         contentContainerStyle={[socialStyles.content, { paddingBottom: items.length > 0 ? 28 : 0 }]}
         contentInsetAdjustmentBehavior="automatic"
         bounces={items.length > 0 || !!pull.refreshControl}
+        scrollEnabled={!opening}
         data={items}
         keyExtractor={visitId}
         ItemSeparatorComponent={VisitSeparator}

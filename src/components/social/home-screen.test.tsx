@@ -4,6 +4,8 @@ import { getFunctionName } from "convex/server";
 import type { PropsWithChildren } from "react";
 import { Platform } from "react-native";
 
+import { scrollViewHolding } from "@/components/scroll-view.testing";
+import { Spacing } from "@/constants/theme";
 import type { SharedVisit } from "@/lib/social/types";
 import { UnseenNotificationCount } from "@/lib/social/unseen-notifications";
 import type { SocialSession } from "@/lib/social/use-social-session";
@@ -18,6 +20,7 @@ const mockSubscriptions = new Map<object, RequestForQueries>();
 const mockPush = jest.fn();
 const mockNavigate = jest.fn();
 let mockVisit: object | undefined;
+let mockSaves: { localId: string; title: string; cropPath: null }[];
 jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => mockSession }));
 jest.mock("@/components/account/welcome-prompt", () => ({ WelcomePrompt: () => null }));
 jest.mock("@/components/visits/now-card", () => ({
@@ -27,6 +30,11 @@ jest.mock("@/components/visits/now-card", () => ({
 jest.mock("@/components/visits/wrap-up-prompt", () => ({ WrapUpPrompt: () => null }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({ visit: mockVisit }) }));
+jest.mock("@/lib/journal/visitless-saves", () => ({
+  sharedMuseum: () => undefined,
+  useMakeVisit: () => ({ busy: false, make: jest.fn() }),
+  useVisitlessSavesToday: () => ({ saves: mockSaves, dismiss: jest.fn() }),
+}));
 jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => mockSession.token }));
 jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));
 jest.mock("expo-router", () => {
@@ -101,6 +109,7 @@ beforeEach(() => {
   mockParams = {};
   mockUnseen = 0;
   mockVisit = undefined;
+  mockSaves = [];
   mockSession = {
     scope: "scope-a",
     status: "ready",
@@ -200,6 +209,39 @@ it("shows loading for a pending feed without displaying the other feed or an emp
   expect(screen.getByText("Friends museum")).toBeOnTheScreen();
 });
 
+it("holds the page still while the feed shows only its skeleton", async () => {
+  await renderHome();
+  await fireEvent(screen.getByTestId("home-feed-start"), "layout", {
+    nativeEvent: { layout: { x: 0, y: Spacing.two, width: 390, height: 0 } },
+  });
+  const list = scrollViewHolding(screen.getByRole("progressbar", { name: "Loading visits…" }));
+  expect(list.props.scrollEnabled).toBe(false);
+  await deliver({ "sharedVisits:listFeed:first": page("Friends museum") });
+  expect(screen.getByText("Friends museum")).toBeOnTheScreen();
+  expect(list.props.scrollEnabled).toBe(true);
+});
+
+it.each(["ready", "loading"] as const)(
+  "keeps saved artwork actions scrollable while the account is %s and the feed waits",
+  async (status) => {
+    mockSession.status = status;
+    mockSaves = [{ localId: "save-one", title: "Water Lilies", cropPath: null }];
+    await renderHome();
+    const list = scrollViewHolding(screen.getByRole("button", { name: "Make it a visit" }));
+    await fireEvent(screen.getByTestId("home-feed-start"), "layout", {
+      nativeEvent: { layout: { x: 0, y: 680, width: 390, height: 0 } },
+    });
+    expect(list.props.scrollEnabled).toBe(true);
+    mockSaves = [];
+    await screen.rerender(<HomeScreen />);
+    expect(screen.queryByRole("button", { name: "Make it a visit" })).toBeNull();
+    await fireEvent(screen.getByTestId("home-feed-start"), "layout", {
+      nativeEvent: { layout: { x: 0, y: Spacing.two, width: 390, height: 0 } },
+    });
+    expect(list.props.scrollEnabled).toBe(false);
+  },
+);
+
 it("clears both feeds when the account changes and gates Friends for guests", async () => {
   await renderHome();
   await deliver({
@@ -227,6 +269,10 @@ it("keeps the guest header consistent across feeds, including after dismissing t
   mockSession = { ...mockSession, key: "guest", status: "signed-out", token: null, profileId: undefined };
   await renderHome();
   expect(screen.getByText("Add your friends.")).toBeOnTheScreen();
+  await fireEvent(screen.getByTestId("home-feed-start"), "layout", {
+    nativeEvent: { layout: { x: 0, y: 300, width: 390, height: 0 } },
+  });
+  expect(scrollViewHolding(screen.getByRole("button", { name: "Sign in" })).props.scrollEnabled).toBe(true);
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByText("Add your friends.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Leaderboards" })).toBeOnTheScreen();

@@ -32,6 +32,7 @@ function VisitPost({
   const ready = !session.offline && ["ready", "signed-out", "profile-required"].includes(session.status);
   const visit = useSocialQuery(api.sharedVisits.get, ready && postId ? { postId } : "skip", session.key);
   const unavailable = !postId || convexErrorCode(visit.error) === "not_found";
+  const opening = ready && !unavailable && !visit.error && !visit.data;
   return (
     // The card's comments sheet renders in this tree; "handled" lets taps reach its composer.
     <ScrollView
@@ -39,6 +40,7 @@ function VisitPost({
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
       bounces={!!visit.data}
+      scrollEnabled={!opening}
       contentContainerStyle={socialStyles.content}
     >
       {!ready ? (

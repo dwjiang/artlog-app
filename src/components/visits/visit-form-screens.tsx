@@ -29,11 +29,13 @@ import { VisitDatePicker } from "./visit-date-picker";
 import { CancelToolbar, CommitToolbar } from "./visit-sheet-toolbar";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 
-function VisitFormPage({ children }: { children: ReactNode }) {
+function VisitFormPage({ children, scrollEnabled }: { children: ReactNode; scrollEnabled?: boolean }) {
   const { bottom } = useSafeAreaInsets();
   return (
     <>
-      <VisitPage style={{ backgroundColor: Gallery.groupedBackground }}>{children}</VisitPage>
+      <VisitPage style={{ backgroundColor: Gallery.groupedBackground }} scrollEnabled={scrollEnabled}>
+        {children}
+      </VisitPage>
       <ToastLayer offset={-bottom} />
     </>
   );
@@ -235,6 +237,7 @@ export function VisitMuseumScreen() {
   const { visitId } = useLocalSearchParams<{ visitId: string }>();
   const { visits, loading, error } = useVisits();
   const visit = visits.find((row) => row.localId === visitId);
+  const opening = !visit && loading && !error;
   const { move } = useVenue();
   const [busy, setBusy] = useState(false);
   const active = useRef(true);
@@ -277,7 +280,7 @@ export function VisitMuseumScreen() {
   return (
     <>
       <CancelToolbar onPress={cancel} />
-      <VisitFormPage>
+      <VisitFormPage scrollEnabled={!opening}>
         {visit ? (
           <>
             <MuseumSearch
@@ -287,7 +290,7 @@ export function VisitMuseumScreen() {
               }}
             />
           </>
-        ) : loading && !error ? (
+        ) : opening ? (
           <ListSkeleton label="Loading visit…" rows={3} card />
         ) : (
           <VisitMessage>{error ? "This visit could not load." : "This visit is unavailable."}</VisitMessage>

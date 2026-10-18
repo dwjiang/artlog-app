@@ -208,6 +208,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
         bounces={!room.empty || !!pull.refreshControl}
+        scrollEnabled={!!person}
         refreshControl={pull.refreshControl}
         onLayout={room.onLayout}
         onContentSizeChange={measureHeading}

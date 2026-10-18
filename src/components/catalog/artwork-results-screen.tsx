@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, View } from "react-native";
 
 import { SearchEmptyState } from "@/components/empty-state";
-import { PageFooter, SocialState } from "@/components/social/social-state";
+import { loadingFirstPage, PageFooter, SocialState } from "@/components/social/social-state";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useCatalogReady } from "@/lib/catalog/use-catalog-ready";
 import { useSavedCatalogWorks } from "@/lib/catalog/use-saved-catalog-works";
@@ -31,6 +31,7 @@ export function ArtworkResultsScreen({ query, onOpen }: { query: string; onOpen?
       style={styles.page}
       contentInsetAdjustmentBehavior="automatic"
       bounces={!offline && !empty}
+      scrollEnabled={!loadingFirstPage(results, results.items.length)}
       contentContainerStyle={[styles.content, (offline || empty) && { paddingBottom: 0 }]}
     >
       {offline ? (
