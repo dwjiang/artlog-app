@@ -85,7 +85,7 @@ Admission distinguishes metadata terms from image rights. Met Open Access,
 AIC metadata and separately licensed descriptions, Wikidata structured data,
 and per-file Commons permissions have different contracts. A `P18` image URL is
 not a public-domain determination. Museum attribution does not imply image
-reuse permission. The [root README](../../README.md#data-sources-and-terms)
+reuse permission. The [technical overview](../technical-overview.md#data-source-handling)
 describes source admission and attribution.
 
 Use provider-returned thumbnail URLs rather than inventing image host/size

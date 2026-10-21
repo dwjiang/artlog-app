@@ -1,5 +1,6 @@
 # Documentation
 
+- Start here: [technical overview](technical-overview.md) of models, architecture, privacy, data sources, self-hosting, and index rebuilds.
 - Integrations and policies: [AI and search providers](integrations.md), [legal pages](legal.md), [social and journal boundaries](social-and-journal.md), and [demo activity](demo-activity.md).
 - Recognition: [model and evaluation findings](experiments/README.md), [Pinecone benchmark](experiments/pinecone.md), and [contribution identity](contribution-identity.md).
 - Storage and access: [R2 files](storage.md), [Pinecone](pinecone.md), and [Google sign-in](google-sign-in.md).
