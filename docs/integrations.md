@@ -1,7 +1,8 @@
 # AI and search integrations
 
 Artlog runs image recognition on iOS and model-backed artwork research in Convex.
-The [root README](../README.md) describes the request paths and setup; provider
+The [root README](../README.md) describes the product and setup in plain language, and
+the [technical overview](technical-overview.md) describes the request paths; provider
 adapters and configured model IDs are the implementation source of truth.
 
 ## Runtime contracts
