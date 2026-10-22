@@ -38,11 +38,32 @@ it("ends loading on failure, keeps an accessible fallback, and retries a new sou
   expect(onError).toHaveBeenCalledTimes(1);
   expect(reportError).toHaveBeenCalledWith(expect.any(Error), "media.load", {
     level: "warning",
-    data: { source: "local" },
+    data: { source: "local", source_kind: "file" },
   });
   expect(JSON.stringify(jest.mocked(reportError).mock.calls)).not.toContain("file:///broken.jpg");
   expect(screen.queryByRole("progressbar")).toBeNull();
   expect(screen.getByRole("image", { name: "Artwork: image unavailable" })).toBeOnTheScreen();
   await view.rerender(<LoadingImage {...props} uri="file:///replacement.jpg" />);
   expect(screen.getByRole("progressbar")).toBeOnTheScreen();
+});
+
+it("passes the native error string and remote source to privacy-safe diagnostics", async () => {
+  await render(
+    <LoadingImage
+      uri="https://images.example.org/private.jpg?token=secret"
+      label="Artwork"
+      style={{ width: 120, height: 160 }}
+    />,
+  );
+  await fireEvent(screen.getByLabelText("Artwork"), "error", {
+    nativeEvent: { error: "Download marked as failed because of invalid response status code 403" },
+  });
+  expect(reportError).toHaveBeenLastCalledWith(
+    expect.objectContaining({ message: "Image load failed (HTTP 403)" }),
+    "media.load",
+    {
+      level: "warning",
+      data: { source: "remote", source_kind: "https", requested_host: "images.example.org", status_code: 403 },
+    },
+  );
 });

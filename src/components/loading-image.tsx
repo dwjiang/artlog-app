@@ -3,7 +3,7 @@ import { useState } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { Gallery, Motion } from "@/constants/theme";
-import { reportError } from "@/lib/observability";
+import { reportImageLoadError } from "@/lib/image-load-error";
 
 import { ImageSkeleton } from "./loading-skeleton";
 
@@ -52,10 +52,7 @@ function ImageContent({ uri, label, style, contentFit = "cover", contentPosition
           }}
           onDisplay={onDisplay}
           onError={(event) => {
-            reportError(new Error(event?.error || "Image could not load"), "media.load", {
-              level: "warning",
-              data: { source: uri.startsWith("file:") ? "local" : "remote" },
-            });
+            reportImageLoadError(uri, event?.error);
             setState("failed");
             onError?.(event);
           }}
