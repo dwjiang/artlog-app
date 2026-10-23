@@ -97,9 +97,14 @@ function MediaImage({ media, label, width, height, token, uri, fit = "contain" }
         }}
         style={size}
         contentFit={fit}
-        // Protected photos stay in RAM so the wall→detail push reuses the bytes, but never persist to disk;
-        // sign-out clears them.
-        cachePolicy={media.kind === "derivative" || media.kind === "photo" ? "memory" : "memory-disk"}
+        // A shared visit photo never changes under its URL, so it persists and the feed reopens without downloading it
+        // again. Derivatives can be replaced under the same URL and wall photos stay off disk; RAM still lets the
+        // wall→detail push reuse their bytes. Sign-out clears both caches.
+        cachePolicy={
+          media.kind === "catalog" || (media.kind === "photo" && media.reference.kind === "sharedVisit")
+            ? "memory-disk"
+            : "memory"
+        }
         recyclingKey={uri}
         onLoad={() => setLoaded(true)}
         onError={(event) => {

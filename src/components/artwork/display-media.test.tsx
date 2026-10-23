@@ -127,3 +127,20 @@ it("serves shared visits with optional credentials and requires them only for pr
     Authorization: "Bearer token-a",
   });
 });
+
+it("keeps shared visit photos on disk but replaceable shared derivatives in memory only", async () => {
+  const reference = { kind: "sharedVisit" as const, postId: "post-a", itemId: "shared-item" as never };
+  const view = await render(
+    <DisplayMedia media={{ ...derivative, reference }} label="Saved title" width={100} token="token-a" />,
+  );
+  expect(screen.getByRole("image").props.cachePolicy).toBe("memory");
+  await view.rerender(
+    <DisplayMedia
+      media={{ kind: "photo", width: 100, height: 100, reference: { ...reference, photoLocalId: "photo-a" } }}
+      label="Saved title"
+      width={100}
+      token="token-a"
+    />,
+  );
+  expect(screen.getByRole("image").props.cachePolicy).toBe("memory-disk");
+});
