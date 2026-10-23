@@ -35,7 +35,8 @@ const revocations = [
     change: "data deletion",
     revoke: (_t: Harness, viewer: SocialUser) => viewer.as.mutation(api.accounts.deleteAccount, {}),
     sessions: 1,
-    me: { status: "rejected", reason: { data: { code: "device_not_registered" } } },
+    // A retired device reads as one that has not registered yet: nothing about the deleted account.
+    me: { status: "fulfilled", value: { linked: false, accountId: null, profileId: null, scope: "" } },
     post: "not_found",
     profile: "device_not_registered",
     photo: 403,
