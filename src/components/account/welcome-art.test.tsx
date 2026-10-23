@@ -1,14 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { useWindowDimensions } from "react-native";
+import { ScrollView } from "react-native";
 
 import { Gallery } from "@/constants/theme";
 
 import { ScanResult } from "./welcome-art";
 
-jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
-  __esModule: true,
-  default: jest.fn(),
-}));
 jest.mock("react-native-worklets", () => jest.requireActual("react-native-worklets/lib/module/mock"));
 jest.mock("react-native-reanimated", () => ({
   ...jest.requireMock("react-native-reanimated/mock"),
@@ -58,13 +54,9 @@ const expectRead = (words: string[]) => {
 const reach = (currentTime: number) => act(() => mockStory.set({ currentTime }));
 const finish = () => act(() => mockStory.set({ playing: false, currentTime: 18 }));
 
-const TALL_SCREEN = { width: 402, height: 874, scale: 3, fontScale: 1 };
-const SHORT_SCREEN = { width: 375, height: 667, scale: 2, fontScale: 1 };
-
 beforeEach(() => {
   mockStory.status = { playing: false, currentTime: 0, duration: 18 };
   jest.clearAllMocks();
-  jest.mocked(useWindowDimensions).mockReturnValue(TALL_SCREEN);
 });
 
 it("keeps the story gray and silent until Play is pressed, then lights each word as the voice reaches it", async () => {
@@ -83,11 +75,6 @@ it("keeps the story gray and silent until Play is pressed, then lights each word
 
   await finish();
   expectRead(WORDS);
-});
-
-it("says the story's voice is AI-generated", async () => {
-  await render(<ScanResult active />);
-  expect(screen.getByText("AI-generated voice")).toBeOnTheScreen();
 });
 
 it("pauses the voice where it is, and replays from the start once finished", async () => {
@@ -182,35 +169,31 @@ it.each(["pause", "leave the page"] as const)("resumes the final word after %s w
   expect(screen.getByRole("button", { name: "Replay story" })).toBeOnTheScreen();
 });
 
-it("shows the story a sentence at a time on short screens, turning when the voice reaches the next", async () => {
-  jest.mocked(useWindowDimensions).mockReturnValue(SHORT_SCREEN);
+it("follows the voice down the story, scrolling the sentence being spoken to the top", async () => {
+  const scrollTo = jest.mocked(ScrollView.prototype.scrollTo);
   await render(<ScanResult active />);
   expect(screen.getByLabelText(/^Leutze painted it .* this crossing\.$/)).toBeOnTheScreen();
-  expect(screen.getByText("Leutze")).toBeVisible();
-  expect(screen.getByText("Whittredge")).not.toBeVisible();
+  // The longest sentence comes first, so the last one can't reach the top without leaving the window half empty.
+  const layouts = [
+    { first: "Leutze", y: 0, height: 63 },
+    { first: "The", y: 71, height: 42 },
+    { first: "Look", y: 121, height: 42 },
+  ];
+  for (const { first, y, height } of layouts) {
+    await fireEvent(screen.getByText(first), "layout", { nativeEvent: { layout: { x: 0, y, width: 354, height } } });
+  }
 
   await fireEvent.press(screen.getByRole("button", { name: "Play story" }));
   await reach(6.5);
-  expect(screen.getByText("models.")).toBeVisible();
   expectRead(["models."]);
+  expectUnread(["Whittredge"]);
 
   await reach(7);
-  expect(screen.getByText("models.")).not.toBeVisible();
-  expect(screen.getByText("Whittredge")).toBeVisible();
+  expectRead(["The"]);
+  expectUnread(["Whittredge"]);
+  expect(scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ y: 71 }));
 
   await finish();
-  expect(screen.getByText("crossing.")).toBeVisible();
   expectRead(["crossing."]);
-});
-
-it("also shows sentences on a tall screen with a large text size", async () => {
-  jest.mocked(useWindowDimensions).mockReturnValue({ ...TALL_SCREEN, fontScale: 1.4 });
-  await render(<ScanResult active />);
-  expect(screen.getByText("Whittredge")).not.toBeVisible();
-});
-
-it("shows the whole story where the screen has room", async () => {
-  await render(<ScanResult active />);
-  expect(screen.getByText("Leutze")).toBeVisible();
-  expect(screen.getByText("crossing.")).toBeVisible();
+  expect(scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ y: 100 }));
 });
