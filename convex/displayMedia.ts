@@ -220,9 +220,11 @@ export const download = httpAction(async (ctx, request) => {
           key !== "kind"
           && key !== "photoLocalId"
           && !(kind === "wallItem" && (key === "variant" || key === "cropRevision"))
+          && !(kind === "sharedVisit" && key === "size")
           && !keys.includes(key),
       )
       || keys.some((key) => !params.get(key))
+      || (params.has("size") && params.get("size") !== "feed")
     ) {
       throw new ConvexError({ code: "invalid_media" });
     }
@@ -238,7 +240,7 @@ export const download = httpAction(async (ctx, request) => {
       ...(params.get("variant") ? { variant: params.get("variant") } : {}),
       ...(cropRevision !== undefined ? { cropRevision } : {}),
     } as never;
-    if (kind !== "wallItem") return await serveSharedMedia(ctx, context);
+    if (kind !== "wallItem") return await serveSharedMedia(ctx, context, params.has("size") ? "feed" : undefined);
     const storageId = await ctx.runQuery(internal.displayMedia.findForWallItem, { context });
     const blob = storageId ? await fileStorage.get(ctx, storageId) : null;
     if (

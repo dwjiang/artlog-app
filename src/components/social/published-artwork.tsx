@@ -116,7 +116,14 @@ function PublishedArtworkGallery({
           />
         )}
         renderThumbnail={({ media }, index) => (
-          <DisplayMedia media={media} label={`${title}, thumbnail ${index + 1}`} width={36} height={44} token={token} />
+          <DisplayMedia
+            media={media}
+            label={`${title}, thumbnail ${index + 1}`}
+            width={36}
+            height={44}
+            token={token}
+            feedSize
+          />
         )}
       />
     </View>

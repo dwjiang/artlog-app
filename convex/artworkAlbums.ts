@@ -4,7 +4,7 @@ import { albumEncounter, albumPhoto, validateAlbumEncounter, validateAlbumPhoto 
 import { isRevision, LIMITS, utf8Bytes } from "../shared/journal/limits";
 import { mutation } from "./functions";
 import { invalidateAlbumPhoto } from "./lib/albumMedia";
-import { deleteUnreferencedPhoto } from "./lib/collectionPhotos";
+import { deleteUnreferencedAlbumPhoto } from "./lib/collectionPhotos";
 import { recordArtworkScore } from "./lib/leaderboard";
 import { findOwnedSave, findOwnedVisit, nextChangeVersion, requireJournalOwner } from "./lib/ownership";
 import { invalidateDeletedSave } from "./lib/publicationAccess";
@@ -92,9 +92,7 @@ export const sync = mutation({
         if (deletedAt !== undefined || existing.saveId !== save._id) {
           await invalidateAlbumPhoto(ctx, existing);
         }
-        if (deletedAt !== undefined && existing.storageId) {
-          await deleteUnreferencedPhoto(ctx, existing.storageId);
-        }
+        if (deletedAt !== undefined) await deleteUnreferencedAlbumPhoto(ctx, existing);
       } else {
         await ctx.db.insert("artworkPhotos", fields);
       }

@@ -12,3 +12,13 @@ export async function deleteUnreferencedCollectionPhotos(
 export async function deleteUnreferencedPhoto(ctx: MutationCtx, storageId: Id<"files">): Promise<void> {
   await fileStorage.delete(ctx, storageId);
 }
+
+// The feed copy is the same photo, so it goes with the original.
+export async function deleteUnreferencedAlbumPhoto(
+  ctx: MutationCtx,
+  photo: Pick<Doc<"artworkPhotos">, "storageId" | "feedStorageId">,
+): Promise<void> {
+  for (const id of [photo.storageId, photo.feedStorageId]) {
+    if (id) await deleteUnreferencedPhoto(ctx, id);
+  }
+}

@@ -10,7 +10,7 @@ import { requireAttestedWrite } from "./devices";
 import { internalMutation, mutation } from "./functions";
 import { revokeAppleAuthorization } from "./lib/appleRevocation";
 import { findDeviceForUser, requireAuthUserId, requireDevice } from "./lib/auth";
-import { deleteUnreferencedCollectionPhotos, deleteUnreferencedPhoto } from "./lib/collectionPhotos";
+import { deleteUnreferencedAlbumPhoto, deleteUnreferencedCollectionPhotos } from "./lib/collectionPhotos";
 import { deleteAuthAccountBatch, retireDevice } from "./lib/deviceRetirement";
 import { withErrorReporting } from "./lib/observability";
 import {
@@ -274,7 +274,7 @@ async function purgeJournalBatch(ctx: MutationCtx, owner: JournalOwner): Promise
     .take(PURGE_BATCH);
   for (const photo of photos) {
     await ctx.db.delete("artworkPhotos", photo._id);
-    if (photo.storageId) await deleteUnreferencedPhoto(ctx, photo.storageId);
+    await deleteUnreferencedAlbumPhoto(ctx, photo);
   }
   const encounters = await ctx.db
     .query("artworkEncounters")

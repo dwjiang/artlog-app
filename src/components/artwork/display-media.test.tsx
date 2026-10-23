@@ -144,3 +144,22 @@ it("keeps shared visit photos on disk but replaceable shared derivatives in memo
   );
   expect(screen.getByRole("image").props.cachePolicy).toBe("memory-disk");
 });
+
+it("asks for a shared visit photo's feed copy only when both the view and the photo offer it", async () => {
+  const media = {
+    kind: "photo" as const,
+    width: 300,
+    height: 400,
+    reference: { kind: "sharedVisit" as const, postId: "post-a", itemId: "shared-item" as never, photoLocalId: "a" },
+  };
+  const size = () => new URL(screen.getByRole("image").props.source.uri).searchParams.get("size");
+  const view = await render(
+    <DisplayMedia media={{ ...media, feedSize: true }} label="Painting" width={100} feedSize />,
+  );
+  expect(size()).toBe("feed");
+  expect(screen.getByRole("image").props.cachePolicy).toBe("memory-disk");
+  await view.rerender(<DisplayMedia media={{ ...media, feedSize: true }} label="Painting" width={100} />);
+  expect(size()).toBeNull();
+  await view.rerender(<DisplayMedia media={media} label="Painting" width={100} feedSize />);
+  expect(size()).toBeNull();
+});

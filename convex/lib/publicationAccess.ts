@@ -4,7 +4,7 @@ import { sameOwner } from "../../shared/journal/contracts";
 import { LIMITS } from "../../shared/journal/limits";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { deleteUnreferencedCollectionPhotos, deleteUnreferencedPhoto } from "./collectionPhotos";
+import { deleteUnreferencedAlbumPhoto, deleteUnreferencedCollectionPhotos } from "./collectionPhotos";
 import { revokeSaveMedia } from "./displayMedia";
 import { relationshipSnapshot } from "./friendships";
 import { activeProfile, nextChangeVersion, requireMembership } from "./ownership";
@@ -38,9 +38,7 @@ export async function invalidateDeletedSave(ctx: MutationCtx, save: Doc<"collect
   });
   for (const photo of photos) await ctx.db.patch("artworkPhotos", photo._id, await tombstone());
   for (const encounter of encounters) await ctx.db.patch("artworkEncounters", encounter._id, await tombstone());
-  for (const photo of photos) {
-    if (photo.storageId) await deleteUnreferencedPhoto(ctx, photo.storageId);
-  }
+  for (const photo of photos) await deleteUnreferencedAlbumPhoto(ctx, photo);
   const selections = await ctx.db
     .query("sharedVisitItems")
     .withIndex("by_saveId", (q) => q.eq("saveId", save._id))

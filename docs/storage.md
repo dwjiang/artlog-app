@@ -41,7 +41,9 @@ the dev deployment before deploying. Native iOS uploads do not require browser C
 
 Private collection photos and shared media retain their authenticated HTTP
 routes. Shared-media requests recheck publication permissions after reading R2.
-Their bytes still pass through Convex to preserve revocation behavior.
+Their bytes still pass through Convex to preserve revocation behavior. A shared
+visit photo can also be served at feed size (`size=feed`) from a smaller copy
+that is authorized like the original and deleted with it.
 
 Narration, profile photos, contribution thumbnails, and museum packages use
 stable `/file?id=...` URLs. That endpoint returns an uncached redirect to a fresh,

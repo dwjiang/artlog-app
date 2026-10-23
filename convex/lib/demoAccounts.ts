@@ -9,6 +9,7 @@ import type { leaderboardVisibility } from "../../shared/social/leaderboard";
 import { randomWallStyle } from "../../shared/wall/defaults";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { queueFeedPhoto } from "./feedPhotos";
 import { upsertJournalSave, upsertJournalVisit } from "./journal";
 import { resolveMentions } from "./mentions";
 import { activeProfile, findOwnedSave, nextChangeVersion } from "./ownership";
@@ -133,7 +134,7 @@ export async function addDemoSave(
       visitLocalId: visit.localId,
     };
     validateAlbumPhoto(fields);
-    await ctx.db.insert("artworkPhotos", {
+    const photoId = await ctx.db.insert("artworkPhotos", {
       ...fields,
       owner,
       saveId: row._id,
@@ -143,6 +144,7 @@ export async function addDemoSave(
       updatedAt: photo.capturedAt,
       changeVersion: await nextChangeVersion(ctx, owner),
     });
+    await queueFeedPhoto(ctx, (await ctx.db.get("artworkPhotos", photoId))!);
   }
   if (save.crop && save.photos[0]) {
     await ctx.db.patch("collections", row._id, {

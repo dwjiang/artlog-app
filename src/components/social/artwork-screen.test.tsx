@@ -217,6 +217,17 @@ it("opens full photos from a public wall instead of reusing its cropped preview"
   expect(screen.getByRole("button", { name: "Show photo 2" })).toBeSelected();
 });
 
+it("shows shared photos at full size and their feed copies in the thumbnail strip", async () => {
+  artwork = { ...artwork, photos: [{ ...media("selected-a"), feedSize: true }, media("selected-b")] };
+  await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
+  // The strip hides its thumbnails from VoiceOver behind each "Show photo" button.
+  const size = (name: string) =>
+    new URL(screen.getByRole("image", { name, includeHiddenElements: true }).props.source.uri).searchParams.get("size");
+  expect(size("Starry Night, photo 1")).toBeNull();
+  expect(size("Starry Night, thumbnail 1")).toBe("feed");
+  expect(size("Starry Night, thumbnail 2")).toBeNull();
+});
+
 it("sizes shared photos like a scan's picture and keeps the thumbnails just below them", async () => {
   artwork = {
     ...artwork,

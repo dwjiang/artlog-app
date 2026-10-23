@@ -789,6 +789,8 @@ export default defineSchema({
     owner: journalOwner,
     saveId: v.id("collections"),
     storageId: v.optional(v.id("files")),
+    // A smaller copy for the feed, made after the original attaches. Like the original, it is never replaced.
+    feedStorageId: v.optional(v.id("files")),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
     updatedAt: v.number(),
@@ -797,6 +799,10 @@ export default defineSchema({
     .index("by_owner_localId", ["owner", "localId"])
     .index("by_save_deletedAt", ["saveId", "deletedAt"])
     .index("by_owner_changeVersion", ["owner", "changeVersion"]),
+  // Album photos waiting for a feed copy, oldest first. The single worker leased below drains them.
+  feedPhotoJobs: defineTable({ photoId: v.id("artworkPhotos") }).index("by_photoId", ["photoId"]),
+  // At most one row: the feed photo worker's lease while a run is scheduled or under way.
+  feedPhotoWorker: defineTable({ lease: v.string(), leasedUntil: v.number() }),
   artworkEncounters: defineTable({
     ...albumEncounter.omit("note").fields,
     owner: journalOwner,

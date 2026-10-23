@@ -19,10 +19,12 @@ type Props = {
   token?: string | null;
   /** Thumbnails fill their square; full views show the whole artwork. */
   fit?: "contain" | "cover";
+  /** Small views ask for a shared visit photo's feed-sized copy when it has one. */
+  feedSize?: boolean;
 };
 
 export function DisplayMedia(props: Props) {
-  const { media, token } = props;
+  const { media, token, feedSize } = props;
   let uri: string | undefined;
   if (media.kind === "catalog") {
     uri = media.url;
@@ -38,6 +40,9 @@ export function DisplayMedia(props: Props) {
       }
       if (reference.photoLocalId) {
         url.searchParams.set("photoLocalId", reference.photoLocalId);
+      }
+      if (feedSize && media.kind === "photo" && media.feedSize) {
+        url.searchParams.set("size", "feed");
       }
       if (reference.kind === "wallItem" && reference.variant) {
         url.searchParams.set("variant", reference.variant);
@@ -97,9 +102,9 @@ function MediaImage({ media, label, width, height, token, uri, fit = "contain" }
         }}
         style={size}
         contentFit={fit}
-        // A shared visit photo never changes under its URL, so it persists and the feed reopens without downloading it
-        // again. Derivatives can be replaced under the same URL and wall photos stay off disk; RAM still lets the
-        // wall→detail push reuse their bytes. Sign-out clears both caches.
+        // A shared visit photo, like its feed copy, never changes under its URL, so it persists and the feed reopens
+        // without downloading it again. Derivatives can be replaced under the same URL and wall photos stay off disk;
+        // RAM still lets the wall→detail push reuse their bytes. Sign-out clears both caches.
         cachePolicy={
           media.kind === "catalog" || (media.kind === "photo" && media.reference.kind === "sharedVisit")
             ? "memory-disk"

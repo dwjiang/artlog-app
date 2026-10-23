@@ -28,6 +28,8 @@ export async function selectedPhotoMedia(
     width: photo.width ?? 1,
     height: photo.height ?? 1,
     reference: { ...context, photoLocalId: localId },
+    // Advertised only once the copy exists, so the feed-size URL never serves the original first.
+    ...(context.kind === "sharedVisit" && photo.feedStorageId ? { feedSize: true as const } : {}),
   };
 }
 

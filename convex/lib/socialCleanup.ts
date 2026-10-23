@@ -1,7 +1,7 @@
 import type { JournalOwner } from "../../shared/journal/contracts";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { deleteUnreferencedPhoto } from "./collectionPhotos";
+import { deleteUnreferencedAlbumPhoto, deleteUnreferencedPhoto } from "./collectionPhotos";
 import { fileStorage } from "./fileStorage";
 import { changeCommentLikes, changeEngagement, engagement } from "./visitReactions";
 
@@ -200,9 +200,7 @@ export async function purgeSaveMediaBatch(ctx: MutationCtx, saveId: Id<"collecti
     .take(BATCH);
   for (const photo of photos) await ctx.db.delete("artworkPhotos", photo._id);
   for (const encounter of encounters) await ctx.db.delete("artworkEncounters", encounter._id);
-  for (const photo of photos) {
-    if (photo.storageId) await deleteUnreferencedPhoto(ctx, photo.storageId);
-  }
+  for (const photo of photos) await deleteUnreferencedAlbumPhoto(ctx, photo);
   if (photos.length === BATCH || encounters.length === BATCH) return true;
   const assets = await ctx.db
     .query("mediaAssets")
