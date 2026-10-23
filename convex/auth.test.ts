@@ -37,6 +37,15 @@ async function authenticate(t: Harness, secret = SECRET) {
 }
 
 describe("anonymous installation credentials", () => {
+  it("issues access tokens that last a day and end well before their session", async () => {
+    const t = harness();
+    const { tokens, sessionId } = await authenticate(t);
+    const { iat, exp } = decodeJwt(tokens.token);
+    expect(exp! - iat!).toBe(24 * 60 * 60);
+    const session = await t.run((ctx) => ctx.db.get("authSessions", sessionId));
+    expect(session!.expirationTime - exp! * 1000).toBeGreaterThan(7 * 24 * 60 * 60 * 1000);
+  });
+
   it.each([false, true])("preserves the entire device after session expiry (banned: %s)", async (banned) => {
     const t = harness();
     const first = await authenticate(t);

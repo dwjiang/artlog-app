@@ -2,10 +2,108 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
 import { DEMO_BOT_ISSUER } from "./lib/demoBot";
+import { fileStorage } from "./lib/fileStorage";
+import {
+  befriend,
+  setVisitVisibility,
+  socialDerivative,
+  socialUser,
+  socialVisit,
+  type SocialUser,
+} from "./lib/socialTestFixtures";
 import { seedArtworkWithObject, seedDevice, seedMuseum, seedScan } from "./lib/testFactories";
-import { harness, signIn } from "./test.helpers";
+import { harness, signIn, type Harness } from "./test.helpers";
 
 afterEach(() => vi.useRealTimers());
+
+// Access tokens outlive these changes by up to a day, so each must take effect through live state, not token expiry.
+const revocations = [
+  {
+    change: "sign-out",
+    revoke: async (_t: Harness, viewer: SocialUser) => {
+      await viewer.as.mutation(api.accounts.unlink, {});
+      await viewer.as.action(api.auth.signOut, {});
+    },
+    sessions: 0,
+    // The token still names the phone's guest device, which the same installation signs straight back in to.
+    me: { status: "fulfilled", value: { linked: false } },
+    post: "not_found",
+    profile: "sign_in_required",
+    photo: 409,
+  },
+  {
+    change: "data deletion",
+    revoke: (_t: Harness, viewer: SocialUser) => viewer.as.mutation(api.accounts.deleteAccount, {}),
+    sessions: 1,
+    me: { status: "rejected", reason: { data: { code: "device_not_registered" } } },
+    post: "not_found",
+    profile: "device_not_registered",
+    photo: 403,
+  },
+  {
+    change: "ban",
+    revoke: (t: Harness, viewer: SocialUser) =>
+      t.mutation(internal.revert.revertDevice, { deviceId: viewer.deviceId, reason: "spam" }),
+    sessions: 1,
+    me: { status: "rejected", reason: { data: { code: "device_banned" } } },
+    post: "device_banned",
+    profile: "device_banned",
+    photo: 403,
+  },
+] as const;
+
+it.each(revocations)(
+  "denies social reads and private media to a still-valid token after $change",
+  async ({ revoke, sessions, me, post, profile, photo }) => {
+    vi.useFakeTimers();
+    const t = harness();
+    const owner = await socialUser(t);
+    const viewer = await socialUser(t);
+    await befriend(owner, viewer);
+    const shared = await socialVisit(t, owner, 1);
+    await socialDerivative(t, owner, shared.saves[0].id);
+    await setVisitVisibility(t, owner, shared.visit._id, "friends");
+    const { revision } = await owner.as.query(api.sharedVisits.getState, { visitLocalId: shared.visit.localId });
+    const { postId } = await owner.as.action(api.sharedVisits.publish, {
+      ...shared.selection,
+      audience: "friends",
+      revision,
+    });
+    const { itemId } = (await viewer.as.query(api.sharedVisits.get, { postId: postId! })).artworks.page[0];
+    const mediaPath = `/display-media?kind=sharedVisit&postId=${postId}&itemId=${itemId}`;
+    const { saves } = await socialVisit(t, viewer, 1);
+    const storageId = await t.run((ctx) => fileStorage.store(ctx, new Blob(["private crop"], { type: "image/jpeg" })));
+    await viewer.as.mutation(internal.collectionPhotos.attach, {
+      scope: viewer.scope,
+      localId: saves[0].localId,
+      kind: "crop",
+      storageId,
+    });
+    const photoPath = `/collection-photo?scope=${encodeURIComponent(viewer.scope)}&localId=${saves[0].localId}&kind=crop`;
+    expect((await viewer.as.fetch(mediaPath)).status).toBe(200);
+    expect((await viewer.as.fetch(photoPath)).status).toBe(200);
+
+    await revoke(t, viewer);
+
+    // Cleanup stays queued under fake timers, and `viewer.as` keeps presenting the identity of the unexpired token.
+    const remaining = await t.run((ctx) =>
+      ctx.db
+        .query("authSessions")
+        .withIndex("userId", (q) => q.eq("userId", viewer.userId))
+        .collect(),
+    );
+    expect(remaining).toHaveLength(sessions);
+    expect((await Promise.allSettled([viewer.as.query(api.accounts.me, {})]))[0]).toMatchObject(me);
+    await expect(viewer.as.query(api.sharedVisits.get, { postId: postId! })).rejects.toMatchObject({
+      data: { code: post },
+    });
+    await expect(viewer.as.query(api.profiles.mine, {})).rejects.toMatchObject({ data: { code: profile } });
+    expect((await viewer.as.fetch(mediaPath)).status).toBe(404);
+    const response = await viewer.as.fetch(photoPath);
+    expect(response.status).toBe(photo);
+    expect(await response.text()).not.toContain("private crop");
+  },
+);
 
 it("keeps device, account and catalog reads inaccessible to anonymous and unregistered callers", async () => {
   const t = harness();
