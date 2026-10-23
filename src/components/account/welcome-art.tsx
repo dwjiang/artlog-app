@@ -1,7 +1,7 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { Image, type ImageSource } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { StyleSheet, View, useWindowDimensions, type ViewStyle } from "react-native";
+import { ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
 import Animated, { cubicBezier } from "react-native-reanimated";
 
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
@@ -45,19 +45,14 @@ const gallery = {
 };
 const luncheon = require("../../../assets/images/onboarding/luncheon-of-the-boating-party.webp");
 
-const STORY =
-  "Leutze painted it in Germany, using American tourists and art students as models. The American painter Worthington Whittredge posed as Washington. Look at the flag: the Stars and Stripes it carries wasn’t adopted until the summer after this crossing.";
-const STORY_WORDS = STORY.split(" ");
-// Each sentence of the story, as word positions.
-const SENTENCE_STARTS = STORY_WORDS.flatMap((_, position) =>
-  position === 0 || /[.!?]$/.test(STORY_WORDS[position - 1]) ? [position] : [],
-);
-const SENTENCES = SENTENCE_STARTS.map((from, index) => ({
-  from,
-  to: SENTENCE_STARTS[index + 1] ?? STORY_WORDS.length,
-}));
-// Below this screen height, in text-size points, the whole story leaves the lifted painting too little room.
-const SUBTITLE_HEIGHT = 720;
+const STORY = [
+  "Leutze painted it in Germany, using American tourists and art students as models.",
+  "The American painter Worthington Whittredge posed as Washington.",
+  "Look at the flag: the Stars and Stripes it carries wasn’t adopted until the summer after this crossing.",
+];
+const SENTENCES = STORY.map((sentence) => sentence.split(" "));
+// Where each sentence starts, as a word position in the whole story.
+const SENTENCE_STARTS = SENTENCES.map((_, index) => SENTENCES.slice(0, index).flat().length);
 // The story in the narration voice, and where each word starts in it, in seconds, from a word-level transcription.
 const narration = {
   source: require("../../../assets/audio/welcome-story.m4a"),
@@ -67,6 +62,7 @@ const narration = {
     16.88, 17.18,
   ],
 };
+const STORY_FADE = Spacing.four;
 // The welcome scan runs by itself, the way the camera's does: once the welcome has slid up and the room has been seen,
 // the painting lifts out, and the result rises as the shine passes, with its story waiting for Play.
 const SCAN_DELAY = 1400;
@@ -266,45 +262,69 @@ function useStoryReveal(active: boolean) {
   return { said, control };
 }
 
-function StoryWords({ from, to, said }: { from: number; to: number; said: number }) {
-  return STORY_WORDS.slice(from, to).map((word, offset) => {
-    const position = from + offset;
-    return (
-      <Text key={position} style={{ color: position < said ? Gallery.ink : Gallery.muted }}>
-        {position === to - 1 ? word : `${word} `}
-      </Text>
-    );
-  });
-}
-
 /**
- * The story a sentence at a time, for short screens: the one being spoken shows in place of the rest. The sentences
- * share one spot, so the card is as tall as the longest and keeps its height as they turn.
+ * The story as a short transcript that follows the voice, the way the audio guide's does: the sentence being spoken
+ * scrolls to the top of a window that fits the longest, and the next one fades out below it into the card's edge.
  */
-function StorySubtitles({ said }: { said: number }) {
+function StoryTranscript({ said }: { said: number }) {
   const reduced = useReducedMotion();
-  const shown = SENTENCE_STARTS.filter((start) => start < Math.max(said, 1)).length - 1;
+  const sentence = SENTENCE_STARTS.filter((start) => start < Math.max(said, 1)).length - 1;
+  const scroll = useRef<ScrollView>(null);
+  const [lines, setLines] = useState<{ y: number; height: number }[]>([]);
+  const height = lines.reduce((tallest, line) => Math.max(tallest, line.height), 0) + Spacing.compact;
+  const last = lines[STORY.length - 1];
+  const furthest = last ? Math.max(0, last.y + last.height + Spacing.compact - height) : 0;
+  const top = lines[sentence] ? Math.min(lines[sentence].y, furthest) : undefined;
+  // The fade reaches past the card's padding into the window, below the shorter sentences, and gives way at the end
+  // for the longest.
+  const more = top !== undefined && top < furthest;
+  useEffect(() => {
+    if (top !== undefined) scroll.current?.scrollTo({ y: top, animated: !reduced });
+  }, [top, reduced]);
   return (
-    <View accessible accessibilityLabel={STORY} style={styles.subtitles}>
-      {SENTENCES.map(({ from, to }, index) => (
-        <Animated.View
-          key={from}
-          style={[
-            styles.subtitle,
-            index > 0 && styles.stackedSubtitle,
-            { opacity: index === shown ? 1 : 0 },
-            {
-              transitionProperty: "opacity",
-              transitionDuration: reduced ? 0 : Motion.state,
-              transitionTimingFunction: EASE_OUT,
-            },
-          ]}
-        >
-          <Text style={styles.story}>
-            <StoryWords from={from} to={to} said={said} />
-          </Text>
-        </Animated.View>
-      ))}
+    <View accessible accessibilityLabel={STORY.join(" ")} style={[styles.transcript, { height }]}>
+      <ScrollView
+        ref={scroll}
+        scrollEnabled={false}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.transcriptLines}
+      >
+        {SENTENCES.map((words, index) => (
+          <View
+            key={SENTENCE_STARTS[index]}
+            onLayout={({ nativeEvent: { layout } }) =>
+              setLines((measured) => {
+                const next = [...measured];
+                next[index] = { y: layout.y, height: layout.height };
+                return next;
+              })
+            }
+          >
+            <Text style={styles.story}>
+              {words.map((word, offset) => {
+                const position = SENTENCE_STARTS[index] + offset;
+                return (
+                  <Text key={position} style={{ color: position < said ? Gallery.ink : Gallery.muted }}>
+                    {offset === words.length - 1 ? word : `${word} `}
+                  </Text>
+                );
+              })}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.transcriptFade,
+          {
+            opacity: more ? 1 : 0,
+            transitionProperty: "opacity",
+            transitionDuration: reduced ? 0 : Motion.state,
+            transitionTimingFunction: EASE_OUT,
+          },
+        ]}
+      />
     </View>
   );
 }
@@ -312,7 +332,6 @@ function StorySubtitles({ said }: { said: number }) {
 /** The welcome scan's result, risen out of the sheet: the painting it found and its story, read aloud in captions. */
 export function ScanResult({ active }: { active: boolean }) {
   const { said, control } = useStoryReveal(active);
-  const { height, fontScale } = useWindowDimensions();
   return (
     <Enter motion="rise" delay={RESULT_DELAY} style={styles.resultSlot}>
       <View style={[styles.card, styles.result]}>
@@ -321,7 +340,6 @@ export function ScanResult({ active }: { active: boolean }) {
           <View accessible style={styles.resultText}>
             <Text style={styles.cardTitle}>Washington Crossing the Delaware</Text>
             <Text style={styles.cardDetail}>Emanuel Leutze · 1851</Text>
-            <Text style={styles.cardDetail}>AI-generated voice</Text>
           </View>
           <View style={styles.storyControl}>
             <GalleryIconButton
@@ -333,13 +351,7 @@ export function ScanResult({ active }: { active: boolean }) {
             />
           </View>
         </View>
-        {height / fontScale < SUBTITLE_HEIGHT ? (
-          <StorySubtitles said={said} />
-        ) : (
-          <Text accessibilityLabel={STORY} style={styles.story}>
-            <StoryWords from={0} to={STORY_WORDS.length} said={said} />
-          </Text>
-        )}
+        <StoryTranscript said={said} />
       </View>
     </Enter>
   );
@@ -477,10 +489,17 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: Fonts.display, fontSize: 19, lineHeight: 24, letterSpacing: -0.3, color: Gallery.ink },
   cardDetail: { fontSize: 14, lineHeight: 20, color: Gallery.muted },
   story: { fontSize: 15, lineHeight: 21 },
-  subtitles: { flexDirection: "row" },
-  subtitle: { width: "100%" },
-  // Pulls every later sentence back onto the first; the row still grows to the tallest.
-  stackedSubtitle: { marginLeft: "-100%" },
+  // Reaches into the card's bottom padding for the fade.
+  transcript: { marginBottom: -Spacing.compact },
+  transcriptLines: { gap: Spacing.two, paddingBottom: Spacing.compact },
+  transcriptFade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: STORY_FADE,
+    experimental_backgroundImage: `linear-gradient(180deg, rgba(255,255,255,0) 0%, ${Gallery.surface} 100%)`,
+  },
   tileSlot: { position: "absolute", right: Spacing.content, bottom: -28 },
   tile: {
     width: 90,
