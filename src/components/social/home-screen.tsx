@@ -55,20 +55,23 @@ export function HomeScreen() {
   // Friends needs a profile; Global is open to guests and to accounts that have not created one yet.
   const canBrowseFriends = session.status === "ready";
   const canBrowseGlobal = canBrowseFriends || guest || session.status === "profile-required";
-  // Keep both subscriptions alive so switching feeds retains loaded pages instead of flashing the skeleton.
+  // Keep both subscriptions alive so switching feeds retains loaded pages instead of flashing the skeleton. Each starts
+  // while the session is still loading so its first page arrives with the session's answer.
   const friendsFeed = useCursorPages(
     api.sharedVisits.listFeed,
-    canBrowseFriends ? {} : "skip",
+    canBrowseFriends || session.prefetch.profile ? {} : "skip",
     session.key,
     feedPage,
     visitId,
+    { report: canBrowseFriends },
   );
   const globalFeed = useCursorPages(
     api.sharedVisits.listPublic,
-    canBrowseGlobal ? {} : "skip",
+    canBrowseGlobal || session.prefetch.public ? {} : "skip",
     session.key,
     feedPage,
     visitId,
+    { report: canBrowseGlobal },
   );
   // Profiles land on Friends only when it has visits. The first answer sticks so a later friend post cannot pull the
   // reader off Global.

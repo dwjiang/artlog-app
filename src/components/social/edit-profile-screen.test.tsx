@@ -14,6 +14,7 @@ const mockMine = jest.fn();
 const mockSetSafetyChecks = jest.fn();
 jest.mock("convex/react", () => ({
   ...jest.requireActual("convex/react"),
+  useConvexAuth: () => ({ isAuthenticated: true }),
   useAction: () => mockSave,
   useMutation: () => mockSetSafetyChecks,
 }));

@@ -1,11 +1,13 @@
 import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import type { RequestForQueries } from "convex/react";
 import { getFunctionName } from "convex/server";
+import { ConvexError } from "convex/values";
 import type { PropsWithChildren } from "react";
 import { Platform } from "react-native";
 
 import { scrollViewHolding } from "@/components/scroll-view.testing";
 import { Spacing } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
 import type { SharedVisit } from "@/lib/social/types";
 import { UnseenNotificationCount } from "@/lib/social/unseen-notifications";
 import type { SocialSession } from "@/lib/social/use-social-session";
@@ -119,6 +121,7 @@ beforeEach(() => {
     offline: false,
     accountReady: true,
     safetyChecks: true,
+    prefetch: { public: false, profile: false },
     refresh: jest.fn(),
     error: undefined,
   };
@@ -353,3 +356,58 @@ it.each([
   await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
   expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
 });
+
+const subscribedQueries = () =>
+  [...mockSubscriptions.values()].flatMap(Object.values).map(({ query }) => getFunctionName(query));
+
+it("asks for both feeds while the session loads and shows them only once it is ready", async () => {
+  const ready = mockSession;
+  mockSession = {
+    ...ready,
+    status: "loading",
+    scope: undefined,
+    profileId: undefined,
+    accountReady: false,
+    prefetch: { public: true, profile: true },
+  };
+  await renderHome();
+  expect(subscribedQueries()).toEqual(["sharedVisits:listFeed", "sharedVisits:listPublic"]);
+  await deliver({
+    "sharedVisits:listFeed:first": page("Friends museum"),
+    "sharedVisits:listPublic:first": page("Global museum"),
+  });
+  expect(screen.getByLabelText("Loading your account…")).toBeOnTheScreen();
+  expect(screen.queryByText("Friends museum")).toBeNull();
+  expect(screen.queryByText("Global museum")).toBeNull();
+  mockSession = ready;
+  await screen.rerender(<HomeScreen />);
+  expect(screen.getByText("Friends museum")).toBeOnTheScreen();
+  expect(screen.queryByLabelText("Loading visits…")).toBeNull();
+});
+
+it.each(["profile_required", "sign_in_required", "device_not_registered"])(
+  "keeps a %s failure of an early Friends feed off screen and unreported",
+  async (code) => {
+    mockSession = {
+      ...mockSession,
+      status: "loading",
+      scope: undefined,
+      profileId: undefined,
+      accountReady: false,
+      prefetch: { public: true, profile: true },
+    };
+    await renderHome();
+    await deliver({
+      "sharedVisits:listFeed:first": new ConvexError({ code }),
+      "sharedVisits:listPublic:first": page("Global museum"),
+    });
+    expect(screen.getByLabelText("Loading your account…")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    mockSession = { ...mockSession, status: "profile-required", prefetch: { public: false, profile: false } };
+    await screen.rerender(<HomeScreen />);
+    expect(subscribedQueries()).toEqual(["sharedVisits:listPublic"]);
+    expect(screen.getByText("Global museum")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(reportError).not.toHaveBeenCalled();
+  },
+);

@@ -1,4 +1,5 @@
 import { useAuthToken } from "@convex-dev/auth/react";
+import { useConvexAuth } from "convex/react";
 import { useNetworkState } from "expo-network";
 
 import { useLocalOwner, useOwnerIdentityGeneration } from "@/lib/account/owner-store";
@@ -12,11 +13,14 @@ export function useSocialSession() {
   const owner = useLocalOwner();
   const generation = useOwnerIdentityGeneration();
   const token = useAuthToken();
+  const { isAuthenticated } = useConvexAuth();
   const deviceReady = useDeviceReady();
   const network = useNetworkState();
   const offline = isOffline(network);
-  const key = `${generation}:${offline ? "offline" : "online"}:${deviceReady && !!token}`;
-  const account = useSocialQuery(api.accounts.me, deviceReady && !offline ? {} : "skip", key);
+  const signedIn = isAuthenticated && !!token;
+  const key = `${generation}:${offline ? "offline" : "online"}:${signedIn}`;
+  // The account check answers before the device registers, so it goes out with the device check, not after it.
+  const account = useSocialQuery(api.accounts.me, isAuthenticated && !offline ? {} : "skip", key);
   const linked = account.data?.linked === true;
   // Social reads need the finished sign-in claim, not the journal sync that reruns it on every launch.
   const accountReady =
@@ -35,6 +39,10 @@ export function useSocialSession() {
             : profileId
               ? "ready"
               : "profile-required";
+  // While the startup checks are in flight, reads their answer will most likely allow can start so they arrive with
+  // it; they render only once `status` allows them. A journal kept for an account most likely has a profile.
+  const checking = status === "loading" && signedIn && (!deviceReady || account.data === undefined);
+  const likelyProfile = account.data ? account.data.profileId !== null : owner.startsWith("account:");
   return {
     key: `${key}:${account.data?.scope ?? ""}`,
     scope: accountReady ? account.data?.scope : undefined,
@@ -45,6 +53,7 @@ export function useSocialSession() {
     offline,
     accountReady,
     safetyChecks: account.data?.safetyChecks === true,
+    prefetch: { public: checking, profile: checking && likelyProfile },
     refresh: account.refresh,
   };
 }

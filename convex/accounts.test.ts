@@ -8,7 +8,7 @@ import { fileStorage } from "./lib/fileStorage";
 import { verifyGoogleIdentityToken } from "./lib/googleToken";
 import { limitDevice } from "./lib/rateLimits";
 import { seedDevice, seedJournalVisit, seedMuseum, seedScan } from "./lib/testFactories";
-import { harness, type Harness } from "./test.helpers";
+import { harness, signIn, type Harness } from "./test.helpers";
 
 vi.mock("./lib/appleToken", () => ({ verifyAppleIdentityToken: vi.fn<typeof verifyAppleIdentityToken>() }));
 vi.mock("./lib/appleRevocation", () => ({ revokeAppleAuthorization: vi.fn<typeof revokeAppleAuthorization>() }));
@@ -326,6 +326,38 @@ it("reports the usable profile and whether sign-in still moves the journal, so s
   expect((await device.as.query(api.accounts.me, {})).profileId).toBe(profileId);
   await t.run((ctx) => ctx.db.patch("profiles", profileId, { active: false }));
   expect(await device.as.query(api.accounts.me, {})).toMatchObject({ hasProfile: true, profileId: null });
+});
+
+const unregistered = {
+  linked: false,
+  deviceCount: 0,
+  accountId: null,
+  provider: null,
+  email: null,
+  hasProfile: false,
+  profileId: null,
+  claimComplete: true,
+  safetyChecks: null,
+  scope: "",
+};
+
+it("answers a first launch before its device registers, then with the registered device's scope", async () => {
+  const t = harness();
+  const user = await signIn(t);
+  expect(await user.as.query(api.accounts.me, {})).toEqual(unregistered);
+  const { deviceId } = await user.as.mutation(api.devices.registerDevice, { platform: "ios" });
+  expect(await user.as.query(api.accounts.me, {})).toEqual({ ...unregistered, scope: `device:${deviceId}:0` });
+  await t.run((ctx) => ctx.db.patch("devices", deviceId, { banned: true }));
+  await expect(user.as.query(api.accounts.me, {})).rejects.toMatchObject({ data: { code: "device_banned" } });
+  await expect(t.query(api.accounts.me, {})).rejects.toMatchObject({ data: { code: "unauthenticated" } });
+});
+
+it("tells a phone retired by another device's deletion nothing about the deleted account", async () => {
+  const t = harness();
+  const { a, b } = await pair(t);
+  await a.as.action(api.profiles.create, { username: "first_reader", name: "Reader" });
+  await a.as.mutation(api.accounts.deleteAccount, {});
+  expect(await b.as.query(api.accounts.me, {})).toEqual(unregistered);
 });
 
 it("keeps one safety-checks answer per account, which an `ifUnset` answer never overrides", async () => {

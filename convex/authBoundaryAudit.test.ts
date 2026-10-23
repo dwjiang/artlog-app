@@ -130,7 +130,6 @@ it("keeps device, account and catalog reads inaccessible to anonymous and unregi
     [user.as, "device_not_registered"],
   ] as const) {
     const reads = [
-      () => caller.query(api.accounts.me, {}),
       () => caller.query(api.artworks.enrichment, { artworkId }),
       () => caller.query(api.artworks.get, { artworkId }),
       () => caller.query(api.artworks.search, { query: "Monet" }),
@@ -153,6 +152,9 @@ it("keeps device, account and catalog reads inaccessible to anonymous and unregi
       data: { code },
     });
   }
+  // A first launch asks for its account while it registers the device, so that answer holds nothing to read.
+  await expect(t.query(api.accounts.me, {})).rejects.toMatchObject({ data: { code: "unauthenticated" } });
+  expect(await user.as.query(api.accounts.me, {})).toMatchObject({ linked: false, accountId: null, scope: "" });
 }, 15_000);
 
 it("never treats a bot issuer with a user's subject as that user", async () => {

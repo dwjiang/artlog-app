@@ -9,6 +9,7 @@ import { useSocialSession } from "@/lib/social/use-social-session";
 
 const mockMutation = jest.fn();
 jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => "token-a" }));
+jest.mock("convex/react", () => ({ useConvexAuth: () => ({ isAuthenticated: true }) }));
 jest.mock("expo-network", () => ({ useNetworkState: () => ({ isConnected: true }) }));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));

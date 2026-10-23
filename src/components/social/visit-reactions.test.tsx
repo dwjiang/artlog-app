@@ -70,6 +70,7 @@ beforeEach(() => {
     status: "ready",
     accountReady: true,
     safetyChecks: true,
+    prefetch: { public: false, profile: false },
     offline: false,
     error: undefined,
     refresh: mockRefresh,

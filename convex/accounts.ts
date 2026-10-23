@@ -9,7 +9,7 @@ import { withdrawContributionCrop } from "./contributionRemoval";
 import { requireAttestedWrite } from "./devices";
 import { internalMutation, mutation } from "./functions";
 import { revokeAppleAuthorization } from "./lib/appleRevocation";
-import { requireDevice } from "./lib/auth";
+import { findDeviceForUser, requireAuthUserId, requireDevice } from "./lib/auth";
 import { deleteUnreferencedCollectionPhotos, deleteUnreferencedPhoto } from "./lib/collectionPhotos";
 import { deleteAuthAccountBatch, retireDevice } from "./lib/deviceRetirement";
 import { withErrorReporting } from "./lib/observability";
@@ -308,6 +308,19 @@ async function purgeJournalBatch(ctx: MutationCtx, owner: JournalOwner): Promise
   return false;
 }
 
+const UNREGISTERED = {
+  linked: false,
+  deviceCount: 0,
+  accountId: null,
+  provider: null,
+  email: null,
+  hasProfile: false,
+  profileId: null,
+  claimComplete: true,
+  safetyChecks: null,
+  scope: "",
+};
+
 export const me = query({
   args: {},
   returns: v.object({
@@ -322,10 +335,14 @@ export const me = query({
     // False while this device's sign-in is still moving its guest journal into the account.
     claimComplete: v.boolean(),
     safetyChecks: v.union(v.boolean(), v.null()),
+    // Empty until the device registers.
     scope: v.string(),
   }),
   handler: async (ctx) => {
-    const device = await requireDevice(ctx);
+    const device = await findDeviceForUser(ctx, await requireAuthUserId(ctx));
+    // A first launch asks this while it registers the device it just signed in with.
+    if (!device) return UNREGISTERED;
+    if (device.banned) throw new ConvexError({ code: "device_banned" });
     const account = device.accountId ? await ctx.db.get("accounts", device.accountId) : null;
     const profile = account
       ? await ctx.db
