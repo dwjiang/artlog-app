@@ -107,7 +107,7 @@ it("navigates only the selected shared photos and preserves authenticated media 
     "selected-b",
   ]);
   expect(photos.every((photo) => photo.props.source.headers.Authorization === "Bearer private-token")).toBe(true);
-  expect(photos.every((photo) => photo.props.cachePolicy === "memory")).toBe(true);
+  expect(photos.every((photo) => photo.props.cachePolicy === "memory-disk")).toBe(true);
   expect(screen.getByText(/Vincent van Gogh/)).toBeOnTheScreen();
   expect(screen.getByRole("header", { name: "Starry Night" })).toBeOnTheScreen();
 });

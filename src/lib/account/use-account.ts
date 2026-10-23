@@ -2,7 +2,6 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import * as AppleAuthentication from "expo-apple-authentication";
-import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
@@ -10,6 +9,7 @@ import { setSetting } from "@/db/repos/settings";
 import { canAttest, signPayload } from "@/lib/attested-write";
 import { convex } from "@/lib/convex-client";
 import { resumeDeviceIdentity, signInAnonymously, suspendDeviceIdentity } from "@/lib/device-identity";
+import { clearImageCaches } from "@/lib/image-cache";
 import { addBreadcrumb, reportError } from "@/lib/observability";
 import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { useDeviceReady } from "@/lib/use-device-ready";
@@ -146,7 +146,7 @@ export function useAccount() {
       switchOwner(anonymousOwner());
       await setSetting("activeJournalOwner", anonymousOwner());
       await endSession();
-      await Image.clearMemoryCache();
+      await clearImageCaches();
       await signInAnonymously(signIn);
     });
 

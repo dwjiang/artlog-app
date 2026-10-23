@@ -1,9 +1,9 @@
 import { Directory, Paths } from "expo-file-system";
-import { Image } from "expo-image";
 
 import { deleteAllLocalData } from "@/db/repos/local-data";
 import { forgetDeviceIdentity } from "@/lib/device-identity";
 import { PHOTO_FOLDERS } from "@/lib/files/photo-folders";
+import { clearImageCaches } from "@/lib/image-cache";
 import { startNewInstallation } from "@/lib/installation-storage";
 
 import { initializeOwner } from "./owner-store";
@@ -15,8 +15,7 @@ export async function eraseLocalData(): Promise<void> {
     const directory = new Directory(Paths.document, folder);
     if (directory.exists) directory.delete();
   }
-  await Image.clearDiskCache();
-  await Image.clearMemoryCache();
+  await clearImageCaches();
   await forgetDeviceIdentity();
   initializeOwner(startNewInstallation());
 }

@@ -45,9 +45,7 @@ jest.mock("expo-apple-authentication", () => ({
   formatFullName: (name: { givenName: string | null; familyName: string | null }) =>
     [name.givenName, name.familyName].filter(Boolean).join(" "),
 }));
-jest.mock("expo-image", () => ({
-  Image: { clearMemoryCache: () => mockClearImages() },
-}));
+jest.mock("@/lib/image-cache", () => ({ clearImageCaches: () => mockClearImages() }));
 jest.mock("./google-sign-in", () => ({
   googleSignInAvailable: true,
   googleSignIn: () => mockGoogle(),
