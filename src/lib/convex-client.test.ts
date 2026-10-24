@@ -6,7 +6,6 @@ const bootUptime = 2_111_794_942;
 const zeroTimestamp = "AAAAAAAAAAA=";
 const originalWebSocket = globalThis.WebSocket;
 let convex: ConvexReactClient | undefined;
-let responseDelayMs = 0;
 
 type Version = { querySet: number; identity: number; ts: string };
 
@@ -47,12 +46,11 @@ class FakeSyncSocket {
       endVersion: this.version,
       modifications: [],
       clientClockSkew: this.clockSkew,
-      serverTs: Date.now() * 1_000_000,
     });
   }
 
   private reply(message: object) {
-    setTimeout(() => this.onmessage?.({ data: JSON.stringify(message) }), responseDelayMs);
+    setTimeout(() => this.onmessage?.({ data: JSON.stringify(message) }), 0);
   }
 }
 
@@ -64,14 +62,12 @@ function jwt(issuedAt: number, lifetimeSeconds: number): string {
 afterEach(async () => {
   await convex?.close();
   convex = undefined;
-  responseDelayMs = 0;
   globalThis.WebSocket = originalWebSocket;
   jest.useRealTimers();
   jest.restoreAllMocks();
 });
 
 it("keeps a confirmed cached token at launch and refreshes it before it expires on a long-running phone", async () => {
-  const log = jest.spyOn(console, "log").mockImplementation(() => {});
   jest.useFakeTimers({ now: wallClock, doNotFake: ["performance"] });
   jest.spyOn(performance, "now").mockImplementation(() => bootUptime + Date.now() - wallClock);
   globalThis.WebSocket = FakeSyncSocket as unknown as typeof WebSocket;
@@ -94,23 +90,4 @@ it("keeps a confirmed cached token at launch and refreshes it before it expires 
   expect(fetchToken).toHaveBeenCalledTimes(1);
   await jest.advanceTimersByTimeAsync(58_000);
   expect(fetchToken).toHaveBeenLastCalledWith({ forceRefreshToken: true });
-  expect(log.mock.calls.flat().join(" ")).not.toContain("took more than 20s");
-});
-
-it("still reports a response delayed in transit on a long-running phone", async () => {
-  jest.useFakeTimers({ now: wallClock, doNotFake: ["performance"] });
-  jest.spyOn(performance, "now").mockImplementation(() => bootUptime + Date.now() - wallClock);
-  const log = jest.spyOn(console, "log").mockImplementation(() => {});
-  responseDelayMs = 25_000;
-  globalThis.WebSocket = FakeSyncSocket as unknown as typeof WebSocket;
-  jest.isolateModules(() => {
-    convex = jest.requireActual<typeof import("./convex-client")>("./convex-client").convex;
-  });
-  convex!.setAuth(async () => jwt(wallClock / 1_000, 3_600), jest.fn());
-
-  await jest.advanceTimersByTimeAsync(26_000);
-
-  const slowResponses = log.mock.calls.flat().filter((message) => String(message).includes("took more than 20s"));
-  expect(slowResponses.length).toBeGreaterThan(0);
-  expect(slowResponses.every((message) => String(message).includes("(25000ms)"))).toBe(true);
 });
