@@ -73,7 +73,9 @@ function VisitArt({ visit, token }: { visit: SharedVisit; token?: string | null 
                 pathname: "/artwork",
                 params: { kind: "visit", postId: visit.postId, itemId },
               }),
-            renderImage: (size) => <DisplayMedia media={media} label={artwork.title} token={token} {...size} />,
+            renderImage: (size) => (
+              <DisplayMedia media={media} label={artwork.title} token={token} feedSize {...size} />
+            ),
           };
         })}
         onEndReached={() => {

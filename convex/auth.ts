@@ -64,6 +64,10 @@ const nativeProvider = (provider: AccountProvider) =>
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [anonymous, nativeProvider("apple"), nativeProvider("google")],
+  // App opens are usually more than an hour apart; a day-long token spares most cold launches a refresh round trip.
+  // A leaked token stays usable for that day, but it only names a device user. Each call rereads that device's row,
+  // so sign-out, data deletion and bans apply on the next request. Keep it well under the 30-day session default.
+  jwt: { durationMs: 24 * 60 * 60 * 1000 },
   callbacks: {
     createOrUpdateUser: async (ctx, args) => {
       if (args.provider.id === "apple-native" || args.provider.id === "google-native") {

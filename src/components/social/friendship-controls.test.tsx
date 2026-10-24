@@ -28,6 +28,7 @@ const guest: SocialSession = {
   profileId: undefined,
   accountReady: false,
   safetyChecks: false,
+  prefetch: { public: false, profile: false },
   offline: false,
   error: undefined,
   refresh: jest.fn(),

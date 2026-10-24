@@ -9,6 +9,7 @@ import { internalMutation } from "./functions";
 import { ownedAlbumPhoto } from "./lib/albumMedia";
 import { requireDeviceFromAction } from "./lib/auth";
 import { deleteUnreferencedPhoto } from "./lib/collectionPhotos";
+import { queueFeedPhoto } from "./lib/feedPhotos";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { reportBackendError } from "./lib/observability";
 import { nextChangeVersion, requireJournalOwner, requireOwnedSave } from "./lib/ownership";
@@ -76,12 +77,9 @@ export const attach = internalMutation({
     const photoUpdatedAt = photo ? 0 : Math.max(Date.now(), (save.photoUpdatedAt ?? 0) + 1);
     await retainFile(ctx, storageId);
     if (photo) {
-      await ctx.db.patch("artworkPhotos", photo._id, {
-        storageId,
-        width,
-        height,
-        changeVersion,
-      });
+      const fields = { storageId, width, height, changeVersion };
+      await ctx.db.patch("artworkPhotos", photo._id, fields);
+      await queueFeedPhoto(ctx, { ...photo, ...fields });
     } else {
       await ctx.db.patch("collections", save._id, {
         cropStorageId: storageId,

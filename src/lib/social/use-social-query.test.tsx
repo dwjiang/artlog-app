@@ -338,3 +338,17 @@ it("reports failed later pages without including the cursor or search text", asy
   expect(view.result.current.error).toBe(failure);
   expect(reportError).toHaveBeenCalledWith(failure, "social.query.profiles:search");
 });
+
+it("reports a failed read started before the session allowed it only once it is allowed", async () => {
+  const failure = new ConvexError({ code: "device_not_registered" });
+  mockResults.first = failure;
+  const view = await renderHook(
+    ({ report }: { report: boolean }) =>
+      useCursorPages(api.profiles.search, { query: "alex" }, "account-a", select, identify, { report }),
+    { initialProps: { report: false } },
+  );
+  expect(view.result.current.error).toBe(failure);
+  expect(reportError).not.toHaveBeenCalled();
+  await view.rerender({ report: true });
+  expect(reportError).toHaveBeenCalledWith(failure, "social.query.profiles:search");
+});

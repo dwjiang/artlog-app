@@ -11,10 +11,12 @@ import { optionalProfile } from "./lib/ownership";
 import { projectArtwork } from "./lib/projections";
 import { requireSharedVisitItem } from "./lib/publicationAccess";
 
+const mediaSize = v.optional(v.literal("feed"));
+
 export const authorize = internalQuery({
-  args: { context: sharedVisitMediaContext },
+  args: { context: sharedVisitMediaContext, size: mediaSize },
   returns: v.string(),
-  handler: async (ctx, { context }) => {
+  handler: async (ctx, { context, size }) => {
     validateMediaContext(context);
     const profile = await optionalProfile(ctx);
     const { item, save } = await requireSharedVisitItem(ctx, context.postId, context.itemId, profile?._id);
@@ -24,8 +26,10 @@ export const authorize = internalQuery({
     if (context.photoLocalId) {
       const photo = await ownedAlbumPhoto(ctx, save, context.photoLocalId);
       if (!photo.storageId) throw new ConvexError({ code: "not_found" });
-      return photo.storageId;
+      // Until its copy exists, a photo's feed size is the original.
+      return (size === "feed" && photo.feedStorageId) || photo.storageId;
     }
+    if (size) throw new ConvexError({ code: "not_found" });
     const asset = await resolveDisplayAsset(ctx, save);
     if (!asset?.storageId || projectArtwork(save, asset, context).media.kind !== "derivative") {
       throw new ConvexError({ code: "not_found" });
@@ -41,19 +45,18 @@ export const authorize = internalQuery({
 export async function serveSharedMedia(
   ctx: Pick<ActionCtx, "runQuery">,
   context: Infer<typeof sharedVisitMediaContext>,
+  size?: Infer<typeof mediaSize>,
 ): Promise<Response> {
   const headers = {
     "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",
   };
   try {
-    const storageId = await ctx.runQuery(internal.sharedMedia.authorize, {
-      context,
-    });
+    const storageId = await ctx.runQuery(internal.sharedMedia.authorize, { context, size });
     const blob = await fileStorage.get(ctx, storageId);
     if (!blob) throw new ConvexError({ code: "not_found" });
     // Recheck after fetching the bytes so a revocation during storage IO is honored.
-    if ((await ctx.runQuery(internal.sharedMedia.authorize, { context })) !== storageId) {
+    if ((await ctx.runQuery(internal.sharedMedia.authorize, { context, size })) !== storageId) {
       throw new ConvexError({ code: "not_found" });
     }
     return new Response(blob, {

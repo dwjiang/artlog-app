@@ -11,6 +11,7 @@ crons.interval("expire unattached files", { hours: 1 }, internal.files.expire, {
 
 // Queued jobs and failed writes schedule their own drains; this recovers jobs a crashed drain left leased.
 crons.interval("recover Pinecone sync", { hours: 1 }, internal.vectorSync.drain, {});
+crons.interval("recover feed photo copies", { hours: 1 }, internal.feedPhotos.wake, {});
 crons.daily(
   "read due exhibition listings",
   { hourUTC: 10, minuteUTC: 23 },

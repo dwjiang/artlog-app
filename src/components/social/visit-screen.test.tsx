@@ -154,6 +154,22 @@ it("marks an artwork that has more than one shared photo", async () => {
   expect(screen.getByRole("button", { name: "View The Dance" })).toBeOnTheScreen();
 });
 
+it("hangs a shared photo's feed copy in the art band", async () => {
+  process.env.EXPO_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
+  const photo = {
+    kind: "photo" as const,
+    width: 300,
+    height: 400,
+    reference: { kind: "sharedVisit" as const, postId: "post-a", itemId: "a" as never, photoLocalId: "photo-a" },
+    feedSize: true as const,
+  };
+  mockVisit = { data: { ...visit, artworks: { ...visit.artworks, page: [{ ...works[0], photos: [photo] }] } } };
+  await render(<VisitScreen postId="post-a" />);
+  const uri = new URL(screen.getByRole("image", { name: "Water Lilies" }).props.source.uri);
+  expect(uri.searchParams.get("photoLocalId")).toBe("photo-a");
+  expect(uri.searchParams.get("size")).toBe("feed");
+});
+
 it("labels artworks in ink that stays legible on light and dark wallpapers", async () => {
   const view = await render(<VisitScreen postId="post-a" />);
   expect(screen.getByText("Henri Matisse")).toHaveStyle({ color: Gallery.ink });

@@ -11,7 +11,7 @@ export function registerFileReferences(fileTriggers: Triggers<DataModel>) {
   function register<T extends TableNames>(
     table: T,
     references: (doc: Doc<T>) => Reference[],
-    provenance: { crop?: (doc: Doc<T>) => Reference; ownerPhoto?: (doc: Doc<T>) => Reference } = {},
+    provenance: { crop?: (doc: Doc<T>) => Reference[]; ownerPhoto?: (doc: Doc<T>) => Reference[] } = {},
   ) {
     fileTriggers.register(table, async (ctx, { oldDoc, newDoc }) => {
       const changes = new Map<Id<"files">, number>();
@@ -24,15 +24,21 @@ export function registerFileReferences(fileTriggers: Triggers<DataModel>) {
           if (id) changes.set(id, (changes.get(id) ?? 0) + amount);
         }
       }
-      const changedMarker = (read?: (doc: Doc<T>) => Reference) =>
-        newDoc && read && (!oldDoc || read(oldDoc) !== read(newDoc)) ? read(newDoc) : undefined;
-      const ownerPhoto = changedMarker(provenance.ownerPhoto);
-      const contributionCrop = changedMarker(provenance.crop);
-      for (const id of [ownerPhoto, contributionCrop]) {
-        if (id && !changes.has(id)) changes.set(id, 0);
+      const addedMarkers = (read?: (doc: Doc<T>) => Reference[]) =>
+        new Set(
+          newDoc && read
+            ? read(newDoc).filter((id): id is Id<"files"> => !!id && !(oldDoc && read(oldDoc).includes(id)))
+            : [],
+        );
+      const ownerPhotos = addedMarkers(provenance.ownerPhoto);
+      const contributionCrops = addedMarkers(provenance.crop);
+      for (const id of [...ownerPhotos, ...contributionCrops]) {
+        if (!changes.has(id)) changes.set(id, 0);
       }
       for (const [id, amount] of changes) {
-        if (amount === 0 && id !== ownerPhoto && id !== contributionCrop) continue;
+        const ownerPhoto = ownerPhotos.has(id);
+        const contributionCrop = contributionCrops.has(id);
+        if (amount === 0 && !ownerPhoto && !contributionCrop) continue;
         const file = await ctx.db.get("files", id);
         if (!file || file.state !== "ready") throw new ConvexError({ code: "file_missing" });
         const refCount = file.refCount + amount;
@@ -43,8 +49,8 @@ export function registerFileReferences(fileTriggers: Triggers<DataModel>) {
           refCount,
           expiresAt: released ? Date.now() + (archive ? FILE_RELEASE_GRACE_MS : 0) : undefined,
           // These provenance flags are permanent, including after a photo is soft-deleted.
-          ownerPhoto: file.ownerPhoto || id === ownerPhoto,
-          contributionCrop: file.contributionCrop || id === contributionCrop,
+          ownerPhoto: file.ownerPhoto || ownerPhoto,
+          contributionCrop: file.contributionCrop || contributionCrop,
         });
         if (released && !archive) await ctx.scheduler.runAfter(0, internal.files.discard, { id });
       }
@@ -54,13 +60,14 @@ export function registerFileReferences(fileTriggers: Triggers<DataModel>) {
   register("scanEmbeddings", (row) => [row.archiveId]);
   register("vectors", (row) => [row.archiveId]);
   register("savedRecognition", (row) => [row.archiveId, row.orbStorageId]);
-  register("contributions", (row) => [row.orbStorageId, row.cropStorageId], { crop: (row) => row.cropStorageId });
+  register("contributions", (row) => [row.orbStorageId, row.cropStorageId], { crop: (row) => [row.cropStorageId] });
   register("objectDetails", (row) => [row.thumbnailStorageId, row.orb?.storageId]);
   register("collections", (row) => (row.deletedAt === undefined ? [row.cropStorageId] : []), {
-    ownerPhoto: (row) => row.cropStorageId,
+    ownerPhoto: (row) => [row.cropStorageId],
   });
-  register("artworkPhotos", (row) => (row.deletedAt === undefined ? [row.storageId] : []), {
-    ownerPhoto: (row) => row.storageId,
+  // The feed copy shows the same photo, so it lives and dies with the original and is marked as an owner photo too.
+  register("artworkPhotos", (row) => (row.deletedAt === undefined ? [row.storageId, row.feedStorageId] : []), {
+    ownerPhoto: (row) => [row.storageId, row.feedStorageId],
   });
   register("mediaAssets", (row) => (row.revokedAt === undefined ? [row.storageId] : []));
   register("profiles", (row) => [row.photoStorageId]);

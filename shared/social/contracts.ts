@@ -108,6 +108,8 @@ export const displayMedia = v.union(
     width: v.number(),
     height: v.number(),
     reference: displayMediaContext,
+    /** A shared visit photo with a feed-sized copy, served at `size=feed`. */
+    feedSize: v.optional(v.literal(true)),
   }),
 );
 export const publicArtwork = v.object({

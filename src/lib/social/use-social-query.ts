@@ -72,6 +72,8 @@ export function useCursorPages<Q extends Query, T>(
   scope: string,
   select: (result: FunctionReturnType<Q>) => CursorPage<T>,
   identify: (item: T) => string,
+  // A read started before the session allows it can fail because it was not allowed; it reports only once allowed.
+  { report = true }: { report?: boolean } = {},
 ) {
   const name = getFunctionName(query);
   const serialized = JSON.stringify(args);
@@ -126,8 +128,8 @@ export function useCursorPages<Q extends Query, T>(
   const pages = holding ? { ...live, items: holding.items, first: holding.first } : live;
   const refreshing = retry.refreshing || holding !== undefined;
   useEffect(() => {
-    if (pages.error) reportError(pages.error, `social.query.${name}`);
-  }, [pages.error, name]);
+    if (pages.error && report) reportError(pages.error, `social.query.${name}`);
+  }, [pages.error, name, report]);
   return {
     ...pages,
     refreshing,

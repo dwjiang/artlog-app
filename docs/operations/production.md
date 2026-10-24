@@ -95,6 +95,14 @@ npx convex run artworks:backfillSearchFields '{"cursor":null}' --prod --env-file
 npx convex run artists:refreshCovers --prod --env-file .context/production-target.env
 ```
 
+The feed shows a shared photo's original until its feed-sized copy exists. Uploads
+queue copies; queue any that are missing, such as for imported photos or failed
+copies, with:
+
+```sh
+npx convex run feedPhotos:backfill --prod --env-file .context/production-target.env
+```
+
 These jobs return before their scheduled pages complete. Inspect completion and
 errors rather than treating command return as completion. Export the venue asset
 from the actual target before building the iOS app; IDs from another deployment
