@@ -1,11 +1,12 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { FlatList, View } from "react-native";
+import { View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState, SearchEmptyState } from "@/components/empty-state";
 import { ListIcon, ListRow, ListSection } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { SearchField } from "@/components/search-field";
 import { AvatarStack } from "@/components/social/avatar-stack";
 import { ProfileAvatar } from "@/components/social/profile-avatar";
@@ -86,7 +87,7 @@ export function CompanionPicker({
   const toggle = (id: ProfileId) =>
     onChange(selected.includes(id) ? selected.filter((picked) => picked !== id) : [...selected, id]);
   return (
-    <FlatList
+    <SafeAreaFlatList
       style={{ backgroundColor: Gallery.groupedBackground }}
       contentInsetAdjustmentBehavior="automatic"
       bounces={rows.length > 0}

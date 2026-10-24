@@ -13,6 +13,7 @@ import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { LoadingImage } from "@/components/loading-image";
 import { LoadingRing } from "@/components/loading-ring";
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { saveArtworkSession } from "@/db/repos/artwork-album";
@@ -342,7 +343,7 @@ function PhotoSession({
   const artist = target?.artist || input?.draft.artist;
   const shares = !savedId && !!saveCapture && !!readPhotoSession(owner, draftId).saveInput?.contribution;
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={styles.screen}
       contentContainerStyle={styles.page}
       contentInsetAdjustmentBehavior="automatic"
@@ -597,7 +598,7 @@ function PhotoSession({
       <ThemedText style={[styles.hint, { textAlign: "center" }]}>
         {shares ? SHARING_NOTICE : "Only you can see these photos."}
       </ThemedText>
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 const styles = StyleSheet.create({

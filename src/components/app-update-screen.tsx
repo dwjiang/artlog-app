@@ -5,9 +5,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppUpdateButton } from "@/components/app-update-button";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 
 export function AppUpdateScreen() {
   const insets = useSafeAreaInsets();
+  const padding = useHorizontalSafeAreaPadding(styles.content);
   const { fontScale } = useWindowDimensions();
   const largeText = fontScale > 1.4;
 
@@ -17,6 +19,7 @@ export function AppUpdateScreen() {
       contentInsetAdjustmentBehavior="never"
       contentContainerStyle={[
         styles.content,
+        padding,
         { paddingTop: insets.top + Spacing.content, paddingBottom: Math.max(insets.bottom, Spacing.four) },
       ]}
     >

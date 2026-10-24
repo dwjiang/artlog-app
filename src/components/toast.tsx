@@ -38,7 +38,7 @@ function PositionedToastLayer({
   lifted?: boolean;
 }) {
   const toast = useToast();
-  const { bottom } = useSafeAreaInsets();
+  const { bottom, left, right } = useSafeAreaInsets();
   const lift = useToastLift();
   const layer = useRef<View>(null);
   const [measured, setMeasured] = useState<{ id?: number; height: number }>();
@@ -62,7 +62,11 @@ function PositionedToastLayer({
       collapsable={false}
       pointerEvents="box-none"
       onLayout={({ nativeEvent: { layout } }) => setMeasured({ id: toast?.id, height: layout.height })}
-      style={[styles.layer, position === undefined ? { bottom: resting, opacity: 0 } : { bottom: position }]}
+      style={[
+        styles.layer,
+        { left: left + Spacing.content, right: right + Spacing.content },
+        position === undefined ? { bottom: resting, opacity: 0 } : { bottom: position },
+      ]}
     >
       {children}
       {toast && (
@@ -104,8 +108,6 @@ export function toastLayerBottom(resting: number, lift: ToastLift | undefined, l
 const styles = StyleSheet.create({
   layer: {
     position: "absolute",
-    left: Spacing.content,
-    right: Spacing.content,
     alignItems: "center",
     gap: 8,
   },

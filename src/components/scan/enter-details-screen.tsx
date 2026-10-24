@@ -1,10 +1,11 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { FormSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -43,13 +44,13 @@ function EnterDetails({ scanId }: { scanId: Id<"scans"> }) {
   if (scan === undefined || (loaded && !form)) {
     return (
       <ThemedView style={styles.container}>
-        <ScrollView
+        <SafeAreaScrollView
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.content}
           scrollEnabled={false}
         >
           <FormSkeleton label="Loading the details…" />
-        </ScrollView>
+        </SafeAreaScrollView>
       </ThemedView>
     );
   }

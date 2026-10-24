@@ -6,9 +6,10 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
 import createQrCode from "qrcode-generator";
 import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Linking, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Linking, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
@@ -143,7 +144,11 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
   }
 
   return (
-    <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+    <SafeAreaScrollView
+      style={styles.root}
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={styles.content}
+    >
       {/* The capture includes the gray margin so the overhanging avatar keeps its backdrop in the shared image. */}
       <View ref={card} collapsable={false} style={styles.capture}>
         <View style={styles.card}>
@@ -207,7 +212,7 @@ function ShareProfileContent({ person }: { person: PublicProfile }) {
       <Text variant="secondary" themeColor="textSecondary" style={[styles.center, styles.caption]}>
         Scan with the iPhone Camera to open in Artlog.
       </Text>
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

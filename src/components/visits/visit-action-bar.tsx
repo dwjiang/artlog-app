@@ -15,7 +15,7 @@ export function VisitActionBar({
   disabled: boolean;
   onSave: () => void;
 }) {
-  const { bottom } = useSafeAreaInsets();
+  const { bottom, left, right } = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
   useEffect(() => {
     const show = Keyboard.addListener("keyboardWillShow", () => setKeyboardVisible(true));
@@ -29,7 +29,8 @@ export function VisitActionBar({
   return (
     <View
       style={{
-        paddingHorizontal: 20,
+        paddingLeft: 20 + left,
+        paddingRight: 20 + right,
         paddingTop: 12,
         paddingBottom: Math.max(bottom, 12),
         backgroundColor: Gallery.groupedBackground,

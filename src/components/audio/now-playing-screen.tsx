@@ -25,7 +25,7 @@ export function NowPlayingScreen() {
   const { view: initialView } = useLocalSearchParams<{ view?: string }>();
   const [view, setView] = useState<PlayerView>(initialView === "queue" ? "queue" : "player");
   const audio = useListening();
-  const { bottom } = useSafeAreaInsets();
+  const { bottom, left, right } = useSafeAreaInsets();
   if (!audio.current) {
     return (
       <View style={styles.empty}>
@@ -72,7 +72,7 @@ export function NowPlayingScreen() {
     </Host>
   );
   return (
-    <View style={[styles.screen, { paddingBottom: Math.max(8, bottom) }]}>
+    <View style={[styles.screen, { paddingBottom: Math.max(8, bottom), paddingLeft: left, paddingRight: right }]}>
       <View style={styles.header}>
         <AudioIconButton name="chevron.down" label="Minimize player" onPress={() => router.back()} />
         {view === "saved" ? (

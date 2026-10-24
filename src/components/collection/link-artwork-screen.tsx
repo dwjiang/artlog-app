@@ -1,7 +1,7 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { FlatList, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ActionStack } from "@/components/action-stack";
@@ -9,6 +9,7 @@ import { EmptyState, SearchEmptyState } from "@/components/empty-state";
 import { EmptyFrames, EmptyTicket } from "@/components/empty-state-art";
 import { ListRow } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { SearchField } from "@/components/search-field";
 import { SocialState, StateScreen } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -20,6 +21,7 @@ import { useLocalOwner } from "@/lib/account/owner-store";
 import { cropSyncing } from "@/lib/account/photo-sync";
 import { formatVisitDate } from "@/lib/journal/history";
 import { reportError } from "@/lib/observability";
+import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
 import { normalizeSearch } from "@/shared/journal/limits";
 
@@ -64,6 +66,7 @@ function LinkPicker({
   }, [queryError]);
   const [search, setSearch] = useState("");
   const { bottom } = useSafeAreaInsets();
+  const footerPadding = useHorizontalSafeAreaPadding(styles.footer);
   const [selected, setSelected] = useState<string[]>([]);
   const destination = visits.data.find((visit) => visit.localId === visitId && visit.owner === owner);
   const clearSearch = () => setSearch("");
@@ -128,7 +131,7 @@ function LinkPicker({
   return (
     <>
       <Stack.Screen options={{ title: savedId ? "Link a Visit" : "Link Artworks" }} />
-      <FlatList
+      <SafeAreaFlatList
         style={{ backgroundColor: Gallery.groupedBackground }}
         contentInsetAdjustmentBehavior="automatic"
         bounces={filtered.length > 0}
@@ -255,14 +258,7 @@ function LinkPicker({
         }
       />
       {rows.length > 0 && (
-        <View
-          style={{
-            padding: 20,
-            paddingBottom: Math.max(bottom, 20),
-            backgroundColor: Gallery.groupedBackground,
-            ...PinnedFooterBorder,
-          }}
-        >
+        <View style={[styles.footer, footerPadding, { paddingBottom: Math.max(bottom, 20) }]}>
           <GalleryButton
             label={`Link ${selected.length > 0 ? selected.length : ""} ${noun}`.replace("  ", " ")}
             variant="filled"
@@ -275,3 +271,7 @@ function LinkPicker({
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  footer: { padding: 20, backgroundColor: Gallery.groupedBackground, ...PinnedFooterBorder },
+});

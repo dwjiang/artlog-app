@@ -2,6 +2,7 @@ import { Image } from "expo-image";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { Gallery, Spacing } from "@/constants/theme";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
 export const introArtworks = {
   pearl: {
@@ -22,7 +23,8 @@ export const introArtworks = {
 } as const;
 
 export function ArtworkCollage() {
-  const { width, height, fontScale } = useWindowDimensions();
+  const { height, fontScale } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const size = Math.min(width - Spacing.content * 2, height < 760 || fontScale > 1.3 ? 280 : 360);
   const prints = [
     {

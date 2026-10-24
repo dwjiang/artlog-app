@@ -1,7 +1,8 @@
 import { Stack } from "expo-router";
-import { FlatList, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { usePullToRefresh } from "@/components/pull-to-refresh";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
 import type { SharedVisit } from "@/lib/social/types";
@@ -51,7 +52,7 @@ function TagFeed({ tag, session }: { tag: string; session: SocialSession }) {
     <>
       <Stack.Screen options={{ title: `#${tag}` }} />
       {/* Each card's comments sheet renders in this tree; "handled" lets taps reach its composer. */}
-      <FlatList
+      <SafeAreaFlatList
         style={socialStyles.root}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[socialStyles.content, { paddingBottom: items.length > 0 ? 28 : 0 }]}

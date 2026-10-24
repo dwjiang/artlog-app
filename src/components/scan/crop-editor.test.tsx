@@ -32,7 +32,7 @@ jest.mock("@/lib/ui/toast", () => ({
   useLiftToasts: () => {},
 }));
 jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ bottom: 0 }),
+  useSafeAreaInsets: () => ({ bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,

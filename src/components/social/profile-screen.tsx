@@ -2,7 +2,7 @@ import { Stack, useRouter } from "expo-router";
 import { useHeaderHeight, useIsFocused } from "expo-router/react-navigation";
 import { StatusBar } from "expo-status-bar";
 import { Fragment, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/empty-state";
 import { FeedSkeleton, WallSkeleton } from "@/components/loading-skeleton";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { VisitAudienceFilter, type VisitAudienceFilterValue } from "@/components/visits/visit-visibility-picker";
 import { Gallery } from "@/constants/theme";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
@@ -49,7 +50,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   const session = useSocialSession();
   const router = useRouter();
   const headerHeight = useHeaderHeight();
-  const { top } = useSafeAreaInsets();
+  const { top, left, right } = useSafeAreaInsets();
   const [tab, setTab] = useState<"wall" | "visits">("wall");
   const [chosenAudience, setAudience] = useState<VisitAudienceFilterValue>("all");
   const [visitCount, setVisitCount] = useState<number>();
@@ -153,6 +154,8 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   }
   // The photo fits between iOS 26 bar items; older bars blur their full width, so the photo stays below them.
   const pulledToSafeArea = { marginTop: -raisedBy };
+  // The wall keeps its own full-width geometry, as on Collection; the list pads only the content around it.
+  const fullBleed = { marginLeft: -left, marginRight: -right };
   // Until the profile arrives, the same layout draws ghosts in place of the header, actions, and the open section.
   const person = profile.data;
   const unblock = () => {
@@ -203,7 +206,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
         </ReportToolbar>
       )}
       {/* Each card's comments sheet renders in this tree; "handled" lets taps reach its composer. */}
-      <ScrollView
+      <SafeAreaScrollView
         ref={scrollRef}
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="automatic"
@@ -281,7 +284,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
           wall.error ? (
             <SocialState title="Couldn’t load this wall." action="Try again" onAction={wall.refresh} />
           ) : wall.data && person ? (
-            <View onLayout={behindBar.onWallLayout}>
+            <View style={fullBleed} onLayout={behindBar.onWallLayout}>
               <PublicWallView
                 wall={wall.data}
                 arrangedBy={person.name.split(" ")[0]}
@@ -294,7 +297,9 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
               />
             </View>
           ) : (
-            <WallSkeleton />
+            <View style={fullBleed}>
+              <WallSkeleton />
+            </View>
           )
         ) : !person ? (
           <FeedSkeleton />
@@ -339,7 +344,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
             <PageFooter {...visits} count={visits.items.length} skeleton="feed" />
           </View>
         )}
-      </ScrollView>
+      </SafeAreaScrollView>
     </GestureHandlerRootView>
   );
 }

@@ -17,6 +17,7 @@ import { profilePictureArgs, shownPicture, useProfilePictureDraft } from "@/lib/
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { useUsernameCheck, usernameMessages } from "@/lib/social/use-username-check";
+import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 import { LIMITS } from "@/shared/journal/limits";
 import { socialErrorMessage } from "@/shared/social/errors";
 import { isAllowedIdentity } from "@/shared/social/offensive-text";
@@ -375,7 +376,8 @@ export function ProfileSetupScreen({
 }
 
 function SetupPage({ bar, children }: { bar?: ReactNode; children: ReactNode }) {
-  const { top, bottom } = useSafeAreaInsets();
+  const { top, bottom, left, right } = useSafeAreaInsets();
+  const padding = useHorizontalSafeAreaPadding(styles.content);
   return (
     <ScrollView
       style={styles.root}
@@ -384,7 +386,13 @@ function SetupPage({ bar, children }: { bar?: ReactNode; children: ReactNode }) 
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={[
         styles.content,
-        { paddingTop: top + Spacing.two, paddingBottom: Math.max(Spacing.four, bottom) },
+        padding,
+        {
+          // Widened by the insets it pads, the column's content keeps its width and centers in the safe area.
+          maxWidth: styles.content.maxWidth + left + right,
+          paddingTop: top + Spacing.two,
+          paddingBottom: Math.max(Spacing.four, bottom),
+        },
       ]}
     >
       {bar}

@@ -8,6 +8,7 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import type { SocialSession } from "@/lib/social/use-social-session";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -17,7 +18,8 @@ const GAP = 8;
 /** Artworks on this person's wall that the viewer also saved, and museums they both visited. */
 export function InCommonSection({ profileId, session }: { profileId: Id<"profiles">; session: SocialSession }) {
   const router = useRouter();
-  const { width, fontScale } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const readable = session.status === "ready" && !session.offline && profileId !== session.profileId;
   const { data } = useSocialQuery(api.suggestions.inCommonWith, readable ? { profileId } : "skip", session.key);
   if (!data || (data.artworks.length === 0 && data.museums.length === 0)) return null;

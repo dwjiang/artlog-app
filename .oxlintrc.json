@@ -60,7 +60,8 @@
     "expo/no-dynamic-env-var": "error",
     "expo/no-env-var-destructuring": "error",
     "expo/use-dom-exports": "error",
-    "artlog/no-re-exports": "error"
+    "artlog/no-re-exports": "error",
+    "artlog/safe-area-scroll": "error"
   },
   "overrides": [
     {

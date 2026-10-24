@@ -1,11 +1,12 @@
 import { useRouter } from "expo-router";
 import type { ReactNode } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyActions, EmptyCard, EmptyState, EmptySymbol } from "@/components/empty-state";
 import { LoadingRing } from "@/components/loading-ring";
 import { FeedSkeleton, ListSkeleton, VisitSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { signInRoute, type SignInContext } from "@/lib/account/sign-in-context";
@@ -26,14 +27,14 @@ export function StateScreen({
   children: ReactNode;
 }) {
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={[socialStyles.root, grouped && { backgroundColor: Gallery.groupedBackground }]}
       contentInsetAdjustmentBehavior="automatic"
       bounces={false}
       scrollEnabled={scrollEnabled}
     >
       {children}
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

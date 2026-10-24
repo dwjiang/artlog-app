@@ -1,11 +1,12 @@
 import { Image } from "expo-image";
 import { useHeaderHeight } from "expo-router/react-navigation";
 import { useState, type ReactNode } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ArtworkTile } from "@/components/collection/collection-artworks";
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ProfileHeader } from "@/components/social/profile-header";
 import { loadingFirstPage, PageFooter, SocialState, StateScreen } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -16,6 +17,7 @@ import { useCatalogReady } from "@/lib/catalog/use-catalog-ready";
 import { useSavedCatalogWorks } from "@/lib/catalog/use-saved-catalog-works";
 import { isIOS26OrLater } from "@/lib/ios-version";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { artistKey } from "@/shared/catalog/text";
 
 import { api } from "../../../convex/_generated/api";
@@ -42,7 +44,8 @@ export function ArtistScreen({ artistId }: { artistId: Id<"artists"> }) {
   const saved = useSavedCatalogWorks();
   const headerHeight = useHeaderHeight();
   const { top } = useSafeAreaInsets();
-  const { width, fontScale } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const { scrollRef, headingRef, measureHeading, onScroll } = useScrollTitle(artist.data?.name ?? "");
   const columns = fontScale > 1.4 ? 1 : 2;
   const tileWidth = Math.max(1, (width - Spacing.content * 2 - (columns - 1) * GAP) / columns);
@@ -70,7 +73,7 @@ export function ArtistScreen({ artistId }: { artistId: Id<"artists"> }) {
   // The avatar fits between iOS 26 bar items, as on a profile; older bars blur their full width.
   const raisedBy = isIOS26OrLater() ? headerHeight - top : 0;
   return (
-    <ScrollView
+    <SafeAreaScrollView
       ref={scrollRef}
       style={styles.page}
       contentInsetAdjustmentBehavior="automatic"
@@ -116,7 +119,7 @@ export function ArtistScreen({ artistId }: { artistId: Id<"artists"> }) {
         noun="works"
         skeleton="gallery"
       />
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

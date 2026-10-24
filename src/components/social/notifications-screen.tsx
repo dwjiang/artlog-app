@@ -2,12 +2,13 @@ import { useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { useFocusEffect, useIsFocused, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { AppState, SectionList, StyleSheet, View } from "react-native";
+import { AppState, StyleSheet, View } from "react-native";
 
 import { DisplayMedia } from "@/components/artwork/display-media";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaSectionList } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
@@ -80,7 +81,7 @@ export function NotificationsScreen() {
   ].filter((section) => section.data.length > 0);
   const empty = !ready || sections.length === 0;
   return (
-    <SectionList
+    <SafeAreaSectionList
       style={socialStyles.root}
       contentContainerStyle={[socialStyles.content, empty && { paddingBottom: 0 }]}
       contentInsetAdjustmentBehavior="automatic"

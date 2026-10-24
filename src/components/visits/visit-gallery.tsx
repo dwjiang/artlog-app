@@ -1,11 +1,12 @@
 import { Image } from "expo-image";
 import { useState, type ReactNode } from "react";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { normalizeSearch } from "@/shared/journal/limits";
 
 const STAGE_ASPECT = 1.04;
@@ -42,7 +43,7 @@ export function VisitGalleryArtwork({
   aspectRatio?: number;
   children: (imageWidth: number) => ReactNode;
 }) {
-  const { width } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const stageWidth = measuredWidth || Math.max(1, (width - 53) / 2);
   const ratio = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;

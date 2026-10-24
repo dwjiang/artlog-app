@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { EmptyState } from "@/components/empty-state";
 import { LoadingImage } from "@/components/loading-image";
 import { ImageSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { StateScreen } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
@@ -15,6 +16,7 @@ import type { ExploreMuseum } from "@/lib/explore/types";
 import { museumById, useMuseum } from "@/lib/explore/use-explore";
 import { useWantToSeeMuseums } from "@/lib/explore/want-to-see";
 import { reportError } from "@/lib/observability";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { showErrorToast } from "@/lib/ui/toast";
 import { LOOK_AROUND_STILL_ASPECT } from "@/lib/venue/look-around-still";
 import { photoCredit } from "@/lib/venue/use-museum-photo";
@@ -46,7 +48,7 @@ export function MuseumScreen({ museumId }: { museumId: string }) {
     { label: "Distance", value: museum.distance },
   ].filter((fact): fact is { label: string; value: string } => Boolean(fact.value));
   return (
-    <ScrollView
+    <SafeAreaScrollView
       ref={scrollRef}
       style={styles.root}
       contentInsetAdjustmentBehavior="automatic"
@@ -107,7 +109,7 @@ export function MuseumScreen({ museumId }: { museumId: string }) {
           <Text style={styles.empty}>No exhibitions listed.</Text>
         )}
       </View>
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 
@@ -122,7 +124,7 @@ function openLookAround(museum: ExploreMuseum) {
 
 /** The museum's picture and its credit, which links to the photo's page or opens Look Around there. */
 function HeaderImage({ museum, image }: { museum: ExploreMuseum; image: MuseumImage }) {
-  const { width } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   // Commons photos take their own shape once loaded.
   const [aspect, setAspect] = useState(LOOK_AROUND_STILL_ASPECT);
   const imageWidth = width - Spacing.content * 2;

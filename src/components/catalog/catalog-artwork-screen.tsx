@@ -1,10 +1,11 @@
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { ArtworkFrame } from "@/components/artwork/artwork-frame";
 import { ArtworkIdentity } from "@/components/artwork/artwork-identity";
 import { ArtworkStory } from "@/components/artwork/artwork-story";
 import { ArtworkSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { SocialState, StateScreen } from "@/components/social/social-state";
 import { Gallery, Spacing } from "@/constants/theme";
 import { pageSizedImage } from "@/lib/catalog/catalog-image";
@@ -52,14 +53,18 @@ export function CatalogArtworkScreen({ artworkId }: { artworkId: Id<"artworks"> 
   const work = artwork.data;
   if (!work) {
     return (
-      <ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" scrollEnabled={false}>
+      <SafeAreaScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" scrollEnabled={false}>
         <ArtworkSkeleton />
-      </ScrollView>
+      </SafeAreaScrollView>
     );
   }
   const { artistId } = work;
   return (
-    <ScrollView style={styles.page} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+    <SafeAreaScrollView
+      style={styles.page}
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={styles.content}
+    >
       <ArtworkFrame
         uri={work.thumbnailUrl && pageSizedImage(work.thumbnailUrl)}
         accessibilityLabel={`${work.title} by ${work.artist}`}
@@ -90,7 +95,7 @@ export function CatalogArtworkScreen({ artworkId }: { artworkId: Id<"artworks"> 
         waitWhileWriting
         report={{ kind: "docent", artworkId }}
       />
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

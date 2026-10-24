@@ -136,6 +136,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     gap: Spacing.three,
   },
-  // The gallery pages span the screen and pad each photo back to the content edge.
+  // The gallery pages span the safe area and pad each photo back to the content edge.
   gallery: { marginHorizontal: -Spacing.content },
 });

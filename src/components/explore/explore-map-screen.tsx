@@ -24,7 +24,7 @@ const PAGE = 200;
 
 export function ExploreMapScreen() {
   const explore = useExplore();
-  const { bottom } = useSafeAreaInsets();
+  const { bottom, left, right } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const [mapHeight, setMapHeight] = useState(height * (1 - PANEL));
   const [selected, setSelected] = useState<string>();
@@ -87,7 +87,7 @@ export function ExploreMapScreen() {
           }
         />
       </Sentry.Mask>
-      <View style={[styles.sheet, { paddingBottom: bottom }]}>
+      <View style={[styles.sheet, { paddingBottom: bottom, paddingLeft: left, paddingRight: right }]}>
         <Text variant="section" accessibilityRole="header" style={styles.heading}>
           {`${all.length.toLocaleString()} museums nearby`}
         </Text>

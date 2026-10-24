@@ -1,6 +1,6 @@
 import { router, Stack } from "expo-router";
 import { useRef, useState } from "react";
-import { FlatList, StyleSheet, View, useWindowDimensions } from "react-native";
+import { type FlatList, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { SignInActions } from "@/components/account/sign-in-actions";
 import { ActionStack } from "@/components/action-stack";
@@ -13,6 +13,7 @@ import { Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
@@ -73,7 +74,7 @@ export function LeaderboardScreen() {
           onPress={manageParticipation}
         />
       </Stack.Toolbar>
-      <FlatList
+      <SafeAreaFlatList
         ref={list}
         style={styles.root}
         contentInsetAdjustmentBehavior="automatic"

@@ -1,8 +1,9 @@
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { ChoiceMenu } from "@/components/choice-menu";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import { isTiming, NO_EXHIBITIONS, TIMING_OPTIONS, type ExhibitionTiming } from "@/lib/explore/exhibition-timing";
@@ -22,7 +23,7 @@ export function ExhibitionListScreen() {
   if (!data) return <ExploreState view={explore} />;
   const shows = cityExhibitions(data, timing);
   return (
-    <FlatList
+    <SafeAreaFlatList
       style={listStyles.root}
       contentInsetAdjustmentBehavior="automatic"
       bounces={shows.length > 0}

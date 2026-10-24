@@ -1,9 +1,10 @@
 import { router, Stack } from "expo-router";
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
 import { Gallery, Typography } from "@/constants/theme";
@@ -28,7 +29,7 @@ export function FormSheet({
   return (
     <>
       <Stack.Screen options={{ gestureEnabled: !busy }} />
-      <ScrollView
+      <SafeAreaScrollView
         style={[styles.root, grouped && styles.grouped, sheetStyle]}
         bounces={false}
         keyboardShouldPersistTaps="handled"
@@ -43,7 +44,7 @@ export function FormSheet({
           <GalleryIconButton label="Close" icon="xmark" disabled={busy} onPress={() => router.back()} />
         </View>
         {children}
-      </ScrollView>
+      </SafeAreaScrollView>
       {/* The sheet covers the root toast layer, and it already clears the home indicator, so the layer's safe-area
           padding is cancelled. A failure toast covers the send button; its Retry sends the same input. */}
       <ToastLayer offset={-bottom} />

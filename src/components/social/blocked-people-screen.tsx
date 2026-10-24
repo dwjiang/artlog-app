@@ -1,8 +1,9 @@
 import type { FunctionReturnType } from "convex/server";
-import { FlatList, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { Gallery, Spacing } from "@/constants/theme";
 import type { PublicProfile } from "@/lib/social/types";
 import { useBlock } from "@/lib/social/use-block";
@@ -35,7 +36,7 @@ export function BlockedPeopleScreen() {
     );
   }
   return (
-    <FlatList
+    <SafeAreaFlatList
       style={styles.page}
       contentContainerStyle={[socialStyles.content, styles.content, blocked.items.length === 0 && { paddingBottom: 0 }]}
       contentInsetAdjustmentBehavior="automatic"

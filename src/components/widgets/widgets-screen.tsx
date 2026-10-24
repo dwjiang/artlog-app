@@ -8,9 +8,11 @@ import { NativeSegmentedPicker } from "@/components/collection/native-segmented-
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { LoadingRing } from "@/components/loading-ring";
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { widgetVisitDate } from "@/lib/widgets/widget-collection";
 import { useWidgetCollection } from "@/lib/widgets/widget-provider";
 import { currentWidgetIndex } from "@/lib/widgets/widget-publisher";
@@ -35,7 +37,8 @@ export function WidgetsScreen() {
   const collection = useWidgetCollection();
   const { preferences, update, prepared, artworks, allArtworks, visits, encounters, loading, syncing, error, retry } =
     collection;
-  const { width, fontScale } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const [size, setSize] = useState<WidgetSize>("medium");
   const [sheet, setSheet] = useState<Sheet>("source");
   const [presented, setPresented] = useState(false);
@@ -94,7 +97,7 @@ export function WidgetsScreen() {
 
   return (
     <>
-      <ScrollView
+      <SafeAreaScrollView
         style={{ flex: 1, backgroundColor: Gallery.paper }}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{
@@ -180,7 +183,7 @@ export function WidgetsScreen() {
             <GalleryButton label="How to add the widget" variant="filled" fullWidth onPress={() => open("help")} />
           </View>
         </View>
-      </ScrollView>
+      </SafeAreaScrollView>
       <BottomSheet
         isPresented={presented}
         onDismiss={close}

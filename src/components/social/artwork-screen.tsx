@@ -1,7 +1,7 @@
 import { router } from "expo-router";
-import { ScrollView } from "react-native";
 
 import { ArtworkSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { convexErrorCode } from "@/lib/network-error";
 import { useSocialQuery } from "@/lib/social/use-social-query";
@@ -42,7 +42,7 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
       {owner && session.status !== "loading" && owner !== session.profileId && (
         <ReportToolbar kind={shared ? "sharedVisit" : "wallItem"} id={shared ? postId! : itemId} />
       )}
-      <ScrollView
+      <SafeAreaScrollView
         ref={scrollRef}
         style={socialStyles.root}
         contentInsetAdjustmentBehavior="automatic"
@@ -84,7 +84,7 @@ export function ArtworkScreen({ kind, itemId, postId }: { kind: string; itemId: 
             onHeadingLayout={measureHeading}
           />
         )}
-      </ScrollView>
+      </SafeAreaScrollView>
     </>
   );
 }

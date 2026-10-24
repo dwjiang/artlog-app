@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { EmptyState } from "@/components/empty-state";
 import { LoadingImage } from "@/components/loading-image";
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { StateScreen } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
@@ -11,6 +12,7 @@ import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { exhibitionDates, exhibitionStatus, friendNames } from "@/lib/explore/exhibition-timing";
 import { exhibitionById, museumById, useExhibitions } from "@/lib/explore/use-explore";
 import { useWantToSee } from "@/lib/explore/want-to-see";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
 import { DetailActions, FactRow, openSourcePage, StatusChip } from "./detail-parts";
 import { openMuseum } from "./explore-routes";
@@ -21,7 +23,7 @@ import { LocationMap } from "./location-map";
 export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
   const explore = useExhibitions([exhibitionId]);
   const wantToSee = useWantToSee();
-  const { width } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const [aspect, setAspect] = useState(1);
   const { data } = explore;
   const exhibition = data && exhibitionById(data, exhibitionId);
@@ -40,7 +42,7 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
   const imageWidth = width - Spacing.content * 2;
   const host = new URL(exhibition.sourceUrl).hostname.replace(/^www\./, "");
   return (
-    <ScrollView
+    <SafeAreaScrollView
       ref={scrollRef}
       style={styles.root}
       contentInsetAdjustmentBehavior="automatic"
@@ -116,7 +118,7 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
           </View>
         )}
       </View>
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

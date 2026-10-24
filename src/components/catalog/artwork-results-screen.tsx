@@ -1,6 +1,7 @@
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { SearchEmptyState } from "@/components/empty-state";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { loadingFirstPage, PageFooter, SocialState } from "@/components/social/social-state";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useCatalogReady } from "@/lib/catalog/use-catalog-ready";
@@ -27,7 +28,7 @@ export function ArtworkResultsScreen({ query, onOpen }: { query: string; onOpen?
   const offline = !catalog.ready && catalog.offline;
   const empty = results.done && results.items.length === 0;
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={styles.page}
       contentInsetAdjustmentBehavior="automatic"
       bounces={!offline && !empty}
@@ -64,7 +65,7 @@ export function ArtworkResultsScreen({ query, onOpen }: { query: string; onOpen?
         noun="artworks"
         skeleton="card"
       />
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

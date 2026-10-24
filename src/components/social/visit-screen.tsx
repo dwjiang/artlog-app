@@ -1,7 +1,7 @@
 import { router } from "expo-router";
-import { ScrollView } from "react-native";
 
 import { FeedSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { convexErrorCode } from "@/lib/network-error";
 import { useBlock } from "@/lib/social/use-block";
 import { useSocialQuery } from "@/lib/social/use-social-query";
@@ -35,7 +35,7 @@ function VisitPost({
   const opening = ready && !unavailable && !visit.error && !visit.data;
   return (
     // The card's comments sheet renders in this tree; "handled" lets taps reach its composer.
-    <ScrollView
+    <SafeAreaScrollView
       style={socialStyles.root}
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
@@ -73,6 +73,6 @@ function VisitPost({
           onBlock={session.status === "ready" ? blocking.block : undefined}
         />
       )}
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }

@@ -126,7 +126,7 @@ jest.mock("@/db/client", () => ({
 }));
 jest.mock("@/lib/ui/haptics");
 jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 60, bottom: 34 }),
+  useSafeAreaInsets: () => ({ top: 60, bottom: 34, left: 0, right: 0 }),
 }));
 jest.mock("react-native-vision-camera", () => ({
   useCameraPermission: () => ({

@@ -6,6 +6,7 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
 type Photo = { id: string; label: string; width?: number; height?: number };
 
@@ -27,7 +28,8 @@ export function PhotoGallery<T extends Photo>({
   /** Caps a photo's height; defaults to about half the screen. */
   maxImageHeight?: number;
 }) {
-  const { width, height } = useWindowDimensions();
+  const { height } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const gallery = useRef<ScrollView>(null);
   const filmstrip = useRef<ScrollView>(null);
   const reduceMotion = useReducedMotion();

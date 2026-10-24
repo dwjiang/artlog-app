@@ -1,9 +1,10 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
 import { FormSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { selectSavedWork } from "@/db/repos/saved-works";
@@ -11,6 +12,7 @@ import type { SavedWork } from "@/db/schema";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { reportError } from "@/lib/observability";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 import { constrainLayout, wallAspect, type WallFrame } from "@/lib/wall/wall-layout";
 import { WALL_FRAMES as wallFrames } from "@/shared/wall/frames";
@@ -51,7 +53,7 @@ function WallDisplayQuery({ owner, savedId, onRetry }: { owner: string; savedId:
 
 /** Everything about how one hung artwork appears on the wall: its frame and the photo shown. */
 function WallDisplay({ work }: { work: SavedWork }) {
-  const { width } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const { onHeadingLayout, onScroll } = useScrollTitle(work.title);
   const wall = useCollectionWall([work]);
   const hung = wall.draft?.items.find((item) => item.saveLocalId === work.localId);
@@ -83,7 +85,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
     void saveLayout();
   }
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
@@ -169,7 +171,7 @@ function WallDisplay({ work }: { work: SavedWork }) {
       )}
       {wall.pending && <LoadingRing accessibilityLabel="Saving wall changes…" />}
       {hung && !wall.pending && !wall.error && <Text style={styles.caption}>Changes save automatically.</Text>}
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

@@ -25,7 +25,8 @@ export function DockedPlayerLayout({ dockable, children }: { dockable: boolean; 
       {docked && (
         <View
           style={{
-            paddingHorizontal: 20,
+            paddingLeft: insets.left + 20,
+            paddingRight: insets.right + 20,
             paddingTop: 8,
             paddingBottom: Math.max(8, insets.bottom),
             backgroundColor: Gallery.paper,

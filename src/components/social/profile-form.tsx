@@ -1,9 +1,10 @@
 import { useAction } from "convex/react";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useLocalProfile } from "@/lib/account/local-profile";
@@ -90,7 +91,7 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
     }
   }
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
       automaticallyAdjustKeyboardInsets
@@ -161,6 +162,6 @@ export function ProfileForm({ onCreated, introduction }: { onCreated: () => void
           }}
         />
       </ActionStack>
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }

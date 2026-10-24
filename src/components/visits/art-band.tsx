@@ -1,11 +1,12 @@
 import { Image } from "expo-image";
 import type { ReactElement, ReactNode } from "react";
-import { FlatList, StyleSheet, View, useWindowDimensions } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 
 import { wallpaperStyle } from "@/components/collection/wallpaper";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { isLightWall, type Wallpaper } from "@/lib/wall/wall-layout";
 
 const ART_HEIGHT = 200;
@@ -36,7 +37,7 @@ export function ArtBand({
   footer?: ReactElement;
   onEndReached?: () => void;
 }) {
-  const { width } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const labelColor = isLightWall(wallpaper.color) ? Gallery.ink : Gallery.paper;
   // A wide artwork stops short of the screen edge so the next one still peeks in.
   const maxWidth = width - 2 * Spacing.content - 48;

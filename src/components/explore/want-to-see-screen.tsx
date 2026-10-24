@@ -1,9 +1,10 @@
 import { useNetworkState } from "expo-network";
 import { useState } from "react";
-import { SectionList, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { EmptyState } from "@/components/empty-state";
+import { SafeAreaSectionList } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import { savedExhibitions, savedMuseums } from "@/lib/explore/lists";
@@ -48,7 +49,7 @@ export function WantToSeeScreen() {
       : view;
   const sections = pending || !view.data ? [] : tabSections(tab, view.data, list.saved);
   return (
-    <SectionList<Saved, Section>
+    <SafeAreaSectionList<Saved, Section>
       style={listStyles.root}
       contentInsetAdjustmentBehavior="automatic"
       bounces={sections.length > 0}

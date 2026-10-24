@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
-import { FlatList, ScrollView, View } from "react-native";
+import { type ScrollView, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
@@ -8,6 +8,7 @@ import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { EmptyState, EmptySymbol } from "@/components/empty-state";
 import { MotionPressable } from "@/components/motion-pressable";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
+import { SafeAreaFlatList, SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
@@ -56,7 +57,7 @@ export function VisitPlaceScreen() {
           </EmptyState>
         </VisitPage>
       ) : (
-        <FlatList
+        <SafeAreaFlatList
           data={matches}
           keyExtractor={(visit) => visit.localId}
           contentInsetAdjustmentBehavior="automatic"
@@ -149,7 +150,7 @@ function ExpandedGlobe() {
       <Stack.Toolbar placement="right">
         <Stack.Toolbar.Button onPress={() => router.back()}>Done</Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <ScrollView
+      <SafeAreaScrollView
         ref={scroll}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ paddingBottom: 30, minHeight: room.minHeight }}
@@ -185,7 +186,7 @@ function ExpandedGlobe() {
             )}
           </>
         )}
-      </ScrollView>
+      </SafeAreaScrollView>
     </>
   );
 }

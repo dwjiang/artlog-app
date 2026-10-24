@@ -13,6 +13,7 @@ import { reportError } from "@/lib/observability";
 import { AVATAR_IMAGES } from "@/lib/social/avatar-images";
 import { chooseProfilePhoto, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
 import type { ProfilePicture } from "@/lib/social/profile-picture";
+import { useHorizontalSafeAreaPadding, useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { AVATAR_GROUPS, AVATARS, type AvatarId, findAvatar } from "@/shared/social/avatars";
 
 import { ProfileAvatar } from "./profile-avatar";
@@ -61,9 +62,13 @@ function PickerSheet({
   onCancel: () => void;
   onSave: (picture: ProfilePicture) => void;
 }) {
-  const { width, fontScale } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const largeText = fontScale > 1.4;
   const { bottom } = useSafeAreaInsets();
+  const barPadding = useHorizontalSafeAreaPadding(styles.bar);
+  const largeTitlePadding = useHorizontalSafeAreaPadding(styles.largeTitle);
+  const contentPadding = useHorizontalSafeAreaPadding(styles.content);
   // Undefined keeps the photo already shown.
   const [selection, setSelection] = useState<ProfilePicture | undefined>(() =>
     shown.photoUrl || !shown.avatar ? undefined : { kind: "avatar", avatar: shown.avatar },
@@ -125,13 +130,13 @@ function PickerSheet({
   );
   return (
     <View style={styles.sheet}>
-      {largeText && <View style={styles.largeTitle}>{heading}</View>}
-      <View style={styles.bar}>
+      {largeText && <View style={[styles.largeTitle, largeTitlePadding]}>{heading}</View>}
+      <View style={[styles.bar, barPadding]}>
         <GalleryButton label="Cancel" fullWidth={false} disabled={choosing} onPress={onCancel} />
         {!largeText && heading}
         <GalleryButton label="Save" fullWidth={false} disabled={choosing} onPress={save} />
       </View>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottom + Spacing.four }]}>
+      <ScrollView contentContainerStyle={[styles.content, contentPadding, { paddingBottom: bottom + Spacing.four }]}>
         <View style={styles.preview}>
           <ProfileAvatar name={name} photoUrl={preview.photoUrl} avatar={preview.avatar} size={128} />
           <View style={styles.credit}>
