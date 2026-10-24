@@ -38,6 +38,7 @@ import { signInContexts } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
 import { reportError } from "@/lib/observability";
 import { shownPicture, useProfilePictureDraft } from "@/lib/social/profile-picture";
+import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 import { LIMITS } from "@/shared/journal/limits";
 
 import { LegalNotice } from "./legal-notice";
@@ -62,6 +63,7 @@ export function WelcomeScreen() {
   const router = useRouter();
   const { top, bottom } = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const headerPadding = useHorizontalSafeAreaPadding(styles.headerRow);
   const reduced = useReducedMotion();
   const pager = useRef<Animated.ScrollView>(null);
   const scrollX = useSharedValue(0);
@@ -183,6 +185,8 @@ export function WelcomeScreen() {
         showsHorizontalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={onScroll}
+        // Pages are the window's width, so a fold or rotation would leave the pager between two of them.
+        onContentSizeChange={() => pager.current?.scrollTo({ x: index * width, animated: false })}
         style={styles.root}
       >
         <WelcomePage
@@ -381,7 +385,7 @@ export function WelcomeScreen() {
           pointerEvents={index === 0 ? "none" : "box-none"}
           accessibilityElementsHidden={index === 0}
           importantForAccessibility={index === 0 ? "no-hide-descendants" : "auto"}
-          style={[styles.headerRow, controls]}
+          style={[styles.headerRow, headerPadding, controls]}
         >
           <GlassSurface isInteractive style={styles.backGlass}>
             <GalleryIconButton
@@ -425,7 +429,7 @@ function WelcomePage({
   actions: ReactNode;
   children: ReactNode;
 }) {
-  const { top } = useSafeAreaInsets();
+  const { top, left, right } = useSafeAreaInsets();
   const [overlayHeight, setOverlayHeight] = useState(0);
   // Absolute overlays do not grow the scroll content; reserve their full height below the fixed header.
   const artHeight = Math.max(300, top + HEADER_HEIGHT + Spacing.three + overlayHeight + SHEET_RADIUS);
@@ -448,7 +452,7 @@ function WelcomePage({
             : art}
         </View>
         <View>
-          <View style={[styles.sheet, { paddingBottom: bottom }]}>
+          <View style={[styles.sheet, { paddingBottom: bottom, paddingLeft: left, paddingRight: right }]}>
             <View style={styles.copy}>{children}</View>
             <View style={styles.actions}>{actions}</View>
           </View>
@@ -457,7 +461,7 @@ function WelcomePage({
             <View
               pointerEvents="box-none"
               onLayout={({ nativeEvent }) => setOverlayHeight(nativeEvent.layout.height)}
-              style={styles.overlay}
+              style={[styles.overlay, { left, right }]}
             >
               {overlay}
             </View>

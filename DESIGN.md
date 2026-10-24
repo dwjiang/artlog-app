@@ -66,7 +66,9 @@ under another button gets no added gap (`ActionStack`): its 44-point target
 already leaves about 11 points above the label. Long names,
 titles, and notes wrap. Above 1.4× text scale, artwork grids collapse to one
 column. Scrolling, keyboard avoidance, and safe areas take precedence over a
-fixed-height composition. The movable Wall keeps its own geometry and accessible
+fixed-height composition. Gutters, pinned bars, and floating controls start
+inside the left and right safe area; backgrounds, photos, and the camera still
+reach the screen edges. The movable Wall keeps its own geometry and accessible
 positioning controls.
 
 ## Elevation & Depth

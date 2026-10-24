@@ -1,9 +1,10 @@
 import { useAction } from "convex/react";
 import { router, Stack } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { captureOwner } from "@/lib/account/owner-store";
@@ -119,7 +120,7 @@ export function EditProfileForm({
           Cancel
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <ScrollView
+      <SafeAreaScrollView
         style={{ flex: 1, backgroundColor: Gallery.paper }}
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustKeyboardInsets
@@ -167,7 +168,7 @@ export function EditProfileForm({
             void submit();
           }}
         />
-      </ScrollView>
+      </SafeAreaScrollView>
     </>
   );
 }

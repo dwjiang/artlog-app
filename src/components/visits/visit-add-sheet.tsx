@@ -1,8 +1,9 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { ListIcon, ListRow, ListSection } from "@/components/list-row";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
@@ -51,7 +52,7 @@ export function VisitAddSheet() {
   }
 
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={sheetStyle}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
@@ -96,7 +97,7 @@ export function VisitAddSheet() {
           {error}
         </ThemedText>
       )}
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

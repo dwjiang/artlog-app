@@ -1,5 +1,4 @@
-import { FlatList } from "react-native";
-
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { friendPicks } from "@/lib/explore/lists";
 import { museumById, useExplore } from "@/lib/explore/use-explore";
 
@@ -13,7 +12,7 @@ export function FriendPicksScreen() {
   if (!data) return <ExploreState view={explore} />;
   const picks = friendPicks(data);
   return (
-    <FlatList
+    <SafeAreaFlatList
       style={listStyles.root}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={listStyles.content}

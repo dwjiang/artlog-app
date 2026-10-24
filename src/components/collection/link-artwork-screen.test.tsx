@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { LinkArtworkScreen } from "./link-artwork-screen";
 
 jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ bottom: 0 }),
+  useSafeAreaInsets: () => ({ bottom: 0, left: 0, right: 0 }),
 }));
 const mockPush = jest.fn();
 const mockDismiss = jest.fn();

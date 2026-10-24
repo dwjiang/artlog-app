@@ -5,6 +5,7 @@ import { DisplayMedia } from "@/components/artwork/display-media";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, OnPhoto, Radius, Spacing, Typography } from "@/constants/theme";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
 import type { api } from "../../../convex/_generated/api";
 import { SearchChip, SearchChips } from "./search-chip";
@@ -19,7 +20,8 @@ const GAP = 10;
 
 /** Popular tags as artwork tiles, or as chips while there are too few to fill the grid. */
 export function PopularTags({ tags, onOpen }: { tags: PopularTag[]; onOpen: (tag: string) => void }) {
-  const { width, fontScale } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   if (tags.length < MIN_TILES) {
     return (
       <SearchChips>

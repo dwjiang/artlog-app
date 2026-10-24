@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { LoadingRing } from "@/components/loading-ring";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
@@ -119,7 +120,7 @@ export function VisitWrapUpSheet() {
     .filter(Boolean)
     .join(" · ");
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={sheetStyle}
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustKeyboardInsets
@@ -170,7 +171,7 @@ export function VisitWrapUpSheet() {
           onPress={() => void finish(true)}
         />
       </ActionStack>
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

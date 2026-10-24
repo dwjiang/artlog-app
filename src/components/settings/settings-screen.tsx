@@ -4,10 +4,11 @@ import Constants from "expo-constants";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ProfileAvatar } from "@/components/social/profile-avatar";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, SettingsOutline } from "@/constants/theme";
@@ -28,7 +29,7 @@ export function SettingsScreen() {
   const accountName = profile?.name ?? "Your Artlog account";
   const accountDetail = account?.linked ? (profile ? `@${profile.username}` : account.email) : undefined;
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{
@@ -138,7 +139,7 @@ export function SettingsScreen() {
           <SettingsRow label="Developer Tools" icon="wrench.and.screwdriver" onPress={detail("developer")} />
         </SettingsGroup>
       )}
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

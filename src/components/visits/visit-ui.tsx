@@ -1,11 +1,12 @@
 import { Image } from "expo-image";
 import type { ReactNode } from "react";
-import { ScrollView, type ScrollViewProps, StyleSheet, View } from "react-native";
+import { type ScrollViewProps, StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { LoadingRing } from "@/components/loading-ring";
 import { ListSkeleton, VisitSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Typography } from "@/constants/theme";
 import type { SavedWork } from "@/db/schema";
@@ -52,7 +53,7 @@ export function VisitPage({
   scrollEnabled,
 }: Pick<ScrollViewProps, "children" | "style" | "contentContainerStyle" | "bounces" | "scrollEnabled">) {
   return (
-    <ScrollView
+    <SafeAreaScrollView
       contentInsetAdjustmentBehavior="automatic"
       bounces={bounces}
       scrollEnabled={scrollEnabled}
@@ -63,7 +64,7 @@ export function VisitPage({
       contentContainerStyle={[visitStyles.content, contentContainerStyle]}
     >
       {children}
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 export function VisitSymbol({

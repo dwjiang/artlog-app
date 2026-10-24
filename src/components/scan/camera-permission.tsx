@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Linking, ScrollView, StyleSheet, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
 import { useCameraPermission } from "react-native-vision-camera";
 
 import { ActionStack } from "@/components/action-stack";
@@ -7,6 +7,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState, EmptySymbol } from "@/components/empty-state";
 import { EmptyViewfinder } from "@/components/empty-state-art";
 import { LoadingRing } from "@/components/loading-ring";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { reportError } from "@/lib/observability";
 import { showErrorToast } from "@/lib/ui/toast";
 
@@ -93,7 +94,7 @@ export function CameraPermission({
   return compact ? (
     <View style={{ paddingVertical: 12 }}>{invitation}</View>
   ) : (
-    <ScrollView
+    <SafeAreaScrollView
       style={{ marginBottom: bottomInset }}
       contentInsetAdjustmentBehavior="automatic"
       alwaysBounceVertical={false}
@@ -104,6 +105,6 @@ export function CameraPermission({
       }}
     >
       {invitation}
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }

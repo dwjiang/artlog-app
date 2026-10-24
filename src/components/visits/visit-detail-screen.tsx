@@ -21,6 +21,7 @@ import type { VisitSummary } from "@/lib/journal/visit-summaries";
 import { saveVisitVisibility } from "@/lib/journal/visit-visibility";
 import { reportError } from "@/lib/observability";
 import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
+import { useHorizontalSafeAreaPadding, useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { retryAction, showErrorToast, showToast } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
 import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
@@ -87,8 +88,10 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   const [saving, setSaving] = useState(false);
   const submitting = useRef(false);
   const [saveError, setSaveError] = useState<string>();
-  const { width, fontScale } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const [galleryWidth, setGalleryWidth] = useState(width - Spacing.content * 2);
+  const toastPadding = useHorizontalSafeAreaPadding();
   const columns = fontScale > 1.4 ? 1 : fontScale > 1.15 || galleryWidth < 320 ? 2 : 3;
   const artworkWidth = (galleryWidth - Spacing.compact * (columns - 1)) / columns;
   const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
@@ -373,7 +376,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             </View>
           </VisitPage>
           {shareCheckFailed && (
-            <View collapsable={false} pointerEvents="box-none" style={detail.toast}>
+            <View collapsable={false} pointerEvents="box-none" style={[detail.toast, toastPadding]}>
               <ToastPill
                 message="Couldn’t check the shared version."
                 actions={[retryAction(() => void controller.load())]}

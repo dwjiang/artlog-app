@@ -4,11 +4,12 @@ import { randomUUID } from "expo-crypto";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { ListenActions } from "@/components/audio/listen-actions";
 import { LoadingRing } from "@/components/loading-ring";
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -121,7 +122,7 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
     void saveLayout();
   }
   return (
-    <ScrollView
+    <SafeAreaScrollView
       ref={scrollRef}
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
@@ -239,7 +240,7 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
         )}
         {wall.pending && <LoadingRing accessibilityLabel="Saving wall changes…" />}
       </View>
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

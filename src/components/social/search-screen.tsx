@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import {
   ArtistRow,
@@ -15,6 +15,7 @@ import { SearchEmptyState } from "@/components/empty-state";
 import { ExhibitionSearchRow } from "@/components/explore/exhibition-search-row";
 import { ListSection } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { MuseumSearchRow } from "@/components/venue/museum-search-row";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
@@ -466,7 +467,7 @@ export function SearchScreen() {
         onChangeText={(event) => setText(event.nativeEvent.text)}
         onCancelButtonPress={() => setText("")}
       />
-      <ScrollView
+      <SafeAreaScrollView
         style={[socialStyles.root, styles.page]}
         contentContainerStyle={[styles.content, state && { paddingBottom: 0 }]}
         contentInsetAdjustmentBehavior="automatic"
@@ -475,7 +476,7 @@ export function SearchScreen() {
         keyboardDismissMode="on-drag"
       >
         {state ?? content}
-      </ScrollView>
+      </SafeAreaScrollView>
     </>
   );
 }

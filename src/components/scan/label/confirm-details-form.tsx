@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { SourceChip } from "@/components/scan/result/source-chip";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -49,7 +50,7 @@ export function ConfirmDetailsForm({
   const canConfirm = toConfirmedFields(form) !== null;
   return (
     <ThemedView style={styles.container}>
-      <ScrollView
+      <SafeAreaScrollView
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustKeyboardInsets
         keyboardDismissMode="interactive"
@@ -93,7 +94,7 @@ export function ConfirmDetailsForm({
           </ThemedText>
         )}
         {children}
-      </ScrollView>
+      </SafeAreaScrollView>
     </ThemedView>
   );
 }

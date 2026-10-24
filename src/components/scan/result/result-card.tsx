@@ -1,13 +1,14 @@
 import { Stack } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
 import { useState, type ReactNode } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ArtworkIdentity } from "@/components/artwork/artwork-identity";
 import { ArtworkStory } from "@/components/artwork/artwork-story";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { HighlightHeading } from "@/components/highlight-heading";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { useCapturePhotos } from "@/components/scan/capture-photos-button";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, PinnedFooterBorder, Radius, Spacing } from "@/constants/theme";
@@ -15,6 +16,7 @@ import { captureFileUri, scanDisplayPath } from "@/lib/files/photos";
 import type { SaveResultInput } from "@/lib/result/save";
 import { canSave, draftFromCandidate, draftFromConfirmed, type SnapshotDraft } from "@/lib/result/snapshot";
 import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
+import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 import { useLiftToasts } from "@/lib/ui/toast";
 
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -75,6 +77,7 @@ export function ResultCard({
   );
   const [editingDetails, setEditingDetails] = useState(manual);
   const { bottom } = useSafeAreaInsets();
+  const saveBarPadding = useHorizontalSafeAreaPadding(styles.save);
   const [saveBarHeight, setSaveBarHeight] = useState<number>();
   useLiftToasts(saveBarHeight, useIsFocused());
   const editable = !saving && !savedId;
@@ -133,7 +136,7 @@ export function ResultCard({
           </Stack.Toolbar.Button>
         )}
       </Stack.Toolbar>
-      <ScrollView
+      <SafeAreaScrollView
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustKeyboardInsets
         keyboardDismissMode="interactive"
@@ -209,10 +212,14 @@ export function ResultCard({
           </View>
         )}
         {context}
-      </ScrollView>
+      </SafeAreaScrollView>
       <View
         onLayout={(event) => setSaveBarHeight(event.nativeEvent.layout.height)}
-        style={[styles.save, { paddingTop: visit && !savedId ? 0 : Spacing.two, paddingBottom: Math.max(12, bottom) }]}
+        style={[
+          styles.save,
+          saveBarPadding,
+          { paddingTop: visit && !savedId ? 0 : Spacing.two, paddingBottom: Math.max(12, bottom) },
+        ]}
       >
         <SaveBar
           canSave={savePhotoOnly || canSave(draft)}

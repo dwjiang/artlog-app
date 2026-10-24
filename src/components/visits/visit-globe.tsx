@@ -2,7 +2,7 @@ import { Button, Host, Icon } from "@expo/ui";
 import { accessibilityLabel, contentShape, frame, shapes, strokeBorder } from "@expo/ui/swift-ui/modifiers";
 import { router } from "expo-router";
 import { useRef, useState, type ComponentProps } from "react";
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { WallSheet } from "@/components/collection/wall-sheet";
@@ -11,6 +11,7 @@ import { useLocalOwner } from "@/lib/account/owner-store";
 import { useGlobeSession } from "@/lib/journal/globe-session";
 import { placeIdentity } from "@/lib/journal/history";
 import { mappedMuseums, type VisitSummary } from "@/lib/journal/visit-summaries";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
 import { GlobeCanvas, type GlobeCanvasHandle } from "./globe-canvas";
 import { VisitMessage } from "./visit-ui";
@@ -28,7 +29,7 @@ export function VisitGlobe({
   const session = useGlobeSession(useLocalOwner());
   const [clusterIds, setClusterIds] = useState<string[]>([]);
   const globe = useRef<GlobeCanvasHandle>(null);
-  const { width } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   if (museums.length === 0) {
     return (
       <VisitMessage action="Show List" onAction={onList}>

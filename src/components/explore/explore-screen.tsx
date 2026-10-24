@@ -1,8 +1,9 @@
 import { Image } from "expo-image";
 import { Stack, useRouter } from "expo-router";
 import { useState } from "react";
-import { FlatList, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { FlatList, StyleSheet, View, useWindowDimensions } from "react-native";
 
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
 import { defaultTiming, NO_EXHIBITIONS, timingLabel, type ExhibitionTiming } from "@/lib/explore/exhibition-timing";
@@ -46,7 +47,11 @@ export function ExploreScreen() {
           onPress={() => router.push("/want-to-see")}
         />
       </Stack.Toolbar>
-      <ScrollView style={styles.root} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+      <SafeAreaScrollView
+        style={styles.root}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.content}
+      >
         {data.following && data.home && !data.nearby && (
           <ElsewhereNote home={data.home} city={data.city.name} distance={museums[0]?.distance} />
         )}
@@ -105,7 +110,7 @@ export function ExploreScreen() {
             />
           </View>
         )}
-      </ScrollView>
+      </SafeAreaScrollView>
     </>
   );
 }

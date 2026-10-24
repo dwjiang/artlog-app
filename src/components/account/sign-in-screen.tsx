@@ -1,11 +1,12 @@
 import { Stack, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ArtworkStrip } from "@/components/guest/artwork-preview";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Typography } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
@@ -67,7 +68,7 @@ export function SignInScreen({
   return (
     <>
       <Stack.Screen options={{ gestureEnabled: !busy }} />
-      <ScrollView
+      <SafeAreaScrollView
         style={[styles.root, sheetStyle]}
         bounces={false}
         contentInsetAdjustmentBehavior="automatic"
@@ -93,7 +94,7 @@ export function SignInScreen({
           {/* The chosen provider keeps its progress until the linked journal is ready to open. */}
           <SignInActions state={{ ...state, busy: busy || waitingForJournal }} />
         </ActionStack>
-      </ScrollView>
+      </SafeAreaScrollView>
     </>
   );
 }

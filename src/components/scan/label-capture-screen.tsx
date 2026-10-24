@@ -13,6 +13,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { EmptyState } from "@/components/empty-state";
 import { EmptyPaper } from "@/components/empty-state-art";
 import { FormSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Spacing } from "@/constants/theme";
@@ -32,6 +33,7 @@ import { reportError } from "@/lib/observability";
 import { discardPendingLabel, flushQueue, retryPendingLabel } from "@/lib/queue/queue";
 import { useScan } from "@/lib/result/use-scan";
 import { playLightHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
+import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { ConfirmedFields, LabelFieldName, LabelFlowDisplay } from "../../../convex/lib/validators";
@@ -69,6 +71,7 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
   const isFocused = useIsFocused();
   const network = useNetworkState();
   const { bottom } = useSafeAreaInsets();
+  const overlayPadding = useHorizontalSafeAreaPadding(styles.cameraOverlay);
   const [appState, setAppState] = useState(AppState.currentState);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
@@ -303,14 +306,14 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
   if (phase.kind === "running") {
     return (
       <ThemedView style={styles.container}>
-        <ScrollView
+        <SafeAreaScrollView
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.content}
           accessibilityState={{ busy: true }}
         >
           <ThemedText type="subtitle">{phase.qr ? QR_FOUND : "Reading the label"}</ThemedText>
           <ProgressSteps stage={phase.stage} qr={phase.qr} />
-        </ScrollView>
+        </SafeAreaScrollView>
       </ThemedView>
     );
   }
@@ -495,7 +498,7 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
           pointerEvents="box-none"
           style={StyleSheet.absoluteFill}
           contentInsetAdjustmentBehavior="never"
-          contentContainerStyle={[styles.cameraOverlay, { paddingBottom: bottom + Spacing.three }]}
+          contentContainerStyle={[styles.cameraOverlay, overlayPadding, { paddingBottom: bottom + Spacing.three }]}
         >
           <View
             pointerEvents="none"
@@ -559,7 +562,11 @@ function StateCard({
 }) {
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" bounces={false} contentContainerStyle={styles.content}>
+      <SafeAreaScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        bounces={false}
+        contentContainerStyle={styles.content}
+      >
         {illustrated && title ? (
           <EmptyState inset={false} visual={<EmptyPaper />} title={title} detail={detail ?? ""}>
             {children}
@@ -571,7 +578,7 @@ function StateCard({
             {children}
           </>
         )}
-      </ScrollView>
+      </SafeAreaScrollView>
     </ThemedView>
   );
 }

@@ -1,9 +1,10 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, TextInput, View } from "react-native";
+import { Alert, TextInput, View } from "react-native";
 
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -106,7 +107,7 @@ function Editor({ work }: { work: SavedWork }) {
     }
   }
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
       automaticallyAdjustKeyboardInsets
@@ -238,6 +239,6 @@ function Editor({ work }: { work: SavedWork }) {
           {error}
         </Text>
       )}
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }

@@ -2,10 +2,11 @@ import { useConvex } from "convex/react";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { LoadingRing } from "@/components/loading-ring";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Colors, Spacing } from "@/constants/theme";
@@ -281,7 +282,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
           {...saveProps}
         />
       ) : (
-        <ScrollView
+        <SafeAreaScrollView
           contentInsetAdjustmentBehavior="automatic"
           automaticallyAdjustKeyboardInsets
           keyboardDismissMode="interactive"
@@ -340,7 +341,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
               />
             </>
           )}
-        </ScrollView>
+        </SafeAreaScrollView>
       )}
       <NotRightSheet
         open={sheet.open}

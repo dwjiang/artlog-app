@@ -1,6 +1,7 @@
-import { FlatList, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, Spacing } from "@/constants/theme";
 import { nearbyMuseums } from "@/lib/explore/lists";
@@ -20,7 +21,7 @@ export function MuseumListScreen() {
   if (!data) return <ExploreState view={explore} />;
   const museums = nearbyMuseums(data);
   return (
-    <FlatList
+    <SafeAreaFlatList
       style={listStyles.root}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={listStyles.content}

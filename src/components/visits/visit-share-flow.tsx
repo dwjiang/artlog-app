@@ -36,6 +36,7 @@ import { reportError } from "@/lib/observability";
 import { confirmAlert, useSafetyChecks } from "@/lib/social/safety-checks";
 import { useSocialSession } from "@/lib/social/use-social-session";
 import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
+import { horizontalSafeAreaPadding, useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { showToast } from "@/lib/ui/toast";
 import { arrangeShareGrid, sharedOrder } from "@/lib/visits/share-order";
 import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
@@ -152,7 +153,8 @@ export function VisitShareScreen() {
   const submitting = useRef(false);
   const notes = useRef<VisitNotesHandle>(null);
   const safety = useSafetyChecks(useSocialSession());
-  const { width, fontScale } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
@@ -376,7 +378,7 @@ export function VisitShareScreen() {
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
-        contentContainerStyle={share.content}
+        contentContainerStyle={[share.content, horizontalSafeAreaPadding(share.content, insets)]}
       >
         <View style={share.header}>
           <View style={{ gap: 4 }}>

@@ -146,7 +146,9 @@ export function CropEditor({
     }
   }
   return (
-    <View style={[styles.screen, { paddingBottom: bottomPadding }]}>
+    <View
+      style={[styles.screen, { paddingLeft: insets.left, paddingRight: insets.right, paddingBottom: bottomPadding }]}
+    >
       {header}
       <Text style={styles.instructions}>Drag each corner onto the painting’s corners.</Text>
       <View testID="crop-stage" style={styles.stage} onLayout={({ nativeEvent: { layout } }) => setStage(layout)}>

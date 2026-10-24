@@ -1,7 +1,7 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state";
 import { EmptyTicket } from "@/components/empty-state-art";
 import { ListRow, ListSection } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import { listVisits } from "@/db/repos/visits";
@@ -172,7 +173,7 @@ function CaptureContext({
   ];
 
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={styles.screen}
       contentInsetAdjustmentBehavior="automatic"
       bounces={!noVisits}
@@ -220,7 +221,7 @@ function CaptureContext({
           <GalleryButton label="Create a visit" icon="plus" onPress={() => router.push("/visit-create")} />
         </>
       )}
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

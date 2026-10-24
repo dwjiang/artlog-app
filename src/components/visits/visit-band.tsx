@@ -13,6 +13,7 @@ import { useReduceTransparency } from "@/hooks/use-reduce-transparency";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitStart } from "@/lib/journal/history";
 import { useVisitWorks } from "@/lib/journal/use-visit-works";
+import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 import { useCurrentMuseumPhoto } from "@/lib/venue/use-museum-photo";
 import { useStartVisit } from "@/lib/venue/use-start-visit";
 import { useVenue } from "@/lib/venue/use-venue";
@@ -45,6 +46,7 @@ export function VisitBand({ onCamera = false, beforeVisit = false }: { onCamera?
   const { works, loading, error } = useVisitWorks(visit?.localId, useLocalOwner());
   const { starting, start, choose } = useStartVisit({ openCamera: !onCamera });
   const museumPhoto = useCurrentMuseumPhoto();
+  const padding = useHorizontalSafeAreaPadding();
   if (tabBarHidden || !(visit || (beforeVisit && ready))) return null;
   const backdrop = (
     <VisitBackdrop
@@ -56,7 +58,7 @@ export function VisitBand({ onCamera = false, beforeVisit = false }: { onCamera?
     />
   );
   return (
-    <SafeAreaBand style={[styles.band, { paddingTop: windowTop }]}>
+    <SafeAreaBand style={[styles.band, { paddingTop: windowTop }, padding]}>
       <View
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"

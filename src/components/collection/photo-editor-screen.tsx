@@ -1,12 +1,13 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, TextInput, View } from "react-native";
+import { Alert, TextInput, View } from "react-native";
 
 import { EmptyState } from "@/components/empty-state";
 import { LoadingImage } from "@/components/loading-image";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { editArtworkPhoto, selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -90,7 +91,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
     }
   };
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
       automaticallyAdjustKeyboardInsets
@@ -254,6 +255,6 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
           }
         />
       </View>
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }

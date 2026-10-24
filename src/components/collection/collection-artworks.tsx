@@ -1,11 +1,12 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState, type ReactElement } from "react";
-import { FlatList, View, useWindowDimensions } from "react-native";
+import { View, useWindowDimensions } from "react-native";
 
 import { ChoiceMenu } from "@/components/choice-menu";
 import { SearchEmptyState } from "@/components/empty-state";
 import { CollectionEmptyState } from "@/components/guest/collection-empty-state";
 import { VisitSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { SocialState } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
@@ -15,6 +16,7 @@ import { signInRoute } from "@/lib/account/sign-in-context";
 import { artistSections } from "@/lib/collection/artist-sections";
 import { filterWorks } from "@/lib/collection/search";
 import type { useCollectionData } from "@/lib/collection/use-collection-data";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 
 import { GalleryButton } from "./gallery-button";
@@ -42,7 +44,8 @@ export function CollectionArtworks({
   onRetry?: () => void;
 }) {
   const wall = useCollectionWall(works);
-  const { fontScale, width } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const [sort, setSort] = useState<"recent" | "artist">("recent");
   // The hook owns the first read; returning from a detail screen, which edits the wall through its own repository, re-reads it.
   useFocusEffect(
@@ -116,7 +119,7 @@ export function CollectionArtworks({
     <CollectionEmptyState kind="artworks" />
   );
   return (
-    <FlatList
+    <SafeAreaFlatList
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       data={rows}
       keyExtractor={(row) => row.key}

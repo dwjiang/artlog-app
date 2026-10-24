@@ -15,6 +15,7 @@ import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { cropSyncing } from "@/lib/account/photo-sync";
 import { formatVisitDate } from "@/lib/journal/history";
 import { playToggleHaptic } from "@/lib/ui/haptics";
+import { useHorizontalSafeAreaPadding, useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { canHangArtwork, libraryArtworks, type ArtworkSort, type LibraryVisit } from "@/lib/wall/artwork-library";
 import type { WallPiece } from "@/lib/wall/wall-layout";
 import { LIMITS } from "@/shared/journal/limits";
@@ -51,9 +52,14 @@ export function WallArtworkPicker({
   onDismiss: () => void;
   onAdd: () => void;
 }) {
-  const { fontScale, width } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
+  const headerPadding = useHorizontalSafeAreaPadding(styles.header);
+  const filtersPadding = useHorizontalSafeAreaPadding(styles.filters);
+  const gridPadding = useHorizontalSafeAreaPadding(styles.grid);
+  const footerPadding = useHorizontalSafeAreaPadding(styles.footer);
   const [search, setSearch] = useState("");
   const [visitId, setVisitId] = useState("");
   const [sort, setSort] = useState<ArtworkSort>("recent");
@@ -88,7 +94,7 @@ export function WallArtworkPicker({
   return (
     <Modal animationType={reduced ? "fade" : "slide"} presentationStyle="fullScreen" onRequestClose={onDismiss}>
       <KeyboardAvoidingView behavior="padding" style={[styles.screen, { paddingTop: insets.top }]}>
-        <View style={styles.header}>
+        <View style={[styles.header, headerPadding]}>
           <GalleryButton
             label={review ? "Library" : "Wall"}
             icon="chevron.left"
@@ -100,7 +106,7 @@ export function WallArtworkPicker({
           </Text>
         </View>
         {!review && (
-          <View style={styles.filters}>
+          <View style={[styles.filters, filtersPadding]}>
             <SearchField
               value={search}
               label="Search artworks"
@@ -148,7 +154,7 @@ export function WallArtworkPicker({
           windowSize={5}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.grid}
+          contentContainerStyle={[styles.grid, gridPadding]}
           columnWrapperStyle={columns === 2 ? { gap: Spacing.compact } : undefined}
           ListHeaderComponent={
             <View style={styles.resultsHeading}>
@@ -262,7 +268,7 @@ export function WallArtworkPicker({
             </>
           }
         />
-        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.three) }]}>
+        <View style={[styles.footer, footerPadding, { paddingBottom: Math.max(insets.bottom, Spacing.three) }]}>
           <View style={styles.selectionRow}>
             <Text variant="secondary" style={{ fontWeight: "600" }}>
               {selected.length > 0 ? `${selected.length} selected` : "Select artworks"}

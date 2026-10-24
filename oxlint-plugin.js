@@ -3,6 +3,9 @@ const path = require("node:path");
 const RE_EXPORT = "Re-export: import the symbol from the module that defines it";
 const ALIAS = "Alias export: give the declaration one name and export that";
 const PREFER_ALIAS = "Parent-relative import: use the @/ path alias";
+const SAFE_AREA_SCROLL =
+  "Safe-area list: use SafeAreaScrollView, SafeAreaFlatList or SafeAreaSectionList from @/components/safe-area-scroll";
+const SCROLL_COMPONENTS = new Set(["ScrollView", "FlatList", "SectionList"]);
 
 // tsconfig `paths` except @/assets/*, which Jest's `^@/(.*)$` mapping shadows; convex/ and modules/ have no alias.
 const ALIASED_DIRS = [
@@ -81,10 +84,33 @@ const preferAliasImports = {
   },
 };
 
+// UIKit adjusts only the scrolling axis for the safe area, so a vertical React Native list that adjusts leaves rows
+// under a side bar (the iPhone Duo's rail); the safe-area wrappers pad across the axis.
+const safeAreaScroll = {
+  create(context) {
+    return {
+      JSXOpeningElement(node) {
+        if (node.name.type !== "JSXIdentifier" || !SCROLL_COMPONENTS.has(node.name.name)) return;
+        const attribute = (name) =>
+          node.attributes.find((item) => item.type === "JSXAttribute" && item.name.name === name);
+        const behavior = attribute("contentInsetAdjustmentBehavior");
+        if (!behavior || behavior.value?.value === "never" || attribute("horizontal")) return;
+        let scope = context.sourceCode.getScope(node);
+        while (scope && !scope.set.has(node.name.name)) scope = scope.upper;
+        const fromReactNative = scope?.set
+          .get(node.name.name)
+          .defs.some((def) => def.type === "ImportBinding" && def.parent.source.value === "react-native");
+        if (fromReactNative) context.report({ node, message: SAFE_AREA_SCROLL });
+      },
+    };
+  },
+};
+
 module.exports = {
   meta: { name: "artlog" },
   rules: {
     "no-re-exports": noReExports,
     "prefer-alias-imports": preferAliasImports,
+    "safe-area-scroll": safeAreaScroll,
   },
 };

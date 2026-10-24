@@ -1,7 +1,7 @@
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Linking, ScrollView, StyleSheet, type TextInput, View, useWindowDimensions } from "react-native";
+import { Linking, StyleSheet, type TextInput, View, useWindowDimensions } from "react-native";
 
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/empty-state";
 import { EmptyMap } from "@/components/empty-state-art";
 import { ListIcon, ListRow, ListSection } from "@/components/list-row";
 import { LoadingRing } from "@/components/loading-ring";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { SearchField } from "@/components/search-field";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
@@ -211,7 +212,7 @@ function ChooserSheet({
     return (
       <View collapsable={false} style={sheetStyle}>
         <View collapsable={false} />
-        <ScrollView
+        <SafeAreaScrollView
           accessibilityLabel="Nearby museums"
           style={styles.pickerScroll}
           contentInsetAdjustmentBehavior="automatic"
@@ -256,13 +257,13 @@ function ChooserSheet({
             />
           </ListSection>
           {!pinned && actions}
-        </ScrollView>
+        </SafeAreaScrollView>
         {pinned && <View style={styles.pickerFooter}>{actions}</View>}
       </View>
     );
   }
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={sheetStyle}
       keyboardShouldPersistTaps="handled"
       contentInsetAdjustmentBehavior="automatic"
@@ -386,7 +387,7 @@ function ChooserSheet({
         </ThemedText>
       )}
       {!nearbyEmpty && leaveButton}
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

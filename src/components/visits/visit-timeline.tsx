@@ -1,9 +1,10 @@
 import { Link } from "expo-router";
 import { useRef, type ReactElement, type Ref } from "react";
-import { FlatList, StyleSheet, View, useWindowDimensions } from "react-native";
+import { type FlatList, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { MotionPressable } from "@/components/motion-pressable";
 import { usePaneRoom, usePaneSwitch, type PaneRoom } from "@/components/pane-scroll";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -117,7 +118,7 @@ export function VisitTimeline({
     }
   }
   return (
-    <FlatList
+    <SafeAreaFlatList
       ref={list}
       data={rows}
       keyExtractor={(row) => row.key}

@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { type FlatList, StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
@@ -8,6 +8,7 @@ import { SearchEmptyState } from "@/components/empty-state";
 import { ListSection } from "@/components/list-row";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { SearchField } from "@/components/search-field";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
@@ -118,7 +119,7 @@ export function PeopleScreen() {
           />
         </Stack.Toolbar>
       )}
-      <FlatList
+      <SafeAreaFlatList
         ref={list}
         style={styles.page}
         contentContainerStyle={[

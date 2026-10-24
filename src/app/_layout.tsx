@@ -5,6 +5,7 @@ import { DefaultTheme, ThemeProvider, type ErrorBoundaryProps } from "expo-route
 import { getFocusedRouteNameFromRoute } from "expo-router/react-navigation";
 import { Stack } from "expo-router/stack";
 import { useEffect } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ProfileSetupPrompt } from "@/components/account/profile-setup-prompt";
 import { AppDiagnostics } from "@/components/app-diagnostics";
@@ -83,13 +84,19 @@ function AppContent() {
                   animation: reduced ? "fade" : "default",
                   animationMatchesGesture: true,
                 }}
-                screenLayout={({ route, options, children }) => (
-                  <DockedPlayerLayout
-                    dockable={route.name !== "(tabs)" && (!options.presentation || options.presentation === "card")}
-                  >
-                    {children}
-                  </DockedPlayerLayout>
-                )}
+                screenLayout={({ route, options, children }) =>
+                  options.presentation === "fullScreenModal" ? (
+                    // UIKit takes the screens under a full-screen modal out of the window, so the root provider's
+                    // insets stop following rotation and resizing.
+                    <SafeAreaProvider>{children}</SafeAreaProvider>
+                  ) : (
+                    <DockedPlayerLayout
+                      dockable={route.name !== "(tabs)" && (!options.presentation || options.presentation === "card")}
+                    >
+                      {children}
+                    </DockedPlayerLayout>
+                  )
+                }
               >
                 <Stack.Screen
                   name="now-playing"

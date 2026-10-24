@@ -1,8 +1,8 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { router } from "expo-router";
 import { useEffect } from "react";
-import { ScrollView } from "react-native";
 
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { CropEditor } from "@/components/scan/crop-editor";
 import { ThemedText } from "@/components/themed-text";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -33,14 +33,14 @@ export function AdjustCropScreen({ savedId, photoId }: { savedId: string; photoI
   const source = photo?.path ?? (!photoId ? work?.photoPath : undefined);
   if (!work || !source) {
     return (
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 24, gap: 16 }}>
+      <SafeAreaScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 24, gap: 16 }}>
         <ThemedText>
           {!works.updatedAt || !photos.updatedAt
             ? "Loading your photo…"
             : "The full photo needs to be on this iPhone before you can adjust its crop."}
         </ThemedText>
         <GalleryButton label="Back" onPress={() => router.back()} />
-      </ScrollView>
+      </SafeAreaScrollView>
     );
   }
   return (

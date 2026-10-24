@@ -23,6 +23,7 @@ import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { captureFileUri } from "@/lib/files/photos";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
+import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 import { canHangArtwork, type LibraryVisit } from "@/lib/wall/artwork-library";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 import {
@@ -85,6 +86,11 @@ export function CollectionWallContent({
   const router = useRouter();
   const owner = useLocalOwner();
   const insets = useSafeAreaInsets();
+  const sides = useHorizontalSafeAreaPadding();
+  const editBarPadding = useHorizontalSafeAreaPadding(styles.toolbar);
+  const errorPadding = useHorizontalSafeAreaPadding(styles.error);
+  const blankPadding = useHorizontalSafeAreaPadding(styles.blank);
+  const emptyPadding = useHorizontalSafeAreaPadding(styles.empty);
   const [editing, setEditing] = useState(false);
   const [width, setWidth] = useState(0);
   useHideTabBar(editing);
@@ -311,20 +317,22 @@ export function CollectionWallContent({
   }
 
   const toolbar = (
-    <WallToolbar
-      works={available}
-      onEdit={wall.draft ? edit : undefined}
-      onAllArtworks={() => router.push("/all-artworks")}
-      disabled={blocked}
-      refreshing={wall.loading && !!wall.draft && !wall.error && !pull.refreshing}
-    />
+    <View style={sides}>
+      <WallToolbar
+        works={available}
+        onEdit={wall.draft ? edit : undefined}
+        onAllArtworks={() => router.push("/all-artworks")}
+        disabled={blocked}
+        refreshing={wall.loading && !!wall.draft && !wall.error && !pull.refreshing}
+      />
+    </View>
   );
 
   return (
     <GestureHandlerRootView style={styles.root}>
       {shown && focused && canvas && !editing && darkTop && <StatusBar style="light" />}
       {editing && (
-        <View style={[styles.toolbar, { backgroundColor: Gallery.paper }]}>
+        <View style={[styles.toolbar, editBarPadding, { backgroundColor: Gallery.paper }]}>
           <Text variant="section" accessibilityRole="header">
             Edit wall
           </Text>
@@ -351,10 +359,14 @@ export function CollectionWallContent({
           onScroll={room.onScroll}
           refreshControl={pull.refreshControl}
         >
-          {!editing && header}
-          {!editing && <View onLayout={room.onPinnedLayout}>{controls}</View>}
+          {!editing && header && <View style={sides}>{header}</View>}
+          {!editing && (
+            <View style={sides} onLayout={room.onPinnedLayout}>
+              {controls}
+            </View>
+          )}
           {collectionError && (
-            <View style={styles.error}>
+            <View style={[styles.error, errorPadding]}>
               <Text accessibilityRole="alert" style={styles.caption}>
                 {collectionError}
               </Text>
@@ -362,7 +374,7 @@ export function CollectionWallContent({
             </View>
           )}
           {wall.error && (
-            <View style={styles.error}>
+            <View style={[styles.error, errorPadding]}>
               <Text accessibilityRole="alert" style={styles.caption}>
                 {wall.error}
               </Text>
@@ -393,7 +405,7 @@ export function CollectionWallContent({
           ) : blank ? (
             // The toolbar above already separates the empty state from the pane picker; the full inset would push its
             // action under the tab bar.
-            <View style={styles.blank}>
+            <View style={[styles.blank, blankPadding]}>
               <EmptyState
                 inset={false}
                 title="No artworks on your wall yet."
@@ -470,7 +482,7 @@ export function CollectionWallContent({
                   }}
                 >
                   {!count && (
-                    <View style={styles.empty}>
+                    <View style={[styles.empty, emptyPadding]}>
                       {!opening && (
                         <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>
                           No artworks on your wall yet.
@@ -519,7 +531,7 @@ export function CollectionWallContent({
             pointerEvents="box-none"
             accessibilityElementsHidden={!!options || !!picker}
             onLayout={(event) => setPaletteHeight(event.nativeEvent.layout.height)}
-            style={[styles.palette, { bottom: Math.max(insets.bottom, 12) }]}
+            style={[styles.palette, { right: insets.right + 16, bottom: Math.max(insets.bottom, 12) }]}
           >
             <WallEditorPalette
               selected={selected}
@@ -611,7 +623,7 @@ const styles = StyleSheet.create({
     maxWidth: 280,
     opacity: 0.85,
   },
-  palette: { position: "absolute", right: 16 },
+  palette: { position: "absolute" },
   tray: {
     backgroundColor: Gallery.paper,
     ...PinnedFooterBorder,

@@ -1,11 +1,12 @@
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { useEffect } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { LoadingImage } from "@/components/loading-image";
 import { PhotoStripSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { selectVisitArtworkPhotos } from "@/db/repos/artwork-album";
@@ -13,6 +14,7 @@ import type { SavedWork } from "@/db/schema";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
 import { playToggleHaptic } from "@/lib/ui/haptics";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
 import { ShareTileImage } from "./share-artwork-tile";
 import { VisitSymbol, visitStyles } from "./visit-ui";
@@ -48,7 +50,8 @@ export function SharePhotoPicker({
   selected: string[];
   onChange: (ids: string[]) => void;
 }) {
-  const { width, fontScale } = useWindowDimensions();
+  const { fontScale } = useWindowDimensions();
+  const width = useSafeAreaWidth();
   const { data, updatedAt, error } = useLiveQuery(selectVisitArtworkPhotos(work.localId, visitId, work.owner), [
     work.localId,
     visitId,
@@ -61,7 +64,7 @@ export function SharePhotoPicker({
   const columns = fontScale > 1.4 ? 1 : 2;
   const size = (width - 2 * GUTTER - (columns - 1) * GAP) / columns;
   return (
-    <ScrollView
+    <SafeAreaScrollView
       contentInsetAdjustmentBehavior="automatic"
       style={{ backgroundColor: Gallery.paper }}
       contentContainerStyle={styles.content}
@@ -125,7 +128,7 @@ export function SharePhotoPicker({
           );
         })}
       </View>
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }
 

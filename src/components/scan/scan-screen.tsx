@@ -15,6 +15,7 @@ import { useCapture } from "@/lib/capture/use-capture";
 import { useRectDetector } from "@/lib/capture/use-rect-detector";
 import { useUprightPhoto } from "@/lib/capture/use-upright-photo";
 import { reportError } from "@/lib/observability";
+import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 import { useLiftToasts } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
 
@@ -58,6 +59,8 @@ export function ScanScreen() {
   const [controls, setControls] = useState({ top: 0, bottom: 0 });
   // Native tabs give each tab its own safe area, which already ends above the tab bar and any bottom accessory.
   const { top, bottom } = useSafeAreaInsets();
+  const overlayPadding = useHorizontalSafeAreaPadding(styles.overlay);
+  const topLayerPadding = useHorizontalSafeAreaPadding(styles.topLayer);
   const controlsBottom = bottom + Spacing.three;
   const revealInsets = useMemo(
     () => ({
@@ -141,6 +144,7 @@ export function ScanScreen() {
       pointerEvents="box-none"
       style={[
         styles.overlay,
+        overlayPadding,
         { paddingTop: top + Spacing.three + controls.top + Spacing.four, paddingBottom: controlsBottom },
       ]}
     >
@@ -239,7 +243,7 @@ export function ScanScreen() {
         {renderOverlay(true)}
       </CameraPermission>
       {/* The venue and queue entry points have no other home, so they stay above the permission invitation as well. */}
-      <View pointerEvents="box-none" style={[styles.topLayer, { paddingTop: top + Spacing.three }]}>
+      <View pointerEvents="box-none" style={[styles.topLayer, topLayerPadding, { paddingTop: top + Spacing.three }]}>
         <View
           pointerEvents="box-none"
           style={styles.top}

@@ -1,10 +1,11 @@
 import Constants from "expo-constants";
 import { Image } from "expo-image";
 import * as Linking from "expo-linking";
-import { ScrollView, View } from "react-native";
+import { View } from "react-native";
 
 import { introArtworks } from "@/components/guest/artwork-preview";
 import { MotionPressable } from "@/components/motion-pressable";
+import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, SettingsOutline } from "@/constants/theme";
 import { openLegalPage } from "@/lib/legal-links";
@@ -23,7 +24,7 @@ export function AboutSection() {
     }
   }
   return (
-    <ScrollView
+    <SafeAreaScrollView
       style={{ flex: 1, backgroundColor: Gallery.paper }}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{ padding: 20, gap: 24 }}
@@ -123,6 +124,6 @@ export function AboutSection() {
         Space Grotesk by Florian Karsten. Copyright 2020 The Space Grotesk Project Authors. Licensed under the SIL Open
         Font License, Version 1.1.
       </ThemedText>
-    </ScrollView>
+    </SafeAreaScrollView>
   );
 }

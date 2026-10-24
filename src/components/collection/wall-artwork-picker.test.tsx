@@ -10,7 +10,9 @@ import { WallArtworkPicker } from "./wall-artwork-picker";
 
 jest.mock("expo-router", () => ({ useSegments: () => [] }));
 jest.mock("@/lib/ui/haptics");
-jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 34 }) }));
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
+}));
 const work = (localId: string, title: string, artist: string, savedAt = 1): SavedWork =>
   ({
     localId,

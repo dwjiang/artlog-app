@@ -4,23 +4,27 @@ import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native"
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 import { isLightWall, type Wallpaper } from "@/lib/wall/wall-layout";
 
 import { wallPatterns, wallpaperStyle } from "./wallpaper";
 
 export function WallpaperEditor({ value, onChange }: { value: Wallpaper; onChange: (value: Wallpaper) => void }) {
   const { height, fontScale } = useWindowDimensions();
+  const headerPadding = useHorizontalSafeAreaPadding(styles.header);
+  const headingPadding = useHorizontalSafeAreaPadding(styles.heading);
+  const choicesPadding = useHorizontalSafeAreaPadding(styles.choices);
   const colorName = Gallery.colors.find((color) => color.value === value.color)?.name;
   const patternName = wallPatterns.find((pattern) => pattern.value === value.pattern)?.name;
   return (
     <View style={{ maxHeight: height * 0.48 }}>
-      <View style={styles.header}>
+      <View style={[styles.header, headerPadding]}>
         <Text variant="section" accessibilityRole="header">
           Wallpaper
         </Text>
       </View>
       <ScrollView alwaysBounceVertical={false} contentContainerStyle={styles.content}>
-        <View style={styles.heading}>
+        <View style={[styles.heading, headingPadding]}>
           <Text variant="secondary" style={styles.label}>
             Color
           </Text>
@@ -28,7 +32,11 @@ export function WallpaperEditor({ value, onChange }: { value: Wallpaper; onChang
             {colorName}
           </Text>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choices}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.choices, choicesPadding]}
+        >
           {Gallery.colors.map(({ name, value: color }) => {
             const selected = color === value.color;
             return (
@@ -53,7 +61,7 @@ export function WallpaperEditor({ value, onChange }: { value: Wallpaper; onChang
             );
           })}
         </ScrollView>
-        <View style={styles.heading}>
+        <View style={[styles.heading, headingPadding]}>
           <Text variant="secondary" style={styles.label}>
             Design
           </Text>
@@ -61,7 +69,11 @@ export function WallpaperEditor({ value, onChange }: { value: Wallpaper; onChang
             {patternName}
           </Text>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choices}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.choices, choicesPadding]}
+        >
           {wallPatterns.map(({ name, value: pattern }) => {
             const selected = pattern === value.pattern;
             return (

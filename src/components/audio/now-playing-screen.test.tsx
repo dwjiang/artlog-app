@@ -43,7 +43,7 @@ jest.mock("expo-router", () => ({
   router: { back: jest.fn(), push: (...args: unknown[]) => mockPush(...args) },
 }));
 jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ bottom: 0 }),
+  useSafeAreaInsets: () => ({ bottom: 0, left: 0, right: 0 }),
 }));
 jest.mock("./listening-queue", () => ({
   ListeningQueue: ({ onAdd }: { onAdd: () => void }) => {

@@ -1,8 +1,9 @@
 import { Stack } from "expo-router";
-import { FlatList, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { EmptyState } from "@/components/empty-state";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { Gallery, Spacing } from "@/constants/theme";
 import type { BrowsedProfile } from "@/lib/social/types";
 import { isMutualFriend, useFriends } from "@/lib/social/use-friends";
@@ -40,7 +41,7 @@ export function ProfileFriendsScreen({ profileId }: { profileId: string }) {
   return (
     <>
       <Stack.Screen options={{ title: firstName ? `${firstName}’s Friends` : "Friends" }} />
-      <FlatList
+      <SafeAreaFlatList
         style={styles.page}
         contentContainerStyle={[socialStyles.content, styles.content, people.length === 0 && { paddingBottom: 0 }]}
         contentInsetAdjustmentBehavior="automatic"

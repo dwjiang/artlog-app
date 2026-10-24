@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { use, useRef, useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { type FlatList, StyleSheet, View } from "react-native";
 
 import { WelcomePrompt } from "@/components/account/welcome-prompt";
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -8,6 +8,7 @@ import { EmptyCard } from "@/components/empty-state";
 import { FeedSkeleton } from "@/components/loading-skeleton";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
+import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { ThemedText as Text } from "@/components/themed-text";
 import { NowCard, useNowCardScroll } from "@/components/visits/now-card";
 import { VisitlessSavesCard } from "@/components/visits/visitless-saves-card";
@@ -124,7 +125,7 @@ export function HomeScreen() {
       <WelcomePrompt />
       <WrapUpPrompt />
       {/* Each card's comments sheet renders in this tree; "handled" lets taps reach its composer. */}
-      <FlatList
+      <SafeAreaFlatList
         ref={list}
         keyboardShouldPersistTaps="handled"
         style={socialStyles.root}
