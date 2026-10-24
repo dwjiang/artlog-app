@@ -5,6 +5,7 @@
   "license": "MPL-2.0",
   "main": "expo-router/entry",
   "scripts": {
+    "postinstall": "patch-package --error-on-fail",
     "start": "expo start",
     "ios": "expo run:ios",
     "preios": "npm run model:check",
@@ -123,6 +124,7 @@
     "oxfmt": "^0.70.0",
     "oxlint": "^1.85.0",
     "oxlint-tsgolint": "^7.0.2003",
+    "patch-package": "^8.0.1",
     "robots-parser": "^3.0.1",
     "test-renderer": "^1.2.0",
     "typescript": "~6.0.3",
