@@ -51,6 +51,7 @@ export function NativeSegmentedPicker<T extends string>({
   const Layout = stacked ? Column : Row;
   const fillWidth = !compact || stacked;
   const selectedIndex = options.findIndex((option) => option.value === value);
+  const track = grouped ? Gallery.separator : Gallery.segmentTrack;
   return (
     <Host
       key={fontScale}
@@ -63,7 +64,7 @@ export function NativeSegmentedPicker<T extends string>({
           alignment="center"
           spacing={Spacing.one}
           style={{
-            backgroundColor: grouped ? Gallery.separator : Gallery.segmentTrack,
+            backgroundColor: track,
             borderRadius: Radius.input,
             padding: Spacing.one,
           }}
@@ -139,7 +140,7 @@ export function NativeSegmentedPicker<T extends string>({
                     ) : (
                       <RoundedRectangle
                         cornerRadius={Radius.input - Spacing.half}
-                        modifiers={[foregroundStyle(Gallery.segmentTrack)]}
+                        modifiers={[foregroundStyle(track)]}
                       />
                     )}
                   </Background.Content>
