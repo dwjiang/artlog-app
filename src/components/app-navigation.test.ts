@@ -1,5 +1,11 @@
+import path from "node:path";
+
 import { getStateFromPath } from "expo-router/build/fork/getStateFromPath";
-import { getMockConfig } from "expo-router/testing-library";
+import { getNavigationConfig } from "expo-router/build/getLinkingConfig";
+import { getExactRoutes } from "expo-router/build/getRoutes";
+import { createSeededRootState } from "expo-router/build/global-state/createSeededNavigationState";
+import { withLoadedLayouts } from "expo-router/build/layoutAnchor";
+import { requireContext } from "expo-router/build/testing-library/context-stubs";
 import type { PropsWithChildren } from "react";
 
 jest.mock("./visits/visit-share-flow", () => ({
@@ -10,11 +16,15 @@ jest.mock("@/lib/widgets/widget-provider", () => ({
 }));
 jest.mock("@/lib/widgets/visit-activity-sync", () => ({ VisitActivitySync: () => null }));
 
-const config = getMockConfig("src/app");
+const routes = getExactRoutes(requireContext(path.resolve(process.cwd(), "src/app")))!;
+const config = getNavigationConfig(routes, true, { sitemap: true, notFound: true });
 
-// Use the real route files and URL parser without mounting native navigators.
-function getRootState(path: string) {
-  return getStateFromPath(path, config)?.routes[0].state;
+// Use the real route files, URL parser, and initial-state seeding (which adds layout anchors) without mounting
+// native navigators.
+function getRootState(url: string) {
+  const state = withLoadedLayouts(() => createSeededRootState(getStateFromPath(url, config), routes));
+  if (state instanceof Promise) throw new Error("Route layouts should load synchronously under Jest.");
+  return state?.routes[0].state;
 }
 
 function getTabsState(path: string) {

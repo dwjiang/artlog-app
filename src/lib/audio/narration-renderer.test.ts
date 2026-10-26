@@ -33,7 +33,7 @@ jest.mock("expo-file-system", () => ({
     get size() {
       return mockFiles.get(this.uri)?.length ?? 0;
     }
-    write(bytes: Uint8Array | string) {
+    writeSync(bytes: Uint8Array | string) {
       mockFiles.set(this.uri, typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes);
     }
     textSync() {

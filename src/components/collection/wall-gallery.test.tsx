@@ -1,13 +1,16 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { useState } from "react";
+import { act, fireEvent, render as renderView, screen } from "@testing-library/react-native";
+import { useState, type ReactElement } from "react";
 import { PixelRatio, StyleSheet } from "react-native";
-import { State, type PanGesture } from "react-native-gesture-handler";
+import { GestureHandlerRootView, State, type LegacyPanGesture } from "react-native-gesture-handler";
 import { fireGestureHandler, getByGestureTestId } from "react-native-gesture-handler/jest-utils";
 
 import { playLightHaptic } from "@/lib/ui/haptics";
 import { wallPieceBounds, type WallArrangement, type WallPiece } from "@/lib/wall/wall-layout";
 
 import { WallGallery } from "./wall-gallery";
+
+// Gesture Handler requires a root view above every detector; the collection and profile screens provide it.
+const render = (ui: ReactElement) => renderView(ui, { wrapper: GestureHandlerRootView });
 
 jest.mock("react-native-reanimated", () => ({
   __esModule: true,
@@ -105,7 +108,7 @@ it.each([
   const savedHeight = wallPieceBounds(artwork, props.width).height * props.width;
   await render(<WallGallery {...props} pieces={[artwork]} />);
   await act(() =>
-    fireGestureHandler<PanGesture>(getByGestureTestId("resize-art-bottom-right"), [
+    fireGestureHandler<LegacyPanGesture>(getByGestureTestId("resize-art-bottom-right"), [
       { state: State.BEGAN },
       { state: State.ACTIVE, translationX: (end - start) * props.width, translationY: (end / start - 1) * savedHeight },
       { state: State.END, translationX: (end - start) * props.width, translationY: (end / start - 1) * savedHeight },
@@ -163,7 +166,7 @@ it.each(["top-left", "top-right", "bottom-left", "bottom-right"] as const)(
     const x = corner.endsWith("left") ? -20 : 20;
     const y = corner.startsWith("top") ? -20 : 20;
     await act(() =>
-      fireGestureHandler<PanGesture>(getByGestureTestId(`resize-art-${corner}`), [
+      fireGestureHandler<LegacyPanGesture>(getByGestureTestId(`resize-art-${corner}`), [
         { state: State.BEGAN, translationX: 0, translationY: 0 },
         { state: State.ACTIVE, translationX: x / 2, translationY: y / 2 },
         { state: State.ACTIVE, translationX: x, translationY: y },
@@ -193,7 +196,7 @@ it("does not save a cancelled resize, and a later drag starts at the original si
   );
   const resize = getByGestureTestId("resize-art-bottom-right");
   await act(() =>
-    fireGestureHandler<PanGesture>(resize, [
+    fireGestureHandler<LegacyPanGesture>(resize, [
       { state: State.BEGAN },
       { state: State.ACTIVE, translationX: 60, translationY: 60 },
       { state: State.CANCELLED },
@@ -201,7 +204,7 @@ it("does not save a cancelled resize, and a later drag starts at the original si
   );
   expect(onArrange).not.toHaveBeenCalled();
   await act(() =>
-    fireGestureHandler<PanGesture>(resize, [
+    fireGestureHandler<LegacyPanGesture>(resize, [
       { state: State.BEGAN },
       { state: State.ACTIVE, translationX: 10, translationY: 10 },
       { state: State.END, translationX: 10, translationY: 10 },
@@ -248,7 +251,7 @@ it("selects and moves an artwork in one drag, committing the final finger positi
     />,
   );
   await act(() =>
-    fireGestureHandler<PanGesture>(getByGestureTestId("move-art"), [
+    fireGestureHandler<LegacyPanGesture>(getByGestureTestId("move-art"), [
       { state: State.BEGAN },
       { state: State.ACTIVE, translationX: 10, translationY: 15 },
       { state: State.ACTIVE, translationX: 20, translationY: 30 },
@@ -277,7 +280,7 @@ it("discards a cancelled move and permits a subsequent drag", async () => {
   );
   const pan = getByGestureTestId("move-art");
   await act(() =>
-    fireGestureHandler<PanGesture>(pan, [
+    fireGestureHandler<LegacyPanGesture>(pan, [
       { state: State.BEGAN },
       { state: State.ACTIVE },
       { state: State.ACTIVE, translationX: 80, translationY: 80 },
@@ -287,7 +290,7 @@ it("discards a cancelled move and permits a subsequent drag", async () => {
   expect(onArrange).not.toHaveBeenCalled();
   expect(playLightHaptic).toHaveBeenCalledTimes(1);
   await act(() =>
-    fireGestureHandler<PanGesture>(pan, [
+    fireGestureHandler<LegacyPanGesture>(pan, [
       { state: State.BEGAN },
       { state: State.ACTIVE },
       { state: State.END, translationX: 39, translationY: 0 },
@@ -312,7 +315,7 @@ describe("releasing a dragged artwork near a neighbor", () => {
       />,
     );
     await act(() =>
-      fireGestureHandler<PanGesture>(getByGestureTestId(gestureId), [
+      fireGestureHandler<LegacyPanGesture>(getByGestureTestId(gestureId), [
         { state: State.BEGAN },
         { state: State.ACTIVE },
         { state: State.ACTIVE, translationX: translationX / 2, translationY: translationY / 2 },

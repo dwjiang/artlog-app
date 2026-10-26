@@ -30,7 +30,7 @@ function ResultRoute() {
 it.each(["/label/scan-1", "/enter-details/scan-1"] as const)(
   "confirming on %s returns to the artwork screen it came from instead of opening another",
   async (path) => {
-    const view = renderRouter(
+    const view = await renderRouter(
       {
         _layout: () => <Stack />,
         index: () => <Text>Camera</Text>,
@@ -40,7 +40,6 @@ it.each(["/label/scan-1", "/enter-details/scan-1"] as const)(
       },
       { initialUrl: "/" },
     );
-    await view;
     await act(() => router.push({ pathname: "/result/[scanId]", params: { scanId: "scan-1", entrance: "capture" } }));
     const stack = () => view.getRouterState()!.routes[0].state!.routes;
     const artwork = stack()[1].key;

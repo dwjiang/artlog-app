@@ -247,7 +247,7 @@ export function PeopleScreen() {
                 detail="Try another name or username."
                 onClear={() => setText("")}
               />
-            ) : null
+            ) : undefined
           ) : session.offline ? (
             <SocialState title="You’re offline." detail="Connect to find friends." icon="wifi.slash" />
           ) : !text.trim() ? (
@@ -266,7 +266,7 @@ export function PeopleScreen() {
                   }}
                 />
               </SocialInvitation>
-            ) : null
+            ) : undefined
           ) : !peopleSearch(text) ? (
             <SocialState
               title="Check your search."
@@ -283,7 +283,7 @@ export function PeopleScreen() {
               detail="Try another name or username."
               onClear={() => setText("")}
             />
-          ) : null
+          ) : undefined
         }
         ListFooterComponent={
           filter === "all" ? (
@@ -293,12 +293,12 @@ export function PeopleScreen() {
               discovery.done && !discovery.error ? (
                 discovery.items.length > 0 ? (
                   <Text style={{ padding: 20, color: Gallery.muted, fontSize: 13 }}>Search by name or username.</Text>
-                ) : null
+                ) : undefined
               ) : (
                 <PageFooter {...discovery} count={discovery.items.length} noun="friends" skeleton="card" />
               )
-            ) : null
-          ) : null
+            ) : undefined
+          ) : undefined
         }
         onEndReached={
           filter === "all" ? (searching ? results.loadMore : !text.trim() ? discovery.loadMore : undefined) : undefined

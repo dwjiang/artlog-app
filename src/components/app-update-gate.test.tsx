@@ -29,7 +29,7 @@ const gate = () => (
 beforeEach(() => {
   jest.clearAllMocks();
   mockCompatibility = { loading: false, updateRequired: true };
-  jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+  jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
 });
 afterEach(() => jest.restoreAllMocks());
 

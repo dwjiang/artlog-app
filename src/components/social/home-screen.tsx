@@ -231,12 +231,12 @@ export function HomeScreen() {
                 secondaryAction={{ label: "Browse Global", onPress: () => setChosenTab("global") }}
               />
             )
-          ) : null
+          ) : undefined
         }
         ListFooterComponent={
           canBrowse && !(feed.refreshing && feed.items.length > 0 && !feed.error) ? (
             <PageFooter {...feed} count={feed.items.length} skeleton="feed" />
-          ) : null
+          ) : undefined
         }
         onEndReached={canBrowse ? feed.loadMore : undefined}
         onEndReachedThreshold={0.4}

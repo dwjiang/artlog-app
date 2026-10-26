@@ -162,10 +162,10 @@ export function createNarrationRenderer(generate: Generate) {
         const bytes = await download(audio.uri, request.signal);
         if (request.signal.aborted) throw new Error("Narration cancelled.");
         if (bytes.length === 0) throw new Error("Narration audio is empty.");
-        partial.write(bytes);
+        partial.writeSync(bytes);
         removeFileIfExists(file);
         await partial.move(file);
-        transcript.write(JSON.stringify(sentences));
+        transcript.writeSync(JSON.stringify(sentences));
         if (request.signal.aborted) throw new Error("Narration cancelled.");
         return { uri: file.uri, sentences, renderId: audio.renderId, live: false, ...research };
       } finally {

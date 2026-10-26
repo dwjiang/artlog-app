@@ -3,8 +3,8 @@ import {
   FlatList as NativeFlatList,
   ScrollView as NativeScrollView,
   SectionList as NativeSectionList,
-  type DefaultSectionT,
   type FlatListProps,
+  type ScrollViewInstance,
   type ScrollViewProps,
   type SectionListProps,
 } from "react-native";
@@ -25,7 +25,7 @@ function useContentContainerStyle({
   return adjusts ? [contentContainerStyle, padding] : contentContainerStyle;
 }
 
-export function SafeAreaScrollView({ ref, ...props }: ScrollViewProps & { ref?: Ref<NativeScrollView> }) {
+export function SafeAreaScrollView({ ref, ...props }: ScrollViewProps & { ref?: Ref<ScrollViewInstance> }) {
   const contentContainerStyle = useContentContainerStyle(props);
   return <NativeScrollView ref={ref} {...props} contentContainerStyle={contentContainerStyle} />;
 }
@@ -35,7 +35,7 @@ export function SafeAreaFlatList<T>({ ref, ...props }: FlatListProps<T> & { ref?
   return <NativeFlatList ref={ref} {...props} contentContainerStyle={contentContainerStyle} />;
 }
 
-export function SafeAreaSectionList<T, S = DefaultSectionT>({
+export function SafeAreaSectionList<T, S>({
   ref,
   ...props
 }: SectionListProps<T, S> & { ref?: Ref<NativeSectionList<T, S>> }) {

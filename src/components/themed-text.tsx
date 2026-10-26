@@ -35,7 +35,7 @@ export function ThemedText({ style, variant, type, themeColor, ...rest }: Themed
 
   // A caller's own fontSize keeps its natural line height; the body role is only a fallback for unsized text.
   const sized = StyleSheet.flatten(style)?.fontSize !== undefined;
-  const textStyle: TextStyle = StyleSheet.flatten([
+  const textStyle = StyleSheet.flatten([
     !nested && { color: theme.text },
     variant ? Typography[variant] : type ? typeStyles[type] : !nested && !sized && Typography.body,
     themeColor && { color: theme[themeColor] },

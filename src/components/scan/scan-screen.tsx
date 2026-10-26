@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppState, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { usePhotoOutput } from "react-native-vision-camera";
+import { useOrientation, usePhotoOutput } from "react-native-vision-camera";
 
 import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -72,7 +72,9 @@ export function ScanScreen() {
   useLiftToasts(controls.bottom ? controlsBottom + controls.bottom : undefined, isFocused);
   const active = isFocused && appState === "active";
   const photoOutput = usePhotoOutput({ containerFormat: "jpeg", quality: 1 });
-  const takePhoto = useUprightPhoto(photoOutput, active);
+  // The preview turns with the interface, which iOS 27 may rotate even though the app prefers portrait.
+  const orientation = useOrientation("interface") ?? "up";
+  const takePhoto = useUprightPhoto(photoOutput, orientation, active);
   const capture = useCapture({
     active,
     focused: isFocused,
@@ -103,7 +105,7 @@ export function ScanScreen() {
     if (!detecting) resetDetection();
   }, [detecting, resetDetection]);
   const [detectionLog] = useState(() => new DetectionLog());
-  const frameOutput = useRectDetector(detecting, (detection) => {
+  const frameOutput = useRectDetector(detecting, orientation, (detection) => {
     const attempt = capture.controller.observe(detection, preview, performance.now());
     detectionLog.record(detection, capture.controller.getFeedback());
     if (attempt) {

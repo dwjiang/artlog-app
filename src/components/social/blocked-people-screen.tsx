@@ -66,7 +66,7 @@ export function BlockedPeopleScreen() {
       ListEmptyComponent={
         blocked.done && !blocked.loading && !blocked.error ? (
           <EmptyState title="No blocked people." detail="To block someone, tap ⋯ on their profile." />
-        ) : null
+        ) : undefined
       }
       ListFooterComponent={
         <PageFooter {...blocked} count={blocked.items.length} noun="blocked people" skeleton="card" />

@@ -1,5 +1,11 @@
 import { act, renderHook } from "@testing-library/react-native";
-import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView, Text } from "react-native";
+import type {
+  LayoutChangeEvent,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollViewInstance,
+  TextInstance,
+} from "react-native";
 
 import { Gallery } from "@/constants/theme";
 
@@ -56,12 +62,12 @@ it("follows a renamed title", async () => {
 it("measures a nested heading against the scroll view", async () => {
   const nativeScroll = {};
   const { result } = await renderHook(() => useScrollTitle("Ana Ruiz"));
-  result.current.scrollRef.current = { getNativeScrollRef: () => nativeScroll } as unknown as ScrollView;
+  result.current.scrollRef.current = { getNativeScrollRef: () => nativeScroll } as unknown as ScrollViewInstance;
   result.current.headingRef.current = {
     measureLayout: (relativeTo: unknown, onSuccess: (...frame: number[]) => void) => {
       if (relativeTo === nativeScroll) onSuccess(20, 300, 362, 40);
     },
-  } as unknown as Text;
+  } as unknown as TextInstance;
   await act(() => result.current.measureHeading());
   await act(() => result.current.onScroll(scrolled(223)));
   expect(titleColors()).toEqual([]);

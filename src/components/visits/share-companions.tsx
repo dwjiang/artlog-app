@@ -109,7 +109,7 @@ export function CompanionPicker({
             />
             {full && <Text style={{ color: Gallery.muted }}>{`You can add up to ${LIMITS.companions} people.`}</Text>}
           </View>
-        ) : null
+        ) : undefined
       }
       renderItem={({ item: person, index }) => {
         const picked = selected.includes(person.profileId);

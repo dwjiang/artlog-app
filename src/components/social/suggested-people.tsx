@@ -12,6 +12,7 @@ import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { suggestionReasonText } from "@/lib/social/presentation";
 import type { BrowsedProfile, Suggestion, SuggestionReason } from "@/lib/social/types";
 import type { SocialSession } from "@/lib/social/use-social-session";
+import { useSafeAreaBleed } from "@/lib/ui/safe-area";
 
 import { AvatarStack } from "./avatar-stack";
 import { CompactFriendshipControls } from "./friendship-controls";
@@ -253,10 +254,16 @@ export function SuggestionStrip({
 }: SuggestionActions & { people: StripPerson[]; seeAll: () => void; title?: string; invite?: boolean }) {
   const { fontScale } = useWindowDimensions();
   const width = Math.round(168 * Math.min(Math.max(fontScale, 1), 1.5));
+  const cards = useSafeAreaBleed(styles.cards);
   return (
     <View style={styles.strip}>
       <SuggestionHeading title={title} action={{ label: "See all", onPress: seeAll }} tight />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cards}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={cards.style}
+        contentContainerStyle={cards.contentContainerStyle}
+      >
         {people.map((person) => (
           <SuggestionCard key={person.profile.profileId} person={person} width={width} {...actions} />
         ))}

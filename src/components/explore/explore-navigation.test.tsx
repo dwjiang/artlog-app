@@ -90,8 +90,7 @@ afterEach(async () => {
 
 it.each(paths)("opens the release deep link %s", async (path) => {
   jest.replaceProperty(runtime, "__DEV__", false);
-  const navigation = renderRouter(routes, { initialUrl: path });
-  await navigation;
+  const navigation = await renderRouter(routes, { initialUrl: path });
 
   expect(navigation.getPathname()).toBe(path);
   expect(screen.getByText("Explore content")).toBeOnTheScreen();

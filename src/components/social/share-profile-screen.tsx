@@ -6,7 +6,15 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
 import createQrCode from "qrcode-generator";
 import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Linking, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import {
+  AccessibilityInfo,
+  Linking,
+  Pressable,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+  type ViewInstance,
+} from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll";
@@ -70,12 +78,13 @@ export function ShareProfileScreen() {
 }
 
 /** Draws the card as it appears on screen into a cache PNG, so the shared image always matches what the person sees. */
-async function renderCard(card: RefObject<View | null>, name: string): Promise<File> {
-  const image = await makeImageFromView(card);
+async function renderCard(card: RefObject<ViewInstance | null>, name: string): Promise<File> {
+  // Skia's types predate React Native's host-instance refs; it only reads the native view tag off the ref.
+  const image = await makeImageFromView(card as RefObject<never>);
   if (!image) throw new Error("The profile card could not be drawn.");
   try {
     const file = new File(Paths.cache, `${name}.png`);
-    file.write(image.encodeToBytes(ImageFormat.PNG));
+    file.writeSync(image.encodeToBytes(ImageFormat.PNG));
     return file;
   } finally {
     image.dispose();
@@ -84,7 +93,7 @@ async function renderCard(card: RefObject<View | null>, name: string): Promise<F
 
 function ShareProfileContent({ person }: { person: PublicProfile }) {
   const { fontScale } = useWindowDimensions();
-  const card = useRef<View>(null);
+  const card = useRef<ViewInstance>(null);
   const running = useRef(false);
   const [busy, setBusy] = useState<"share" | "save">();
   const [avatarReady, setAvatarReady] = useState<boolean>(!person.photoUrl && !person.avatar);

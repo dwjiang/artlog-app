@@ -144,7 +144,7 @@ export function WidgetTile({
           buttonStyle("plain"),
           accessibilityLabel(label),
           accessibilityAddTraits(selected ? ["isSelected"] : []),
-          frame({ width, minHeight: 44 }),
+          frame({ minWidth: width, maxWidth: width, minHeight: 44 }),
         ]}
       >
         <RNHostView matchContents>

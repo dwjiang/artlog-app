@@ -124,7 +124,7 @@ from [The Met's open-access collection](https://www.metmuseum.org/art/collection
 
 ## Run it yourself
 
-You need a Mac with Xcode 26, Node 22.13 or newer, and an iPhone on iOS 17 or later. Scanning
+You need a Mac with Xcode 27.1, Node 22.13 or newer, and an iPhone on iOS 17 or later. Scanning
 needs the iPhone's camera.
 
 1. Install Git LFS, which stores the recognition model:

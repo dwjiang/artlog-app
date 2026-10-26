@@ -79,7 +79,7 @@ function TagFeed({ tag, session }: { tag: string; session: SocialSession }) {
             <Text style={styles.count}>
               {postCount} public {postCount === 1 ? "post" : "posts"}
             </Text>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           !ready ? (
@@ -88,12 +88,12 @@ function TagFeed({ tag, session }: { tag: string; session: SocialSession }) {
             <SocialState title="Tag unavailable." icon="number" />
           ) : feed.done && !feed.loading && !feed.error ? (
             <SocialState title={`No posts with #${tag} yet.`} icon="number" />
-          ) : null
+          ) : undefined
         }
         ListFooterComponent={
           ready && !unavailable && !(feed.refreshing && feed.items.length > 0 && !feed.error) ? (
             <PageFooter {...feed} count={feed.items.length} skeleton="feed" />
-          ) : null
+          ) : undefined
         }
         onEndReached={ready ? feed.loadMore : undefined}
         onEndReachedThreshold={0.4}

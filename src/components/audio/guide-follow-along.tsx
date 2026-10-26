@@ -1,5 +1,5 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View, type ScrollViewInstance } from "react-native";
 
 import { ParagraphSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
@@ -68,7 +68,7 @@ export function GuideFollowAlong() {
 function Script({ track, sentences }: { track: ListeningTrack; sentences: GuideSentence[] }) {
   const audio = useListening();
   const reduced = useReducedMotion();
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const offsets = useRef<number[]>([]);
   const placed = useRef(false);
   const scrolled = useRef(0);
@@ -173,7 +173,12 @@ function Script({ track, sentences }: { track: ListeningTrack; sentences: GuideS
   );
 }
 
-function reveal(scroll: RefObject<ScrollView | null>, offset: number | undefined, viewport: number, animated: boolean) {
+function reveal(
+  scroll: RefObject<ScrollViewInstance | null>,
+  offset: number | undefined,
+  viewport: number,
+  animated: boolean,
+) {
   if (offset === undefined || !viewport || !scroll.current) return false;
   scroll.current.scrollTo({ y: Math.max(0, offset - viewport * READING_LINE), animated });
   return true;

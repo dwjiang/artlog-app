@@ -194,6 +194,7 @@ function FriendsMenu({
         ]}
         label={
           <Row
+            spacing={0}
             alignment="center"
             modifiers={[frame({ maxWidth: Infinity, minHeight: 44 }), contentShape(shapes.rectangle())]}
           >

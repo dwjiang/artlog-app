@@ -95,8 +95,7 @@ it("says when narration failed and retries from the play button", async () => {
 it("shows generation activity and keeps the player reachable while audio is loading", async () => {
   mockAudio.phase = "loading";
   mockAudio.preparationStage = "generating";
-  const view = renderMiniPlayer();
-  await view;
+  const view = await renderMiniPlayer();
   expect(screen.getByRole("progressbar", { name: "Generating narration…" })).toBeBusy();
   expect(screen.queryByRole("button", { name: "Play narration" })).toBeNull();
   expect(screen.getByRole("button", { name: "Back 15 seconds" })).toBeDisabled();
@@ -106,8 +105,7 @@ it("shows generation activity and keeps the player reachable while audio is load
 });
 
 it("offers stopping and restarting from the bar without opening the player", async () => {
-  const view = renderMiniPlayer();
-  await view;
+  const view = await renderMiniPlayer();
   const summary = screen.getByRole("button", { name: /Open player, Water Lilies/ });
 
   await fireEvent(summary, "accessibilityAction", { nativeEvent: { actionName: "restart" } });
@@ -119,8 +117,7 @@ it("offers stopping and restarting from the bar without opening the player", asy
 });
 
 it("opens Up next from the bar's actions", async () => {
-  const view = renderMiniPlayer();
-  await view;
+  const view = await renderMiniPlayer();
   await fireEvent(screen.getByRole("button", { name: /Open player, Water Lilies/ }), "accessibilityAction", {
     nativeEvent: { actionName: "upNext" },
   });

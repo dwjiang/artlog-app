@@ -87,7 +87,7 @@ export interface VisionRect extends HybridObject<{ ios: "swift" }> {
   /**
    * Rectangle detection and subject lifting on a captured still or library photo. The upright image is
    * analyzed turned counterclockwise by `turns` quarter turns, so a photo taken with the phone turned is
-   * seen the way the portrait preview saw it; corners are normalized to that turned image.
+   * seen the way the preview saw it; corners are normalized to that turned image.
    */
   detectStill(photoPath: string, turns: number): Promise<StillDetection>;
   warpAndLetterbox(photoPath: string, quad: RectPoint[] | undefined, size: number): Promise<LetterboxResult>;

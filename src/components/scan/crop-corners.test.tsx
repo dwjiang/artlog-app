@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { State, type PanGesture } from "react-native-gesture-handler";
+import { State, type LegacyPanGesture } from "react-native-gesture-handler";
 import { fireGestureHandler, getByGestureTestId } from "react-native-gesture-handler/jest-utils";
 
 import { wholePhoto } from "@/lib/capture/crop-geometry";
@@ -72,7 +72,7 @@ it("commits one crop after a drag with multiple updates", async () => {
     },
   );
   await act(() =>
-    fireGestureHandler<PanGesture>(getByGestureTestId("crop-corner-0"), [
+    fireGestureHandler<LegacyPanGesture>(getByGestureTestId("crop-corner-0"), [
       { state: State.BEGAN, translationX: 0, translationY: 0 },
       { state: State.ACTIVE, translationX: 10, translationY: 10 },
       { state: State.ACTIVE, translationX: 20, translationY: 30 },
@@ -101,7 +101,7 @@ it("restores a cancelled drag before the next drag starts", async () => {
   );
   const corner = getByGestureTestId("crop-corner-0");
   await act(() =>
-    fireGestureHandler<PanGesture>(corner, [
+    fireGestureHandler<LegacyPanGesture>(corner, [
       { state: State.BEGAN },
       { state: State.ACTIVE, translationX: 0, translationY: 0 },
       { state: State.ACTIVE, translationX: 50, translationY: 40 },
@@ -111,7 +111,7 @@ it("restores a cancelled drag before the next drag starts", async () => {
   expect(onChange).not.toHaveBeenCalled();
   expect(events).toEqual(["start", "end"]);
   await act(() =>
-    fireGestureHandler<PanGesture>(corner, [
+    fireGestureHandler<LegacyPanGesture>(corner, [
       { state: State.BEGAN },
       { state: State.ACTIVE, translationX: 10, translationY: 20 },
       { state: State.END, translationX: 10, translationY: 20 },
@@ -128,7 +128,7 @@ it("restores a cancelled drag before the next drag starts", async () => {
 it("keeps the last valid crop when a corner crosses the opposite edge", async () => {
   const onChange = await editor();
   await act(() =>
-    fireGestureHandler<PanGesture>(getByGestureTestId("crop-corner-0"), [
+    fireGestureHandler<LegacyPanGesture>(getByGestureTestId("crop-corner-0"), [
       { state: State.BEGAN },
       { state: State.ACTIVE, translationX: 0, translationY: 0 },
       { state: State.ACTIVE, translationX: 20, translationY: 20 },

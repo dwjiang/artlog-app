@@ -96,7 +96,7 @@ const deps: DownloadDependencies = {
     if (signal.aborted) return;
     const directory = packageDirectory(pack.folder);
     directory.create({ intermediates: true, idempotent: true });
-    partFile(pack, index).write(bytes);
+    partFile(pack, index).writeSync(bytes);
   },
   async previews(pack, signal) {
     for (const [index, preview] of pack.manifest.previews.entries()) {
@@ -105,7 +105,7 @@ const deps: DownloadDependencies = {
       try {
         const bytes = await download(preview.url, signal);
         if (signal.aborted) return;
-        file.write(bytes);
+        file.writeSync(bytes);
       } catch (error) {
         // Museum image hosts refuse some requests; the detail view falls back to the remote URL, so a preview never blocks recognition.
         if (signal.aborted) throw error;
