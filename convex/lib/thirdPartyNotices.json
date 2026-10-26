@@ -886,32 +886,25 @@
       "text": 9
     },
     {
-      "name": "react-native-fast-opencv",
-      "version": "1.0.1",
-      "license": "MIT",
-      "source": "npm",
-      "text": 54
-    },
-    {
       "name": "react-native-gesture-handler",
       "version": "3.3.0",
       "license": "MIT",
       "source": "npm",
-      "text": 55
+      "text": 54
     },
     {
       "name": "react-native-haptic-feedback",
       "version": "3.0.0",
       "license": "MIT",
       "source": "npm",
-      "text": 56
+      "text": 55
     },
     {
       "name": "react-native-is-edge-to-edge",
       "version": "1.3.1",
       "license": "MIT",
       "source": "npm",
-      "text": 57
+      "text": 56
     },
     {
       "name": "react-native-nitro-image",
@@ -919,7 +912,7 @@
       "license": "MIT",
       "source": "npm",
       "url": "https://raw.githubusercontent.com/mrousavy/react-native-nitro-image/67397064eeb0fb53307dda1811efbf4bc210976a/LICENSE",
-      "text": 58
+      "text": 57
     },
     {
       "name": "react-native-nitro-modules",
@@ -927,28 +920,28 @@
       "license": "MIT",
       "source": "npm",
       "url": "https://raw.githubusercontent.com/mrousavy/nitro/605017127c16f9d502f527097ffed77439d8ce6c/LICENSE",
-      "text": 59
+      "text": 58
     },
     {
       "name": "react-native-reanimated",
       "version": "4.7.1",
       "license": "MIT",
       "source": "npm",
-      "text": 55
+      "text": 54
     },
     {
       "name": "react-native-safe-area-context",
       "version": "5.10.1",
       "license": "MIT",
       "source": "npm",
-      "text": 60
+      "text": 59
     },
     {
       "name": "react-native-screens",
       "version": "4.30.0",
       "license": "MIT",
       "source": "npm",
-      "text": 61
+      "text": 60
     },
     {
       "name": "react-native-sortables",
@@ -956,7 +949,7 @@
       "license": "MIT",
       "source": "npm",
       "url": "https://raw.githubusercontent.com/MatiPl01/react-native-sortables/cb7e3745a9e70a7c06937e768945ec5f4b8dfc39/LICENSE",
-      "text": 62
+      "text": 61
     },
     {
       "name": "react-native-vision-camera",
@@ -964,7 +957,7 @@
       "license": "MIT",
       "source": "npm",
       "url": "https://raw.githubusercontent.com/mrousavy/react-native-vision-camera/a4acf4d4f2083cf639699796d38d687e1f4bd49e/LICENSE",
-      "text": 63
+      "text": 62
     },
     {
       "name": "react-native-vision-camera-worklets",
@@ -972,14 +965,14 @@
       "license": "MIT",
       "source": "npm",
       "url": "https://raw.githubusercontent.com/mrousavy/react-native-vision-camera/a4acf4d4f2083cf639699796d38d687e1f4bd49e/LICENSE",
-      "text": 63
+      "text": 62
     },
     {
       "name": "react-native-worklets",
       "version": "0.13.0",
       "license": "MIT",
       "source": "npm",
-      "text": 64
+      "text": 63
     },
     {
       "name": "react-reconciler",
@@ -1000,7 +993,7 @@
       "version": "0.13.11",
       "license": "MIT",
       "source": "npm",
-      "text": 65
+      "text": 64
     },
     {
       "name": "scheduler",
@@ -1022,7 +1015,7 @@
       "license": "MIT",
       "url": "https://raw.githubusercontent.com/SDWebImage/SDWebImage/5.21.6/LICENSE",
       "source": "bundled",
-      "text": 66
+      "text": 65
     },
     {
       "name": "SDWebImageAVIFCoder",
@@ -1030,7 +1023,7 @@
       "license": "MIT",
       "url": "https://raw.githubusercontent.com/SDWebImage/SDWebImageAVIFCoder/0.12.0/LICENSE",
       "source": "bundled",
-      "text": 67
+      "text": 66
     },
     {
       "name": "SDWebImageSVGCoder",
@@ -1038,7 +1031,7 @@
       "license": "MIT",
       "url": "https://raw.githubusercontent.com/SDWebImage/SDWebImageSVGCoder/1.8.0/LICENSE",
       "source": "bundled",
-      "text": 68
+      "text": 67
     },
     {
       "name": "SDWebImageWebPCoder",
@@ -1046,14 +1039,14 @@
       "license": "MIT",
       "url": "https://raw.githubusercontent.com/SDWebImage/SDWebImageWebPCoder/0.15.0/LICENSE",
       "source": "bundled",
-      "text": 69
+      "text": 68
     },
     {
       "name": "semver",
       "version": "7.8.5",
       "license": "ISC",
       "source": "npm",
-      "text": 70
+      "text": 69
     },
     {
       "name": "Skia",
@@ -1061,20 +1054,20 @@
       "license": "BSD-3-Clause",
       "url": "https://raw.githubusercontent.com/google/skia/chrome/m147/LICENSE",
       "source": "bundled",
-      "text": 71
+      "text": 70
     },
     {
       "name": "SocketRocket",
       "license": "BSD-3-Clause",
       "source": "bundled",
-      "text": 72
+      "text": 71
     },
     {
       "name": "stacktrace-parser",
       "version": "0.1.11",
       "license": "MIT",
       "source": "npm",
-      "text": 73
+      "text": 72
     },
     {
       "name": "standard-navigation",
@@ -1083,28 +1076,28 @@
       "source": "npm",
       "url": "https://raw.githubusercontent.com/react-navigation/standard-navigation/0016fae7800b9f27bab91326697b740a6d2266dc/package.json",
       "holder": "Satyajit Sahoo",
-      "text": 74
+      "text": 73
     },
     {
       "name": "warn-once",
       "version": "0.1.1",
       "license": "MIT",
       "source": "npm",
-      "text": 75
+      "text": 74
     },
     {
       "name": "whatwg-fetch",
       "version": "3.6.20",
       "license": "MIT",
       "source": "npm",
-      "text": 76
+      "text": 75
     },
     {
       "name": "whatwg-url-minimum",
       "version": "0.2.0",
       "license": "MIT",
       "source": "npm",
-      "text": 77
+      "text": 76
     },
     {
       "name": "wuffs",
@@ -1118,7 +1111,7 @@
       "license": "Zlib",
       "url": "https://chromium.googlesource.com/chromium/src/third_party/zlib/+/646b7f569718921d7d4b5b8e22572ff6c76f2596",
       "source": "bundled",
-      "text": 78
+      "text": 77
     }
   ],
   "texts": [
@@ -1176,7 +1169,6 @@
     "MIT License\n\nCopyright (c) 2009 Kazuhiko Arase\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
     "MIT License\n\nCopyright (c) 2018 Formidable Labs Copyright (c) 2017 Evgeny Poberezkin\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
     "The MIT License (MIT)\n\nCopyright (c) 2021 Software Mansion\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
-    "MIT License\n\nCopyright (c) 2026 Łukasz Kurant Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
     "The MIT License (MIT)\n\nCopyright (c) 2016 Software Mansion <swmansion.com>\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
     "MIT License\n\nCopyright (c) 2018 Michael Kuczera\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
     "MIT License\n\nCopyright (c) 2024 Mathieu Acthernoene\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
