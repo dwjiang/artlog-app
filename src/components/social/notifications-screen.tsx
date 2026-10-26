@@ -112,7 +112,7 @@ export function NotificationsScreen() {
           >
             <GalleryButton label="Find friends" variant="filled" fullWidth onPress={() => router.push("/people")} />
           </SocialInvitation>
-        ) : null
+        ) : undefined
       }
       ListFooterComponent={
         ready && !list.done ? (
@@ -121,7 +121,7 @@ export function NotificationsScreen() {
           ) : (
             <PageFooter {...list} count={items.length} noun="notifications" />
           )
-        ) : null
+        ) : undefined
       }
       onEndReached={ready ? loadMore : undefined}
       onEndReachedThreshold={0.4}

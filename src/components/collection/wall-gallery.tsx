@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { PixelRatio, Pressable, StyleSheet, View } from "react-native";
-import { Gesture, GestureDetector, type NativeGesture } from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   ReduceMotion,
   useAnimatedReaction,
@@ -78,7 +78,7 @@ export function WallGallery({
   editing?: boolean;
   locked?: boolean;
   selectedId?: string;
-  scrollGesture?: NativeGesture;
+  scrollGesture?: ReturnType<typeof Gesture.Native>;
   onDeselect?: () => void;
   minHeight?: number;
   bottomInset?: number;
@@ -214,7 +214,7 @@ function Hanging({
 }: {
   piece: WallPiece;
   pieces: WallPiece[];
-  scrollGesture?: NativeGesture;
+  scrollGesture?: ReturnType<typeof Gesture.Native>;
   width: number;
   editing: boolean;
   movable: boolean;
@@ -436,7 +436,7 @@ function ResizeCorner({
   enabled: boolean;
   pan: ReturnType<typeof Gesture.Pan>;
   pieces: WallPiece[];
-  scrollGesture?: NativeGesture;
+  scrollGesture?: ReturnType<typeof Gesture.Native>;
   placement: HangingPlacement;
   arrangement: SharedValue<WallArrangement>;
   onArrange: (arrangement: WallArrangement) => void;

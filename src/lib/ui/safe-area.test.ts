@@ -1,4 +1,4 @@
-import { horizontalSafeAreaPadding } from "./safe-area";
+import { horizontalSafeAreaPadding, safeAreaBleed } from "./safe-area";
 
 const RAIL_RIGHT = { left: 0, right: 84 };
 
@@ -18,4 +18,11 @@ it("treats padding that is not in points as none", () => {
     paddingLeft: 62,
     paddingRight: 62,
   });
+});
+
+it("runs a row out to the screen edges while its content starts and ends inside the safe area", () => {
+  const row = { gap: 12, paddingHorizontal: 20 };
+  const bleed = safeAreaBleed(row, { left: 62, right: 84 });
+  expect(bleed.style).toEqual({ marginLeft: -62, marginRight: -84 });
+  expect(bleed.contentContainerStyle).toEqual([row, { paddingLeft: 82, paddingRight: 104 }]);
 });

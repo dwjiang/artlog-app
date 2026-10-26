@@ -44,7 +44,7 @@ function WallChoice({
         style={{ paddingVertical: 4 }}
         modifiers={[
           buttonStyle("plain"),
-          frame({ width: width * fontScale, minHeight: 72 }),
+          frame({ minWidth: width * fontScale, maxWidth: width * fontScale, minHeight: 72 }),
           accessibilityLabel(label),
           accessibilityAddTraits(selected ? ["isSelected"] : []),
         ]}

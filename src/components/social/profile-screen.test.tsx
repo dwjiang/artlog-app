@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 import { getFunctionName as mockGetFunctionName } from "convex/server";
-import { ActionSheetIOS, type HostInstance, ScrollView, Text } from "react-native";
+import { ActionSheetIOS, type HostInstance, ScrollView, Text, type TextInstance } from "react-native";
 
 import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
 import { scrollViewHolding } from "@/components/scroll-view.testing";
@@ -303,9 +303,11 @@ it("shares and reports someone else’s profile from the header menu, not the bo
 it("names the person in the bar only while their name is scrolled under it", async () => {
   const nativeScroll = {} as HostInstance;
   const scrollRef = jest.spyOn(ScrollView.prototype, "getNativeScrollRef").mockReturnValue(nativeScroll);
-  const measure = jest.spyOn(Text.prototype, "measureLayout").mockImplementation((relativeTo, onSuccess) => {
-    if (relativeTo === nativeScroll) onSuccess(20, 130, 362, 39);
-  });
+  const measure = jest
+    .spyOn(Text.prototype as TextInstance, "measureLayout")
+    .mockImplementation((relativeTo, onSuccess) => {
+      if (relativeTo === nativeScroll) onSuccess(20, 130, 362, 39);
+    });
   try {
     await render(<ProfileScreen profileId="friend" />);
     const name = screen.getByRole("header", { name: "Jamie Chen" });

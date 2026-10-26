@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions, type ScrollViewInstance } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { MotionPressable } from "@/components/motion-pressable";
@@ -30,8 +30,8 @@ export function PhotoGallery<T extends Photo>({
 }) {
   const { height } = useWindowDimensions();
   const width = useSafeAreaWidth();
-  const gallery = useRef<ScrollView>(null);
-  const filmstrip = useRef<ScrollView>(null);
+  const gallery = useRef<ScrollViewInstance>(null);
+  const filmstrip = useRef<ScrollViewInstance>(null);
   const reduceMotion = useReducedMotion();
   const selected = Math.max(0, Math.min(photos.length - 1, page));
   const photo = photos[selected];

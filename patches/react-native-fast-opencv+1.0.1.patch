@@ -1,0 +1,106 @@
+diff --git a/node_modules/react-native-fast-opencv/cpp/jsi/Promise.h b/node_modules/react-native-fast-opencv/cpp/jsi/Promise.h
+index b47fc15..69fa326 100644
+--- a/node_modules/react-native-fast-opencv/cpp/jsi/Promise.h
++++ b/node_modules/react-native-fast-opencv/cpp/jsi/Promise.h
+@@ -4,11 +4,7 @@
+ #include <utility>
+ #include <vector>
+ 
+-#ifdef ANDROID
+ #include <ReactCommon/CallInvoker.h>
+-#else
+-#include <React-callinvoker/ReactCommon/CallInvoker.h>
+-#endif
+ 
+ namespace mrousavy {
+ 
+diff --git a/node_modules/react-native-fast-opencv/cpp/react-native-fast-opencv.h b/node_modules/react-native-fast-opencv/cpp/react-native-fast-opencv.h
+index 2131387..a3cb145 100644
+--- a/node_modules/react-native-fast-opencv/cpp/react-native-fast-opencv.h
++++ b/node_modules/react-native-fast-opencv/cpp/react-native-fast-opencv.h
+@@ -18,11 +18,7 @@ using namespace cv;
+ #endif
+ #endif
+ 
+-#ifdef ANDROID
+ #include <ReactCommon/CallInvoker.h>
+-#else
+-#include <React-callinvoker/ReactCommon/CallInvoker.h>
+-#endif
+ 
+ #include "MatFactory.h"
+ #include "MatVectorFactory.h"
+diff --git a/node_modules/react-native-fast-opencv/ios/FastOpencv.mm b/node_modules/react-native-fast-opencv/ios/FastOpencv.mm
+index 8f9cfda..d941f7d 100644
+--- a/node_modules/react-native-fast-opencv/ios/FastOpencv.mm
++++ b/node_modules/react-native-fast-opencv/ios/FastOpencv.mm
+@@ -1,15 +1,16 @@
+ #import "FastOpencv.h"
+-#import <React-callinvoker/ReactCommon/CallInvoker.h>
+-#import <React/RCTBridge+Private.h>
++#import <ReactCommon/CallInvoker.h>
++#import <ReactCommon/RCTTurboModuleWithJSIBindings.h>
+ #import <jsi/jsi.h>
+ 
+-@interface RCTBridge (RCTTurboModule)
+-- (std::shared_ptr<facebook::react::CallInvoker>)jsCallInvoker;
+-@end
+-
+ using namespace facebook;
+ 
+-@implementation FastOpencv
++@interface FastOpencv () <RCTTurboModuleWithJSIBindings>
++@end
++
++@implementation FastOpencv {
++    BOOL _installed;
++}
+ 
+ @synthesize bridge = _bridge;
+ 
+@@ -23,23 +24,16 @@ - (void)setBridge:(RCTBridge *)bridge {
+   _bridge = bridge;
+ }
+ 
+-RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(install)
++- (void)installJSIBindingsWithRuntime:(facebook::jsi::Runtime &)runtime
++                          callInvoker:(const std::shared_ptr<facebook::react::CallInvoker> &)callInvoker
+ {
+-    RCTBridge* bridge = [RCTBridge currentBridge];
+-    RCTCxxBridge *cxxBridge = (RCTCxxBridge *)_bridge;
+-    
+-    if (!cxxBridge.runtime) {
+-        return @(false);
+-    }
+-
+-    auto callInvoker = [bridge jsCallInvoker];
+-    
+-    facebook::jsi::Runtime *jsRuntime =
+-            (facebook::jsi::Runtime *)cxxBridge.runtime;
+-    
+-    OpenCVPlugin::installOpenCV(*jsRuntime, callInvoker);
++    OpenCVPlugin::installOpenCV(runtime, callInvoker);
++    _installed = YES;
++}
+ 
+-    return @(true);
++RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(install)
++{
++    return @(_installed);
+ }
+ 
+ // Don't compile this code when we build for the old architecture.
+@@ -47,13 +41,6 @@ - (void)setBridge:(RCTBridge *)bridge {
+ - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
+     (const facebook::react::ObjCTurboModule::InitParams &)params
+ {
+-    RCTCxxBridge *cxxBridge = (RCTCxxBridge *)_bridge;
+-      auto callInvoker = cxxBridge.jsCallInvoker;
+-      facebook::jsi::Runtime *jsRuntime =
+-          (facebook::jsi::Runtime *)cxxBridge.runtime;
+-    
+-    OpenCVPlugin::installOpenCV(*jsRuntime, callInvoker);
+-    
+     return std::make_shared<facebook::react::NativeFastOpencvSpecJSI>(params);
+ }
+ #endif

@@ -1,12 +1,13 @@
 import { Image } from "expo-image";
 import type { ReactElement, ReactNode } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { wallpaperStyle } from "@/components/collection/wallpaper";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Colors, Gallery, Spacing } from "@/constants/theme";
-import { useSafeAreaWidth } from "@/lib/ui/safe-area";
+import { safeAreaBleed, useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { isLightWall, type Wallpaper } from "@/lib/wall/wall-layout";
 
 const ART_HEIGHT = 200;
@@ -38,25 +39,32 @@ export function ArtBand({
   onEndReached?: () => void;
 }) {
   const width = useSafeAreaWidth();
+  const insets = useSafeAreaInsets();
+  const band = safeAreaBleed(styles.track, insets);
   const labelColor = isLightWall(wallpaper.color) ? Gallery.ink : Gallery.paper;
   // A wide artwork stops short of the screen edge so the next one still peeks in.
   const maxWidth = width - 2 * Spacing.content - 48;
   return (
-    <View style={wallpaperStyle(wallpaper)}>
+    <View style={[wallpaperStyle(wallpaper), band.style]}>
       <FlatList
         testID="art-band"
         horizontal
         data={artworks}
         keyExtractor={(artwork) => artwork.key}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.track}
+        contentContainerStyle={band.contentContainerStyle}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
         ListFooterComponent={footer}
         ListFooterComponentStyle={styles.footer}
         renderItem={({ item }) => <BandPiece artwork={item} maxWidth={maxWidth} labelColor={labelColor} />}
       />
-      {accessory}
+      {accessory && (
+        // The wallpaper runs to the screen edges; controls laid over it stay inside the safe area.
+        <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { left: insets.left, right: insets.right }]}>
+          {accessory}
+        </View>
+      )}
     </View>
   );
 }

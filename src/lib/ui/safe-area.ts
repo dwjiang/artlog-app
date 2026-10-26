@@ -19,6 +19,22 @@ export function useHorizontalSafeAreaPadding(style?: StyleProp<ViewStyle>) {
   return horizontalSafeAreaPadding(style, useSafeAreaInsets());
 }
 
+/**
+ * Lets a sideways row inside a scroll view padded by the horizontal safe area run under the side bars to the screen
+ * edges, as photos and backgrounds do, while its first and last items rest inside the safe area. `contentStyle` is the
+ * row's own content container style.
+ */
+export function safeAreaBleed(contentStyle: StyleProp<ViewStyle>, insets: Pick<EdgeInsets, "left" | "right">) {
+  return {
+    style: { marginLeft: -insets.left, marginRight: -insets.right },
+    contentContainerStyle: [contentStyle, horizontalSafeAreaPadding(contentStyle, insets)],
+  };
+}
+
+export function useSafeAreaBleed(contentStyle?: StyleProp<ViewStyle>) {
+  return safeAreaBleed(contentStyle, useSafeAreaInsets());
+}
+
 /** The window's width beside its horizontal safe area: the room a padded screen's content has. */
 export function useSafeAreaWidth() {
   const { width } = useWindowDimensions();

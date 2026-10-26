@@ -44,7 +44,7 @@ function VisitActivityLayout(props: VisitActivityProps, environment: LiveActivit
       </HStack>
     ),
     expandedTrailing: (
-      <VStack alignment="trailing" modifiers={[padding({ all: 12 })]}>
+      <VStack spacing={0} alignment="trailing" modifiers={[padding({ all: 12 })]}>
         <Text modifiers={[font({ weight: "semibold", size: 20 }), foregroundStyle(ink)]}>{props.count}</Text>
         <Text modifiers={[font({ size: 12 }), foregroundStyle(muted)]}>
           {props.count === 1 ? "artwork" : "artworks"}

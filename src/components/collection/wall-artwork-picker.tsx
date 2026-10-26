@@ -252,7 +252,7 @@ export function WallArtworkPicker({
                   />
                 )}
               </View>
-            ) : null
+            ) : undefined
           }
           ListFooterComponent={
             <>

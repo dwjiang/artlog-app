@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, userEvent } from "@testing-library/react-native";
 import { createRef } from "react";
-import { Text, type View } from "react-native";
+import { Text, type ViewInstance } from "react-native";
 
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
@@ -93,7 +93,7 @@ it("replaces press scaling with opacity as the reduced-motion preference changes
 });
 
 it("forwards the native view ref used by link previews and measurement", async () => {
-  const ref = createRef<View>();
+  const ref = createRef<ViewInstance>();
   await render(<MotionPressable ref={ref} accessibilityRole="button" accessibilityLabel="Open artwork" />);
   expect(ref.current).not.toBeNull();
   expect(ref.current?.measure).toEqual(expect.any(Function));

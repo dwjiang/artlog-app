@@ -9,6 +9,7 @@ import { Gallery, Spacing, Typography } from "@/constants/theme";
 import { defaultTiming, NO_EXHIBITIONS, timingLabel, type ExhibitionTiming } from "@/lib/explore/exhibition-timing";
 import { cityExhibitions, friendPicks, nearbyMuseums } from "@/lib/explore/lists";
 import { museumById, useExplore } from "@/lib/explore/use-explore";
+import { useSafeAreaBleed } from "@/lib/ui/safe-area";
 
 import { CityMenu } from "./city-menu";
 import { ExhibitionCard } from "./exhibition-card";
@@ -24,6 +25,7 @@ export function ExploreScreen() {
   const router = useRouter();
   const explore = useExplore();
   const [chosenTiming, setTiming] = useState<ExhibitionTiming>();
+  const row = useSafeAreaBleed(styles.row);
   const { data } = explore;
   if (!data) return <ExploreState view={explore} />;
   const timing = chosenTiming ?? defaultTiming(data.exhibitions, data.today);
@@ -68,7 +70,8 @@ export function ExploreScreen() {
               key={timing}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.row}
+              style={row.style}
+              contentContainerStyle={row.contentContainerStyle}
               data={shows}
               keyExtractor={(exhibition) => exhibition.id}
               renderItem={({ item }) => (
@@ -103,7 +106,8 @@ export function ExploreScreen() {
               testID="museum-row"
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.row}
+              style={row.style}
+              contentContainerStyle={row.contentContainerStyle}
               data={museums}
               keyExtractor={(museum) => museum.id}
               renderItem={({ item }) => <MuseumTile data={data} museum={item} />}

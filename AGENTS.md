@@ -56,8 +56,8 @@ tied to an event or release phase.
   debugging output) in the gitignored `.context/` directory.
 - **iOS is the only product target.** Do not extend web/Android residue or gate
   work on its scripts.
-- For Expo or React Native code changes, read relevant Expo SDK 57 docs at
-  https://docs.expo.dev/versions/v57.0.0/ before implementation, never `/latest/`.
+- For Expo or React Native code changes, read relevant Expo SDK 58 docs at
+  https://docs.expo.dev/versions/v58.0.0/ before implementation, never `/latest/`.
   Confirm APIs against installed package types; add packages with `npx expo install`.
 - Commit generated Convex output under `convex/_generated/`. Run `npx convex codegen`
   after a Convex schema or backend function-signature change.

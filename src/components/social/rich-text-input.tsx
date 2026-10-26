@@ -1,11 +1,5 @@
 import { useId, useState } from "react";
-import {
-  InputAccessoryView,
-  StyleSheet,
-  Text,
-  type NativeSyntheticEvent,
-  type TextInputSelectionChangeEventData,
-} from "react-native";
+import { InputAccessoryView, StyleSheet, Text, type TextInputSelectionChangeEvent } from "react-native";
 
 import { Gallery } from "@/constants/theme";
 import type { MentionPlace } from "@/lib/social/types";
@@ -83,7 +77,7 @@ export function useRichTextInput({
       // Puts @ and # beside the space bar.
       keyboardType: "twitter" as const,
       ...(docked ? { inputAccessoryViewID: accessoryId } : {}),
-      onSelectionChange: (event: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+      onSelectionChange: (event: TextInputSelectionChangeEvent) => {
         setSelection(event.nativeEvent.selection);
         setPlaced(undefined);
       },

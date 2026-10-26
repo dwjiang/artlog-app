@@ -1,6 +1,7 @@
 import { useSegments } from "expo-router";
+import { useVerticalBarEdgeIOS } from "expo-status-bar";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, type ViewInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BottomTabInset, Spacing } from "@/constants/theme";
@@ -10,7 +11,8 @@ import { ToastPill } from "./toast-pill";
 
 /** Floats the current toast (and any extra pills passed as children) above the bottom edge; screens report outcomes through
  *  `showToast` instead of inline banners. Natively presented sheets cover the root layer, so a flow inside one mounts its own.
- *  Without an explicit offset the layer clears the tab bar only while a tab is focused; root-stack screens cover the tabs. */
+ *  Without an explicit offset the layer clears the tab bar only while a tab is focused and the bar sits at the bottom:
+ *  root-stack screens cover the tabs, and iPhone Duo can move the bar into a vertical bar beside the content. */
 export function ToastLayer({ children, offset }: { children?: ReactNode; offset?: number }) {
   return offset === undefined ? (
     <RoutedToastLayer>{children}</RoutedToastLayer>
@@ -21,8 +23,10 @@ export function ToastLayer({ children, offset }: { children?: ReactNode; offset?
 
 function RoutedToastLayer({ children }: { children?: ReactNode }) {
   const [root] = useSegments();
+  const verticalBar = useVerticalBarEdgeIOS();
+  const bottomTabBar = root === "(tabs)" && verticalBar === null;
   return (
-    <PositionedToastLayer offset={root === "(tabs)" ? BottomTabInset : 0} lifted>
+    <PositionedToastLayer offset={bottomTabBar ? BottomTabInset : 0} lifted>
       {children}
     </PositionedToastLayer>
   );
@@ -40,7 +44,7 @@ function PositionedToastLayer({
   const toast = useToast();
   const { bottom, left, right } = useSafeAreaInsets();
   const lift = useToastLift();
-  const layer = useRef<View>(null);
+  const layer = useRef<ViewInstance>(null);
   const [measured, setMeasured] = useState<{ id?: number; height: number }>();
   useLayoutEffect(() => {
     let current = true;

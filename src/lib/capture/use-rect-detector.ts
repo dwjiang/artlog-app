@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { CommonResolutions, useFrameOutput, type Frame } from "react-native-vision-camera";
+import { CommonResolutions, useFrameOutput, type CameraOrientation, type Frame } from "react-native-vision-camera";
 import { scheduleOnRN } from "react-native-worklets";
 
 import { getVisionRect, type RectDetection } from "../../../modules/vision-rect/src";
@@ -7,7 +7,11 @@ import { getVisionRect, type RectDetection } from "../../../modules/vision-rect/
 export const DETECTION_STRIDE = 3;
 
 /** Streams camera frames through native rectangle detection and reports each result on the JS thread. */
-export function useRectDetector(active: boolean, onDetection: (detection: RectDetection) => void) {
+export function useRectDetector(
+  active: boolean,
+  orientation: CameraOrientation,
+  onDetection: (detection: RectDetection) => void,
+) {
   const detector = useMemo(() => getVisionRect(), []);
   const callback = useRef(onDetection);
   const enabled = useRef(active);
@@ -33,9 +37,15 @@ export function useRectDetector(active: boolean, onDetection: (detection: RectDe
   );
 
   // Match the default photo output's field of view so normalized corners transfer.
-  return useFrameOutput({
+  const output = useFrameOutput({
     targetResolution: CommonResolutions.HD_4_3,
     pixelFormat: "yuv",
     onFrame,
   });
+  useEffect(() => {
+    // Corners are reported in this orientation, so it follows the preview's for the outline to land on the painting.
+    // oxlint-disable-next-line react/immutability -- VisionCamera outputs take their orientation through a native setter.
+    output.outputOrientation = orientation;
+  }, [output, orientation]);
+  return output;
 }

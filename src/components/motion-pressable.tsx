@@ -1,5 +1,5 @@
 import { forwardRef, useState } from "react";
-import { Pressable, StyleSheet, type PressableProps, type View } from "react-native";
+import { Pressable, StyleSheet, type PressableProps, type ViewInstance } from "react-native";
 import { createAnimatedComponent, cubicBezier } from "react-native-reanimated";
 
 import { Motion } from "@/constants/theme";
@@ -8,7 +8,7 @@ import { useReducedMotion } from "@/hooks/use-reduced-motion";
 const AnimatedPressable = createAnimatedComponent(Pressable);
 const PRESS_EASING = cubicBezier(...Motion.easeOut);
 
-export const MotionPressable = forwardRef<View, PressableProps>(function MotionPressable(
+export const MotionPressable = forwardRef<ViewInstance, PressableProps>(function MotionPressable(
   { children, disabled, onPressIn, onPressOut, style, testOnly_pressed, ...props },
   ref,
 ) {

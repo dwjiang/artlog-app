@@ -67,8 +67,8 @@ export async function runCalibrationExport(
     exportedAt: new Date().toISOString(),
   };
   const embeddingsFile = new File(directory, "iphone-embeddings.json");
-  embeddingsFile.write(JSON.stringify(embeddings));
-  new File(directory, "iphone-report.json").write(JSON.stringify(report, null, 2) + "\n");
+  embeddingsFile.writeSync(JSON.stringify(embeddings));
+  new File(directory, "iphone-report.json").writeSync(JSON.stringify(report, null, 2) + "\n");
   await Share.share({ url: embeddingsFile.uri });
   return { fileUri: embeddingsFile.uri, report };
 }

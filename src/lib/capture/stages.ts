@@ -19,7 +19,7 @@ export type Warper = {
    * missing or small. With `ranked`, also the alternatives recognition may prefer, such as a painting shown on a phone.
    * Empty when a guided capture's boundary is not on the still.
    * Finds boundaries in preview coordinates and warps them from the upright photo; `turns` are clockwise
-   * quarter turns from the portrait preview, where `quad` was detected, to the upright photo.
+   * quarter turns from the preview, where `quad` was detected, to the upright photo.
    */
   warpCandidates(
     photoUri: string,
@@ -65,7 +65,7 @@ export type CaptureInput = Pick<CapturePayload, "capturedAt" | "venueId" | "visi
   photoUri: string;
   quad: Quad | null;
   source: "camera" | "library";
-  /** Clockwise quarter turns from the portrait preview to a camera photo taken with the phone turned. */
+  /** Clockwise quarter turns from the preview to a camera photo taken with the phone turned against it. */
   turns?: number;
   /** The preview a camera photo was framed on. */
   view?: { width: number; height: number };

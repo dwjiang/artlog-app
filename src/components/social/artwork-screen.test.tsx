@@ -1,6 +1,14 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName } from "convex/server";
-import { AccessibilityInfo, DeviceEventEmitter, Dimensions, ScrollView, Text, type HostInstance } from "react-native";
+import {
+  AccessibilityInfo,
+  DeviceEventEmitter,
+  Dimensions,
+  ScrollView,
+  Text,
+  type HostInstance,
+  type TextInstance,
+} from "react-native";
 
 import { Gallery } from "@/constants/theme";
 import type { SharedArtwork } from "@/lib/social/types";
@@ -124,9 +132,11 @@ it("names the artwork in the bar only while its title is scrolled under the bar"
   // Native layout puts the title 500–540 pt down the scroll content.
   const nativeScroll = {} as HostInstance;
   const scrollRef = jest.spyOn(ScrollView.prototype, "getNativeScrollRef").mockReturnValue(nativeScroll);
-  const measure = jest.spyOn(Text.prototype, "measureLayout").mockImplementation((relativeTo, onSuccess) => {
-    if (relativeTo === nativeScroll) onSuccess(20, 500, 362, 40);
-  });
+  const measure = jest
+    .spyOn(Text.prototype as TextInstance, "measureLayout")
+    .mockImplementation((relativeTo, onSuccess) => {
+      if (relativeTo === nativeScroll) onSuccess(20, 500, 362, 40);
+    });
   try {
     await render(<ArtworkScreen kind="visit" postId="post-a" itemId="art-a" />);
     const title = screen.getByRole("header", { name: "Starry Night" });

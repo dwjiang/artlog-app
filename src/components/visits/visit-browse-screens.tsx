@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
-import { type ScrollView, View } from "react-native";
+import { View, type ScrollViewInstance } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
@@ -142,7 +142,7 @@ function ExpandedGlobe() {
   const counts = visitCounts(visits);
   const citiesKnown = visits.every((visit) => !!visit.city);
   const places = new Set(visits.map((visit) => placeIdentity(visit).key)).size;
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const room = usePaneRoom(scroll);
   usePaneSwitch(mode, () => room);
   return (

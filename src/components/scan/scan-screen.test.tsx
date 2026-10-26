@@ -45,6 +45,7 @@ const mockPhotoOutput: { capturePhotoToFile: typeof mockPhoto; outputOrientation
   capturePhotoToFile: mockPhoto,
 };
 let mockDeviceOrientation: string | undefined;
+let mockInterfaceOrientation = "up";
 let mockAccelerometer = true;
 const mockStartOrientationUpdates = jest.fn();
 const mockStopOrientationUpdates = jest.fn();
@@ -61,6 +62,7 @@ let mockTabsListener: ((event: { data: { state: { index: number; routes: { name:
 let mockVisitUnavailable: (() => void) | undefined;
 const mockFrameOutput = { kind: "frame-output" };
 const mockDetectorActive: boolean[] = [];
+let mockDetectorOrientation: string | undefined;
 const mockResetDetection = jest.fn();
 
 jest.mock("@shopify/react-native-skia", () => {
@@ -135,6 +137,7 @@ jest.mock("react-native-vision-camera", () => ({
     requestPermission: mockRequest,
   }),
   usePhotoOutput: () => mockPhotoOutput,
+  useOrientation: (source: string) => (source === "interface" ? mockInterfaceOrientation : undefined),
   VisionCamera: {
     createOrientationManager: () => ({
       get currentOrientation() {
@@ -184,9 +187,10 @@ jest.mock("@/lib/queue/use-queue", () => ({
   }),
 }));
 jest.mock("@/lib/capture/use-rect-detector", () => ({
-  useRectDetector: (active: boolean, callback: (detection: unknown) => void) => {
+  useRectDetector: (active: boolean, orientation: string, callback: (detection: unknown) => void) => {
     mockOnDetection = callback;
     mockDetectorActive.push(active);
+    mockDetectorOrientation = orientation;
     return mockFrameOutput;
   },
 }));
@@ -242,6 +246,7 @@ beforeEach(() => {
   mockPhoto.mockResolvedValue({ filePath: "/photo.jpg" });
   mockPhotoOutput.outputOrientation = undefined;
   mockDeviceOrientation = undefined;
+  mockInterfaceOrientation = "up";
   mockAccelerometer = true;
   mockRequest.mockResolvedValue(true);
   mockImport.mockResolvedValue(undefined);
@@ -315,18 +320,25 @@ it("streams frames to the detector without idle captions or an autoscan chip", a
 });
 
 it.each([
-  [undefined, true, "up", 0],
-  ["left", true, "left", 3],
-  ["right", true, "right", 1],
-  ["left", false, "up", 0],
+  ["up", undefined, true, "up", 0],
+  ["up", "left", true, "left", 3],
+  ["up", "right", true, "right", 1],
+  ["up", "left", false, "up", 0],
+  ["right", "right", true, "right", 0],
+  ["right", "up", true, "up", 3],
+  ["left", "left", true, "left", 0],
+  ["left", undefined, false, "left", 0],
 ])(
-  "takes the photo upright to how the phone is held while the preview stays portrait: %s, accelerometer %s",
-  async (device, accelerometer, orientation, turns) => {
+  "takes the photo upright to how the phone is held, turned from a %s preview: %s, accelerometer %s",
+  async (preview, device, accelerometer, orientation, turns) => {
+    mockInterfaceOrientation = preview;
     mockDeviceOrientation = device;
     mockAccelerometer = accelerometer;
     await render(<ScanScreen />);
-    // Any Camera-managed source would re-apply one orientation to the photo output on every render.
+    // Any Camera-managed source would re-apply one orientation to the photo output whenever the outputs change.
     expect(mockCameraProps.orientationSource).toBe("custom");
+    // Frames are analyzed the way the preview shows them, so the outline lands on the painting.
+    expect(mockDetectorOrientation).toBe(preview);
     await act(() => mockCameraProps.onStarted());
     await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
     expect(mockPhotoOutput.outputOrientation).toBe(orientation);

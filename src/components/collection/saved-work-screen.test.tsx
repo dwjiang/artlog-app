@@ -2,7 +2,14 @@ import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
-import { AccessibilityInfo, DeviceEventEmitter, ScrollView, Text, type HostInstance } from "react-native";
+import {
+  AccessibilityInfo,
+  DeviceEventEmitter,
+  ScrollView,
+  Text,
+  type HostInstance,
+  type TextInstance,
+} from "react-native";
 
 import { Gallery } from "@/constants/theme";
 import { addArtworkPhoto, editArtworkPhoto, linkArtworkVisit, selectArtworkPhotos } from "@/db/repos/artwork-album";
@@ -172,7 +179,7 @@ it("names the artwork in the bar only while its title is scrolled under the bar"
   // Native layout puts the title 400–440 pt down the scroll content.
   const nativeScroll = {} as HostInstance;
   jest.spyOn(ScrollView.prototype, "getNativeScrollRef").mockReturnValue(nativeScroll);
-  jest.spyOn(Text.prototype, "measureLayout").mockImplementation((relativeTo, onSuccess) => {
+  jest.spyOn(Text.prototype as TextInstance, "measureLayout").mockImplementation((relativeTo, onSuccess) => {
     if (relativeTo === nativeScroll) onSuccess(20, 400, 362, 40);
   });
   await render(detail("lilies"));

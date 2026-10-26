@@ -10,7 +10,7 @@ let openURL: jest.SpyInstance;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+  openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
 });
 afterEach(() => openURL.mockRestore());
 

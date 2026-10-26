@@ -20,7 +20,7 @@ jest.mock("expo-file-system", () => ({
     textSync() {
       return mockFiles.get(this.uri);
     }
-    write(value: string) {
+    writeSync(value: string) {
       mockWrite(this.uri, value);
     }
   },

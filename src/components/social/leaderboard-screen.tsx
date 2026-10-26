@@ -234,7 +234,7 @@ export function LeaderboardScreen() {
                 </View>
               )}
             </View>
-          ) : null
+          ) : undefined
         }
       />
       {participationOpen && <LeaderboardParticipation onDismiss={() => setParticipationOpen(false)} />}
