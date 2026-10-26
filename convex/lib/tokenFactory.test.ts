@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { completion, jsonResponse } from "./labelFixtures";
+import { reportBackendError } from "./observability";
 import { chatJson, retryDelayMs } from "./tokenFactory";
 
 const fetchMock = vi.fn<typeof fetch>();
@@ -127,7 +128,22 @@ describe("Token Factory chatJson", () => {
   ])("rejects malformed output as %s without repairing it", async (reason, response) => {
     fetchMock.mockResolvedValueOnce(response);
     await expect(chatJson(request)).rejects.toMatchObject({
-      data: { code: "model_error", reason, calls: 1 },
+      data: {
+        code: "model_error",
+        reason,
+        calls: 1,
+        diagnostics: {
+          stage: (
+            {
+              bad_json: "json",
+              schema: "schema",
+              truncated: "completion",
+              bad_response: "completion",
+              http_401: "http",
+            } as Record<string, string>
+          )[reason],
+        },
+      },
     });
   });
 
@@ -140,7 +156,92 @@ describe("Token Factory chatJson", () => {
     vi.stubEnv("NEBIUS_API_KEY", "k");
     fetchMock.mockRejectedValueOnce(new Error("aborted"));
     await expect(chatJson(request)).rejects.toMatchObject({
-      data: { code: "model_error", reason: "fetch_failed", calls: 1 },
+      data: { code: "model_error", reason: "fetch_failed", calls: 1, diagnostics: { stage: "fetch", calls: 1 } },
     });
   });
+});
+
+it("retains bounded diagnostics for truncation without request or response content", async () => {
+  fetchMock.mockResolvedValueOnce(
+    jsonResponse({
+      choices: [{ message: { content: "private output" }, finish_reason: "length" }],
+      usage: { prompt_tokens: 123, completion_tokens: 64 },
+    }),
+  );
+  const error = await chatJson({ ...request, user: "private input" }).catch((e) => e);
+  expect(error.data.diagnostics).toMatchObject({
+    version: 1,
+    model: request.model,
+    stage: "completion",
+    finishReason: "length",
+    maxTokens: 64,
+    promptTokens: 123,
+    completionTokens: 64,
+    calls: 1,
+    inputChars: 16,
+    outputChars: 14,
+    timeoutMs: 8000,
+  });
+  expect(JSON.stringify(error.data)).not.toMatch(/private input|private output|test-key/);
+});
+
+it.each([null, [], "private response"])("classifies non-object responses without exposing them", async (response) => {
+  fetchMock.mockResolvedValueOnce(jsonResponse(response));
+  await expect(chatJson(request)).rejects.toMatchObject({
+    data: {
+      code: "model_error",
+      reason: "bad_response",
+      diagnostics: { stage: "response" },
+    },
+  });
+});
+
+it("retains only the final attempt's usage and counts both requests", async () => {
+  vi.useFakeTimers();
+  fetchMock.mockResolvedValueOnce(new Response("private upstream error", { status: 503 })).mockResolvedValueOnce(
+    jsonResponse({
+      choices: [{ message: { content: "private output" }, finish_reason: "length" }],
+      usage: { prompt_tokens: 50, completion_tokens: 64 },
+    }),
+  );
+  const pending = chatJson(request).catch((error) => error);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect((await pending).data.diagnostics).toMatchObject({
+    calls: 2,
+    promptTokens: 50,
+    completionTokens: 64,
+    finishReason: "length",
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+it("carries truncation diagnostics through the backend Sentry envelope", async () => {
+  vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+  fetchMock
+    .mockResolvedValueOnce(
+      jsonResponse({
+        choices: [{ message: { content: "private output" }, finish_reason: "length" }],
+        usage: { prompt_tokens: 800, completion_tokens: 12000 },
+      }),
+    )
+    .mockResolvedValueOnce(new Response("{}", { status: 200 }));
+  const failure = await chatJson({
+    ...request,
+    model: "nvidia/nemotron-3-super-120b-a12b",
+    maxTokens: 12000,
+    user: "private input",
+  }).catch((error) => error);
+  await reportBackendError(failure, "exhibitionRefresh.extract");
+  const body = String(fetchMock.mock.calls[1][1]?.body);
+  const event = JSON.parse(body.split("\n")[2]);
+  expect(event.contexts.token_factory).toMatchObject({
+    model: "nvidia/nemotron-3-super-120b-a12b",
+    maxTokens: 12000,
+    promptTokens: 800,
+    completionTokens: 12000,
+    finishReason: "length",
+    stage: "completion",
+  });
+  expect(event.tags).toMatchObject({ operation: "exhibitionRefresh.extract", reason: "truncated" });
+  expect(body).not.toMatch(/private input|private output|test-key/);
 });

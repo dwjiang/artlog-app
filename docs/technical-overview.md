@@ -93,7 +93,12 @@ vector retrieval. See [R2 setup and delivery](storage.md).
   app start and screen loads; request spans keep
   only the host.
   Backend actions send allowlisted error codes and code locations directly to Sentry (no Pro
-  integration needed).
+  integration needed). Token Factory failures add a versioned `token_factory` context with
+  allowlisted model/stage/finish-reason identifiers, bounded token counts, configured output limit,
+  attempt count, character counts, and per-attempt timing. Unknown models become `other`; raw
+  prompts, completions, provider payloads, and URLs are excluded. Usage describes only the final
+  responding attempt, not a retry total. These diagnostics do not identify a deployed revision
+  or recover content from earlier failures.
   Backend reports omit raw error messages, function arguments and console output. Delivery
   is best-effort and bounded to 1.5 seconds; Convex logs remain the fallback. Direct query
   and mutation failures reach app Sentry with Convex's production redaction. Background mutation
