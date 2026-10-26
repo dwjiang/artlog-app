@@ -26,8 +26,8 @@ JS-only checks can install instead of rebuilding natively.
 The hook reads `archive-workspace.cjs` from the local `origin/<default branch>`
 Git ref, so even workspaces without the script get current cleanup. Conductor
 loads shared settings from that branch; merge into `main` to activate it. A local
-`scripts.archive` override takes precedence. Closing lingering windows uses
-System Events and requires macOS Automation/Accessibility permission; failures
-are reported without skipping server shutdown.
+`scripts.archive` override takes precedence. Closing lingering Device Hub
+windows uses the Accessibility API and requires macOS Accessibility permission;
+failures are reported without skipping server shutdown.
 
 Run `npm run test:conductor` to check isolation and archive failure handling.
