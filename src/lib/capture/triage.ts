@@ -1,8 +1,6 @@
-import type { Mat } from "react-native-fast-opencv";
+import { filePath } from "@/lib/file-uri";
 
-import type { FastOpenCV } from "@/lib/image/opencv";
-import { withGray } from "@/lib/image/read-crop";
-
+import { getOpenCVFeatures, type OpenCVFeatures, type TriageMetrics } from "../../../modules/opencv-features/src";
 import type { Triage } from "./stages";
 
 /** Metrics are measured on the gray crop downscaled to this square size. */
@@ -14,7 +12,6 @@ export const GLARE_LEVEL = 250;
 /** Fraction of highlight pixels above which the shot is a glare retake. */
 export const GLARE_THRESHOLD = 0.04;
 
-export type TriageMetrics = { blurVariance: number; glareFraction: number };
 export type TriageResult = Awaited<ReturnType<Triage["check"]>>;
 
 export function decide({ blurVariance, glareFraction }: TriageMetrics): TriageResult {
@@ -31,33 +28,12 @@ export function decide({ blurVariance, glareFraction }: TriageMetrics): TriageRe
   return { ok: true };
 }
 
-export function measureTriage(gray: Mat, cv: FastOpenCV): TriageMetrics {
-  const { OpenCV, Mat, Size, DataTypes, BorderTypes, InterpolationFlags, ThresholdTypes } = cv;
-  const size = Size.create(TRIAGE_SIZE, TRIAGE_SIZE);
-  const [small, laplacian, mean, stddev, highlights] = Array.from({ length: 5 }, () =>
-    Mat.create(0, 0, DataTypes.CV_8U),
-  );
-  try {
-    OpenCV.resize(gray, small, size, 0, 0, InterpolationFlags.INTER_AREA);
-    OpenCV.Laplacian(small, laplacian, DataTypes.CV_64F, 1, 1, 0, BorderTypes.BORDER_DEFAULT);
-    OpenCV.meanStdDev(laplacian, mean, stddev);
-    const sigma = stddev.toBuffer("float64").buffer[0];
-    OpenCV.threshold(small, highlights, GLARE_LEVEL - 1, 255, ThresholdTypes.THRESH_BINARY);
-    const glareFraction = OpenCV.countNonZero(highlights).value / (TRIAGE_SIZE * TRIAGE_SIZE);
-    return { blurVariance: sigma * sigma, glareFraction };
-  } finally {
-    for (const object of [size, small, laplacian, mean, stddev, highlights]) {
-      object.release();
-    }
-  }
+export function measureCrop(cropUri: string, opencv: OpenCVFeatures = getOpenCVFeatures()): Promise<TriageMetrics> {
+  return opencv.measureTriage(filePath(cropUri), TRIAGE_SIZE, GLARE_LEVEL);
 }
 
-export function measureCrop(cropUri: string, cv?: FastOpenCV): Promise<TriageMetrics> {
-  return withGray(cropUri, cv, ({ gray }, opencv) => measureTriage(gray, opencv));
-}
-
-export async function check(cropUri: string, cv?: FastOpenCV): Promise<TriageResult> {
-  const metrics = await measureCrop(cropUri, cv);
+export async function check(cropUri: string, opencv?: OpenCVFeatures): Promise<TriageResult> {
+  const metrics = await measureCrop(cropUri, opencv);
   const result = decide(metrics);
   // Thresholds are product tuning; the metrics behind each decision are what gets recorded.
   if (__DEV__) console.debug("Triage", { ...metrics, ...result });

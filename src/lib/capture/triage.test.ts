@@ -1,23 +1,7 @@
-import { fakeOpenCV, type FakeOpenCVOptions } from "@/lib/image/opencv-fake";
-
+import type { OpenCVFeatures, TriageMetrics } from "../../../modules/opencv-features/src";
 import { BLUR_THRESHOLD, GLARE_LEVEL, GLARE_THRESHOLD, TRIAGE_SIZE, check, decide } from "./triage";
 
-const mockBase64 = jest.fn();
-jest.mock("expo-file-system", () => ({
-  File: class {
-    uri: string;
-    constructor(uri: string) {
-      this.uri = uri;
-    }
-    base64() {
-      return mockBase64(this.uri);
-    }
-  },
-}));
-
 beforeEach(() => {
-  mockBase64.mockReset();
-  mockBase64.mockImplementation(async (uri: string) => `b64:${uri}`);
   jest.spyOn(console, "debug").mockImplementation(() => {});
 });
 afterEach(() => {
@@ -53,56 +37,14 @@ describe("decide", () => {
 });
 
 describe("check", () => {
-  function crop(options: FakeOpenCVOptions) {
-    return fakeOpenCV({
-      images: { "b64:file:///crop.jpg": { rows: 512, cols: 512, channels: 3 } },
-      ...options,
-    });
-  }
-
-  it("measures blur as the Laplacian variance and glare as the highlight fraction of the downscaled crop", async () => {
-    const fake = crop({
-      laplacianStddev: 45,
-      highlightPixels: Math.round(TRIAGE_SIZE * TRIAGE_SIZE * 0.05),
-    });
-    await expect(check("file:///crop.jpg", fake.cv)).resolves.toEqual({
+  it("decides from the metrics of the crop file at the triage size and glare level", async () => {
+    const metrics: TriageMetrics = { blurVariance: 2000, glareFraction: GLARE_THRESHOLD + 0.01 };
+    const native = { detectOrb: jest.fn(), measureTriage: jest.fn(async () => metrics) } satisfies OpenCVFeatures;
+    await expect(check("file:///crops/a%20b.jpg", native)).resolves.toEqual({
       ok: false,
       reason: "glare",
       message: "Adjust the angle to reduce glare",
     });
-    expect(fake.calls).toContainEqual({
-      name: "resize",
-      args: [TRIAGE_SIZE, TRIAGE_SIZE, "INTER_AREA"],
-    });
-    expect(fake.calls).toContainEqual({
-      name: "threshold",
-      args: [GLARE_LEVEL - 1, 255, "THRESH_BINARY"],
-    });
-    expect(fake.leaked()).toEqual([]);
-  });
-
-  it("passes a sharp, glare-free crop and releases everything", async () => {
-    const fake = crop({ laplacianStddev: 45, highlightPixels: 0 });
-    await expect(check("file:///crop.jpg", fake.cv)).resolves.toEqual({
-      ok: true,
-    });
-    expect(fake.leaked()).toEqual([]);
-  });
-
-  it("flags blur from a low Laplacian deviation", async () => {
-    const fake = crop({ laplacianStddev: 5, highlightPixels: 0 });
-    await expect(check("file:///crop.jpg", fake.cv)).resolves.toMatchObject({
-      ok: false,
-      reason: "blur",
-    });
-  });
-
-  it("releases native objects when the crop cannot be decoded", async () => {
-    const fake = fakeOpenCV({
-      images: { "b64:file:///crop.jpg": { rows: 512, cols: 512, channels: 3 } },
-      cvtColorError: new Error("bad image"),
-    });
-    await expect(check("file:///crop.jpg", fake.cv)).rejects.toThrow("bad image");
-    expect(fake.leaked()).toEqual([]);
+    expect(native.measureTriage).toHaveBeenCalledWith("/crops/a b.jpg", TRIAGE_SIZE, GLARE_LEVEL);
   });
 });

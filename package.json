@@ -25,8 +25,7 @@
     "exhibitions:extract": "node --experimental-strip-types scripts/exhibitions/extract.mts",
     "exhibitions:pilot": "node --experimental-strip-types scripts/exhibitions/pilot.mts",
     "exhibitions:import": "node --experimental-strip-types scripts/exhibitions/import.mts",
-    "eas-build-pre-install": "npm run model:check",
-    "postinstall": "patch-package"
+    "eas-build-pre-install": "npm run model:check"
   },
   "dependencies": {
     "@auth/core": "^0.41.1",
@@ -89,7 +88,6 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.0",
-    "react-native-fast-opencv": "^1.0.1",
     "react-native-gesture-handler": "~3.3.0",
     "react-native-nitro-image": "0.15.2",
     "react-native-nitro-modules": "0.37.1",
@@ -124,7 +122,6 @@
     "oxfmt": "^0.70.0",
     "oxlint": "^1.85.0",
     "oxlint-tsgolint": "^7.0.2003",
-    "patch-package": "^8.0.1",
     "robots-parser": "^3.0.1",
     "test-renderer": "^1.2.0",
     "typescript": "~6.0.3",
