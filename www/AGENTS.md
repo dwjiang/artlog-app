@@ -4,4 +4,6 @@
   streams it into the page. It is not a web build of the app, so the root rule against web residue does not apply.
 - Keep its dependencies in this folder's `package.json`; app code never imports from here.
 - The page receives only an instance's stream token; the Limrun API key and instance tokens stay in the server code.
+- Merging never updates the phones' app build: after changing `isJudgesDemo()` paths or
+  `shared/capture/judges-demo.ts`, follow `README.md`, "Refresh the app build".
 - Checks: `npm run typecheck` and `npm test` in this folder; the root `npm run lint` also covers it.
