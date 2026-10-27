@@ -41,6 +41,13 @@ type Completed = {
   result: Exclude<CaptureResult, { kind: "retake" }>;
 };
 type VenueContext = Pick<CaptureInput, "venueId" | "visitId" | "visitLocalId">;
+/** A photo chosen for import. The import consumes `uri`; `exif` dates and places the photo when its source keeps it. */
+export type PickedPhoto = { uri: string; exif?: ImagePicker.ImagePickerAsset["exif"] };
+
+async function pickFromLibrary(): Promise<PickedPhoto | null> {
+  const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], exif: true, quality: 1 });
+  return result.canceled ? null : (result.assets[0] ?? null);
+}
 
 /**
  * `visitLocalId` pins every capture to that visit; `onVisitUnavailable` runs when it no longer exists so the caller can
@@ -312,7 +319,7 @@ export function useCapture({
     return captureFromCamera(attempt, takePhoto);
   }
 
-  function importPhoto() {
+  function importPhoto(pick: () => Promise<PickedPhoto | null> = pickFromLibrary) {
     const previous = state.phase === "retry" && presentation?.source === "library" ? presentation : undefined;
     const previousMessage = state.message;
     const attempt = controller.begin("library");
@@ -320,13 +327,8 @@ export function useCapture({
     let position: { lat: number; lng: number } | undefined;
     return capture(
       async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ["images"],
-          exif: true,
-          quality: 1,
-        });
-        if (result.canceled || !result.assets[0]) return null;
-        const photo = result.assets[0];
+        const photo = await pick();
+        if (!photo) return null;
         const { capturedAt, lat, lng } = extractCaptureMeta(photo.exif);
         if (lat !== undefined && lng !== undefined) position = { lat, lng };
         return {

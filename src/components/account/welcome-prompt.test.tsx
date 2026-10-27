@@ -15,9 +15,12 @@ jest.mock("@/hooks/use-screen-active", () => ({
   useScreenActive: () => mockActive,
 }));
 jest.mock("expo-router", () => ({ useRouter: () => mockRouter }));
+let mockJudgesDemo = false;
+jest.mock("@/lib/judges-demo", () => ({ isJudgesDemo: () => mockJudgesDemo }));
 beforeEach(async () => {
   jest.clearAllMocks();
   mockActive = true;
+  mockJudgesDemo = false;
   switchOwner(anonymousOwner());
   await removeSetting("welcome-seen");
   await removeSetting("local-profile-name");
@@ -34,6 +37,13 @@ it("returns to onboarding on relaunch until the welcome is finished", async () =
 
 it("does not repeat completed onboarding for a guest who left the name blank", async () => {
   await setSetting("welcome-seen", "true");
+  await render(<WelcomePrompt />);
+  await act(async () => {});
+  expect(mockPush).not.toHaveBeenCalled();
+});
+
+it("never opens the welcome in the judges' demo build", async () => {
+  mockJudgesDemo = true;
   await render(<WelcomePrompt />);
   await act(async () => {});
   expect(mockPush).not.toHaveBeenCalled();

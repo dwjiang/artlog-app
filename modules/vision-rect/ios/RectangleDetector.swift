@@ -116,6 +116,11 @@ enum RectangleDetector {
     guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
       throw VisionRectError("Frame has no image buffer")
     }
+    return try detect(pixelBuffer: pixelBuffer, orientation: orientation)
+  }
+
+  /// Detects at the frame's own size and at each of `extraScales`.
+  static func detect(pixelBuffer: CVPixelBuffer, orientation: CGImagePropertyOrientation) throws -> [DetectedRectangle] {
     let full = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: orientation, options: [:])
     return try detect(handlers: [full] + scaledHandlers(CIImage(cvPixelBuffer: pixelBuffer), orientation: orientation))
   }

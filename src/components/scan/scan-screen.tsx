@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/react-native";
 import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } from "expo-router";
 import { useIsFocused, type ParamListBase } from "expo-router/react-navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppState, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -11,19 +11,25 @@ import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
+import { findDemoVideo } from "@/lib/capture/demo-viewfinder";
 import { useCapture } from "@/lib/capture/use-capture";
 import { useRectDetector } from "@/lib/capture/use-rect-detector";
 import { useUprightPhoto } from "@/lib/capture/use-upright-photo";
+import { isJudgesDemo } from "@/lib/judges-demo";
 import { reportError } from "@/lib/observability";
 import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 import { useLiftToasts } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
 
+import type { RectDetection } from "../../../modules/vision-rect/src";
 import { CameraPermission } from "./camera-permission";
 import { CaptureControls } from "./capture-controls";
 import { CaptureFeedback, CaptureOutline, CaptureShutter } from "./capture-feedback";
 import { CaptureReveal } from "./capture-reveal";
 import { CaptureVisitPill } from "./capture-visit-pill";
+import { DemoPaintingStrip } from "./demo-painting-strip";
+import { DemoPhotoSheet, type DemoPhotoSheetHandle } from "./demo-photo-sheet";
+import { DemoViewfinder, type DemoViewfinderHandle } from "./demo-viewfinder";
 import { DetectionLog, DevTimings } from "./dev-timings";
 import { OverlayCaption } from "./overlay-caption";
 import { QueueBadge } from "./queue-badge";
@@ -55,6 +61,11 @@ export function ScanScreen() {
   const [appState, setAppState] = useState(AppState.currentState);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
+  // The judges' demo build has no camera the app can open, so a gallery video stands in for it; null until loaded.
+  const [demoVideo] = useState(() => (isJudgesDemo() ? (findDemoVideo() ?? null) : undefined));
+  const [demoTarget, setDemoTarget] = useState<number>();
+  const demoViewfinder = useRef<DemoViewfinderHandle>(null);
+  const demoPhotos = useRef<DemoPhotoSheetHandle>(null);
   const [preview, setPreview] = useState({ width: 0, height: 0 });
   const [controls, setControls] = useState({ top: 0, bottom: 0 });
   // Native tabs give each tab its own safe area, which already ends above the tab bar and any bottom accessory.
@@ -74,7 +85,8 @@ export function ScanScreen() {
   const photoOutput = usePhotoOutput({ containerFormat: "jpeg", quality: 1 });
   // The preview turns with the interface, which iOS 27 may rotate even though the app prefers portrait.
   const orientation = useOrientation("interface") ?? "up";
-  const takePhoto = useUprightPhoto(photoOutput, orientation, active);
+  const cameraPhoto = useUprightPhoto(photoOutput, orientation, active);
+  const takePhoto = demoVideo ? () => demoViewfinder.current!.takePhoto() : cameraPhoto;
   const capture = useCapture({
     active,
     focused: isFocused,
@@ -105,13 +117,14 @@ export function ScanScreen() {
     if (!detecting) resetDetection();
   }, [detecting, resetDetection]);
   const [detectionLog] = useState(() => new DetectionLog());
-  const frameOutput = useRectDetector(detecting, orientation, (detection) => {
+  const onDetection = (detection: RectDetection) => {
     const attempt = capture.controller.observe(detection, preview, performance.now());
     detectionLog.record(detection, capture.controller.getFeedback());
     if (attempt) {
       void capture.captureAutomatically(attempt, takePhoto);
     }
-  });
+  };
+  const frameOutput = useRectDetector(detecting, orientation, onDetection);
   const outputs = useMemo(() => [photoOutput, frameOutput], [photoOutput, frameOutput]);
   const busy = occupied || !["searching", "retry"].includes(phase);
   const cameraActive = active && (searching || (phase === "capturing" && source === "camera"));
@@ -122,7 +135,12 @@ export function ScanScreen() {
       ? "Reframe the artwork and tap the shutter."
       : "Move the camera to reframe, then hold steady.";
   const shutterDisabled = busy || !active || !cameraReady;
+  const viewfinderError = demoVideo === null ? "No sample video is loaded. You can import a photo." : cameraError;
   const { endResultTransition } = capture;
+  // The demo's photo picker offers its gallery stills and the judge's uploads instead of the phone's library.
+  const importPhoto = () => {
+    void capture.importPhoto(demoVideo === undefined ? undefined : () => demoPhotos.current!.pick());
+  };
 
   useEffect(
     () =>
@@ -137,8 +155,9 @@ export function ScanScreen() {
     return () => subscription.remove();
   }, []);
   useEffect(() => {
-    // Opening a sheet takes focus away and cancels an unfinished capture.
-    if (active && searching && !visitId) promptChooser();
+    // Opening a sheet takes focus away and cancels an unfinished capture. The judges' demo leaves the museum to the
+    // venue pill, so the viewfinder is ready on arrival.
+    if (active && searching && !visitId && !isJudgesDemo()) promptChooser();
   }, [active, searching, visitId, venueStatus, venueOptions, promptChooser]);
 
   const renderOverlay = (cameraAvailable: boolean) => (
@@ -169,9 +188,7 @@ export function ScanScreen() {
               label="Choose another photo"
               variant="filled"
               fullWidth={stackRetryActions}
-              onPress={() => {
-                void capture.importPhoto();
-              }}
+              onPress={importPhoto}
             />
             {cameraAvailable && (
               <GalleryButton
@@ -183,26 +200,34 @@ export function ScanScreen() {
             )}
           </View>
         ) : (
-          <CaptureControls
-            importLabel={cameraAvailable ? "Import" : "Import a photo"}
-            importDisabled={busy || !active}
-            onImport={() => {
-              void capture.importPhoto();
-            }}
-          >
-            {cameraAvailable && (
-              <CaptureShutter
-                controller={capture.controller}
-                disabled={shutterDisabled}
-                busy={busy}
-                captured={busy && source === "camera"}
-                detecting={detecting}
-                onPress={() => {
-                  void capture.captureManually(takePhoto);
-                }}
+          <>
+            {demoVideo && (
+              <DemoPaintingStrip
+                paintings={demoVideo.paintings}
+                selected={demoTarget}
+                disabled={busy || !active}
+                onSelect={setDemoTarget}
               />
             )}
-          </CaptureControls>
+            <CaptureControls
+              importLabel={cameraAvailable ? "Import" : "Import a photo"}
+              importDisabled={busy || !active}
+              onImport={importPhoto}
+            >
+              {cameraAvailable && (
+                <CaptureShutter
+                  controller={capture.controller}
+                  disabled={shutterDisabled}
+                  busy={busy}
+                  captured={busy && source === "camera"}
+                  detecting={detecting}
+                  onPress={() => {
+                    void capture.captureManually(takePhoto);
+                  }}
+                />
+              )}
+            </CaptureControls>
+          </>
         )}
       </View>
     </View>
@@ -213,37 +238,62 @@ export function ScanScreen() {
       style={styles.container}
       onLayout={({ nativeEvent: { layout } }) => setPreview({ width: layout.width, height: layout.height })}
     >
-      <CameraPermission
-        bottomInset={audioInset}
-        onImport={() => {
-          void capture.importPhoto();
-        }}
-        fallback={source === "library" ? renderOverlay(false) : undefined}
-        loading={cameraActive && !cameraReady && !cameraError}
-      >
-        <Sentry.Mask style={StyleSheet.absoluteFill}>
-          <TapToFocusCamera
-            device="back"
-            orientationSource="custom"
-            resizeMode="cover"
-            isActive={cameraActive}
-            outputs={outputs}
-            allowHapticsAndSystemSoundsPlayback
-            onStarted={() => {
-              setCameraReady(true);
-              setCameraError(undefined);
-            }}
-            onStopped={() => setCameraReady(false)}
-            onError={(error) => {
-              reportError(error, "camera.start", { data: { screen: "scan" } });
-              setCameraReady(false);
-              setCameraError("Could not start the camera. You can import a photo.");
-            }}
-          />
-        </Sentry.Mask>
-        {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
-        {renderOverlay(true)}
-      </CameraPermission>
+      {demoVideo !== undefined ? (
+        <>
+          {demoVideo && (
+            <DemoViewfinder
+              ref={demoViewfinder}
+              video={demoVideo}
+              target={demoTarget}
+              active={cameraActive}
+              onReady={() => {
+                setCameraReady(true);
+                setCameraError(undefined);
+              }}
+              onDetection={onDetection}
+              onError={(message) => {
+                reportError(new Error(message), "camera.start", { data: { screen: "scan", source: "demo-video" } });
+                setCameraReady(false);
+                setCameraError("Could not play the sample video. You can import a photo.");
+              }}
+              onStepBack={() => setDemoTarget(undefined)}
+            />
+          )}
+          <DemoPhotoSheet ref={demoPhotos} />
+          {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
+          {renderOverlay(true)}
+        </>
+      ) : (
+        <CameraPermission
+          bottomInset={audioInset}
+          onImport={importPhoto}
+          fallback={source === "library" ? renderOverlay(false) : undefined}
+          loading={cameraActive && !cameraReady && !cameraError}
+        >
+          <Sentry.Mask style={StyleSheet.absoluteFill}>
+            <TapToFocusCamera
+              device="back"
+              orientationSource="custom"
+              resizeMode="cover"
+              isActive={cameraActive}
+              outputs={outputs}
+              allowHapticsAndSystemSoundsPlayback
+              onStarted={() => {
+                setCameraReady(true);
+                setCameraError(undefined);
+              }}
+              onStopped={() => setCameraReady(false)}
+              onError={(error) => {
+                reportError(error, "camera.start", { data: { screen: "scan" } });
+                setCameraReady(false);
+                setCameraError("Could not start the camera. You can import a photo.");
+              }}
+            />
+          </Sentry.Mask>
+          {detecting && <CaptureOutline controller={capture.controller} preview={preview} />}
+          {renderOverlay(true)}
+        </CameraPermission>
+      )}
       {/* The venue and queue entry points have no other home, so they stay above the permission invitation as well. */}
       <View pointerEvents="box-none" style={[styles.topLayer, topLayerPadding, { paddingTop: top + Spacing.three }]}>
         <View
@@ -255,9 +305,9 @@ export function ScanScreen() {
             {visitId ? <CaptureVisitPill visitId={visitId} /> : <VenuePill />}
             <QueueBadge />
           </View>
-          {cameraError && !message && !busy && (
+          {viewfinderError && !message && !busy && (
             <View accessible accessibilityRole="alert">
-              <OverlayCaption>{cameraError}</OverlayCaption>
+              <OverlayCaption>{viewfinderError}</OverlayCaption>
             </View>
           )}
         </View>
