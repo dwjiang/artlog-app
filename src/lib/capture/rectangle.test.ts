@@ -571,6 +571,13 @@ describe("visibleFrame", () => {
       [0.193, 1],
     ]);
   });
+
+  it("keeps the fitted edges exactly on the photo, where rounding once put them a hair outside", () => {
+    // The judges' demo viewfinder frame on an iPhone 17 Pro preview.
+    const visible = visibleFrame({ width: 1080, height: 1440 }, { width: 402, height: 874 });
+    expect(visible.flat().every((value) => value >= 0 && value <= 1)).toBe(true);
+    expect(visible.map(([, y]) => y)).toEqual([0, 0, 1, 1]);
+  });
 });
 
 describe("cropQuads", () => {

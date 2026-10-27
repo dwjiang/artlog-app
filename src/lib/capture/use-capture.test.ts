@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react-native";
+import { ConvexError } from "convex/values";
 import { AccessibilityInfo } from "react-native";
 
 import { confidentScan, missScan, softScan } from "@/components/scan/result/__fixtures__/scan";
@@ -359,6 +360,21 @@ it("reports a handled capture failure without including the photo", async () => 
   expect(reportError).toHaveBeenCalledTimes(1);
   expect(reportError).toHaveBeenCalledWith(error, "capture.process");
   expect(hook.result.current.state.phase).toBe("retry");
+});
+
+it.each([
+  [new ConvexError({ code: "bad_crop" }), "The photo couldn’t be read. Try scanning the painting again."],
+  [
+    new Error("[CONVEX A(identify:identify)] [Request ID: a9bb5f3074b2cf1e] Server Error\n  Called by client"),
+    "Something went wrong while identifying this painting.",
+  ],
+])("shows product copy instead of the server's message for %s", async (error, message) => {
+  mockPipeline.mockRejectedValue(error);
+  const hook = await renderHook(useCapture);
+  await act(async () => {
+    await hook.result.current.capture(async () => input);
+  });
+  expect(hook.result.current.state).toMatchObject({ phase: "retry", message });
 });
 
 it("does not report a cancelled photo selection", async () => {

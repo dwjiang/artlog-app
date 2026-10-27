@@ -15,6 +15,8 @@ type Props = {
   active: boolean;
   /** The scan is looking for an artwork, so a painting picked on the demo page is walked up to now. */
   searching: boolean;
+  /** Whether a painting is picked; standing back, the wall's paintings are too far away to scan. */
+  onTargetChange: (targeted: boolean) => void;
   onReady: () => void;
   onDetection: (detection: RectDetection) => void;
   onError: (message: string) => void;
@@ -26,7 +28,16 @@ type Props = {
  * wall until the demo page picks a painting, then plays that painting's walk, whose frames go through the same
  * rectangle detection, steadiness check and capture as camera frames. After a capture it stands back again.
  */
-export function DemoViewfinder({ video, active, searching, onReady, onDetection, onError, ref }: Props) {
+export function DemoViewfinder({
+  video,
+  active,
+  searching,
+  onTargetChange,
+  onReady,
+  onDetection,
+  onError,
+  ref,
+}: Props) {
   const camera = useRef<DemoCameraHandle>(null);
   const [ready, setReady] = useState(false);
   const [target, setTarget] = useState<number>();
@@ -51,16 +62,19 @@ export function DemoViewfinder({ video, active, searching, onReady, onDetection,
     if (!active || !captured.current) return;
     captured.current = false;
     setTarget(undefined);
-  }, [active]);
+    onTargetChange(false);
+  }, [active, onTargetChange]);
   // A pick made while the scan is busy or another tab is open waits until the viewfinder is searching again.
   useEffect(() => {
     if (!searching) return;
     const timer = setInterval(() => {
       const painting = takeWalkRequest(video.walks.length);
-      if (painting !== undefined) setTarget(painting);
+      if (painting === undefined) return;
+      setTarget(painting);
+      onTargetChange(true);
     }, WALK_REQUEST_POLL_MS);
     return () => clearInterval(timer);
-  }, [searching, video.walks.length]);
+  }, [searching, video.walks.length, onTargetChange]);
 
   return (
     <DemoCamera

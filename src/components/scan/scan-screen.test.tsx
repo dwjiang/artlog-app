@@ -586,9 +586,11 @@ describe("demo build", () => {
     expect(mockPhoto).not.toHaveBeenCalled();
   });
 
-  it("takes the frame on screen with the shutter", async () => {
+  it("keeps the shutter off until the demo page picks a painting, then takes the frame on screen", async () => {
     await render(<ScanScreen />);
     await act(() => demoCameraProps().onReady());
+    expect(screen.getByRole("button", { name: "Scan artwork" })).toBeDisabled();
+    await pickOnPage(0);
     await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
     expect(mockDemoTakePhoto).toHaveBeenCalledTimes(1);
     expect(mockPhoto).not.toHaveBeenCalled();
@@ -611,8 +613,10 @@ describe("demo build", () => {
     await view.rerender(<ScanScreen />);
     expect(demoCameraProps().active).toBe(true);
     expect(mockDemoPlay).toHaveBeenLastCalledWith(0, 8, true);
+    expect(screen.getByRole("button", { name: "Scan artwork" })).toBeDisabled();
     await act(() => jest.advanceTimersByTime(WALK_REQUEST_POLL_MS));
     expect(mockDemoPlay).toHaveBeenLastCalledWith(15, 22, false);
+    expect(screen.getByRole("button", { name: "Scan artwork" })).toBeEnabled();
   });
 
   it("imports from the demo's own photos instead of the phone's library", async () => {
