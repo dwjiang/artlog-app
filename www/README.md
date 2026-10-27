@@ -14,7 +14,7 @@ transcript.
 ## Run it locally
 
 1. Set `LIM_API_KEY` in the repository's `.env.local`.
-2. Install and start:
+2. Install and start, then open the `/demo/` URL Vite prints:
 
    ```sh
    cd www
@@ -28,7 +28,26 @@ transcript.
 ## Limits
 
 A phone ends after 10 minutes without input or after 30 minutes. The server starts at most 5 phones at once (the
-Limrun account's limit) and 30 a day, and takes up to 10 uploads per phone: JPEG, PNG or HEIC, up to 10 MB each.
+Limrun account's limit) and 30 a day, and takes up to 10 uploads per phone: JPEG, PNG or HEIC, up to 4 MB each (Vercel
+rejects larger request bodies). The page re-encodes larger photos as 2560 px JPEGs first; browsers other than Safari
+cannot decode HEIC, so a HEIC photo over 4 MB fails there. On Vercel each function instance counts its own starts in
+progress and uploads, so concurrent instances can exceed those two limits until Limrun's account limit refuses a phone.
+
+## Deploy
+
+The page is served at https://artlog.dwjiang.com/demo by the Vercel project `artlog-www`, whose Root Directory is
+`www`; `api/demo.ts` serves the same API as the Vite servers. Set `LIM_API_KEY` (and `DEMO_ACCESS_CODE` or
+`DEMO_APP_ASSET` when used) in the project's environment variables. Deploy from the repository root, so the function
+includes `shared/`:
+
+```sh
+vercel link --yes --project artlog-www
+vercel pull --yes --environment=production
+vercel build --prod
+vercel deploy --prebuilt --prod
+```
+
+Without `--prebuilt`, `vercel deploy` uploads the whole checkout, including gitignored build output.
 
 ## Re-render the gallery
 

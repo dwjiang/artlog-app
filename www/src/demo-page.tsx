@@ -1,7 +1,12 @@
 import { RemoteControl } from "@limrun/ui";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
+import { MAX_UPLOAD_BYTES } from "../server/upload-limit.ts";
+
 const APP_STORE_URL = "https://apps.apple.com/app/id6815466893";
+const API = `${import.meta.env.BASE_URL}api`;
+// The app keeps library photos at this long side, so a smaller upload loses no detail it uses.
+const UPLOAD_LONG_SIDE = 2560;
 
 type Session = { id: string; endpointWebSocketUrl: string; streamToken: string };
 type Phase =
@@ -14,7 +19,18 @@ type Upload = { kind: "idle" } | { kind: "sending" } | { kind: "sent" } | { kind
 
 function stopSession(id: string) {
   // keepalive lets the request finish while the tab closes, so the phone stops billing at once.
-  void fetch(`/api/sessions/${id}/stop`, { method: "POST", keepalive: true }).catch(() => undefined);
+  void fetch(`${API}/sessions/${id}/stop`, { method: "POST", keepalive: true }).catch(() => undefined);
+}
+
+// Throws when the browser cannot decode the file, such as HEIC outside Safari.
+async function fitForUpload(file: File): Promise<Blob> {
+  if (file.size <= MAX_UPLOAD_BYTES) return file;
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, UPLOAD_LONG_SIDE / Math.max(bitmap.width, bitmap.height));
+  const canvas = new OffscreenCanvas(Math.round(bitmap.width * scale), Math.round(bitmap.height * scale));
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.convertToBlob({ type: "image/jpeg", quality: 0.9 });
 }
 
 export function DemoPage() {
@@ -28,7 +44,7 @@ export function DemoPage() {
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    void fetch("/api/config")
+    void fetch(`${API}/config`)
       .then((res) => res.json() as Promise<{ codeRequired: boolean }>)
       .then((config) => setCodeRequired(config.codeRequired))
       .catch(() => undefined);
@@ -46,7 +62,7 @@ export function DemoPage() {
     setPhase({ kind: "starting" });
     setUpload({ kind: "idle" });
     try {
-      const res = await fetch("/api/sessions", {
+      const res = await fetch(`${API}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
@@ -63,10 +79,13 @@ export function DemoPage() {
     if (!file || !liveId) return;
     setUpload({ kind: "sending" });
     try {
-      const res = await fetch(`/api/sessions/${liveId}/photos`, {
+      const photo = await fitForUpload(file).catch(() => {
+        throw new Error(`This photo is over ${MAX_UPLOAD_BYTES / 1024 / 1024} MB. Try a JPEG or a smaller photo.`);
+      });
+      const res = await fetch(`${API}/sessions/${liveId}/photos`, {
         method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-        body: file,
+        headers: { "Content-Type": photo.type || "application/octet-stream" },
+        body: photo,
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { message?: string };

@@ -1,20 +1,39 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { createServer, request } from "node:http";
+import { createServer, request, type IncomingMessage } from "node:http";
+import { PassThrough } from "node:stream";
 import { test, type TestContext } from "node:test";
 
 import { createDemoApi } from "./demo-api.ts";
 import type { DemoSession, DemoSessions } from "./demo-sessions.ts";
+import { MAX_UPLOAD_BYTES } from "./upload-limit.ts";
 
 const session: DemoSession = { id: "ios_test", endpointWebSocketUrl: "wss://stream", streamToken: "stream-token" };
 
-async function serve(t: TestContext, sessions: DemoSessions) {
+// Vercel buffers the body, then restores data/end listeners and read() without resetting the request's stream state.
+async function restoreVercelBody(req: IncomingMessage) {
+  const chunks: Buffer[] = [];
+  req.on("data", (chunk: Buffer) => chunks.push(chunk));
+  await once(req, "end");
+  const replay = new PassThrough();
+  const originalOn = req.on.bind(req);
+  req.read = replay.read.bind(replay);
+  req.on = req.addListener = (event: string, listener: (...args: unknown[]) => void) => {
+    if (event === "data" || event === "end") replay.on(event, listener);
+    else originalOn(event, listener);
+    return req;
+  };
+  replay.end(Buffer.concat(chunks));
+}
+
+async function serve(t: TestContext, sessions: DemoSessions, vercelBody = false) {
   const api = createDemoApi(sessions);
   let finish!: () => void;
   const handled = new Promise<void>((resolve) => {
     finish = resolve;
   });
-  const server = createServer((req, res) => {
+  const server = createServer(async (req, res) => {
+    if (vercelBody) await restoreVercelBody(req);
     void api(req, res, () => res.end()).finally(finish);
   });
   t.after(() => {
@@ -26,6 +45,88 @@ async function serve(t: TestContext, sessions: DemoSessions) {
   const address = server.address();
   assert.ok(address && typeof address === "object");
   return { server, port: address.port, handled };
+}
+
+for (const vercelBody of [false, true]) {
+  const transport = vercelBody ? "Vercel's restored body" : "plain HTTP";
+
+  await test(`passes the access code from ${transport} to the session`, async (t) => {
+    let receivedCode: string | undefined;
+    const { port } = await serve(
+      t,
+      {
+        codeRequired: true,
+        start: async ({ code }) => {
+          receivedCode = code;
+          return session;
+        },
+        stop: async () => {},
+        upload: async () => {},
+      },
+      vercelBody,
+    );
+    const response = await fetch(`http://127.0.0.1:${port}/demo/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: "gallery" }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(receivedCode, "gallery");
+  });
+
+  await test(`preserves photo bytes from ${transport}`, async (t) => {
+    const photo = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+    let receivedPhoto: Uint8Array | undefined;
+    let receivedId: string | undefined;
+    const { port } = await serve(
+      t,
+      {
+        codeRequired: false,
+        start: async () => session,
+        stop: async () => {},
+        upload: async (id, bytes) => {
+          receivedId = id;
+          receivedPhoto = bytes;
+        },
+      },
+      vercelBody,
+    );
+    const response = await fetch(`http://127.0.0.1:${port}/demo/api/sessions/${session.id}/photos`, {
+      method: "POST",
+      headers: { "Content-Type": "image/jpeg" },
+      body: photo,
+    });
+
+    assert.equal(response.status, 204);
+    assert.equal(receivedId, session.id);
+    assert.deepEqual(receivedPhoto, photo);
+  });
+
+  await test(`rejects oversized photos from ${transport}`, { timeout: 3000 }, async (t) => {
+    let uploaded = false;
+    const { port } = await serve(
+      t,
+      {
+        codeRequired: false,
+        start: async () => session,
+        stop: async () => {},
+        upload: async () => {
+          uploaded = true;
+        },
+      },
+      vercelBody,
+    );
+    const response = await fetch(`http://127.0.0.1:${port}/demo/api/sessions/${session.id}/photos`, {
+      method: "POST",
+      headers: { "Content-Type": "image/jpeg" },
+      body: Buffer.alloc(MAX_UPLOAD_BYTES + 1),
+    });
+
+    assert.equal(response.status, 413);
+    assert.equal(((await response.json()) as { code: string }).code, "too_large");
+    assert.equal(uploaded, false);
+  });
 }
 
 await test("deletes a phone that finishes starting after the browser disconnects", { timeout: 3000 }, async (t) => {
@@ -53,7 +154,7 @@ await test("deletes a phone that finishes starting after the browser disconnects
   const closed = new Promise<void>((resolve) => {
     server.once("connection", (socket) => socket.once("close", () => resolve()));
   });
-  const req = request({ host: "127.0.0.1", port, path: "/api/sessions", method: "POST", agent: false });
+  const req = request({ host: "127.0.0.1", port, path: "/demo/api/sessions", method: "POST", agent: false });
   req.on("error", () => {});
   req.end("{}");
   try {
@@ -77,7 +178,7 @@ await test("keeps a phone running after delivering its session to the browser", 
     },
     upload: async () => {},
   });
-  const response = await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+  const response = await fetch(`http://127.0.0.1:${port}/demo/api/sessions`, {
     method: "POST",
     body: "{}",
     headers: { Connection: "close" },
@@ -87,4 +188,22 @@ await test("keeps a phone running after delivering its session to the browser", 
   assert.deepEqual(await response.json(), session);
   await handled;
   assert.deepEqual(stopped, []);
+});
+
+await test("leaves requests outside the API to the next handler", async (t) => {
+  let started = false;
+  const { port } = await serve(t, {
+    codeRequired: false,
+    start: async () => {
+      started = true;
+      return session;
+    },
+    stop: async () => {},
+    upload: async () => {},
+  });
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions`, { method: "POST", body: "{}" });
+
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "");
+  assert.equal(started, false);
 });
