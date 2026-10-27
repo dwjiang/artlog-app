@@ -11,6 +11,7 @@ import { DEFAULT_CALIBRATOR } from "./lib/calibrator/weights";
 import { completion, jsonResponse } from "./lib/labelFixtures";
 import { patchObjectDetails } from "./lib/objectDetails";
 import { storeOrb } from "./lib/orbStorage";
+import { r2 } from "./lib/r2";
 import { FIXTURE_NOW } from "./lib/rightNowFixtures";
 import {
   proposalWithEvidence,
@@ -26,6 +27,7 @@ import {
 } from "./lib/testFactories";
 import { searchVectorIndex } from "./lib/vectorSearch";
 import { searchRecordId } from "./lib/vectorSyncQueue";
+import { requireEmbedding } from "./scanEmbeddings";
 import { harness, signIn, type SignedIn } from "./test.helpers";
 
 beforeEach(() => {
@@ -174,6 +176,96 @@ describe("identify action", () => {
     expect(signals.similarity).toBeCloseTo(1);
     expect(signals.margin).toBeCloseTo(1);
     expect(signals.orbInliers).toBeGreaterThan(0);
+  });
+
+  it("matches a new capture while its vector uploads, without reading the vector back", async () => {
+    const { t, user, args, work } = await fixture();
+    const search = vi.mocked(searchVectorIndex);
+    const searchIndex = search.getMockImplementation()!;
+    let searched!: () => void;
+    const searching = new Promise<void>((resolve) => (searched = resolve));
+    search.mockImplementation(async (...params) => {
+      searched();
+      return searchIndex(...params);
+    });
+    const put = vi.mocked(r2.put);
+    const upload = put.getMockImplementation()!;
+    // Blocks the vector upload until the index is searched, so identification hangs unless it searches meanwhile.
+    put.mockImplementationOnce(async (key, blob) => {
+      await searching;
+      return upload(key, blob);
+    });
+    vi.mocked(r2.get).mockClear();
+    const result = await user.as.action(api.identify.identify, {
+      ...args,
+      scope: (await user.as.query(api.accounts.me, {})).scope,
+    });
+    expect(result).toMatchObject({ status: "identified", outcome: "confident", best: { objectId: work!.objectId } });
+    const { archiveId } = await t.run(async (ctx) =>
+      requireEmbedding(ctx, (await ctx.db.get("scans", result.scanId))!.embeddingId),
+    );
+    expect(vi.mocked(r2.get).mock.calls.map(([key]) => key)).not.toContain(archiveId);
+  });
+
+  it("identifies from the stored vector when a concurrent call creates the scan during the upload", async () => {
+    const { t, user, args, work } = await fixture();
+    const put = vi.mocked(r2.put);
+    const upload = put.getMockImplementation()!;
+    put.mockImplementationOnce(async (key, blob) => {
+      await t.action(internal.scans.create, {
+        deviceId: user.deviceId,
+        localId: args.localId,
+        venueId: args.venueId,
+        visitId: args.visitId,
+        modelVersion: args.modelVersion,
+        vector: args.vector,
+        capturedAt: args.capturedAt,
+      });
+      return upload(key, blob);
+    });
+    const result = await user.as.action(api.identify.identify, {
+      ...args,
+      scope: (await user.as.query(api.accounts.me, {})).scope,
+    });
+    expect(result).toMatchObject({ status: "identified", outcome: "confident", best: { objectId: work!.objectId } });
+    expect(await t.run((ctx) => ctx.db.query("scans").collect())).toMatchObject([{ generation: 0 }]);
+  });
+
+  it("recognizes at the committed museum when the visit moves during vector upload", async () => {
+    const { t, user, args, visitId, work } = await fixture();
+    const venueId = await t.run(seedMuseum);
+    const visit = (await t.run((ctx) => ctx.db.get("visits", visitId)))!;
+    const put = vi.mocked(r2.put);
+    const upload = put.getMockImplementation()!;
+    put.mockImplementationOnce(async (key, blob) => {
+      await user.as.mutation(api.sync.syncJournal, {
+        scope: user.scope,
+        since: 0,
+        saves: [],
+        visits: [
+          {
+            localId: visit.localId,
+            venueId,
+            visibility: visit.visibility,
+            visitedOn: new Date(args.capturedAt).toISOString().slice(0, 10),
+            timeZone: "UTC",
+            startedAt: args.capturedAt,
+          },
+        ],
+      });
+      return upload(key, blob);
+    });
+    const result = await user.as.action(api.identify.identify, { ...args, scope: user.scope });
+    expect(result).toMatchObject({
+      venueId,
+      status: "identified",
+      outcome: "confident",
+      best: { objectId: work!.objectId },
+    });
+    expect(result.best?.gallery).toBeUndefined();
+    const moved = (await t.run((ctx) => ctx.db.get("visits", visitId)))!;
+    expect(moved.lastConfidentGallery).toBeUndefined();
+    expect(moved.lastConfidentAt).toBeUndefined();
   });
 
   it("returns an update status for unsupported models before decoding old feature formats", async () => {

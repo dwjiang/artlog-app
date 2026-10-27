@@ -33,7 +33,7 @@ import { readVector } from "./lib/vectorStore";
 import { searchRecordId } from "./lib/vectorSyncQueue";
 import { proposePlacementFromScan } from "./placements";
 import { getEmbedding } from "./scanEmbeddings";
-import { scanDisplay, type ScanDisplay } from "./scans";
+import { createScan, scanDisplay, type ScanDisplay } from "./scans";
 import schema from "./schema";
 
 const loadedCandidate = v.object({
@@ -64,43 +64,50 @@ export const loadCandidates = internalQuery({
     if (recordIds.length !== scores.length || recordIds.length > 32) {
       throw new ConvexError({ code: "bad_candidates" });
     }
+    // Read concurrently: up to 32 matches and 20 candidates read one by one cost each call 0.5–1 s on prod.
+    const matched = await Promise.all(
+      recordIds.map(async (recordId, i) => {
+        const vectorId = ctx.db.normalizeId("vectors", recordId.split(":", 1)[0]);
+        if (!vectorId || !Number.isFinite(scores[i])) return null;
+        const vector = await ctx.db.get("vectors", vectorId);
+        if (!vector || searchRecordId(vector) !== recordId || !(await eligibleVector(ctx, vector))) return null;
+        let object = await ctx.db.get("objects", vector.objectId);
+        if (!object || object.reverted) return null;
+        if (object.mergedInto) object = await ctx.db.get("objects", object.mergedInto);
+        if (!object || !(await eligibleObject(ctx, object, venueId))) return null;
+        return { object, similarity: scores[i] };
+      }),
+    );
     const byObject = new Map<Id<"objects">, { object: Doc<"objects">; similarity: number }>();
-    for (let i = 0; i < recordIds.length; i++) {
-      const vectorId = ctx.db.normalizeId("vectors", recordIds[i].split(":", 1)[0]);
-      if (!vectorId || !Number.isFinite(scores[i])) continue;
-      const vector = await ctx.db.get("vectors", vectorId);
-      if (!vector || searchRecordId(vector) !== recordIds[i] || !(await eligibleVector(ctx, vector))) continue;
-      let object = await ctx.db.get("objects", vector.objectId);
-      if (!object || object.reverted) continue;
-      if (object.mergedInto) object = await ctx.db.get("objects", object.mergedInto);
-      if (!object || !(await eligibleObject(ctx, object, venueId))) continue;
-      const previous = byObject.get(object._id);
-      if (!previous || scores[i] > previous.similarity) {
-        byObject.set(object._id, { object, similarity: scores[i] });
-      }
+    for (const match of matched) {
+      if (!match) continue;
+      const previous = byObject.get(match.object._id);
+      if (!previous || match.similarity > previous.similarity) byObject.set(match.object._id, match);
     }
     const ranked = [...byObject.values()].sort((a, b) => b.similarity - a.similarity).slice(0, 20);
-    const candidates: LoadedCandidate[] = [];
-    for (const { object, similarity } of ranked) {
-      const [artwork, descriptors, owner] = await Promise.all([
-        ctx.db.get("artworks", object.artworkId),
-        readObjectOrb(ctx, object),
-        object.ownerId ? ctx.db.get("museums", object.ownerId) : null,
-      ]);
-      if (!artwork) continue;
-      const placement = await loadCurrentPlacement(ctx, object._id, now);
-      candidates.push({
-        object,
-        artwork,
-        similarity,
-        runnerUpSimilarity: 0,
-        placement,
-        institution: owner?.name,
-        orbStorageId: descriptors?.storageId,
-        keypointCount: descriptors?.keypointCount ?? null,
-        inputSize: descriptors?.inputSize,
-      });
-    }
+    const loaded = await Promise.all(
+      ranked.map(async ({ object, similarity }): Promise<LoadedCandidate | null> => {
+        const [artwork, descriptors, owner, placement] = await Promise.all([
+          ctx.db.get("artworks", object.artworkId),
+          readObjectOrb(ctx, object),
+          object.ownerId ? ctx.db.get("museums", object.ownerId) : null,
+          loadCurrentPlacement(ctx, object._id, now),
+        ]);
+        if (!artwork) return null;
+        return {
+          object,
+          artwork,
+          similarity,
+          runnerUpSimilarity: 0,
+          placement,
+          institution: owner?.name,
+          orbStorageId: descriptors?.storageId,
+          keypointCount: descriptors?.keypointCount ?? null,
+          inputSize: descriptors?.inputSize,
+        };
+      }),
+    );
+    const candidates = loaded.filter((candidate) => candidate !== null);
     for (let i = 0; i < candidates.length; i++) {
       candidates[i].runnerUpSimilarity = candidates[i === 0 ? 1 : 0]?.similarity ?? 0;
     }
@@ -243,15 +250,22 @@ export async function matchArtworkFromSearch(
   return { decision, verifications, best };
 }
 
-async function runScan(ctx: ActionCtx, scan: Doc<"scans">, query: OrbFeatures): Promise<ScanDisplay> {
+async function matchStoredScan(ctx: ActionCtx, scan: Doc<"scans">, query: OrbFeatures) {
   const { visit, archive } = await ctx.runQuery(internal.identify.loadContext, { scanId: scan._id });
-  const { decision, verifications, best } = await matchArtwork(ctx, {
+  return matchArtwork(ctx, {
     vector: await readVector(ctx, archive),
     modelVersion: scan.modelVersion,
     venueId: scan.venueId,
     query,
     visit: visit ?? undefined,
   });
+}
+
+async function recordMatch(
+  ctx: ActionCtx,
+  scan: Doc<"scans">,
+  { decision, verifications, best }: Awaited<ReturnType<typeof matchArtwork>>,
+): Promise<ScanDisplay> {
   const top = decision.best;
   await ctx.runMutation(internal.scans.setResult, {
     scanId: scan._id,
@@ -353,17 +367,33 @@ export const identify = action({
         validateVector(args.vector);
         query = decodeQuery(args.descriptors, args.keypoints);
       }
-      const { scan, existing } = await ctx.runAction(internal.scans.create, {
-        scope: args.scope,
-        deviceId: device._id,
-        localId: args.localId,
-        venueId: args.venueId,
-        visitId: args.visitId,
-        modelVersion: args.modelVersion,
-        vector: args.vector,
-        capturedAt: args.capturedAt,
-        cropCorners: args.cropCorners,
-      });
+      const {
+        scan,
+        existing,
+        alongside: match,
+      } = await createScan(
+        ctx,
+        {
+          scope: args.scope,
+          deviceId: device._id,
+          localId: args.localId,
+          venueId: args.venueId,
+          visitId: args.visitId,
+          modelVersion: args.modelVersion,
+          vector: args.vector,
+          capturedAt: args.capturedAt,
+          cropCorners: args.cropCorners,
+        },
+        query
+          && (({ venueId, visit }) =>
+            matchArtwork(ctx, {
+              vector: args.vector,
+              modelVersion: args.modelVersion,
+              venueId,
+              query,
+              visit: visit ?? undefined,
+            })),
+      );
       const scanId = scan._id;
       if (
         existing
@@ -389,6 +419,6 @@ export const identify = action({
           deviceId: device._id,
         });
       }
-      return runScan(ctx, scan, query!);
+      return recordMatch(ctx, scan, match ?? (await matchStoredScan(ctx, scan, query!)));
     }),
 });

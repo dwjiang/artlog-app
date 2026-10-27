@@ -5,7 +5,7 @@ import { sameOwner } from "../shared/journal/contracts";
 import { LIMITS } from "../shared/journal/limits";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { internalAction, internalQuery, query, type QueryCtx } from "./_generated/server";
+import { internalAction, internalQuery, query, type ActionCtx, type QueryCtx } from "./_generated/server";
 import { docentStatusOf, scanDocentStatus } from "./docent";
 import { internalMutation, mutation } from "./functions";
 import { readArtworkContent } from "./lib/artworkContent";
@@ -125,17 +125,21 @@ async function prepareScan(ctx: QueryCtx, args: Infer<typeof vCreateArgs>) {
   ) {
     throw new ConvexError({ code: "not_found" });
   }
-  return { existing, restart: !!restart, venueId };
+  // Recognition reads the visit only while it is still at the scan's museum.
+  return { existing, restart: !!restart, venueId, visit: visit?.venueId === venueId ? visit : null };
 }
 const vCreateArgs = v.object(createArgs);
 
+const prepared = v.object({
+  existing: v.union(schema.doc("scans"), v.null()),
+  restart: v.boolean(),
+  venueId: scanFields.venueId,
+  visit: v.union(schema.doc("visits"), v.null()),
+});
+
 export const prepare = internalQuery({
   args: createArgs,
-  returns: v.object({
-    existing: v.union(schema.doc("scans"), v.null()),
-    restart: v.boolean(),
-    venueId: scanFields.venueId,
-  }),
+  returns: prepared,
   handler: prepareScan,
 });
 
@@ -164,21 +168,43 @@ export const commit = internalMutation({
   },
 });
 
+type ScanContext = Pick<Infer<typeof prepared>, "venueId" | "visit">;
+
+/**
+ * Inserts or restarts the capture's scan. `alongside` starts once the capture has passed every check and runs while
+ * the vector uploads; its result is dropped when another call created the scan first or the committed museum differs.
+ */
+export async function createScan<T>(
+  ctx: ActionCtx,
+  { vector, ...args }: Infer<typeof vCreateArgs> & { vector: number[] },
+  alongside?: (context: ScanContext) => Promise<T>,
+): Promise<Infer<typeof created> & { alongside?: T }> {
+  const { existing, restart, venueId, visit } = await ctx.runQuery(internal.scans.prepare, args);
+  if (existing && !restart) return { scan: existing, existing: true };
+  if (!isSupported(args.modelVersion)) return ctx.runMutation(internal.scans.commit, args);
+  const contentHash = await vectorHash(vector);
+  const [stored, extra] = await Promise.allSettled([
+    withVectorArchives(ctx, [{ vector }], ([archiveId]) =>
+      ctx.runMutation(internal.scans.commit, {
+        ...args,
+        archive: { archiveId, contentHash },
+      }),
+    ),
+    alongside?.({ venueId, visit }),
+  ]);
+  if (stored.status === "rejected") throw stored.reason;
+  if (stored.value.existing || stored.value.scan.venueId !== venueId) return stored.value;
+  if (extra.status === "rejected") throw extra.reason;
+  return { ...stored.value, alongside: extra.value };
+}
+
 export const create = internalAction({
   args: { ...createArgs, vector: embedding },
   returns: created,
-  handler: async (ctx, { vector, ...args }): Promise<Infer<typeof created>> =>
+  handler: (ctx, args): Promise<Infer<typeof created>> =>
     withErrorReporting("scans.create", async () => {
-      const { existing, restart } = await ctx.runQuery(internal.scans.prepare, args);
-      if (existing && !restart) return { scan: existing, existing: true };
-      if (!isSupported(args.modelVersion)) return ctx.runMutation(internal.scans.commit, args);
-      const contentHash = await vectorHash(vector);
-      return withVectorArchives(ctx, [{ vector }], ([archiveId]) =>
-        ctx.runMutation(internal.scans.commit, {
-          ...args,
-          archive: { archiveId, contentHash },
-        }),
-      );
+      const { scan, existing } = await createScan(ctx, args);
+      return { scan, existing };
     }),
 });
 

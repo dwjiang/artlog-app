@@ -155,6 +155,7 @@ import type * as lib_tentativeEntries from "../lib/tentativeEntries.js";
 import type * as lib_testFactories from "../lib/testFactories.js";
 import type * as lib_textMatch from "../lib/textMatch.js";
 import type * as lib_tokenFactory from "../lib/tokenFactory.js";
+import type * as lib_tokenFactoryDiagnostics from "../lib/tokenFactoryDiagnostics.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as lib_vectorSearch from "../lib/vectorSearch.js";
 import type * as lib_vectorStore from "../lib/vectorStore.js";
@@ -366,6 +367,7 @@ declare const fullApi: ApiFromModules<{
   "lib/testFactories": typeof lib_testFactories;
   "lib/textMatch": typeof lib_textMatch;
   "lib/tokenFactory": typeof lib_tokenFactory;
+  "lib/tokenFactoryDiagnostics": typeof lib_tokenFactoryDiagnostics;
   "lib/validators": typeof lib_validators;
   "lib/vectorSearch": typeof lib_vectorSearch;
   "lib/vectorStore": typeof lib_vectorStore;
