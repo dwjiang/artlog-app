@@ -70,13 +70,12 @@ it("shows context, starts Apple sign-in, and lets a guest dismiss", async () => 
 });
 
 it("links the terms and privacy policy under the sign-in buttons", async () => {
-  process.env.EXPO_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
   await render(<SignInScreen />);
   expect(screen.getByText(/By continuing, you agree to our Terms of Service/)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("link", { name: "Terms of Service" }));
-  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/terms");
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://artlog.dwjiang.com/terms");
   await fireEvent.press(screen.getByRole("link", { name: "Privacy Policy" }));
-  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/privacy");
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://artlog.dwjiang.com/privacy");
 });
 
 it("keeps sign-in errors retryable and closes only after linking finishes", async () => {

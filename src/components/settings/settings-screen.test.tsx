@@ -88,7 +88,6 @@ beforeEach(async () => {
   mockSessionStatus = "ready";
   mockOffline = false;
   mockSafetyChecks = false;
-  process.env.EXPO_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
 });
 
 it("shows grouped settings and opens the matching detail", async () => {
@@ -112,9 +111,9 @@ it("shows grouped settings and opens the matching detail", async () => {
     });
   }
   await fireEvent.press(screen.getByRole("button", { name: "Privacy Policy" }));
-  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/privacy");
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://artlog.dwjiang.com/privacy");
   await fireEvent.press(screen.getByRole("button", { name: "Terms of Service" }));
-  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/terms");
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://artlog.dwjiang.com/terms");
   await fireEvent.press(screen.getByRole("button", { name: "Widgets" }));
   expect(mockPush).toHaveBeenLastCalledWith("/widgets");
   await fireEvent.press(screen.getByRole("button", { name: "Send feedback" }));
@@ -146,7 +145,7 @@ it("keeps About details accessible", async () => {
   expect(screen.getByRole("header", { name: "Artlog" })).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Send feedback" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Open source licenses" }));
-  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/licenses");
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://artlog.dwjiang.com/licenses");
 });
 
 it("opens contextual sign-in while keeping the guest journal available", async () => {
