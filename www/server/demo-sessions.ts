@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 
 import { type Limrun, type Ios } from "@limrun/api";
 
@@ -182,33 +182,48 @@ export function createDemoSessions(
     if (instance.status.state !== "terminated") await instances.delete(id);
   }
 
+  async function readyInstance(id: string): Promise<IosInstance> {
+    const instance = await demoInstance(id);
+    if (instance.status.state !== "ready") throw new DemoError(409, "not_ready", "This session has ended.");
+    return instance;
+  }
+
+  async function pushBytes(instance: IosInstance, bytes: Uint8Array | string, path: string): Promise<void> {
+    const folder = await mkdtemp(join(tmpdir(), "artlog-push-"));
+    try {
+      const file = join(folder, basename(path));
+      await writeFile(file, bytes);
+      await withDevice(instance, (client) => pushToApp(client, file, path));
+    } finally {
+      await rm(folder, { recursive: true, force: true });
+    }
+  }
+
   const uploads = new Map<string, number>();
 
   /** Adds a judge's own photo to the demo's photo picker on their phone. */
   async function upload(id: string, bytes: Uint8Array): Promise<void> {
     const extension = imageExtension(bytes);
     if (!extension) throw new DemoError(415, "not_an_image", "Upload a JPEG, PNG or HEIC photo.");
-    const instance = await demoInstance(id);
-    if (instance.status.state !== "ready") throw new DemoError(409, "not_ready", "This session has ended.");
+    const instance = await readyInstance(id);
     const count = (uploads.get(id) ?? 0) + 1;
     if (count > config.maxUploads) {
       throw new DemoError(429, "upload_cap", `A session takes up to ${config.maxUploads} photos.`);
     }
     uploads.set(id, count);
-    const folder = await mkdtemp(join(tmpdir(), "artlog-upload-"));
-    try {
-      const file = join(folder, `upload.${extension}`);
-      await writeFile(file, bytes);
-      // Named by time, so the picker lists the newest first.
-      await withDevice(instance, (client) =>
-        pushToApp(client, file, `${JUDGES_DEMO_FILES.uploads}/${Date.now()}-${count}.${extension}`),
-      );
-    } finally {
-      await rm(folder, { recursive: true, force: true });
-    }
+    // Named by time, so the picker lists the newest first.
+    await pushBytes(instance, bytes, `${JUDGES_DEMO_FILES.uploads}/${Date.now()}-${count}.${extension}`);
   }
 
-  return { start, stop, upload, codeRequired: Boolean(config.accessCode) };
+  /** Points the phone's Scan viewfinder at a painting, by its index in the viewfinder manifest. */
+  async function walk(id: string, painting: number): Promise<void> {
+    if (!Number.isInteger(painting) || painting < 0) {
+      throw new DemoError(400, "unknown_painting", "Pick one of the paintings.");
+    }
+    await pushBytes(await readyInstance(id), JSON.stringify({ painting }), JUDGES_DEMO_FILES.walk);
+  }
+
+  return { start, stop, upload, walk, codeRequired: Boolean(config.accessCode) };
 }
 
 export type DemoSessions = ReturnType<typeof createDemoSessions>;

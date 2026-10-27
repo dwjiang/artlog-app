@@ -27,7 +27,6 @@ import { CaptureControls } from "./capture-controls";
 import { CaptureFeedback, CaptureOutline, CaptureShutter } from "./capture-feedback";
 import { CaptureReveal } from "./capture-reveal";
 import { CaptureVisitPill } from "./capture-visit-pill";
-import { DemoPaintingStrip } from "./demo-painting-strip";
 import { DemoPhotoSheet, type DemoPhotoSheetHandle } from "./demo-photo-sheet";
 import { DemoViewfinder, type DemoViewfinderHandle } from "./demo-viewfinder";
 import { DetectionLog, DevTimings } from "./dev-timings";
@@ -63,7 +62,6 @@ export function ScanScreen() {
   const [cameraError, setCameraError] = useState<string>();
   // The judges' demo build has no camera the app can open, so a gallery video stands in for it; null until loaded.
   const [demoVideo] = useState(() => (isJudgesDemo() ? (findDemoVideo() ?? null) : undefined));
-  const [demoTarget, setDemoTarget] = useState<number>();
   const demoViewfinder = useRef<DemoViewfinderHandle>(null);
   const demoPhotos = useRef<DemoPhotoSheetHandle>(null);
   const [preview, setPreview] = useState({ width: 0, height: 0 });
@@ -200,34 +198,24 @@ export function ScanScreen() {
             )}
           </View>
         ) : (
-          <>
-            {demoVideo && (
-              <DemoPaintingStrip
-                paintings={demoVideo.paintings}
-                selected={demoTarget}
-                disabled={busy || !active}
-                onSelect={setDemoTarget}
+          <CaptureControls
+            importLabel={cameraAvailable ? "Import" : "Import a photo"}
+            importDisabled={busy || !active}
+            onImport={importPhoto}
+          >
+            {cameraAvailable && (
+              <CaptureShutter
+                controller={capture.controller}
+                disabled={shutterDisabled}
+                busy={busy}
+                captured={busy && source === "camera"}
+                detecting={detecting}
+                onPress={() => {
+                  void capture.captureManually(takePhoto);
+                }}
               />
             )}
-            <CaptureControls
-              importLabel={cameraAvailable ? "Import" : "Import a photo"}
-              importDisabled={busy || !active}
-              onImport={importPhoto}
-            >
-              {cameraAvailable && (
-                <CaptureShutter
-                  controller={capture.controller}
-                  disabled={shutterDisabled}
-                  busy={busy}
-                  captured={busy && source === "camera"}
-                  detecting={detecting}
-                  onPress={() => {
-                    void capture.captureManually(takePhoto);
-                  }}
-                />
-              )}
-            </CaptureControls>
-          </>
+          </CaptureControls>
         )}
       </View>
     </View>
@@ -244,8 +232,8 @@ export function ScanScreen() {
             <DemoViewfinder
               ref={demoViewfinder}
               video={demoVideo}
-              target={demoTarget}
               active={cameraActive}
+              searching={active && searching}
               onReady={() => {
                 setCameraReady(true);
                 setCameraError(undefined);
@@ -256,7 +244,6 @@ export function ScanScreen() {
                 setCameraReady(false);
                 setCameraError("Could not play the sample video. You can import a photo.");
               }}
-              onStepBack={() => setDemoTarget(undefined)}
             />
           )}
           <DemoPhotoSheet ref={demoPhotos} />

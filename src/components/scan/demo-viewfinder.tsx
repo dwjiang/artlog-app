@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { StyleSheet } from "react-native";
 
-import type { DemoVideo } from "@/lib/capture/demo-viewfinder";
+import { takeWalkRequest, type DemoVideo } from "@/lib/capture/demo-viewfinder";
 import { DETECTION_STRIDE } from "@/lib/capture/use-rect-detector";
 import type { UprightPhoto } from "@/lib/capture/use-upright-photo";
 
@@ -10,29 +10,31 @@ import type { RectDetection } from "../../../modules/vision-rect/src";
 
 export type DemoViewfinderHandle = { takePhoto(): Promise<UprightPhoto> };
 
+/** How often the viewfinder checks for a painting picked on the demo page. */
+export const WALK_REQUEST_POLL_MS = 250;
+
 type Props = {
   video: DemoVideo;
-  /** The painting the phone walks up to; without one it stands back from the wall. */
-  target: number | undefined;
   active: boolean;
+  /** The scan is looking for an artwork, so a painting picked on the demo page is walked up to now. */
+  searching: boolean;
   onReady: () => void;
   onDetection: (detection: RectDetection) => void;
   onError: (message: string) => void;
-  /** The phone has stepped back from the painting it captured, now that the camera is active again. */
-  onStepBack: () => void;
   ref: Ref<DemoViewfinderHandle>;
 };
 
 /**
- * Stands in for the camera preview in the judges' demo build: a phone's view of a gallery wall. Walking up to a
- * painting plays its part of the video, whose frames go through the same rectangle detection, steadiness check and
- * capture as camera frames; standing back, nothing is detected.
+ * Stands in for the camera preview in the judges' demo build: a phone's view of a gallery wall. It stands back from the
+ * wall until the demo page picks a painting, then plays that painting's walk, whose frames go through the same
+ * rectangle detection, steadiness check and capture as camera frames. After a capture it stands back again.
  */
-export function DemoViewfinder({ video, target, active, onReady, onDetection, onError, onStepBack, ref }: Props) {
+export function DemoViewfinder({ video, active, searching, onReady, onDetection, onError, ref }: Props) {
   const camera = useRef<DemoCameraHandle>(null);
   const [ready, setReady] = useState(false);
+  const [target, setTarget] = useState<number>();
   const captured = useRef(false);
-  const walk = target === undefined ? undefined : video.paintings[target]?.walk;
+  const walk = target === undefined ? undefined : video.walks[target];
   const segment = walk ?? video.idle;
   useImperativeHandle(
     ref,
@@ -51,8 +53,17 @@ export function DemoViewfinder({ video, target, active, onReady, onDetection, on
   useEffect(() => {
     if (!active || !captured.current) return;
     captured.current = false;
-    onStepBack();
-  }, [active, onStepBack]);
+    setTarget(undefined);
+  }, [active]);
+  // A pick made while the scan is busy or another tab is open waits until the viewfinder is searching again.
+  useEffect(() => {
+    if (!searching) return;
+    const timer = setInterval(() => {
+      const painting = takeWalkRequest(video.walks.length);
+      if (painting !== undefined) setTarget(painting);
+    }, WALK_REQUEST_POLL_MS);
+    return () => clearInterval(timer);
+  }, [searching, video.walks.length]);
 
   return (
     <DemoCamera
