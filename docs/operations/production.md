@@ -34,8 +34,9 @@ its local fallback. Configure provider call/credit caps for the deployment.
 Search requires `PINECONE_API_KEY` and `PINECONE_INDEX_HOST`; private file storage
 requires `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, and
 `R2_SECRET_ACCESS_KEY`. Keep credentials outside source control. The site's
-origin is `https://admired-goldfinch-660.convex.site`; `/privacy` and `/support` supply
-the App Store Connect Privacy Policy and Support URLs. Provider/model configuration belongs in
+origin is `https://admired-goldfinch-660.convex.site`; `https://artlog.dwjiang.com` proxies
+its legal pages, and that domain's `/privacy` and `/support` supply the App Store Connect
+Privacy Policy and Support URLs. Provider/model configuration belongs in
 [the environment template](../../.env.example) and runtime adapters.
 
 Push notifications use Expo's push service. Apple delivery requires an APNs key

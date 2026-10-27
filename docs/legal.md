@@ -4,10 +4,10 @@ The Convex HTTP router serves `/privacy`, `/terms`, `/support`, and third-party 
 [legal.ts](../convex/legal.ts). Policy text and provider disclosures live in
 [legalPages.ts](../convex/lib/legalPages.ts).
 
-Welcome and Settings open policy pages on the selected Convex site's origin.
-Production's privacy URL is
-`https://admired-goldfinch-660.convex.site/privacy`. Pages use public HTML responses
-and a one-hour cache, so policy deployments do not require a new iOS binary.
+`https://artlog.dwjiang.com` proxies those paths to production's Convex site
+([vercel.json](../www/vercel.json)). Welcome, Settings, and the App Store listing link
+there, so every build shows the production policy. Pages use public HTML responses
+and a one-hour cache, so policy deployments need neither a new iOS binary nor a site deploy.
 
 Changes to off-device data, providers, publication audiences, retention, or
 account deletion must update the policy text and affected in-app disclosures together. Read

@@ -6,5 +6,11 @@
     "api/demo.ts": { "maxDuration": 300, "includeFiles": "media/phone/**" }
   },
   "redirects": [{ "source": "/", "destination": "/demo", "permanent": false }],
-  "rewrites": [{ "source": "/demo/api/:path*", "destination": "/api/demo" }]
+  "rewrites": [
+    { "source": "/demo/api/:path*", "destination": "/api/demo" },
+    {
+      "source": "/:page(privacy|terms|support|licenses)",
+      "destination": "https://admired-goldfinch-660.convex.site/:page"
+    }
+  ]
 }

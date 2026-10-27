@@ -50,6 +50,9 @@ vercel deploy --prebuilt --prod
 
 Without `--prebuilt`, `vercel deploy` uploads the whole checkout, including gitignored build output.
 
+The same domain serves the app's legal pages: `vercel.json` rewrites `/privacy`, `/terms`, `/support` and `/licenses` to
+the production Convex site.
+
 ## Re-render the gallery
 
 `scripts/render-viewfinder.py` renders `media/phone/` from the reproductions in `media/paintings/` (about 4 minutes):

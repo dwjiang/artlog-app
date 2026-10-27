@@ -194,13 +194,12 @@ it("raises each iPhone prompt before saving a name and completing onboarding", a
 });
 
 it("opens the terms and privacy policy websites from the first page", async () => {
-  process.env.EXPO_PUBLIC_CONVEX_SITE_URL = "https://test.convex.site";
   await render(<WelcomeScreen />);
   expect(screen.getByText(/By continuing, you agree to our Terms of Service/)).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("link", { name: "Terms of Service" }));
-  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/terms");
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://artlog.dwjiang.com/terms");
   await fireEvent.press(screen.getByRole("link", { name: "Privacy Policy" }));
-  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://test.convex.site/privacy");
+  expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://artlog.dwjiang.com/privacy");
   expect(screen.getByRole("header", { name: /Welcome to Artlog/ })).toBeOnTheScreen();
 });
 
