@@ -5,6 +5,7 @@ import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { isIOS26OrLater } from "@/lib/ios-version";
+import { isJudgesDemo } from "@/lib/judges-demo";
 import { countBadge } from "@/lib/social/unseen-notifications";
 
 export type Feed = "friends" | "global";
@@ -42,7 +43,11 @@ export function HomeToolbar({ requests, unseen, feed, onFeedChange }: HomeToolba
   return (
     <>
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Menu hidden={!feed} accessibilityLabel={`${feedLabel} feed`} tintColor={Gallery.ink}>
+        <Stack.Toolbar.Menu
+          hidden={!feed || isJudgesDemo()}
+          accessibilityLabel={`${feedLabel} feed`}
+          tintColor={Gallery.ink}
+        >
           <Stack.Toolbar.Label>{feedLabel}</Stack.Toolbar.Label>
           <Stack.Toolbar.MenuAction icon="person.2" isOn={feed === "friends"} onPress={() => onFeedChange("friends")}>
             {FEED_LABELS.friends}
