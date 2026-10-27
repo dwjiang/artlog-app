@@ -53,3 +53,16 @@ printf 'Artlog workspace: %s\n' "$CONDUCTOR_WORKSPACE_NAME"
 npx expo prebuild --platform ios --clean && exec npm run ios -- --device --port "$CONDUCTOR_PORT"
 '''
 icon = "wrench"
+
+# The browser demo for hackathon judges (www/); it leaves $CONDUCTOR_PORT to Metro.
+[scripts.run."Judges demo"]
+available_in = ["local"]
+command = '''
+set -e
+: "${CONDUCTOR_PORT:?Run this from a Conductor workspace}"
+printf 'Artlog workspace: %s\n' "$CONDUCTOR_WORKSPACE_NAME"
+npm ci --prefix www --prefer-offline --no-audit --no-fund
+cd www
+exec npx vite --port "$((CONDUCTOR_PORT + 1))" --strictPort --open /demo/
+'''
+icon = "globe"

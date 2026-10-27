@@ -12,6 +12,7 @@
   --grouped: #f0f3f7;
   --accent: #254fd4;
   --accent-pressed: #1f42b3;
+  --highlight: #e8edfc;
   --separator: #dce1e8;
   color: var(--ink);
   background: var(--grouped);
@@ -26,8 +27,8 @@ body {
 
 .page {
   display: grid;
-  grid-template-columns: minmax(280px, 440px) minmax(320px, 520px);
-  gap: 48px;
+  grid-template-columns: minmax(320px, 580px) auto;
+  gap: 64px;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
@@ -47,33 +48,75 @@ h1 {
 }
 
 h1 {
-  font-size: 34px;
+  font-size: 32px;
   line-height: 1.15;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .lede {
-  margin: 16px 0 24px;
+  margin: 12px 0 20px;
 }
 
 .steps {
-  margin: 0 0 24px;
-  padding-left: 22px;
+  counter-reset: step;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.steps li + li {
-  margin-top: 8px;
+.steps li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 46px;
 }
 
-.steps em {
-  font-style: normal;
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  top: -3px;
+  left: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--highlight);
+}
+
+.steps p {
+  margin: 0;
+}
+
+.steps li > * + * {
+  margin-top: 6px;
+}
+
+.tech {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.tech b {
+  color: var(--ink);
   font-weight: 600;
 }
 
-.note {
-  color: var(--muted);
+.links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 44px;
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--separator);
   font-size: 15px;
-  margin: 0 0 8px;
 }
 
 a {
@@ -85,47 +128,31 @@ a {
   justify-content: center;
 }
 
-.stream {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
+/* Fills the page height; the ratio is Limrun's iPhone frame image, so the frame fills the box. */
+.phone {
+  position: relative;
+  height: min(calc(100vh - 64px), 900px);
+  max-width: 100%;
+  aspect-ratio: 1308 / 2710;
+}
+
+.phone-frame {
+  display: block;
   width: 100%;
-  height: min(88vh, 900px);
-}
-
-.stream > :first-child {
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-}
-
-.picker {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.picker-label,
-.picker-error {
-  margin: 0;
-  font-size: 15px;
-}
-
-.picker-label {
-  font-weight: 600;
+  height: 100%;
 }
 
 .picker-error {
+  margin: 0;
+  font-size: 14px;
   color: var(--muted);
 }
 
 .paintings {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  margin-left: -4px;
 }
 
 /* Artwork stays square with the app's 2-point thumbnail rounding; the border leaves room for a hover ring. */
@@ -138,7 +165,7 @@ button.painting {
   background: none;
 }
 
-button.painting:hover {
+button.painting:hover:enabled {
   background: none;
   border-color: var(--separator);
 }
@@ -146,6 +173,10 @@ button.painting:hover {
 button.painting:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+button.painting:disabled {
+  background: none;
 }
 
 button.painting[aria-busy="true"] {
@@ -158,36 +189,44 @@ button.painting[aria-busy="true"] {
   border-radius: 2px;
 }
 
-.actions {
+.upload {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 14px;
+}
+
+.upload-status:empty {
+  display: none;
 }
 
 .upload-status {
-  min-height: 1.4em;
-  margin: 0;
-  max-width: 360px;
-  font-size: 15px;
-  text-align: center;
   color: var(--muted);
+  font-size: 14px;
 }
 
+/* Sits on the frame's black screen until the stream replaces it. */
 .launch {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  justify-content: center;
   gap: 16px;
-  width: 100%;
-  max-width: 360px;
-  padding: 32px 24px;
-  border-radius: 28px;
-  background: var(--paper);
-  box-shadow: 0 1px 3px rgb(27 37 49 / 8%);
+  padding: 0 16%;
+  color: var(--paper);
 }
 
 .status {
   margin: 0;
   text-align: center;
+}
+
+.limits {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  color: rgb(255 255 255 / 72%);
 }
 
 .code {
@@ -238,7 +277,16 @@ button.secondary {
   border: 1px solid var(--separator);
 }
 
-@media (max-width: 860px) {
+button.text {
+  min-height: 44px;
+  margin-left: auto;
+  padding: 0;
+  color: var(--accent);
+  background: none;
+}
+
+/* Below this width the guide and the phone no longer fit side by side. */
+@media (max-width: 900px) {
   .page {
     grid-template-columns: 1fr;
     gap: 32px;

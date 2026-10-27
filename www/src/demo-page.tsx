@@ -1,5 +1,5 @@
-import { RemoteControl } from "@limrun/ui";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { defaultRemoteControlAssets, RemoteControl } from "@limrun/ui";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { MAX_UPLOAD_BYTES } from "../server/upload-limit.ts";
 import { API } from "./api.ts";
@@ -7,8 +7,18 @@ import { PaintingPicker } from "./painting-picker.tsx";
 import { usePhoneNarration } from "./phone-narration.ts";
 
 const APP_STORE_URL = "https://apps.apple.com/app/id6815466893";
+const REPO_URL = "https://github.com/dwjiang/artlog-app";
+const MET_OPEN_ACCESS_URL = "https://www.metmuseum.org/art/collection";
 // The app keeps library photos at this long side, so a smaller upload loses no detail it uses.
 const UPLOAD_LONG_SIDE = 2560;
+
+function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
+}
 
 type Session = { id: string; endpointWebSocketUrl: string; streamToken: string };
 type Phase =
@@ -111,61 +121,58 @@ export function DemoPage() {
   return (
     <main className="page">
       <audio ref={narration} />
-      <section className="intro">
+      <section>
         <p className="wordmark">Artlog</p>
         <h1>Point at a painting. Learn its story.</h1>
         <p className="lede">
-          This is the Artlog iPhone app, running on a cloud iPhone you control from your browser. It uses the same live
-          backend as the App Store app.
+          Artlog is an iPhone app that names the painting in front of you, tells its story with sources, and reads it
+          aloud. This cloud iPhone runs it on the App Store app&rsquo;s live backend; the tour takes about 3 minutes.
         </p>
         <ol className="steps">
           <li>
-            <strong>Scan.</strong> Pick a painting under the iPhone. The app opens <em>Scan</em>, the camera walks up to
-            it, and the app outlines and scans it on its own.
+            <p>
+              <strong id="scan-step">Scan a painting.</strong> Pick one. A video stands in for the camera and walks up
+              to it; Artlog outlines and names it on its own.
+            </p>
+            <PaintingPicker sessionId={liveId} labelledBy="scan-step" />
+            <p className="tech">
+              <b>NVIDIA C-RADIOv3-B</b> runs on the iPhone and turns the painting into a fingerprint, matched against
+              about 400,000 artworks. The scan sends no pixels.
+            </p>
           </li>
           <li>
-            <strong>Or scan a photo.</strong> Tap <em>Photos</em> for a gallery photo, or add your own with{" "}
-            <em>Upload a photo</em> under the phone.
+            <p>
+              <strong>Read its story.</strong> Each sentence of About this work links to the page its fact came from.
+            </p>
+            <p className="tech">
+              <b>Tavily</b> finds sources; on <b>Nebius Token Factory</b>, <b>Nemotron 3 Super</b> extracts quoted facts
+              and <b>Nemotron 3.5 Lightning</b> writes from only those.
+            </p>
           </li>
           <li>
-            <strong>Read and listen.</strong> Read the story and its sources, then tap <em>Play audio guide</em> with
-            your sound on.
+            <p>
+              <strong>Listen.</strong> Tap Play audio guide with your sound on; this page plays it.
+            </p>
+            <p className="tech">
+              <b>Nemotron 3 Ultra</b> writes the guide from the same research, and the backend checks each
+              sentence&rsquo;s evidence word for word. An <b>OpenAI</b> voice reads it.
+            </p>
           </li>
-        </ol>
-        <p className="note">
-          The cloud iPhone has no camera and streams no sound, so the viewfinder plays a video of a gallery wall and
-          this page plays the audio guide. Photos you upload go only to your demo iPhone; scanning one sends it to
-          Artlog&rsquo;s servers for matching, as the App Store app does. A session ends after 10 minutes without use,
-          or after 30 minutes, and its iPhone is deleted.
-        </p>
-        <p className="note">
-          On an iPhone? <a href={APP_STORE_URL}>Get Artlog on the App Store</a>.
-        </p>
-      </section>
-
-      <section className="device" aria-label="Cloud iPhone">
-        {phase.kind === "live" ? (
-          <div className="stream">
-            <RemoteControl
-              url={phase.session.endpointWebSocketUrl}
-              token={phase.session.streamToken}
-              sessionId={viewerId}
-              autoReconnect
-              onTerminated={() => setPhase({ kind: "ended" })}
-            />
-            <PaintingPicker sessionId={phase.session.id} />
-            <div className="actions">
+          <li>
+            <p>
+              <strong>Try your own photo.</strong> Upload one, then tap Photos on the iPhone. No photo handy? Try{" "}
+              <ExternalLink href={MET_OPEN_ACCESS_URL}>The Met&rsquo;s open-access collection</ExternalLink>.
+            </p>
+            <div className="upload">
               <button
                 type="button"
                 className="secondary"
-                disabled={upload.kind === "sending"}
+                disabled={!liveId || upload.kind === "sending"}
                 onClick={() => fileInput.current?.click()}
               >
                 {upload.kind === "sending" ? "Sending…" : "Upload a photo"}
               </button>
-              <button type="button" className="secondary" onClick={end}>
-                End session
-              </button>
+              <span className="tech">Uploads go only to your demo iPhone.</span>
             </div>
             <input
               ref={fileInput}
@@ -184,29 +191,59 @@ export function DemoPage() {
                   ? upload.message
                   : ""}
             </p>
-          </div>
-        ) : (
-          <form className="launch" onSubmit={start}>
-            <p className="status" role="status">
-              {phase.kind === "starting"
-                ? "Starting your iPhone. This takes about 20 seconds."
-                : phase.kind === "ended"
-                  ? "Session ended."
-                  : phase.kind === "error"
-                    ? phase.message
-                    : "Your own iPhone starts when you press Start."}
-            </p>
-            {codeRequired && (
-              <label className="code">
-                Access code
-                <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="off" required />
-              </label>
-            )}
-            <button type="submit" disabled={phase.kind === "starting"}>
-              {phase.kind === "starting" ? "Starting…" : phase.kind === "idle" ? "Start" : "Start again"}
+          </li>
+        </ol>
+        <footer className="links">
+          <ExternalLink href={REPO_URL}>Source on GitHub</ExternalLink>
+          <ExternalLink href={`${REPO_URL}#how-it-works`}>How it works</ExternalLink>
+          <ExternalLink href={APP_STORE_URL}>App Store</ExternalLink>
+          {liveId && (
+            <button type="button" className="text" onClick={end}>
+              End session
             </button>
-          </form>
-        )}
+          )}
+        </footer>
+      </section>
+
+      <section className="device" aria-label="Cloud iPhone">
+        <div className="phone">
+          {phase.kind === "live" ? (
+            <RemoteControl
+              url={phase.session.endpointWebSocketUrl}
+              token={phase.session.streamToken}
+              sessionId={viewerId}
+              autoReconnect
+              onTerminated={() => setPhase({ kind: "ended" })}
+            />
+          ) : (
+            <>
+              <img className="phone-frame" src={defaultRemoteControlAssets.ios?.frame} alt="" />
+              <form className="launch" onSubmit={start}>
+                <p className="status" role="status">
+                  {phase.kind === "starting"
+                    ? "Starting your iPhone. This takes about 20 seconds."
+                    : phase.kind === "ended"
+                      ? "Session ended."
+                      : phase.kind === "error"
+                        ? phase.message
+                        : "Your own iPhone starts when you press Start."}
+                </p>
+                {codeRequired && (
+                  <label className="code">
+                    Access code
+                    <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="off" required />
+                  </label>
+                )}
+                <button type="submit" disabled={phase.kind === "starting"}>
+                  {phase.kind === "starting" ? "Starting…" : phase.kind === "idle" ? "Start" : "Start again"}
+                </button>
+                <p className="limits">
+                  A session ends after 10 minutes without use, or after 30 minutes, and its iPhone is deleted.
+                </p>
+              </form>
+            </>
+          )}
+        </div>
       </section>
     </main>
   );

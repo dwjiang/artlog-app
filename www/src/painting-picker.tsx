@@ -18,10 +18,11 @@ const PAINTINGS = viewfinder.paintings.map(({ title, artist, thumbnail }) => ({
 type Walk = { kind: "idle" } | { kind: "sending"; painting: number } | { kind: "error"; message: string };
 
 /** Stands in for walking up to a painting: the phone's Scan viewfinder plays its walk and scans it. */
-export function PaintingPicker({ sessionId }: { sessionId: string }) {
+export function PaintingPicker({ sessionId, labelledBy }: { sessionId: string | undefined; labelledBy: string }) {
   const [walk, setWalk] = useState<Walk>({ kind: "idle" });
 
   async function pick(painting: number) {
+    if (!sessionId) return;
     setWalk({ kind: "sending", painting });
     try {
       const res = await fetch(`${API}/sessions/${sessionId}/walk`, {
@@ -40,10 +41,7 @@ export function PaintingPicker({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <div className="picker" role="group" aria-labelledby="picker-label">
-      <p id="picker-label" className="picker-label">
-        Walk up to a painting
-      </p>
+    <div role="group" aria-labelledby={labelledBy}>
       <div className="paintings">
         {PAINTINGS.map(({ title, artist, thumbnail }, index) => (
           <button
@@ -53,7 +51,7 @@ export function PaintingPicker({ sessionId }: { sessionId: string }) {
             title={`${title}, ${artist}`}
             aria-label={`${title}, ${artist}`}
             aria-busy={walk.kind === "sending" && walk.painting === index}
-            disabled={walk.kind === "sending"}
+            disabled={!sessionId || walk.kind === "sending"}
             onClick={() => void pick(index)}
           >
             <img src={thumbnail} alt="" width={48} height={48} />
