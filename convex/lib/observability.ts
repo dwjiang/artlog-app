@@ -12,6 +12,7 @@ import { ConvexError } from "convex/values";
 
 import type { Id } from "../_generated/dataModel";
 import { env } from "../_generated/server";
+import { tokenFactoryDiagnostics } from "./tokenFactoryDiagnostics";
 
 const expectedCodes = new Set([
   "spend_cap",
@@ -137,15 +138,16 @@ const TIMEOUT_MS = 1500;
 let cached: { dsn: string; transport: Transport } | undefined;
 const reported = new WeakSet<object>();
 
-function errorData(error: unknown): { code?: string; reason?: string; schema?: string } {
+function errorData(error: unknown): { code?: string; reason?: string; schema?: string; diagnostics?: unknown } {
   if (!(error instanceof ConvexError) || !error.data || typeof error.data !== "object") {
     return {};
   }
-  const { code, reason, schema } = error.data as Record<string, unknown>;
+  const { code, reason, schema, diagnostics } = error.data as Record<string, unknown>;
   return {
     code: typeof code === "string" ? code : undefined,
     reason: typeof reason === "string" ? reason : undefined,
     schema: typeof schema === "string" ? schema : undefined,
+    diagnostics,
   };
 }
 
@@ -220,7 +222,8 @@ export async function reportBackendError(
     // Only the production deployment sets a DSN, so every other deployment stays silent.
     const dsn = env.SENTRY_DSN;
     if (!dsn) return null;
-    const { code, reason, schema } = errorData(error);
+    const { code, reason, schema, diagnostics } = errorData(error);
+    const modelDiagnostics = code === "model_error" ? tokenFactoryDiagnostics(diagnostics) : undefined;
     if ((code && expectedCodes.has(code)) || (error instanceof Error && error.name === "AbortError")) {
       return null;
     }
@@ -257,6 +260,7 @@ export async function reportBackendError(
         ...(schema && /^[A-Za-z]{1,40}$/.test(schema) ? { model_schema: schema } : {}),
         ...(context.artworkId ? { artwork_id: context.artworkId } : {}),
       },
+      ...(modelDiagnostics ? { contexts: { token_factory: modelDiagnostics } } : {}),
       exception: {
         values: [
           {

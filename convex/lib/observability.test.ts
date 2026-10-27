@@ -147,3 +147,69 @@ it("is a no-op when no backend DSN is configured", async () => {
   expect(await reportBackendError(new Error("failure"), "test.disabled")).toBeNull();
   expect(fetchMock).not.toHaveBeenCalled();
 });
+
+it("reports only allowlisted bounded model diagnostics", async () => {
+  await reportBackendError(
+    new ConvexError({
+      code: "model_error",
+      reason: "truncated",
+      diagnostics: {
+        model: "nvidia/nemotron-3-super-120b-a12b",
+        stage: "completion",
+        finishReason: "length",
+        maxTokens: 12000,
+        promptTokens: 800,
+        completionTokens: 12000,
+        calls: 2,
+        elapsedMs: 1234,
+        inputChars: 2000,
+        outputChars: 4000,
+        timeoutMs: 120000,
+        prompt: "private text",
+        response: "private output",
+        url: "https://private.example/token",
+      },
+    }),
+    "exhibitionRefresh.extract",
+  );
+  const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
+  expect(event.contexts.token_factory).toEqual({
+    version: 1,
+    model: "nvidia/nemotron-3-super-120b-a12b",
+    stage: "completion",
+    finishReason: "length",
+    maxTokens: 12000,
+    promptTokens: 800,
+    completionTokens: 12000,
+    calls: 2,
+    elapsedMs: 1234,
+    inputChars: 2000,
+    outputChars: 4000,
+    timeoutMs: 120000,
+  });
+  expect(JSON.stringify(event)).not.toContain("private");
+});
+
+it("drops unknown diagnostic strings and invalid numeric values", async () => {
+  await reportBackendError(
+    new ConvexError({
+      code: "model_error",
+      diagnostics: {
+        model: "private-model-token",
+        stage: "private-stage",
+        finishReason: "private-output",
+        maxTokens: -1,
+        calls: 1.5,
+        elapsedMs: Infinity,
+        promptTokens: 1e20,
+        completionTokens: "private",
+        inputChars: NaN,
+        outputChars: 0,
+      },
+    }),
+    "exhibitionRefresh.extract",
+  );
+  const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
+  expect(event.contexts.token_factory).toEqual({ version: 1, model: "other", outputChars: 0 });
+  expect(JSON.stringify(event)).not.toContain("private");
+});
