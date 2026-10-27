@@ -2,6 +2,7 @@ import { type IncomingMessage, type ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 
 import { DemoError, type DemoSessions } from "./demo-sessions.ts";
+import { pageNarration, proxyNarration } from "./narration.ts";
 import { MAX_UPLOAD_BYTES } from "./upload-limit.ts";
 
 export const DEMO_BASE = "/demo/";
@@ -52,10 +53,30 @@ function clientIp(req: IncomingMessage): string | undefined {
   return ip && !PRIVATE_IP.test(ip) ? ip : undefined;
 }
 
-/** Connect-style middleware for the page's API, shared by `vite dev`, `vite preview` and the Vercel Function. */
-export function createDemoApi(sessions: DemoSessions) {
+async function relay(res: ServerResponse, response: Response) {
+  res.statusCode = response.status;
+  response.headers.forEach((value, name) => res.setHeader(name, value));
+  // Playlists and two-second segments are small enough to buffer.
+  res.end(Buffer.from(await response.arrayBuffer()));
+}
+
+/**
+ * Connect-style middleware for the page's API, shared by `vite dev`, `vite preview` and the Vercel Function.
+ * `narrationSite` is the Convex site of the backend the demo app build uses.
+ */
+export function createDemoApi(sessions: DemoSessions, narrationSite: string) {
+  async function streamNarration(res: ServerResponse, id: string) {
+    const stop = await sessions.watchNarration(id, (state) => {
+      res.write(`data: ${JSON.stringify(pageNarration(state, id, narrationSite, Date.now()))}\n\n`);
+    });
+    if (res.destroyed) return stop();
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-store" });
+    res.flushHeaders();
+    res.once("close", stop);
+  }
+
   return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
-    const fullPath = req.url?.split("?")[0] ?? "";
+    const { pathname: fullPath, search } = new URL(req.url ?? "", "http://localhost");
     if (!fullPath.startsWith(`${API_ROOT}/`)) return next();
     const path = fullPath.slice(API_ROOT.length);
     try {
@@ -96,6 +117,18 @@ export function createDemoApi(sessions: DemoSessions) {
         const { painting } = await readJson(req);
         await sessions.walk(walk[1], typeof painting === "number" ? painting : Number.NaN);
         return send(res, 204);
+      }
+      const narration = /^\/sessions\/([\w-]+)\/narration$/.exec(path);
+      if (req.method === "GET" && narration?.[1]) return await streamNarration(res, narration[1]);
+      const cached = /^\/sessions\/([\w-]+)\/narration\/([\w-]+)\.mp3$/.exec(path);
+      if (req.method === "GET" && cached?.[1] && cached[2]) {
+        const bytes = await sessions.narrationFile(cached[1], cached[2]);
+        res.setHeader("Content-Type", "audio/mpeg");
+        return void res.end(bytes);
+      }
+      const proxied = /^\/narration\/(playlist|file)$/.exec(path);
+      if (req.method === "GET" && (proxied?.[1] === "playlist" || proxied?.[1] === "file")) {
+        return await relay(res, await proxyNarration(proxied[1], search, narrationSite));
       }
       next();
     } catch (error) {
