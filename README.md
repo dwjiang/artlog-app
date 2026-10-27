@@ -6,7 +6,7 @@ remembers your visit.**
 ![Six Artlog screens: point at a painting, learn its story, listen while you look, hang your own wall, remember every visit, and see what friends saw](docs/screenshots/app-screenshots.jpg)
 
 Artlog is an iPhone app for museum visitors, built for the Nebius x NVIDIA Global AI Hackathon
-(Best Apps and Agents track). It is open source under the [MPL 2.0](LICENSE).
+(Best Apps and Agents track). It is open source under the [AGPL-3.0](LICENSE).
 
 ## Why
 
@@ -211,8 +211,9 @@ is handled.
 
 ## License
 
-Artlog is open source under the Mozilla Public License 2.0; see [LICENSE](LICENSE). Notices for
-the open source libraries in the app are in Settings → About → Open source licenses.
+Artlog is open source under the GNU Affero General Public License v3.0; see [LICENSE](LICENSE).
+Notices for the open source libraries in the app are in Settings → About → Open source
+licenses.
 
 The bundled C-RADIOv3-B model is licensed separately under the
 [NVIDIA Open Model License Agreement](modules/coreml-embed/ios/model-notices/c-radio-v3-b/nvidia-open-model-license.pdf).
