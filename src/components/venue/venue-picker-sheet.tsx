@@ -1,7 +1,7 @@
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Linking, StyleSheet, type TextInput, View, useWindowDimensions } from "react-native";
+import { Linking, StyleSheet, View, useWindowDimensions, type TextInputInstance } from "react-native";
 
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -84,7 +84,7 @@ function ChooserSheet({
   const { result: results } = useVenueSearch(query, 200);
   const [busy, setBusy] = useState<string>();
   const [failure, setFailure] = useState<string>();
-  const searchInput = useRef<TextInput>(null);
+  const searchInput = useRef<TextInputInstance>(null);
   const pending = useRef<AbortController | undefined>(undefined);
   useEffect(() => () => pending.current?.abort(), []);
   const answered = useRef(false);

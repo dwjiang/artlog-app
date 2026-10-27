@@ -1,6 +1,6 @@
 import { useNavigation } from "expo-router";
 import { useEffect, useRef } from "react";
-import type { LayoutChangeEvent, ScrollView, Text } from "react-native";
+import type { LayoutChangeEvent, ScrollViewInstance, TextInstance } from "react-native";
 
 import { Gallery, NavigationTheme, ScrollTitleHeader } from "@/constants/theme";
 import { useScrolledUnderBar } from "@/hooks/use-scrolled-under-bar";
@@ -18,8 +18,8 @@ const shownIn = (color: string) => ({ headerTitleStyle: { ...NavigationTheme.hea
  */
 export function useScrollTitle(title: string, color: string = Gallery.ink) {
   const navigation = useNavigation();
-  const scrollRef = useRef<ScrollView>(null);
-  const headingRef = useRef<Text>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  const headingRef = useRef<TextInstance>(null);
   const shown = useRef(false);
   const { recordEdge, onScroll } = useScrolledUnderBar((under) => {
     shown.current = under;

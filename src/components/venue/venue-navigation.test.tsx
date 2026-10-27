@@ -48,12 +48,11 @@ jest.mock("@/lib/widgets/widget-provider", () => ({
 afterEach(() => jest.useRealTimers());
 
 it("returns to Scan after dismissing a picker opened by both a tap and a later venue prompt", async () => {
-  const navigation = renderRouter({
+  const navigation = await renderRouter({
     _layout: { default: () => <RootLayout />, unstable_settings },
     "(tabs)/index": () => <Text>Scan</Text>,
     "venue-picker": () => <Text>Museum picker</Text>,
   });
-  await navigation;
 
   await act(() => router.push("/venue-picker"));
   expect(navigation.getPathname()).toBe("/venue-picker");

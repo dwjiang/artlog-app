@@ -58,6 +58,37 @@ if (process.env.TEST_REAL_PROCESSES) require('node:child_process').spawnSync('/b
 `
         : `
 if (process.env.TEST_FAIL_WINDOWS) process.exit(1);
+if (process.env.TEST_WINDOW_TITLES) {
+  const windows = JSON.parse(process.env.TEST_WINDOW_TITLES);
+  const array = values => ({ count: values.length, objectAtIndex: index => values[index] });
+  const bridge = Object.assign(value => value, {
+    AXUIElementCreateApplication: pid => pid,
+    AXUIElementGetAttributeValueCount: (_app, _attribute, count) => {
+      count[0] = windows.length;
+      return 0;
+    },
+    AXUIElementCopyAttributeValues: (_app, _attribute, _start, _count, result) => {
+      result[0] = array(windows);
+      return 0;
+    },
+    AXUIElementCopyMultipleAttributeValues: (title, _attributes, _options, result) => {
+      result[0] = array([{ js: title }, title]);
+      return 0;
+    },
+    AXUIElementPerformAction: (title, action) => {
+      fs.appendFileSync(process.env.TEST_CALLS, JSON.stringify([action, title]) + '\\n');
+      return Number(process.env.TEST_AX_PRESS_ERROR ?? 0);
+    },
+  });
+  const context = {
+    Application: { currentApplication: () => ({ doShellScript: () => '123' }) },
+    ObjC: { import() {}, castRefToObject: value => value },
+    Ref: () => [],
+    $: bridge,
+  };
+  require('node:vm').runInNewContext(args[3], context);
+  context.run(args.slice(4));
+}
 `
 }`,
     );
@@ -114,7 +145,7 @@ function runArchive(names: string[], env: Record<string, string> = {}) {
     calls,
     shutdowns: calls.filter((call) => call[0] === "xcrun" && call[2] === "shutdown").map((call) => call.slice(1)),
     deletions: calls.filter((call) => call[0] === "xcrun" && call[2] === "delete").map((call) => call[3]),
-    windows: calls.filter((call) => call[0] === "osascript").flatMap((call) => call.slice(3)),
+    windows: calls.filter((call) => call[0] === "osascript").flatMap((call) => call.slice(5)),
   };
 }
 
@@ -234,6 +265,32 @@ await test("reports window cleanup failures", () => {
   const result = runArchive(["Artlog Ndjamena"], { TEST_FAIL_WINDOWS: "1" });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Workspace cleanup failed/);
+});
+
+await test("closes matching Device Hub windows while preserving other windows", () => {
+  const result = runArchive(["Artlog Ndjamena"], {
+    TEST_WINDOW_TITLES: JSON.stringify([
+      "Artlog Ndjamena",
+      "Artlog Ndjamena – iOS 27.0",
+      "Artlog Ndjamenaville",
+      "Artlog Sanaa",
+    ]),
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(
+    result.calls.filter((call) => call[0] === "AXPress").map((call) => call[1]),
+    ["Artlog Ndjamena", "Artlog Ndjamena – iOS 27.0"],
+  );
+});
+
+await test("reports Accessibility errors when a Device Hub window cannot close", () => {
+  const result = runArchive(["Artlog Ndjamena"], {
+    TEST_WINDOW_TITLES: JSON.stringify(["Artlog Ndjamena"]),
+    TEST_AX_PRESS_ERROR: "-25204",
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Workspace cleanup failed/);
+  assert.match(result.stderr, /Could not close Device Hub window \(Accessibility error -25204\)/);
 });
 
 await test("reads process lists larger than Node's default output buffer", () => {

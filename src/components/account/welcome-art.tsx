@@ -1,7 +1,7 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { Image, type ImageSource } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ScrollView, StyleSheet, View, type ViewStyle } from "react-native";
+import { ScrollView, StyleSheet, View, type ViewStyle, type ScrollViewInstance } from "react-native";
 import Animated, { cubicBezier } from "react-native-reanimated";
 
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
@@ -269,7 +269,7 @@ function useStoryReveal(active: boolean) {
 function StoryTranscript({ said }: { said: number }) {
   const reduced = useReducedMotion();
   const sentence = SENTENCE_STARTS.filter((start) => start < Math.max(said, 1)).length - 1;
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const [lines, setLines] = useState<{ y: number; height: number }[]>([]);
   const height = lines.reduce((tallest, line) => Math.max(tallest, line.height), 0) + Spacing.compact;
   const last = lines[STORY.length - 1];

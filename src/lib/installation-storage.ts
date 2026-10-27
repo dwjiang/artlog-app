@@ -10,7 +10,7 @@ export function getInstallationId(): string {
     const file = new File(Paths.document, "installation-id");
     const stored = file.exists ? file.textSync() : "";
     const id = stored || randomUUID();
-    if (!stored) file.write(id);
+    if (!stored) file.writeSync(id);
     installationId = id;
   }
   return installationId;
@@ -19,7 +19,7 @@ export function getInstallationId(): string {
 /** Continues as a fresh install: keychain items under the previous id are no longer read. */
 export function startNewInstallation(): string {
   const id = randomUUID();
-  new File(Paths.document, "installation-id").write(id);
+  new File(Paths.document, "installation-id").writeSync(id);
   installationId = id;
   return id;
 }

@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useState, type Ref } from "react";
-import { StyleSheet, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, TextInput, View, type StyleProp, type ViewStyle, type TextInputInstance } from "react-native";
 
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
@@ -19,7 +19,7 @@ export function SearchField({
   maxLength,
   style,
 }: {
-  inputRef?: Ref<TextInput>;
+  inputRef?: Ref<TextInputInstance>;
   value: string;
   label: string;
   placeholder?: string;

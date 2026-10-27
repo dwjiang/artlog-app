@@ -1,9 +1,10 @@
 import { Asset } from "expo-asset";
 import * as Device from "expo-device";
 
-import { measureCrop, type TriageMetrics } from "@/lib/capture/triage";
+import { measureCrop } from "@/lib/capture/triage";
 import fixture from "@/shared/orb/fixtures/orb-features-v1.json";
 
+import type { TriageMetrics } from "../../../modules/opencv-features/src";
 import { extractOrb } from "./extract";
 import { compareDescriptors, decodeBase64, type OrbParity } from "./parity";
 

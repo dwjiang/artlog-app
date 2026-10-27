@@ -60,7 +60,7 @@ export async function prepareWidgetArtwork(
       removeFileIfExists(target);
       await new File(result.uri).move(target);
       const aspect = loaded.width / loaded.height;
-      info.write(JSON.stringify({ aspect }));
+      info.writeSync(JSON.stringify({ aspect }));
       return { ...artwork, uri: target.uri, aspect };
     } catch {
       /* A damaged or unavailable photo must not block the remaining collection. */
@@ -82,7 +82,7 @@ export async function prepareWidgetFont() {
 
 export function writeWidgetManifest(entries: WidgetPresentation[]) {
   const manifest = new File(directory(), "collection.json");
-  manifest.write(JSON.stringify({ interval: widgetRotationSeconds, entries }));
+  manifest.writeSync(JSON.stringify({ interval: widgetRotationSeconds, entries }));
   artlogWidget.reload();
 }
 

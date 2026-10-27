@@ -1,7 +1,7 @@
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
 import type { ReactNode } from "react";
-import { Image, ScrollView, Text } from "react-native";
+import { Image, ScrollView, Text, type ScrollViewInstance } from "react-native";
 
 import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
 import { addArtworkPhoto } from "@/db/repos/artwork-album";
@@ -838,7 +838,7 @@ it("opens the selected wall photo in the private artwork album", async () => {
 });
 
 it("scrolls a newly hung artwork into view", async () => {
-  const scrollTo = jest.spyOn(ScrollView.prototype, "scrollTo");
+  const scrollTo = jest.spyOn(ScrollView.prototype as ScrollViewInstance, "scrollTo");
   try {
     await openWall();
     await fireEvent.press(screen.getByRole("button", { name: "Edit wall" }));
@@ -930,7 +930,7 @@ it("shows only the pull spinner while a pull refreshes the wall", async () => {
       }),
   );
   await act(async () => {
-    lastRefreshControl().onRefresh?.();
+    void lastRefreshControl().onRefresh?.();
   });
   expect(lastRefreshControl().refreshing).toBe(true);
   expect(screen.queryByLabelText("Refreshing wall")).toBeNull();

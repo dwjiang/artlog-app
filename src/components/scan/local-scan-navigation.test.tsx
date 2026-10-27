@@ -91,7 +91,7 @@ it("keeps label capture open on completion and shows the result when returning",
       cropPath: "crops/one.jpg",
     },
   ];
-  const view = renderRouter(
+  const view = await renderRouter(
     {
       _layout: () => <Stack />,
       index: () => <Text>Camera</Text>,
@@ -100,7 +100,6 @@ it("keeps label capture open on completion and shows the result when returning",
     },
     { initialUrl: "/" },
   );
-  await view;
   await act(() => router.push("/result/local-one"));
   await fireEvent.press(await screen.findByRole("button", { name: "Point at the label" }));
   await waitFor(() => expect(view.getPathname()).toBe("/label/local-one"));
@@ -126,7 +125,7 @@ it("checks opening a row from the root queue sheet leaves one underlying stack",
       capturedAt: Date.now(),
     },
   ];
-  const view = renderRouter(
+  const view = await renderRouter(
     {
       _layout: {
         default: () => <Stack />,
@@ -140,7 +139,6 @@ it("checks opening a row from the root queue sheet leaves one underlying stack",
     },
     { initialUrl: "/" },
   );
-  await view;
   await act(() => router.push("/queue"));
   await fireEvent.press(await screen.findByRole("button", { name: /Scan from/ }));
   await waitFor(() => expect(view.getPathname()).toBe("/result/local-one"));

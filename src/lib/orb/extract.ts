@@ -1,18 +1,8 @@
-import type { Mat } from "react-native-fast-opencv";
-
-import type { FastOpenCV } from "@/lib/image/opencv";
-import { withGray } from "@/lib/image/read-crop";
+import { filePath } from "@/lib/file-uri";
 import model from "@/shared/model/model-version.json";
-import { DESCRIPTOR_BYTES, encodeOrbFeatures } from "@/shared/orb/features";
+import { DESCRIPTOR_BYTES, KEYPOINT_BYTES } from "@/shared/orb/features";
 
-import { packKeypoints, type Keypoint } from "./pack";
-
-export type OrbDetection = {
-  keypoints: Keypoint[];
-  /** OpenCV descriptor rows in keypoint order, `descriptorBytes` per row. */
-  descriptors: Uint8Array;
-  descriptorBytes: number;
-};
+import { getOpenCVFeatures, type OpenCVFeatures, type OrbDetection } from "../../../modules/opencv-features/src";
 
 export type OrbFeatureBuffers = {
   descriptors: ArrayBuffer;
@@ -21,61 +11,33 @@ export type OrbFeatureBuffers = {
 };
 
 /** ORB features of a letterboxed square crop in the wire format, capped like `scripts/data/pipeline/orb.py`. */
-export function extractOrb(
+export async function extractOrb(
   cropUri: string,
   maxKeypoints: number = model.orbMaxKeypoints,
-  cv?: FastOpenCV,
+  opencv: OpenCVFeatures = getOpenCVFeatures(),
 ): Promise<OrbFeatureBuffers> {
-  return withGray(cropUri, cv, ({ gray, width, height }, opencv) => {
-    if (width !== height) {
-      throw new Error(`ORB expects the letterboxed square crop, got ${width}×${height}`);
-    }
-    return toOrbFeatures(detectOrb(gray, maxKeypoints, opencv), maxKeypoints);
-  });
+  const detection = await opencv.detectOrb(filePath(cropUri), maxKeypoints);
+  if (detection.width !== detection.height) {
+    throw new Error(`ORB expects the letterboxed square crop, got ${detection.width}×${detection.height}`);
+  }
+  return toOrbFeatures(detection, maxKeypoints);
 }
 
-function detectOrb(gray: Mat, maxKeypoints: number, { OpenCV }: FastOpenCV): OrbDetection {
-  const detector = OpenCV.ORB_create(maxKeypoints);
-  try {
-    const { keypoints, descriptors } = OpenCV.detectAndCompute(detector, gray);
-    try {
-      const points = keypoints.toArray();
-      if (points.length === 0) {
-        return {
-          keypoints: [],
-          descriptors: new Uint8Array(0),
-          descriptorBytes: DESCRIPTOR_BYTES,
-        };
-      }
-      const rows = descriptors.toBuffer("uint8");
-      return {
-        keypoints: points,
-        descriptors: rows.buffer,
-        descriptorBytes: rows.cols * rows.channels,
-      };
-    } finally {
-      keypoints.release();
-      descriptors.release();
-    }
-  } finally {
-    detector.release();
-  }
-}
-
-export function toOrbFeatures(detection: OrbDetection, maxKeypoints: number): OrbFeatureBuffers {
-  const { keypoints, descriptors, descriptorBytes } = detection;
-  if (descriptorBytes !== DESCRIPTOR_BYTES) {
-    throw new Error(`ORB produced ${descriptorBytes}-byte descriptors, expected ${DESCRIPTOR_BYTES}`);
-  }
-  if (descriptors.length !== keypoints.length * DESCRIPTOR_BYTES) {
-    throw new Error(`ORB produced ${descriptors.length} descriptor bytes for ${keypoints.length} keypoints`);
+export function toOrbFeatures(
+  { keypoints, descriptors }: Pick<OrbDetection, "keypoints" | "descriptors">,
+  maxKeypoints: number,
+): OrbFeatureBuffers {
+  const detected = keypoints.byteLength / KEYPOINT_BYTES;
+  if (!Number.isInteger(detected) || descriptors.byteLength !== detected * DESCRIPTOR_BYTES) {
+    throw new Error(
+      `ORB produced ${descriptors.byteLength} descriptor bytes for ${keypoints.byteLength} keypoint bytes`,
+    );
   }
   // ORB's retainBest keeps ties past the cap; truncating in output order matches orb.py.
-  const count = Math.min(keypoints.length, maxKeypoints);
-  const encoded = encodeOrbFeatures({
+  const count = Math.min(detected, maxKeypoints);
+  return {
+    descriptors: descriptors.slice(0, count * DESCRIPTOR_BYTES).buffer,
+    keypoints: keypoints.slice(0, count * KEYPOINT_BYTES).buffer,
     count,
-    descriptors: descriptors.subarray(0, count * DESCRIPTOR_BYTES),
-    keypoints: packKeypoints(keypoints.slice(0, count)),
-  });
-  return { ...encoded, count };
+  };
 }

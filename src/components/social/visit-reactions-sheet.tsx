@@ -14,6 +14,8 @@ import {
   TextInput,
   View,
   type ScrollViewProps,
+  type ScrollViewInstance,
+  type TextInputInstance,
 } from "react-native";
 import Animated, { Easing, Keyframe, ReduceMotion } from "react-native-reanimated";
 
@@ -180,7 +182,7 @@ function Comments({
   const safety = useSafetyChecks(session);
   const canWrite = session.status === "ready" && safety.enabled;
   const blocking = useBlock(session);
-  const list = useRef<ScrollView>(null);
+  const list = useRef<ScrollViewInstance>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const tagging = useRichTextInput({
@@ -190,7 +192,7 @@ function Comments({
     editable: !busy,
     place: { kind: "comment", postId: visit.postId },
   });
-  const input = useRef<TextInput>(null);
+  const input = useRef<TextInputInstance>(null);
   // Replying fills in the person's handle; the "Replying to" bar lasts while the draft still starts with it.
   const [replyTo, setReplyTo] = useState<PublicProfile>();
   const handle = replyTo ? `@${replyTo.username}` : "";
@@ -612,7 +614,7 @@ function SheetList<T>({
   footer: ReactNode;
   height?: number;
   onEndReached: () => void;
-  ref?: Ref<ScrollView>;
+  ref?: Ref<ScrollViewInstance>;
 } & Pick<ScrollViewProps, "keyboardShouldPersistTaps" | "keyboardDismissMode">) {
   const nearEnd = (visible: number, offset: number, content: number) => offset + visible * 1.4 >= content;
   return (

@@ -8,7 +8,7 @@ jest.mock("@/lib/social/unseen-notifications", () => ({
   ...jest.requireActual("@/lib/social/unseen-notifications"),
   useWatchUnseenNotifications: () => mockUnseen,
 }));
-jest.mock("expo-router/unstable-native-tabs", () => {
+jest.mock("expo-router/native-tabs", () => {
   const { Text, View } = jest.requireActual("react-native");
   const Trigger = ({ children }: { children: ReactNode }) => (
     <View accessible accessibilityRole="tab">

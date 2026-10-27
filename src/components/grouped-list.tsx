@@ -198,7 +198,7 @@ export function ActionRow({
   const color = Gallery.accent;
   // The spacer lets SwiftUI measure a spinner inserted into an initially idle slot.
   const indicator = (
-    <Row alignment="center" modifiers={[frame({ width: 28, height: 28 })]}>
+    <Row spacing={0} alignment="center" modifiers={[frame({ width: 28, height: 28 })]}>
       {busy ? (
         <NativeLoadingRing label={`${label} in progress`} color={color} />
       ) : icon ? (

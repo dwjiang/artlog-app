@@ -159,27 +159,45 @@ function removeSimulators() {
     }
   }
   if (owned.length === 0) return;
-  // A shutdown device can still have a window. Close only exact device titles.
+  // A deleted device can still have a Device Hub window. Close only exact device titles.
+  // System Events and NSRunningApplication report Device Hub without a usable PID, so pgrep finds it for Accessibility.
   output("osascript", [
+    "-l",
+    "JavaScript",
     "-e",
     `
-on run deviceNames
-  tell application "System Events"
-    if not (exists process "Simulator") then return
-    tell process "Simulator"
-      repeat with windowIndex from (count windows) to 1 by -1
-        set simulatorWindow to window windowIndex
-        set windowTitle to name of simulatorWindow
-        repeat with deviceName in deviceNames
-          if windowTitle is (deviceName as text) or windowTitle starts with ((deviceName as text) & " – iOS ") then
-            perform action "AXPress" of (first button of simulatorWindow whose subrole is "AXCloseButton")
-            exit repeat
-          end if
-        end repeat
-      end repeat
-    end tell
-  end tell
-end run`,
+ObjC.import("ApplicationServices");
+function run(deviceNames) {
+  const app = Application.currentApplication();
+  app.includeStandardAdditions = true;
+  let pids;
+  try {
+    pids = app.doShellScript("/usr/bin/pgrep -x DeviceHub").split(/\\s+/);
+  } catch {
+    return;
+  }
+  for (const pid of pids) {
+    const deviceHub = $.AXUIElementCreateApplication(Number(pid));
+    const count = Ref();
+    let error = $.AXUIElementGetAttributeValueCount(deviceHub, $("AXWindows"), count);
+    if (error === 0 && count[0] === 0) continue;
+    // JXA rejects an untyped Ref that no call has filled, so create it only when windows exist.
+    const windows = Ref();
+    if (error === 0) error = $.AXUIElementCopyAttributeValues(deviceHub, $("AXWindows"), 0, count[0], windows);
+    if (error !== 0) throw new Error("Could not read Device Hub windows (Accessibility error " + error + ")");
+    const list = ObjC.castRefToObject(windows[0]);
+    for (let index = 0; index < list.count; index++) {
+      const values = Ref();
+      $.AXUIElementCopyMultipleAttributeValues(list.objectAtIndex(index), $(["AXTitle", "AXCloseButton"]), 0, values);
+      const attributes = ObjC.castRefToObject(values[0]);
+      const title = attributes.objectAtIndex(0).js;
+      if (deviceNames.some((name) => title === name || title.startsWith(name + " – iOS "))) {
+        const closeError = $.AXUIElementPerformAction(attributes.objectAtIndex(1), $("AXPress"));
+        if (closeError !== 0) throw new Error("Could not close Device Hub window (Accessibility error " + closeError + ")");
+      }
+    }
+  }
+}`,
     ...owned.map((device) => device.name),
   ]);
 }

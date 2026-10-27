@@ -86,8 +86,7 @@ it.each([
   ["/", "Home"],
   ["/welcome", "Welcome to Artlog"],
 ])("opens %s without eagerly warming the recognition model", async (path, title) => {
-  const navigation = renderRouter(routes, { initialUrl: path });
-  await navigation;
+  await renderRouter(routes, { initialUrl: path });
 
   expect(screen.getByText(title)).toBeOnTheScreen();
   expect(embedder.warmUp).not.toHaveBeenCalled();
