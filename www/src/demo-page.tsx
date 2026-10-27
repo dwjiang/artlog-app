@@ -1,6 +1,8 @@
 import { defaultRemoteControlAssets, RemoteControl } from "@limrun/ui";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { QRCodeSVG } from "qrcode.react";
+import { useEffect, useRef, useState, type ComponentProps, type FormEvent } from "react";
 
+import appIcon from "../media/app-icon.png";
 import { MAX_UPLOAD_BYTES } from "../server/upload-limit.ts";
 import { API } from "./api.ts";
 import { PaintingPicker } from "./painting-picker.tsx";
@@ -12,12 +14,8 @@ const MET_OPEN_ACCESS_URL = "https://www.metmuseum.org/art/collection";
 // The app keeps library photos at this long side, so a smaller upload loses no detail it uses.
 const UPLOAD_LONG_SIDE = 2560;
 
-function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <a href={href} target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  );
+function ExternalLink(props: ComponentProps<"a">) {
+  return <a {...props} target="_blank" rel="noopener noreferrer" />;
 }
 
 type Session = { id: string; endpointWebSocketUrl: string; streamToken: string };
@@ -121,13 +119,24 @@ export function DemoPage() {
   return (
     <main className="page">
       <audio ref={narration} />
-      <section>
-        <p className="wordmark">Artlog</p>
+      <header className="brand">
+        <img className="app-icon" src={appIcon} alt="" width={36} height={36} />
+        Artlog
+      </header>
+      <section className="guide">
         <h1>Point at a painting. Learn its story.</h1>
         <p className="lede">
-          Artlog is an iPhone app that names the painting in front of you, tells its story with sources, and reads it
-          aloud. This cloud iPhone runs it on the App Store app&rsquo;s live backend; the tour takes about 3 minutes.
+          Artlog names the painting in front of you, tells its story with sources, and reads it aloud. Try it here on a
+          cloud iPhone connected to the App Store app&rsquo;s live backend; the tour takes about 4 minutes.
         </p>
+        <ExternalLink className="listing" href={APP_STORE_URL} aria-label="Get Artlog on the App Store">
+          <img className="app-icon" src={appIcon} alt="" width={60} height={60} />
+          <span className="listing-text">
+            <span className="listing-name">Artlog: Museum Art Scanner</span>
+            <span className="listing-meta">Free on the App Store · iPhone</span>
+          </span>
+          <span className="get">Get</span>
+        </ExternalLink>
         <ol className="steps">
           <li>
             <p>
@@ -192,11 +201,25 @@ export function DemoPage() {
                   : ""}
             </p>
           </li>
+          <li>
+            <p>
+              <strong>See what&rsquo;s on.</strong> Open Explore for current exhibitions around New York; each links to
+              the page it came from.
+            </p>
+            <p className="tech">
+              <b>Tavily</b> reads museum pages that only load in a browser; <b>Nemotron 3 Super</b> lists each show,
+              kept only if its quoted title and dates are on the page.
+            </p>
+          </li>
         </ol>
+        <p className="tech also">
+          <b>Also in the app:</b> for a painting Artlog doesn&rsquo;t know, <b>Nemotron 3 Super</b> sorts its wall
+          label&rsquo;s text into fields and <b>Tavily</b> checks them on the museum&rsquo;s website.{" "}
+          <b>Nemotron 3.5 Lightning</b> screens label text and contributions before they reach the shared catalog.
+        </p>
         <footer className="links">
           <ExternalLink href={REPO_URL}>Source on GitHub</ExternalLink>
           <ExternalLink href={`${REPO_URL}#how-it-works`}>How it works</ExternalLink>
-          <ExternalLink href={APP_STORE_URL}>App Store</ExternalLink>
           {liveId && (
             <button type="button" className="text" onClick={end}>
               End session
@@ -221,12 +244,12 @@ export function DemoPage() {
               <form className="launch" onSubmit={start}>
                 <p className="status" role="status">
                   {phase.kind === "starting"
-                    ? "Starting your iPhone. This takes about 20 seconds."
+                    ? "Starting the cloud iPhone. This takes about 20 seconds."
                     : phase.kind === "ended"
                       ? "Session ended."
                       : phase.kind === "error"
                         ? phase.message
-                        : "Your own iPhone starts when you press Start."}
+                        : "Try the Artlog demo on a cloud iPhone."}
                 </p>
                 {codeRequired && (
                   <label className="code">
@@ -237,9 +260,11 @@ export function DemoPage() {
                 <button type="submit" disabled={phase.kind === "starting"}>
                   {phase.kind === "starting" ? "Starting…" : phase.kind === "idle" ? "Start" : "Start again"}
                 </button>
-                <p className="limits">
-                  A session ends after 10 minutes without use, or after 30 minutes, and its iPhone is deleted.
-                </p>
+                <p className="or">or</p>
+                <div className="screen-qr">
+                  <QRCodeSVG value={APP_STORE_URL} size={76} marginSize={2} title="Artlog on the App Store" />
+                  <p>Scan to get Artlog on your own iPhone.</p>
+                </div>
               </form>
             </>
           )}
