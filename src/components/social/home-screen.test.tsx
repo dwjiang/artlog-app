@@ -23,6 +23,7 @@ const mockPush = jest.fn();
 const mockNavigate = jest.fn();
 let mockVisit: object | undefined;
 let mockSaves: { localId: string; title: string; cropPath: null }[];
+let mockJudgesDemo = false;
 jest.mock("@/lib/social/use-social-session", () => ({ useSocialSession: () => mockSession }));
 jest.mock("@/components/account/welcome-prompt", () => ({ WelcomePrompt: () => null }));
 jest.mock("@/components/visits/now-card", () => ({
@@ -31,6 +32,7 @@ jest.mock("@/components/visits/now-card", () => ({
 }));
 jest.mock("@/components/visits/wrap-up-prompt", () => ({ WrapUpPrompt: () => null }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
+jest.mock("@/lib/judges-demo", () => ({ isJudgesDemo: () => mockJudgesDemo }));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({ visit: mockVisit }) }));
 jest.mock("@/lib/journal/visitless-saves", () => ({
   sharedMuseum: () => undefined,
@@ -112,6 +114,7 @@ beforeEach(() => {
   mockUnseen = 0;
   mockVisit = undefined;
   mockSaves = [];
+  mockJudgesDemo = false;
   mockSession = {
     scope: "scope-a",
     status: "ready",
@@ -287,6 +290,16 @@ it("keeps the guest header consistent across feeds, including after dismissing t
   expect(screen.queryByText("Add your friends.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.queryByText("Add your friends.")).toBeNull();
+});
+
+it("keeps the judges' demo on Global without friend sign-in prompts", async () => {
+  mockJudgesDemo = true;
+  mockSession = { ...mockSession, key: "guest", status: "signed-out", token: null, profileId: undefined };
+  await renderHome();
+  await deliver({ "sharedVisits:listPublic:first": page("Guest museum") });
+  expect(screen.getByText("Guest museum")).toBeOnTheScreen();
+  expect(screen.queryByText("Add your friends.")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
 });
 
 it("sends guests from the invitation to sign in for friends", async () => {

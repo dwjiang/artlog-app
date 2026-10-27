@@ -15,6 +15,7 @@ import { VisitlessSavesCard } from "@/components/visits/visitless-saves-card";
 import { WrapUpPrompt } from "@/components/visits/wrap-up-prompt";
 import { Spacing } from "@/constants/theme";
 import { signInRoute } from "@/lib/account/sign-in-context";
+import { isJudgesDemo } from "@/lib/judges-demo";
 import type { SharedVisit } from "@/lib/social/types";
 import { UnseenNotificationCount } from "@/lib/social/unseen-notifications";
 import { useBlock } from "@/lib/social/use-block";
@@ -158,7 +159,7 @@ export function HomeScreen() {
         ListHeaderComponentStyle={styles.header}
         ListHeaderComponent={
           <>
-            {guest && !dismissedPrompt && (
+            {guest && !dismissedPrompt && !isJudgesDemo() && (
               <View style={styles.invitation}>
                 <EmptyCard
                   title="Add your friends."
