@@ -2,7 +2,7 @@
   "name": "artlog-www",
   "version": "1.0.0",
   "private": true,
-  "license": "MPL-2.0",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",
