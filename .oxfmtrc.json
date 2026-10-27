@@ -9,6 +9,7 @@
     "convex/_generated/",
     "src/db/migrations/",
     "*.mlmodelc/",
-    "scripts/data/calibration/"
+    "scripts/data/calibration/",
+    "www/media/phone/"
   ]
 }

@@ -10,9 +10,12 @@ jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
 jest.mock("expo-router", () => ({ useSegments: () => mockSegments }));
+let mockJudgesDemo = false;
+jest.mock("@/lib/judges-demo", () => ({ isJudgesDemo: () => mockJudgesDemo }));
 
 beforeEach(async () => {
   mockSegments = tabs;
+  mockJudgesDemo = false;
   await removeSetting(WELCOME_SEEN_SETTING);
   await removeSetting("local-profile-name");
 });
@@ -40,4 +43,12 @@ it("does not hold someone who completed onboarding on an earlier launch, even wi
   await setSetting(WELCOME_SEEN_SETTING, "true");
   const { result } = await renderHook(() => useIntroduction());
   await waitFor(() => expect(result.current).toBe("over"));
+});
+
+it("starts the judges' demo build as a launch that has just finished the welcome", async () => {
+  mockJudgesDemo = true;
+  const { result } = await renderHook(() => useIntroduction());
+  expect(result.current).toBe("justEnded");
+  await act(async () => {});
+  expect(result.current).toBe("justEnded");
 });

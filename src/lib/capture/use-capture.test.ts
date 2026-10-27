@@ -216,6 +216,25 @@ it("imports a kept-size copy despite denied library access, without requesting p
   expect(mockVenueIdAt).not.toHaveBeenCalled();
 });
 
+it("imports from a given photo source instead of the photo library, and stays idle when it picks nothing", async () => {
+  const hook = await renderHook(useCapture);
+  await act(async () => {
+    await hook.result.current.importPhoto(async () => null);
+  });
+  expect(mockPipeline).not.toHaveBeenCalled();
+  expect(hook.result.current.state.phase).toBe("searching");
+
+  await act(async () => {
+    await hook.result.current.importPhoto(async () => ({ uri: "file:///cache/gallery-copy.jpg" }));
+  });
+  expect(mockPicker).not.toHaveBeenCalled();
+  expect(mockShrinkLibraryPhoto).toHaveBeenCalledWith("file:///cache/gallery-copy.jpg");
+  expect(mockPipeline.mock.calls[0][0]).toMatchObject({
+    photoUri: "file:///cache/gallery-copy.jpg",
+    source: "library",
+  });
+});
+
 it.each([undefined, null, {}])(
   "imports without EXIF metadata (%s) using the current time and no venue",
   async (exif) => {

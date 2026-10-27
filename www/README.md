@@ -1,0 +1,60 @@
+# Artlog in the browser
+
+A page where hackathon judges try the Artlog iPhone app without an iPhone. Pressing **Start** asks the page's server
+for a [Limrun](https://limrun.com) cloud iPhone with the app installed, copies `media/phone/` into the app, sets its
+location to The Met, and streams the phone into the page.
+
+The cloud iPhone has no camera the app can open and streams no sound. The demo build's Scan tab therefore plays
+`media/phone/viewfinder.mp4` where the camera preview would be: the phone stands back from a gallery wall until the
+judge taps a painting in the row above the shutter, then walks up to it while the app's rectangle detection and
+automatic capture run on the frames. **Photos** opens the demo's own picker with the gallery stills and the judge's
+uploads (**Upload a photo** under the phone), never the phone's sample photos. The audio guide is followed through its
+transcript.
+
+## Run it locally
+
+1. Set `LIM_API_KEY` in the repository's `.env.local`.
+2. Install and start:
+
+   ```sh
+   cd www
+   npm ci
+   npm run dev
+   ```
+
+`DEMO_APP_ASSET` names the app build in Limrun's asset storage (default `artlog/judges-demo.app.tar.gz`).
+`DEMO_ACCESS_CODE`, when set, makes the page ask for that code before starting a phone.
+
+## Limits
+
+A phone ends after 10 minutes without input or after 30 minutes. The server starts at most 5 phones at once (the
+Limrun account's limit) and 30 a day, and takes up to 10 uploads per phone: JPEG, PNG or HEIC, up to 10 MB each.
+
+## Re-render the gallery
+
+`scripts/render-viewfinder.py` renders `media/phone/` from the reproductions in `media/paintings/` (about 4 minutes):
+the viewfinder video, its segment list, painting thumbnails and gallery stills. Paintings, frames, labels and the
+camera path are set in the script; `--preview` renders single frames for checking a change.
+
+```sh
+uv run www/scripts/render-viewfinder.py
+```
+
+## Refresh the app build
+
+The phone runs a Release simulator build pointed at the production backend. `EXPO_PUBLIC_JUDGES_DEMO=1` makes it
+skip the welcome and use the viewfinder video and demo photo picker on Scan.
+
+```sh
+printf 'EXPO_PUBLIC_CONVEX_URL=https://admired-goldfinch-660.convex.cloud\nEXPO_PUBLIC_CONVEX_SITE_URL=https://admired-goldfinch-660.convex.site\nEXPO_PUBLIC_JUDGES_DEMO=1\n' > .env.production.local
+npx expo prebuild --platform ios
+cd ios
+SENTRY_DISABLE_AUTO_UPLOAD=true xcodebuild -workspace Artlog.xcworkspace -scheme Artlog -configuration Release \
+  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/demo \
+  ARCHS=arm64 CODE_SIGN_IDENTITY=- build
+tar -czf Artlog.app.tar.gz -C build/demo/Build/Products/Release-iphonesimulator Artlog.app
+LIM_API_KEY=<key from .env.local> npx --prefix ../www lim asset push Artlog.app.tar.gz -n artlog/judges-demo.app.tar.gz
+cd .. && rm .env.production.local
+```
+
+Keep `CODE_SIGN_IDENTITY=-`: an unsigned build has no keychain entitlement, so the app never finishes signing in.

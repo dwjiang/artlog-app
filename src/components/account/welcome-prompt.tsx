@@ -5,6 +5,7 @@ import { getSetting } from "@/db/repos/settings";
 import { useScreenActive } from "@/hooks/use-screen-active";
 import { WELCOME_SEEN_SETTING } from "@/lib/account/introduction";
 import { useLocalOwner } from "@/lib/account/owner-store";
+import { isJudgesDemo } from "@/lib/judges-demo";
 import { reportError } from "@/lib/observability";
 
 export function WelcomePrompt() {
@@ -13,7 +14,7 @@ export function WelcomePrompt() {
   const router = useRouter();
   const [checkedOwner, setCheckedOwner] = useState<string>();
   useEffect(() => {
-    if (!active || checkedOwner === owner) return;
+    if (!active || checkedOwner === owner || isJudgesDemo()) return;
     let cancelled = false;
     void (async () => {
       const seen = await getSetting(WELCOME_SEEN_SETTING);

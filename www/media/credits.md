@@ -1,0 +1,15 @@
+# Demo paintings
+
+`paintings/` holds the reproductions below. `scripts/render-viewfinder.py` hangs them in frames on a rendered gallery
+wall to make the viewfinder video and gallery stills in `phone/`, and crops its thumbnails from them.
+
+| File                                          | Work and source                                                                                                                                                                                                           | Rights        |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `roses-van-gogh.jpg`                          | Vincent van Gogh, _Roses_, 1890. [The Met, 436534](https://www.metmuseum.org/art/collection/search/436534).                                                                                                               | CC0           |
+| `wheat-field-with-cypresses-van-gogh.jpg`     | Vincent van Gogh, _Wheat Field with Cypresses_, 1889. [The Met, 436535](https://www.metmuseum.org/art/collection/search/436535).                                                                                          | CC0           |
+| `self-portrait-with-a-straw-hat-van-gogh.jpg` | Vincent van Gogh, _Self-Portrait with a Straw Hat_, 1887. [The Met, 436532](https://www.metmuseum.org/art/collection/search/436532).                                                                                      | CC0           |
+| `the-death-of-socrates-david.jpg`             | Jacques-Louis David, _The Death of Socrates_, 1787. [The Met, 436105](https://www.metmuseum.org/art/collection/search/436105).                                                                                            | CC0           |
+| `a-sunday-on-la-grande-jatte-seurat.jpg`      | Georges Seurat, _A Sunday on La Grande Jatte — 1884_, 1884–86. Art Institute of Chicago, [Wikimedia Commons reproduction](https://commons.wikimedia.org/wiki/File:A_Sunday_on_La_Grande_Jatte,_Georges_Seurat,_1884.jpg). | Public domain |
+| `the-bedroom-van-gogh.jpg`                    | Vincent van Gogh, _The Bedroom_, 1889. Art Institute of Chicago, [Google Art Project reproduction on Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Vincent_van_Gogh_-_The_Bedroom_-_Google_Art_Project.jpg). | Public domain |
+| `mona-lisa-leonardo.jpg`                      | Leonardo da Vinci, _Mona Lisa_, c. 1503–19. Louvre, [Wikimedia Commons reproduction](https://commons.wikimedia.org/wiki/File:Mona_Lisa,_by_Leonardo_da_Vinci,_from_C2RMF_natural_color.jpg).                              | Public domain |
+| `girl-with-a-pearl-earring-vermeer.jpg`       | Johannes Vermeer, _Girl with a Pearl Earring_, c. 1665. Mauritshuis, [Wikimedia Commons reproduction](https://commons.wikimedia.org/wiki/File:1665_Girl_with_a_Pearl_Earring.jpg).                                        | Public domain |

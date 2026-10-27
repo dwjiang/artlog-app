@@ -1,0 +1,80 @@
+{
+  "idle": {
+    "start": 0.0,
+    "end": 8.0
+  },
+  "paintings": [
+    {
+      "title": "Mona Lisa",
+      "artist": "Leonardo da Vinci",
+      "thumbnail": "thumbs/mona-lisa-leonardo.jpg",
+      "walk": {
+        "start": 8.0,
+        "end": 15.0
+      }
+    },
+    {
+      "title": "Roses",
+      "artist": "Vincent van Gogh",
+      "thumbnail": "thumbs/roses-van-gogh.jpg",
+      "walk": {
+        "start": 15.0,
+        "end": 22.0
+      }
+    },
+    {
+      "title": "Girl with a Pearl Earring",
+      "artist": "Johannes Vermeer",
+      "thumbnail": "thumbs/girl-with-a-pearl-earring-vermeer.jpg",
+      "walk": {
+        "start": 22.0,
+        "end": 29.0
+      }
+    },
+    {
+      "title": "A Sunday on La Grande Jatte — 1884",
+      "artist": "Georges Seurat",
+      "thumbnail": "thumbs/a-sunday-on-la-grande-jatte-seurat.jpg",
+      "walk": {
+        "start": 29.0,
+        "end": 36.0
+      }
+    },
+    {
+      "title": "Self-Portrait with a Straw Hat",
+      "artist": "Vincent van Gogh",
+      "thumbnail": "thumbs/self-portrait-with-a-straw-hat-van-gogh.jpg",
+      "walk": {
+        "start": 36.0,
+        "end": 43.0
+      }
+    },
+    {
+      "title": "The Death of Socrates",
+      "artist": "Jacques-Louis David",
+      "thumbnail": "thumbs/the-death-of-socrates-david.jpg",
+      "walk": {
+        "start": 43.0,
+        "end": 50.0
+      }
+    },
+    {
+      "title": "The Bedroom",
+      "artist": "Vincent van Gogh",
+      "thumbnail": "thumbs/the-bedroom-van-gogh.jpg",
+      "walk": {
+        "start": 50.0,
+        "end": 57.0
+      }
+    },
+    {
+      "title": "Wheat Field with Cypresses",
+      "artist": "Vincent van Gogh",
+      "thumbnail": "thumbs/wheat-field-with-cypresses-van-gogh.jpg",
+      "walk": {
+        "start": 57.0,
+        "end": 64.0
+      }
+    }
+  ]
+}

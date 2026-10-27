@@ -1,0 +1,188 @@
+/* Mirrors the app's Gallery tokens in src/constants/theme.ts. */
+@font-face {
+  font-family: "Space Grotesk";
+  font-weight: 600;
+  src: url("../../assets/fonts/space-grotesk-semibold.ttf") format("truetype");
+}
+
+:root {
+  --ink: #1b2531;
+  --muted: #66717c;
+  --paper: #ffffff;
+  --grouped: #f0f3f7;
+  --accent: #254fd4;
+  --accent-pressed: #1f42b3;
+  --separator: #dce1e8;
+  color: var(--ink);
+  background: var(--grouped);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+body {
+  margin: 0;
+}
+
+.page {
+  display: grid;
+  grid-template-columns: minmax(280px, 440px) minmax(320px, 520px);
+  gap: 48px;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 32px 20px;
+  box-sizing: border-box;
+}
+
+.wordmark,
+h1 {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 600;
+  margin: 0;
+}
+
+.wordmark {
+  font-size: 22px;
+}
+
+h1 {
+  font-size: 34px;
+  line-height: 1.15;
+  margin-top: 8px;
+}
+
+.lede {
+  margin: 16px 0 24px;
+}
+
+.steps {
+  margin: 0 0 24px;
+  padding-left: 22px;
+}
+
+.steps li + li {
+  margin-top: 8px;
+}
+
+.steps em {
+  font-style: normal;
+  font-weight: 600;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+a {
+  color: var(--accent);
+}
+
+.device {
+  display: flex;
+  justify-content: center;
+}
+
+.stream {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  height: min(88vh, 900px);
+}
+
+.stream > :first-child {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.upload-status {
+  min-height: 1.4em;
+  margin: 0;
+  max-width: 360px;
+  font-size: 15px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.launch {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  width: 100%;
+  max-width: 360px;
+  padding: 32px 24px;
+  border-radius: 28px;
+  background: var(--paper);
+  box-shadow: 0 1px 3px rgb(27 37 49 / 8%);
+}
+
+.status {
+  margin: 0;
+  text-align: center;
+}
+
+.code {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+input {
+  font: inherit;
+  padding: 12px 14px;
+  border: 1px solid #8793a2;
+  border-radius: 12px;
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
+  border-color: var(--accent);
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  min-height: 50px;
+  border: 0;
+  border-radius: 25px;
+  color: var(--paper);
+  background: var(--accent);
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--accent-pressed);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button.secondary {
+  min-height: 44px;
+  padding: 0 24px;
+  color: var(--accent);
+  background: var(--paper);
+  border: 1px solid var(--separator);
+}
+
+@media (max-width: 860px) {
+  .page {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}

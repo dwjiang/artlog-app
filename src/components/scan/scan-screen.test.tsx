@@ -4,6 +4,7 @@ import { AccessibilityInfo, AppState, DeviceEventEmitter, Linking, type AppState
 
 import { Spacing } from "@/constants/theme";
 import type { CaptureFeedback, CaptureState } from "@/lib/capture/capture-controller";
+import type { DemoVideo } from "@/lib/capture/demo-viewfinder";
 import type { CaptureTimings, Quad } from "@/lib/capture/stages";
 import { reportError } from "@/lib/observability";
 import { useToastLift } from "@/lib/ui/toast";
@@ -62,6 +63,20 @@ let mockVisitUnavailable: (() => void) | undefined;
 const mockFrameOutput = { kind: "frame-output" };
 const mockDetectorActive: boolean[] = [];
 const mockResetDetection = jest.fn();
+let mockDemoVideo: DemoVideo | null | undefined;
+type DemoCameraProps = {
+  source: string;
+  active: boolean;
+  onReady: () => void;
+  onDetection: (event: { nativeEvent: unknown }) => void;
+  onError: (event: { nativeEvent: { message: string } }) => void;
+};
+const mockDemoCameraRender = jest.fn<void, [DemoCameraProps]>();
+const demoCameraProps = () => mockDemoCameraRender.mock.lastCall![0];
+const mockDemoTakePhoto = jest.fn();
+const mockDemoPlay = jest.fn();
+const mockCopyForImport = jest.fn();
+const mockCameraRender = jest.fn();
 
 jest.mock("@shopify/react-native-skia", () => {
   const { View } = jest.requireActual("react-native");
@@ -148,6 +163,7 @@ jest.mock("react-native-vision-camera", () => ({
     }),
   },
   Camera: (props: typeof mockCameraProps): ReactNode => {
+    mockCameraRender();
     mockCameraProps = props;
     return null;
   },
@@ -190,6 +206,22 @@ jest.mock("@/lib/capture/use-rect-detector", () => ({
     return mockFrameOutput;
   },
 }));
+jest.mock("@/lib/judges-demo", () => ({ isJudgesDemo: () => mockDemoVideo !== undefined }));
+jest.mock("@/lib/capture/demo-viewfinder", () => ({ findDemoVideo: () => mockDemoVideo ?? undefined }));
+jest.mock("@/lib/capture/demo-photos", () => ({
+  listDemoPhotos: () => ({ gallery: ["file:///documents/judges-demo/photos/roses.jpg"], uploads: [] }),
+  copyForImport: (uri: string) => mockCopyForImport(uri),
+}));
+jest.mock("../../../modules/demo-camera/src", () => {
+  const { useImperativeHandle } = jest.requireActual("react");
+  return {
+    DemoCamera: ({ ref, ...props }: DemoCameraProps & { ref: unknown }) => {
+      mockDemoCameraRender(props);
+      useImperativeHandle(ref, () => ({ takePhoto: mockDemoTakePhoto, play: mockDemoPlay }));
+      return null;
+    },
+  };
+});
 jest.mock("./capture-reveal", () => ({
   CaptureReveal: () => {
     const { View } = jest.requireActual("react-native");
@@ -234,6 +266,7 @@ beforeEach(() => {
     move: jest.fn(),
   };
   mockDetectorActive.length = 0;
+  mockDemoVideo = undefined;
   AppState.currentState = "active";
   jest.spyOn(AppState, "addEventListener").mockImplementation((_event, listener) => {
     appStateListener = listener;
@@ -481,6 +514,119 @@ it("keeps the shutter as a manual fallback once the camera is ready", async () =
   expect(mockCapture).toHaveBeenCalledWith(expect.any(Function));
   expect(mockPhoto).toHaveBeenCalledTimes(1);
   expect(mockPhoto).toHaveBeenCalledWith({}, {});
+});
+
+describe("demo build", () => {
+  const video: DemoVideo = {
+    uri: "file:///documents/judges-demo/viewfinder.mp4",
+    idle: { start: 0, end: 8 },
+    paintings: [
+      { title: "Mona Lisa", artist: "Leonardo da Vinci", thumbnail: "file:///t/mona.jpg", walk: { start: 8, end: 15 } },
+      { title: "Roses", artist: "Vincent van Gogh", thumbnail: "file:///t/roses.jpg", walk: { start: 15, end: 22 } },
+    ],
+  };
+  const detection = { width: 1080, height: 1440, observations: [] };
+  const attempt = { source: "camera", quad: null, valid: true };
+
+  beforeEach(() => {
+    mockDemoVideo = video;
+    mockDemoTakePhoto.mockResolvedValue("/tmp/frame.jpg");
+    mockDemoPlay.mockResolvedValue(undefined);
+    mockCopyForImport.mockResolvedValue({ uri: "file:///cache/copy.jpg" });
+  });
+
+  it("stands back from the wall until a painting is tapped, then walks up and scans it automatically", async () => {
+    await render(<ScanScreen />);
+    expect(mockCameraRender).not.toHaveBeenCalled();
+    expect(demoCameraProps()).toMatchObject({ source: video.uri, active: true });
+    await act(() => demoCameraProps().onReady());
+    expect(mockDemoPlay).toHaveBeenLastCalledWith(0, 8, true);
+
+    // Standing back, the wall's paintings are too far away to scan.
+    await act(() => demoCameraProps().onDetection({ nativeEvent: detection }));
+    expect(mockObserve).not.toHaveBeenCalled();
+
+    const roses = screen.getByRole("button", { name: "Roses" });
+    await fireEvent.press(roses);
+    expect(mockDemoPlay).toHaveBeenLastCalledWith(15, 22, false);
+    expect(roses).toBeSelected();
+
+    mockObserve.mockReturnValue(attempt);
+    await act(() => demoCameraProps().onDetection({ nativeEvent: detection }));
+    expect(mockObserve.mock.calls[0][0]).toEqual(detection);
+    expect(mockCaptureAutomatically).toHaveBeenCalledWith(attempt, expect.any(Function));
+    await expect(mockCaptureAutomatically.mock.results[0].value).resolves.toEqual({
+      filePath: "/tmp/frame.jpg",
+      turns: 0,
+    });
+    expect(mockPhoto).not.toHaveBeenCalled();
+  });
+
+  it("takes the frame on screen with the shutter", async () => {
+    await render(<ScanScreen />);
+    await act(() => demoCameraProps().onReady());
+    await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
+    expect(mockDemoTakePhoto).toHaveBeenCalledTimes(1);
+    expect(mockPhoto).not.toHaveBeenCalled();
+  });
+
+  it("steps back from the painting once its scan finishes", async () => {
+    const view = await render(<ScanScreen />);
+    await act(() => demoCameraProps().onReady());
+    await fireEvent.press(screen.getByRole("button", { name: "Mona Lisa" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
+
+    mockState = { phase: "processing", occupied: true, source: "camera" };
+    await view.rerender(<ScanScreen />);
+    expect(demoCameraProps().active).toBe(false);
+    expect(screen.getByRole("button", { name: "Mona Lisa" })).toBeDisabled();
+
+    mockState = { phase: "searching", occupied: false };
+    await view.rerender(<ScanScreen />);
+    expect(demoCameraProps().active).toBe(true);
+    expect(mockDemoPlay).toHaveBeenLastCalledWith(0, 8, true);
+    expect(screen.getByRole("button", { name: "Mona Lisa" })).not.toBeSelected();
+  });
+
+  it("imports from the demo's own photos instead of the phone's library", async () => {
+    await render(<ScanScreen />);
+    await fireEvent.press(screen.getByRole("button", { name: "Import" }));
+    const [pick] = mockImport.mock.lastCall as [() => Promise<unknown>];
+    let picked: Promise<unknown> | undefined;
+    await act(async () => {
+      picked = pick();
+    });
+    await fireEvent.press(screen.getByRole("button", { name: "Gallery photo 1" }));
+    await expect(picked).resolves.toEqual({ uri: "file:///cache/copy.jpg" });
+    expect(mockCopyForImport).toHaveBeenCalledWith("file:///documents/judges-demo/photos/roses.jpg");
+  });
+
+  it("leaves the museum to the venue pill instead of opening the chooser", async () => {
+    mockVenueView = { ...mockVenueView, status: "choose", options: [mockVenueView.venue!] };
+    await render(<ScanScreen />);
+    expect(mockVenueView.promptChooser).not.toHaveBeenCalled();
+  });
+
+  it("points to import when the sample video is missing or cannot play", async () => {
+    mockDemoVideo = null;
+    const view = await render(<ScanScreen />);
+    expect(screen.getByText("No sample video is loaded. You can import a photo.")).toBeOnTheScreen();
+    expect(screen.getByRole("button", { name: "Scan artwork" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Import" })).toBeEnabled();
+
+    mockDemoVideo = video;
+    await view.unmount();
+    await render(<ScanScreen />);
+    await act(() => demoCameraProps().onError({ nativeEvent: { message: "Cannot decode" } }));
+    expect(screen.getByText("Could not play the sample video. You can import a photo.")).toBeOnTheScreen();
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), "camera.start", expect.anything());
+  });
+});
+
+it("imports from the phone's photo library outside the demo build", async () => {
+  await render(<ScanScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Import" }));
+  expect(mockImport).toHaveBeenLastCalledWith(undefined);
 });
 
 it("pauses and resumes the camera, detector, and orientation updates with screen and app activity", async () => {

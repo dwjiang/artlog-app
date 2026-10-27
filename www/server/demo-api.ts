@@ -1,0 +1,94 @@
+import { type IncomingMessage, type ServerResponse } from "node:http";
+
+import { DemoError, type DemoSessions } from "./demo-sessions.ts";
+
+const PRIVATE_IP = /^(::1|::ffff:127\.|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+
+function send(res: ServerResponse, status: number, body?: unknown) {
+  res.statusCode = status;
+  if (body === undefined) return void res.end();
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Cache-Control", "no-store");
+  res.end(JSON.stringify(body));
+}
+
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+async function readBytes(req: IncomingMessage, limit: number): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > limit) throw new DemoError(413, "too_large", `Photos can be up to ${limit / 1024 / 1024} MB.`);
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks);
+}
+
+async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+  let text = "";
+  for await (const chunk of req) {
+    text += chunk;
+    if (text.length > 10_000) throw new DemoError(413, "too_large", "Request too large.");
+  }
+  if (!text) return {};
+  const parsed: unknown = JSON.parse(text);
+  return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+}
+
+// A public client IP places the phone in the region nearest the visitor.
+function clientIp(req: IncomingMessage): string | undefined {
+  const forwarded = req.headers["x-forwarded-for"];
+  const first = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim();
+  const ip = first || req.socket.remoteAddress;
+  return ip && !PRIVATE_IP.test(ip) ? ip : undefined;
+}
+
+/** Connect-style middleware for `/api/*`, shared by `vite dev` and `vite preview`. */
+export function createDemoApi(sessions: DemoSessions) {
+  return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    const path = req.url?.split("?")[0] ?? "";
+    try {
+      if (req.method === "GET" && path === "/api/config") {
+        return send(res, 200, { codeRequired: sessions.codeRequired });
+      }
+      if (req.method === "POST" && path === "/api/sessions") {
+        const { code } = await readJson(req);
+        const session = await sessions.start({
+          code: typeof code === "string" ? code : undefined,
+          clientIp: clientIp(req),
+        });
+        const discard = () =>
+          sessions.stop(session.id).catch((error: unknown) => {
+            console.error("demo abandoned session cleanup failed", error);
+          });
+        if (res.destroyed) {
+          await discard();
+          return;
+        }
+        res.once("close", () => {
+          if (!res.writableFinished) void discard();
+        });
+        return send(res, 200, session);
+      }
+      const stop = /^\/api\/sessions\/([\w-]+)\/stop$/.exec(path);
+      if (req.method === "POST" && stop?.[1]) {
+        await sessions.stop(stop[1]);
+        return send(res, 204);
+      }
+      const photos = /^\/api\/sessions\/([\w-]+)\/photos$/.exec(path);
+      if (req.method === "POST" && photos?.[1]) {
+        await sessions.upload(photos[1], await readBytes(req, MAX_UPLOAD_BYTES));
+        return send(res, 204);
+      }
+      next();
+    } catch (error) {
+      if (error instanceof DemoError) return send(res, error.status, { code: error.code, message: error.message });
+      console.error("demo api failed", req.method, path, error);
+      const message = path.endsWith("/photos")
+        ? "The photo could not reach your iPhone. Try again."
+        : "The demo phone could not start. Try again in a minute.";
+      send(res, 500, { code: "failed", message });
+    }
+  };
+}

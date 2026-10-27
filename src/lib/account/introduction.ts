@@ -2,6 +2,7 @@ import { useSegments } from "expo-router";
 import { useEffect, useState } from "react";
 
 import { getSetting } from "@/db/repos/settings";
+import { isJudgesDemo } from "@/lib/judges-demo";
 import { reportError } from "@/lib/observability";
 
 export const WELCOME_SEEN_SETTING = "welcome-seen";
@@ -14,7 +15,8 @@ type Introduction = "checking" | "due" | "open" | "justEnded" | "over";
  * it hands off to counts, and `justEnded` for the rest of that launch.
  */
 export function useIntroduction(): "pending" | "justEnded" | "over" {
-  const [introduction, setIntroduction] = useState<Introduction>("checking");
+  // The judges' demo build skips the welcome and starts as a launch that has just finished it.
+  const [introduction, setIntroduction] = useState<Introduction>(() => (isJudgesDemo() ? "justEnded" : "checking"));
   const top = useSegments()[0];
   if (introduction === "due" && top === "welcome") setIntroduction("open");
   if (introduction === "open" && top === "(tabs)") setIntroduction("justEnded");
