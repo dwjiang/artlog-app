@@ -1,6 +1,8 @@
 import { RemoteControl } from "@limrun/ui";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
+import { PaintingPicker } from "./painting-picker.tsx";
+
 const APP_STORE_URL = "https://apps.apple.com/app/id6815466893";
 
 type Session = { id: string; endpointWebSocketUrl: string; streamToken: string };
@@ -94,8 +96,8 @@ export function DemoPage() {
         </p>
         <ol className="steps">
           <li>
-            <strong>Scan.</strong> Open the <em>Scan</em> tab and tap a painting in the row above the shutter. The phone
-            walks up to it, and the app outlines and scans it on its own.
+            <strong>Scan.</strong> Open the <em>Scan</em> tab and pick a painting under the iPhone. The camera walks up
+            to it, and the app outlines and scans it on its own.
           </li>
           <li>
             <strong>Or scan a photo.</strong> Tap <em>Photos</em> for a gallery photo, or add your own with{" "}
@@ -127,6 +129,7 @@ export function DemoPage() {
               autoReconnect
               onTerminated={() => setPhase({ kind: "ended" })}
             />
+            <PaintingPicker sessionId={phase.session.id} />
             <div className="actions">
               <button
                 type="button"

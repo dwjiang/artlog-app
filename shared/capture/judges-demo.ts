@@ -4,8 +4,10 @@ export const JUDGES_DEMO_FOLDER = "judges-demo";
 export const JUDGES_DEMO_FILES = {
   /** The viewfinder video: an idle loop, then one walk up to each painting. */
   video: "viewfinder.mp4",
-  /** Where each segment of the video starts and ends, and each painting's title and thumbnail. */
+  /** Where each segment of the video starts and ends, and each painting's title and thumbnail for the demo page. */
   manifest: "viewfinder.json",
+  /** The painting the demo page last asked the viewfinder to walk up to. The app deletes it once it walks there. */
+  walk: "walk.json",
   /** Gallery stills offered for import. */
   photos: "photos",
   /** Photos judges upload from the demo page. */

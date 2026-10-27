@@ -81,13 +81,21 @@ export function createDemoApi(sessions: DemoSessions) {
         await sessions.upload(photos[1], await readBytes(req, MAX_UPLOAD_BYTES));
         return send(res, 204);
       }
+      const walk = /^\/api\/sessions\/([\w-]+)\/walk$/.exec(path);
+      if (req.method === "POST" && walk?.[1]) {
+        const { painting } = await readJson(req);
+        await sessions.walk(walk[1], typeof painting === "number" ? painting : Number.NaN);
+        return send(res, 204);
+      }
       next();
     } catch (error) {
       if (error instanceof DemoError) return send(res, error.status, { code: error.code, message: error.message });
       console.error("demo api failed", req.method, path, error);
       const message = path.endsWith("/photos")
         ? "The photo could not reach your iPhone. Try again."
-        : "The demo phone could not start. Try again in a minute.";
+        : path.endsWith("/walk")
+          ? "Your iPhone could not be reached. Try again."
+          : "The demo phone could not start. Try again in a minute.";
       send(res, 500, { code: "failed", message });
     }
   };

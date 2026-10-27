@@ -302,9 +302,11 @@ def periodic_noise(t, period, rng_seed, bands):
 
 IDLE_S = 8.0
 WALK_S = 7.0
-WHIP_S = 0.5
+SWING_S = 1.2
+SWING_DEG = 14
 APPROACH_S = 2.6
-STEADY = [(0.2, 1.1, 1.0, 4), (5.0, 9.0, 0.12, 3)]
+# Slow hand sway only: a phone's stabilized preview shows no tremor.
+STEADY = [(0.2, 1.1, 1.0, 4)]
 
 
 @dataclass(frozen=True)
@@ -343,7 +345,7 @@ class Timeline:
         x = (elements[4].x0 + elements[6].x1) / 2
         position = np.array([x + 0.02 * n(4, sway), EYE - 0.08 + 0.01 * n(5, STEADY), -6.6])
         target = np.array([x, 1.35, 0.0])
-        yaw = math.radians(0.5 * n(1, sway) + 0.06 * n(7, [(5.0, 9.0, 1.0, 3)]))
+        yaw = math.radians(0.5 * n(1, sway))
         pitch = math.radians(0.35 * n(2, sway))
         roll = math.radians(0.8 + 0.5 * n(3, sway))
         return position, target, yaw, pitch, roll
@@ -355,16 +357,17 @@ class Timeline:
         anchor, target = self.gallery.anchor_pose(index)
         distance = self.gallery.anchors[index][2]
         start = anchor + np.array([-0.45 * distance, -0.05, -0.55 * distance])
-        moved = 1 - (1 - min(local / APPROACH_S, 1)) ** 3
-        position = start + (anchor - start) * moved
-        walking = 1 - moved
+        u = min(local / APPROACH_S, 1)
+        position = start + (anchor - start) * smootherstep(u)
+        # Steps rock the phone in proportion to walking speed, so the walk eases in and out of the sway.
+        walking = 16 * u * u * (1 - u) ** 2
         # The phone swings in from the left, then the walk settles it on the painting.
-        swing = -math.radians(28) * (1 - smootherstep(local / WHIP_S))
-        yaw = swing + math.radians(0.28 * n(1, STEADY) + 1.0 * walking * n(11, [(0.6, 1.4, 1.0, 2)]))
-        pitch = math.radians(0.24 * n(2, STEADY) + 0.8 * walking * n(12, [(1.6, 2.2, 1.0, 1)]))
-        roll = math.radians(0.9 + 0.5 * n(3, [(0.1, 0.6, 1.0, 3)]) + 1.5 * walking * n(13, [(0.8, 1.2, 1.0, 1)]))
-        bob = 0.02 * walking * n(14, [(1.7, 2.1, 1.0, 1)])
-        position = position + np.array([0.004 * n(4, STEADY), 0.004 * n(5, STEADY) + bob, 0.006 * n(6, STEADY)])
+        swing = -math.radians(SWING_DEG) * (1 - smootherstep(local / SWING_S))
+        yaw = swing + math.radians(0.2 * n(1, STEADY) + 0.4 * walking * n(11, [(0.6, 1.4, 1.0, 2)]))
+        pitch = math.radians(0.16 * n(2, STEADY) + 0.2 * walking * n(12, [(1.6, 2.2, 1.0, 1)]))
+        roll = math.radians(0.9 + 0.3 * n(3, [(0.1, 0.6, 1.0, 3)]) + 0.4 * walking * n(13, [(0.8, 1.2, 1.0, 1)]))
+        bob = 0.004 * walking * n(14, [(1.7, 2.1, 1.0, 1)])
+        position = position + np.array([0.003 * n(4, STEADY), 0.003 * n(5, STEADY) + bob, 0.004 * n(6, STEADY)])
         return position, target, yaw, pitch, roll
 
 

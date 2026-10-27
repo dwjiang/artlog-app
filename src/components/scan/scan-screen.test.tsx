@@ -10,6 +10,7 @@ import { reportError } from "@/lib/observability";
 import { useToastLift } from "@/lib/ui/toast";
 import type { VenueView } from "@/lib/venue/use-venue";
 
+import { WALK_REQUEST_POLL_MS } from "./demo-viewfinder";
 import { ScanScreen } from "./scan-screen";
 
 jest.mock("@/lib/audio/use-listening");
@@ -66,6 +67,7 @@ const mockDetectorActive: boolean[] = [];
 let mockDetectorOrientation: string | undefined;
 const mockResetDetection = jest.fn();
 let mockDemoVideo: DemoVideo | null | undefined;
+const mockTakeWalkRequest = jest.fn<number | undefined, [number]>();
 type DemoCameraProps = {
   source: string;
   active: boolean;
@@ -211,7 +213,10 @@ jest.mock("@/lib/capture/use-rect-detector", () => ({
   },
 }));
 jest.mock("@/lib/judges-demo", () => ({ isJudgesDemo: () => mockDemoVideo !== undefined }));
-jest.mock("@/lib/capture/demo-viewfinder", () => ({ findDemoVideo: () => mockDemoVideo ?? undefined }));
+jest.mock("@/lib/capture/demo-viewfinder", () => ({
+  findDemoVideo: () => mockDemoVideo ?? undefined,
+  takeWalkRequest: (walks: number) => mockTakeWalkRequest(walks),
+}));
 jest.mock("@/lib/capture/demo-photos", () => ({
   listDemoPhotos: () => ({ gallery: ["file:///documents/judges-demo/photos/roses.jpg"], uploads: [] }),
   copyForImport: (uri: string) => mockCopyForImport(uri),
@@ -532,22 +537,30 @@ describe("demo build", () => {
   const video: DemoVideo = {
     uri: "file:///documents/judges-demo/viewfinder.mp4",
     idle: { start: 0, end: 8 },
-    paintings: [
-      { title: "Mona Lisa", artist: "Leonardo da Vinci", thumbnail: "file:///t/mona.jpg", walk: { start: 8, end: 15 } },
-      { title: "Roses", artist: "Vincent van Gogh", thumbnail: "file:///t/roses.jpg", walk: { start: 15, end: 22 } },
+    walks: [
+      { start: 8, end: 15 },
+      { start: 15, end: 22 },
     ],
   };
   const detection = { width: 1080, height: 1440, observations: [] };
   const attempt = { source: "camera", quad: null, valid: true };
+  // A painting picked on the demo page reaches the phone as a request the viewfinder checks for.
+  const pickOnPage = async (painting: number) => {
+    mockTakeWalkRequest.mockReturnValueOnce(painting);
+    await act(() => jest.advanceTimersByTime(WALK_REQUEST_POLL_MS));
+  };
 
   beforeEach(() => {
+    jest.useFakeTimers();
+    mockTakeWalkRequest.mockReset();
     mockDemoVideo = video;
     mockDemoTakePhoto.mockResolvedValue("/tmp/frame.jpg");
     mockDemoPlay.mockResolvedValue(undefined);
     mockCopyForImport.mockResolvedValue({ uri: "file:///cache/copy.jpg" });
   });
+  afterEach(() => jest.useRealTimers());
 
-  it("stands back from the wall until a painting is tapped, then walks up and scans it automatically", async () => {
+  it("stands back from the wall until the demo page picks a painting, then walks up and scans it automatically", async () => {
     await render(<ScanScreen />);
     expect(mockCameraRender).not.toHaveBeenCalled();
     expect(demoCameraProps()).toMatchObject({ source: video.uri, active: true });
@@ -558,10 +571,9 @@ describe("demo build", () => {
     await act(() => demoCameraProps().onDetection({ nativeEvent: detection }));
     expect(mockObserve).not.toHaveBeenCalled();
 
-    const roses = screen.getByRole("button", { name: "Roses" });
-    await fireEvent.press(roses);
+    await pickOnPage(1);
+    expect(mockTakeWalkRequest).toHaveBeenLastCalledWith(2);
     expect(mockDemoPlay).toHaveBeenLastCalledWith(15, 22, false);
-    expect(roses).toBeSelected();
 
     mockObserve.mockReturnValue(attempt);
     await act(() => demoCameraProps().onDetection({ nativeEvent: detection }));
@@ -582,22 +594,25 @@ describe("demo build", () => {
     expect(mockPhoto).not.toHaveBeenCalled();
   });
 
-  it("steps back from the painting once its scan finishes", async () => {
+  it("steps back once its scan finishes, then walks up to a painting picked during the scan", async () => {
     const view = await render(<ScanScreen />);
     await act(() => demoCameraProps().onReady());
-    await fireEvent.press(screen.getByRole("button", { name: "Mona Lisa" }));
+    await pickOnPage(0);
+    expect(mockDemoPlay).toHaveBeenLastCalledWith(8, 15, false);
     await fireEvent.press(screen.getByRole("button", { name: "Scan artwork" }));
 
     mockState = { phase: "processing", occupied: true, source: "camera" };
     await view.rerender(<ScanScreen />);
     expect(demoCameraProps().active).toBe(false);
-    expect(screen.getByRole("button", { name: "Mona Lisa" })).toBeDisabled();
+    await pickOnPage(1);
+    expect(mockDemoPlay).toHaveBeenLastCalledWith(8, 15, false);
 
     mockState = { phase: "searching", occupied: false };
     await view.rerender(<ScanScreen />);
     expect(demoCameraProps().active).toBe(true);
     expect(mockDemoPlay).toHaveBeenLastCalledWith(0, 8, true);
-    expect(screen.getByRole("button", { name: "Mona Lisa" })).not.toBeSelected();
+    await act(() => jest.advanceTimersByTime(WALK_REQUEST_POLL_MS));
+    expect(mockDemoPlay).toHaveBeenLastCalledWith(15, 22, false);
   });
 
   it("imports from the demo's own photos instead of the phone's library", async () => {
