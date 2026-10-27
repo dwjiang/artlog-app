@@ -7,6 +7,9 @@ export type VideoSegment = { start: number; end: number };
 /** `walks` holds one segment per painting, in the order the demo page lists them. */
 export type DemoVideo = { uri: string; idle: VideoSegment; walks: VideoSegment[] };
 
+/** How often the app checks for a painting picked on the demo page. */
+export const WALK_REQUEST_POLL_MS = 250;
+
 const folder = () => new Directory(Paths.document, JUDGES_DEMO_FOLDER);
 
 /** The gallery video the judges' demo host copied in, or undefined before it has or when its manifest is unusable. */
@@ -38,6 +41,12 @@ function segment(value: unknown): VideoSegment | undefined {
   const { start, end } = (value ?? {}) as { start?: unknown; end?: unknown };
   if (typeof start !== "number" || typeof end !== "number" || !(start >= 0 && end > start)) return undefined;
   return { start, end };
+}
+
+/** When the demo page wrote the walk request still waiting to be taken, in epoch milliseconds, or undefined. */
+export function walkRequestTime(): number | undefined {
+  const file = new File(folder(), JUDGES_DEMO_FILES.walk);
+  return file.exists ? (file.modificationTime ?? undefined) : undefined;
 }
 
 /**

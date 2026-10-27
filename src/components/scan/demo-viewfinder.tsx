@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { StyleSheet } from "react-native";
 
-import { takeWalkRequest, type DemoVideo } from "@/lib/capture/demo-viewfinder";
+import { takeWalkRequest, WALK_REQUEST_POLL_MS, type DemoVideo } from "@/lib/capture/demo-viewfinder";
 import { DETECTION_STRIDE } from "@/lib/capture/use-rect-detector";
 import type { UprightPhoto } from "@/lib/capture/use-upright-photo";
 
@@ -9,9 +9,6 @@ import { DemoCamera, type DemoCameraHandle } from "../../../modules/demo-camera/
 import type { RectDetection } from "../../../modules/vision-rect/src";
 
 export type DemoViewfinderHandle = { takePhoto(): Promise<UprightPhoto> };
-
-/** How often the viewfinder checks for a painting picked on the demo page. */
-export const WALK_REQUEST_POLL_MS = 250;
 
 type Props = {
   video: DemoVideo;

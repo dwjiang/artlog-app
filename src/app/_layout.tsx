@@ -14,6 +14,7 @@ import { AppUpdateGate } from "@/components/app-update-gate";
 import { DockedPlayerLayout } from "@/components/audio/docked-player";
 import { RemovalToast } from "@/components/collection/removal-toast";
 import { DatabaseGate } from "@/components/database-gate";
+import { DemoWalkResponder } from "@/components/scan/demo-walk-responder";
 import { ToastLayer } from "@/components/toast";
 import { TabTitles } from "@/constants/tabs";
 import { Gallery, LargeTitleHeader, NavigationTheme, ScrollTitleHeader, TransparentHeader } from "@/constants/theme";
@@ -25,6 +26,7 @@ import { DeviceIdentity } from "@/lib/device-identity";
 import { PhotoMaintenance } from "@/lib/files/photo-maintenance-lifecycle";
 import { limitImageCache } from "@/lib/image-cache";
 import { installationStorage } from "@/lib/installation-storage";
+import { isJudgesDemo } from "@/lib/judges-demo";
 import { MuseumDownloadLifecycle } from "@/lib/museum-downloads/use-museum-downloads";
 import { ExhibitionReminderSync } from "@/lib/notifications/exhibition-reminder-sync";
 import { NotificationResponder } from "@/lib/notifications/notification-responder";
@@ -316,6 +318,7 @@ function AppContent() {
                 />
               </Stack>
               <NotificationResponder />
+              {isJudgesDemo() && <DemoWalkResponder />}
             </ListeningProvider>
             <ToastLayer>
               <RemovalToast />
