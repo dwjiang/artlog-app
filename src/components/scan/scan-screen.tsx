@@ -62,6 +62,7 @@ export function ScanScreen() {
   const [cameraError, setCameraError] = useState<string>();
   // The judges' demo build has no camera the app can open, so a gallery video stands in for it; null until loaded.
   const [demoVideo] = useState(() => (isJudgesDemo() ? (findDemoVideo() ?? null) : undefined));
+  const [demoTargeted, setDemoTargeted] = useState(false);
   const demoViewfinder = useRef<DemoViewfinderHandle>(null);
   const demoPhotos = useRef<DemoPhotoSheetHandle>(null);
   const [preview, setPreview] = useState({ width: 0, height: 0 });
@@ -132,7 +133,7 @@ export function ScanScreen() {
     : rearm === "shutter"
       ? "Reframe the artwork and tap the shutter."
       : "Move the camera to reframe, then hold steady.";
-  const shutterDisabled = busy || !active || !cameraReady;
+  const shutterDisabled = busy || !active || !cameraReady || (!!demoVideo && !demoTargeted);
   const viewfinderError = demoVideo === null ? "No sample video is loaded. You can import a photo." : cameraError;
   const { endResultTransition } = capture;
   // The demo's photo picker offers its gallery stills and the judge's uploads instead of the phone's library.
@@ -234,6 +235,7 @@ export function ScanScreen() {
               video={demoVideo}
               active={cameraActive}
               searching={active && searching}
+              onTargetChange={setDemoTargeted}
               onReady={() => {
                 setCameraReady(true);
                 setCameraError(undefined);

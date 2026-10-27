@@ -379,11 +379,15 @@ export function selectCaptureQuad(previewQuad: Quad | null, still: StillDetectio
   );
 }
 
-/** The part of the still the cover-fitted `view` showed, or the whole photo without one. */
+/**
+ * The part of the still the cover-fitted `view` showed, or the whole photo without one. Only the cropped axis is
+ * computed, because rounding on the fitted one can land a hair below 0, which the server rejects as a bad crop.
+ */
 export function visibleFrame(still: FrameSize, view?: FrameSize): Quad {
-  const scale = view?.width && view.height ? Math.max(view.width / still.width, view.height / still.height) : 0;
-  const x = scale ? (1 - view!.width / (still.width * scale)) / 2 : 0;
-  const y = scale ? (1 - view!.height / (still.height * scale)) / 2 : 0;
+  const viewAspect = view?.width && view.height ? view.width / view.height : still.width / still.height;
+  const stillAspect = still.width / still.height;
+  const x = viewAspect < stillAspect ? (1 - viewAspect / stillAspect) / 2 : 0;
+  const y = viewAspect > stillAspect ? (1 - stillAspect / viewAspect) / 2 : 0;
   return [
     [x, y],
     [1 - x, y],

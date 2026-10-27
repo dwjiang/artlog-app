@@ -10,8 +10,10 @@ import { getVisit } from "@/db/repos/visits";
 import { captureOwner, subscribeOwnerChange } from "@/lib/account/owner-store";
 import { removeCameraTempFile } from "@/lib/files/camera-temp";
 import { shrinkLibraryPhoto } from "@/lib/files/kept-photos";
+import { errorMessage, isBackendError } from "@/lib/network-error";
 import { isOffline } from "@/lib/network-state";
 import { reportError, addBreadcrumb } from "@/lib/observability";
+import { failureCopy } from "@/lib/result/failure-copy";
 import { toResultViewState } from "@/lib/result/state";
 import { playErrorHaptic, playLightHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { resolveVenueForScan } from "@/lib/venue/use-venue";
@@ -277,7 +279,11 @@ export function useCapture({
         playErrorHaptic();
         controller.fail(
           attempt,
-          error instanceof Error ? error.message : "Could not capture the painting. Reframe and try again.",
+          isBackendError(error)
+            ? failureCopy(errorMessage(error))
+            : error instanceof Error
+              ? error.message
+              : "Could not capture the painting. Reframe and try again.",
         );
       }
     } finally {

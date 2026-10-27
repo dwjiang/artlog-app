@@ -1,6 +1,13 @@
 import { isNetworkError } from "@/lib/network-error";
 
-const CAPTURE_CODES = new Set(["bad_features", "bad_vector", "bad_dimension", "bad_descriptors", "bad_candidates"]);
+const CAPTURE_CODES = new Set([
+  "bad_features",
+  "bad_vector",
+  "bad_dimension",
+  "bad_descriptors",
+  "bad_candidates",
+  "bad_crop",
+]);
 const SESSION_CODES = new Set(["unauthenticated", "device_not_registered", "device_not_attested"]);
 
 export const FAILED_TITLE = "Identification failed.";
