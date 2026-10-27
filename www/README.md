@@ -6,8 +6,9 @@ location to The Met, and streams the phone into the page.
 
 The cloud iPhone has no camera the app can open and streams no sound. The demo build's Scan tab therefore plays
 `media/phone/viewfinder.mp4` where the camera preview would be: the phone stands back from a gallery wall until the
-judge taps a painting in the row above the shutter, then walks up to it while the app's rectangle detection and
-automatic capture run on the frames. **Photos** opens the demo's own picker with the gallery stills and the judge's
+judge picks a painting under the phone on the page, then walks up to it while the app's rectangle detection and
+automatic capture run on the frames. The server writes the pick into the app's demo folder as `walk.json`; Scan takes it
+whenever it is looking for an artwork, so a pick made on another tab or during a scan waits until then. **Photos** opens the demo's own picker with the gallery stills and the judge's
 uploads (**Upload a photo** under the phone), never the phone's sample photos. The audio guide is followed through its
 transcript.
 

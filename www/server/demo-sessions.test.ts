@@ -270,6 +270,31 @@ await test("refuses uploads that are not photos, past the session's cap, or for 
   await assert.rejects(sessions.upload(id, JPEG), (error: DemoError) => error.code === "upload_cap");
 });
 
+await test("points a phone's viewfinder at a picked painting", async () => {
+  const other: FakeInstance = { metadata: { id: "other", createdAt: "", labels: {} }, status: { state: "ready" } };
+  const fake = fakeLimrun([other]);
+  const sessions = sessionsFor(fake);
+  const { id } = await sessions.start({});
+  fake.calls.pushed.length = 0;
+
+  await sessions.walk(id, 3);
+  assert.deepEqual(fake.calls.pushed, [
+    {
+      name: "Documents/judges-demo/walk.json",
+      bundleId: "app.artlog.ios",
+      containerType: "data",
+      bytes: JSON.stringify({ painting: 3 }),
+    },
+  ]);
+  for (const painting of [-1, 1.5, Number.NaN]) {
+    await assert.rejects(sessions.walk(id, painting), (error: DemoError) => error.status === 400);
+  }
+  await assert.rejects(sessions.walk("other", 0), (error: DemoError) => error.status === 404);
+  await sessions.stop(id);
+  await assert.rejects(sessions.walk(id, 0), (error: DemoError) => error.code === "not_ready");
+  assert.equal(fake.calls.pushed.length, 1);
+});
+
 await test("recognizes the photo formats the app imports from their leading bytes", () => {
   assert.equal(imageExtension(JPEG), "jpg");
   assert.equal(imageExtension(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])), "png");

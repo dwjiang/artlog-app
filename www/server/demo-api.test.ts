@@ -5,7 +5,7 @@ import { PassThrough } from "node:stream";
 import { test, type TestContext } from "node:test";
 
 import { createDemoApi } from "./demo-api.ts";
-import type { DemoSession, DemoSessions } from "./demo-sessions.ts";
+import { DemoError, type DemoSession, type DemoSessions } from "./demo-sessions.ts";
 import { MAX_UPLOAD_BYTES } from "./upload-limit.ts";
 
 const session: DemoSession = { id: "ios_test", endpointWebSocketUrl: "wss://stream", streamToken: "stream-token" };
@@ -62,6 +62,7 @@ for (const vercelBody of [false, true]) {
         },
         stop: async () => {},
         upload: async () => {},
+        walk: async () => {},
       },
       vercelBody,
     );
@@ -89,6 +90,7 @@ for (const vercelBody of [false, true]) {
           receivedId = id;
           receivedPhoto = bytes;
         },
+        walk: async () => {},
       },
       vercelBody,
     );
@@ -114,6 +116,7 @@ for (const vercelBody of [false, true]) {
         upload: async () => {
           uploaded = true;
         },
+        walk: async () => {},
       },
       vercelBody,
     );
@@ -126,6 +129,36 @@ for (const vercelBody of [false, true]) {
     assert.equal(response.status, 413);
     assert.equal(((await response.json()) as { code: string }).code, "too_large");
     assert.equal(uploaded, false);
+  });
+
+  await test(`hands a painting picked via ${transport} to its phone`, async (t) => {
+    const walks: [string, number][] = [];
+    const { port } = await serve(
+      t,
+      {
+        codeRequired: false,
+        start: async () => session,
+        stop: async () => {},
+        upload: async () => {},
+        walk: async (id, painting) => {
+          if (!Number.isInteger(painting)) throw new DemoError(400, "unknown_painting", "Pick one of the paintings.");
+          walks.push([id, painting]);
+        },
+      },
+      vercelBody,
+    );
+    const walk = (body: unknown) =>
+      fetch(`http://127.0.0.1:${port}/demo/api/sessions/${session.id}/walk`, {
+        method: "POST",
+        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json", Connection: "close" },
+      });
+
+    assert.equal((await walk({ painting: 2 })).status, 204);
+    const refused = await walk({ painting: "2" });
+    assert.equal(refused.status, 400);
+    assert.deepEqual(await refused.json(), { code: "unknown_painting", message: "Pick one of the paintings." });
+    assert.deepEqual(walks, [[session.id, 2]]);
   });
 }
 
@@ -150,6 +183,7 @@ await test("deletes a phone that finishes starting after the browser disconnects
       stopped.push(id);
     },
     upload: async () => {},
+    walk: async () => {},
   });
   const closed = new Promise<void>((resolve) => {
     server.once("connection", (socket) => socket.once("close", () => resolve()));
@@ -177,6 +211,7 @@ await test("keeps a phone running after delivering its session to the browser", 
       stopped.push(id);
     },
     upload: async () => {},
+    walk: async () => {},
   });
   const response = await fetch(`http://127.0.0.1:${port}/demo/api/sessions`, {
     method: "POST",
@@ -200,6 +235,7 @@ await test("leaves requests outside the API to the next handler", async (t) => {
     },
     stop: async () => {},
     upload: async () => {},
+    walk: async () => {},
   });
   const response = await fetch(`http://127.0.0.1:${port}/api/sessions`, { method: "POST", body: "{}" });
 

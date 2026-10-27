@@ -10,7 +10,7 @@ export type ThirdPartyNotices = {
   texts: string[];
 };
 
-const UPDATED = "October 14, 2026";
+const UPDATED = "October 26, 2026";
 const EMAIL = "danieljiang1999@gmail.com";
 const CONTACT = `Questions or requests: email ${EMAIL}, or open Settings → Send feedback in Artlog.`;
 
@@ -207,7 +207,7 @@ const terms: LegalDocument = {
     {
       heading: "Artlog’s source code",
       paragraphs: [
-        "Artlog’s source code is available under the Mozilla Public License 2.0, which governs your use of the code. These terms govern your use of the app and its online services.",
+        "Artlog’s source code is available under the GNU Affero General Public License v3.0, which governs your use of the code. These terms govern your use of the app and its online services.",
       ],
     },
     {

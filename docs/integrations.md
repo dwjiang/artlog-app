@@ -32,7 +32,7 @@ model availability, pricing, and quotas require provider verification before use
 
 ## Licensing and public descriptions
 
-The repository's source license is MPL 2.0 in [LICENSE](../LICENSE). Model weights,
+The repository's source license is AGPL-3.0 in [LICENSE](../LICENSE). Model weights,
 SDKs, and data sources retain their own terms. Adding a data source requires
 checking metadata and image permissions separately; an image URL or museum
 attribution does not grant reuse rights.
