@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/demo.ts": { "maxDuration": 300, "includeFiles": "media/phone/**" }
+  },
+  "redirects": [{ "source": "/", "destination": "/demo", "permanent": false }],
+  "rewrites": [{ "source": "/demo/api/:path*", "destination": "/api/demo" }]
+}

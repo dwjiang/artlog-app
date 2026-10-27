@@ -1,6 +1,11 @@
 import { type IncomingMessage, type ServerResponse } from "node:http";
+import { Readable } from "node:stream";
 
 import { DemoError, type DemoSessions } from "./demo-sessions.ts";
+import { MAX_UPLOAD_BYTES } from "./upload-limit.ts";
+
+export const DEMO_BASE = "/demo/";
+const API_ROOT = `${DEMO_BASE}api`;
 
 const PRIVATE_IP = /^(::1|::ffff:127\.|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
 
@@ -12,12 +17,10 @@ function send(res: ServerResponse, status: number, body?: unknown) {
   res.end(JSON.stringify(body));
 }
 
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-
 async function readBytes(req: IncomingMessage, limit: number): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let size = 0;
-  for await (const chunk of req) {
+  for await (const chunk of requestBody(req)) {
     size += (chunk as Buffer).length;
     if (size > limit) throw new DemoError(413, "too_large", `Photos can be up to ${limit / 1024 / 1024} MB.`);
     chunks.push(chunk as Buffer);
@@ -27,13 +30,18 @@ async function readBytes(req: IncomingMessage, limit: number): Promise<Buffer> {
 
 async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
   let text = "";
-  for await (const chunk of req) {
+  for await (const chunk of requestBody(req)) {
     text += chunk;
     if (text.length > 10_000) throw new DemoError(413, "too_large", "Request too large.");
   }
   if (!text) return {};
   const parsed: unknown = JSON.parse(text);
   return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+}
+
+function requestBody(req: IncomingMessage): Readable {
+  // Vercel replays data/end events on an already-consumed request; wrap them in fresh stream state for iteration.
+  return new Readable().wrap(req);
 }
 
 // A public client IP places the phone in the region nearest the visitor.
@@ -44,15 +52,17 @@ function clientIp(req: IncomingMessage): string | undefined {
   return ip && !PRIVATE_IP.test(ip) ? ip : undefined;
 }
 
-/** Connect-style middleware for `/api/*`, shared by `vite dev` and `vite preview`. */
+/** Connect-style middleware for the page's API, shared by `vite dev`, `vite preview` and the Vercel Function. */
 export function createDemoApi(sessions: DemoSessions) {
   return async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
-    const path = req.url?.split("?")[0] ?? "";
+    const fullPath = req.url?.split("?")[0] ?? "";
+    if (!fullPath.startsWith(`${API_ROOT}/`)) return next();
+    const path = fullPath.slice(API_ROOT.length);
     try {
-      if (req.method === "GET" && path === "/api/config") {
+      if (req.method === "GET" && path === "/config") {
         return send(res, 200, { codeRequired: sessions.codeRequired });
       }
-      if (req.method === "POST" && path === "/api/sessions") {
+      if (req.method === "POST" && path === "/sessions") {
         const { code } = await readJson(req);
         const session = await sessions.start({
           code: typeof code === "string" ? code : undefined,
@@ -71,17 +81,17 @@ export function createDemoApi(sessions: DemoSessions) {
         });
         return send(res, 200, session);
       }
-      const stop = /^\/api\/sessions\/([\w-]+)\/stop$/.exec(path);
+      const stop = /^\/sessions\/([\w-]+)\/stop$/.exec(path);
       if (req.method === "POST" && stop?.[1]) {
         await sessions.stop(stop[1]);
         return send(res, 204);
       }
-      const photos = /^\/api\/sessions\/([\w-]+)\/photos$/.exec(path);
+      const photos = /^\/sessions\/([\w-]+)\/photos$/.exec(path);
       if (req.method === "POST" && photos?.[1]) {
         await sessions.upload(photos[1], await readBytes(req, MAX_UPLOAD_BYTES));
         return send(res, 204);
       }
-      const walk = /^\/api\/sessions\/([\w-]+)\/walk$/.exec(path);
+      const walk = /^\/sessions\/([\w-]+)\/walk$/.exec(path);
       if (req.method === "POST" && walk?.[1]) {
         const { painting } = await readJson(req);
         await sessions.walk(walk[1], typeof painting === "number" ? painting : Number.NaN);

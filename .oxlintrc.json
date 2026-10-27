@@ -136,9 +136,10 @@
       "rules": { "artlog/prefer-alias-imports": "error" }
     },
     {
-      // Expo Router routes and Convex/tool entry points must default-export.
+      // Expo Router routes, Vercel Functions and Convex/tool entry points must default-export.
       "files": [
         "src/app/**",
+        "www/api/**",
         "convex/schema.ts",
         "convex/crons.ts",
         "convex/http.ts",

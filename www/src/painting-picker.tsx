@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import viewfinder from "../media/phone/viewfinder.json";
+import viewfinder from "../media/phone/viewfinder.json" with { type: "json" };
+import { API } from "./api.ts";
 
 const thumbnails = import.meta.glob<string>("../media/phone/thumbs/*.jpg", {
   eager: true,
@@ -23,7 +24,7 @@ export function PaintingPicker({ sessionId }: { sessionId: string }) {
   async function pick(painting: number) {
     setWalk({ kind: "sending", painting });
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/walk`, {
+      const res = await fetch(`${API}/sessions/${sessionId}/walk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ painting }),

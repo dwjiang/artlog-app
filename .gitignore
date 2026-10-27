@@ -62,3 +62,4 @@ scripts/model/cache/
 scripts/model/out/
 scripts/model/__pycache__/
 scripts/model/.pytest_cache/
+.vercel
