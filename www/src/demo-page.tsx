@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { MAX_UPLOAD_BYTES } from "../server/upload-limit.ts";
 import { API } from "./api.ts";
 import { PaintingPicker } from "./painting-picker.tsx";
+import { usePhoneNarration } from "./phone-narration.ts";
 
 const APP_STORE_URL = "https://apps.apple.com/app/id6815466893";
 // The app keeps library photos at this long side, so a smaller upload loses no detail it uses.
@@ -43,6 +44,8 @@ export function DemoPage() {
   const liveId = phase.kind === "live" ? phase.session.id : undefined;
   const [upload, setUpload] = useState<Upload>({ kind: "idle" });
   const fileInput = useRef<HTMLInputElement>(null);
+  const narration = useRef<HTMLAudioElement>(null);
+  usePhoneNarration(narration, liveId);
 
   useEffect(() => {
     void fetch(`${API}/config`)
@@ -60,6 +63,8 @@ export function DemoPage() {
 
   async function start(event: FormEvent) {
     event.preventDefault();
+    // Safari lets an element play sound later only once it has been played inside a tap.
+    void narration.current?.play().catch(() => undefined);
     setPhase({ kind: "starting" });
     setUpload({ kind: "idle" });
     try {
@@ -105,6 +110,7 @@ export function DemoPage() {
 
   return (
     <main className="page">
+      <audio ref={narration} />
       <section className="intro">
         <p className="wordmark">Artlog</p>
         <h1>Point at a painting. Learn its story.</h1>
@@ -122,13 +128,13 @@ export function DemoPage() {
             <em>Upload a photo</em> under the phone.
           </li>
           <li>
-            <strong>Read and listen.</strong> Read the story and its sources, tap <em>Play audio guide</em>, then{" "}
-            <em>Transcript</em>.
+            <strong>Read and listen.</strong> Read the story and its sources, then tap <em>Play audio guide</em> with
+            your sound on.
           </li>
         </ol>
         <p className="note">
-          The cloud iPhone has no camera and no sound, so the viewfinder plays a video of a gallery wall and the audio
-          guide shows its transcript. Photos you upload go only to your demo iPhone; scanning one sends it to
+          The cloud iPhone has no camera and streams no sound, so the viewfinder plays a video of a gallery wall and
+          this page plays the audio guide. Photos you upload go only to your demo iPhone; scanning one sends it to
           Artlog&rsquo;s servers for matching, as the App Store app does. A session ends after 10 minutes without use,
           or after 30 minutes, and its iPhone is deleted.
         </p>

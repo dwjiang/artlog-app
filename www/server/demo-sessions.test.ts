@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 
 import { createDemoSessions, DEMO_LABEL, imageExtension, type DemoConfig, type DemoError } from "./demo-sessions.ts";
 
@@ -19,7 +19,11 @@ function fakeLimrun(existing: FakeInstance[] = []) {
     simctl: [] as string[][],
     launched: [] as string[],
     pushed: [] as { name: string; bundleId?: string; containerType?: string; bytes?: string }[],
+    pulled: [] as { name: string; bundleId?: string; containerType?: string }[],
+    disconnects: 0,
   };
+  // What the phone's app container holds; an Error is a read that fails.
+  const files = new Map<string, string | Error>();
   let failSimctl = false;
   const api = {
     list: ({ state }: { labelSelector?: string; state?: string } = {}) =>
@@ -73,9 +77,16 @@ function fakeLimrun(existing: FakeInstance[] = []) {
       },
     }),
     launchApp: async (bundleId: string) => void calls.launched.push(bundleId),
-    disconnect: () => undefined,
+    pullFile: async (name: string, opts?: { bundleId: string; containerType?: string }) => {
+      calls.pulled.push({ name, ...opts });
+      const content = files.get(name);
+      if (content === undefined) throw new Error(`${name} not found`);
+      if (content instanceof Error) throw content;
+      return Buffer.from(content);
+    },
+    disconnect: () => void calls.disconnects++,
   });
-  return { api, connect, calls, instances, failNextPrepare: () => (failSimctl = true) };
+  return { api, connect, calls, files, instances, failNextPrepare: () => (failSimctl = true) };
 }
 
 const live = (id: string, createdAt = new Date().toISOString()): FakeInstance => ({
@@ -300,4 +311,59 @@ await test("recognizes the photo formats the app imports from their leading byte
   assert.equal(imageExtension(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])), "png");
   assert.equal(imageExtension(Buffer.from("\0\0\0\x18ftypheic\0\0\0\0", "latin1")), "heic");
   assert.equal(imageExtension(Buffer.from("GIF89a")), undefined);
+});
+
+const NARRATION = "Documents/judges-demo/narration.json";
+const report = (position: number) => JSON.stringify({ source: "x", playing: true, position, rate: 1, at: 0 });
+
+async function advance(t: TestContext, ms: number) {
+  t.mock.timers.tick(ms);
+  await new Promise((resolve) => setImmediate(resolve));
+}
+
+await test("passes on each change to the app's narration report until stopped", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const fake = fakeLimrun();
+  const sessions = sessionsFor(fake);
+  const { id } = await sessions.start({});
+  fake.calls.disconnects = 0;
+  const seen: unknown[] = [];
+
+  const stop = await sessions.watchNarration(id, (state) => seen.push(state));
+  await advance(t, 0);
+  fake.files.set(NARRATION, report(1));
+  await advance(t, 500);
+  await advance(t, 500);
+  fake.files.set(NARRATION, new Error("connection lost"));
+  await advance(t, 500);
+  fake.files.set(NARRATION, '{"source": "x", "play');
+  await advance(t, 500);
+  fake.files.set(NARRATION, report(2));
+  await advance(t, 500);
+  stop();
+  fake.files.set(NARRATION, report(3));
+  await advance(t, 500);
+
+  assert.deepEqual(seen, [null, JSON.parse(report(1)), JSON.parse(report(2))]);
+  assert.ok(fake.calls.pulled.every((pull) => pull.bundleId === "app.artlog.ios" && pull.containerType === "data"));
+  assert.equal(fake.calls.disconnects, 1);
+});
+
+await test("reads a cached narration from the app's container, only on live demo phones", async () => {
+  const other: FakeInstance = { metadata: { id: "other", createdAt: "", labels: {} }, status: { state: "ready" } };
+  const fake = fakeLimrun([other]);
+  const sessions = sessionsFor(fake);
+  const { id } = await sessions.start({});
+  fake.files.set("Library/Caches/narration/render-1.mp3", "mp3");
+
+  assert.equal((await sessions.narrationFile(id, "render-1")).toString(), "mp3");
+  assert.deepEqual(fake.calls.pulled, [
+    { name: "Library/Caches/narration/render-1.mp3", bundleId: "app.artlog.ios", containerType: "data" },
+  ]);
+  await assert.rejects(sessions.narrationFile("other", "render-1"), (error: DemoError) => error.status === 404);
+  await sessions.stop(id);
+  await assert.rejects(
+    sessions.watchNarration(id, () => {}),
+    (error: DemoError) => error.status === 409,
+  );
 });

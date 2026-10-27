@@ -26,8 +26,18 @@ async function restoreVercelBody(req: IncomingMessage) {
   replay.end(Buffer.concat(chunks));
 }
 
-async function serve(t: TestContext, sessions: DemoSessions, vercelBody = false) {
-  const api = createDemoApi(sessions);
+const SITE = "https://backend.convex.site";
+const noNarration: Pick<DemoSessions, "watchNarration" | "narrationFile"> = {
+  watchNarration: async () => () => {},
+  narrationFile: async () => Buffer.alloc(0),
+};
+
+async function serve(
+  t: TestContext,
+  sessions: Omit<DemoSessions, keyof typeof noNarration> & Partial<DemoSessions>,
+  vercelBody = false,
+) {
+  const api = createDemoApi({ ...noNarration, ...sessions }, SITE);
   let finish!: () => void;
   const handled = new Promise<void>((resolve) => {
     finish = resolve;
@@ -242,4 +252,44 @@ await test("leaves requests outside the API to the next handler", async (t) => {
   assert.equal(response.status, 200);
   assert.equal(await response.text(), "");
   assert.equal(started, false);
+});
+
+await test("streams the phone's narration to the page and stops watching when the page leaves", async (t) => {
+  let stopped!: () => void;
+  const stoppedWatching = new Promise<void>((resolve) => {
+    stopped = resolve;
+  });
+  const { port } = await serve(t, {
+    codeRequired: false,
+    start: async () => session,
+    stop: async () => {},
+    upload: async () => {},
+    walk: async () => {},
+    watchNarration: async (id, onChange) => {
+      assert.equal(id, session.id);
+      setTimeout(() => {
+        onChange(null);
+        onChange({ source: `${SITE}/narration-playlist?render=r1`, playing: false, position: 3, rate: 1, at: 0 });
+      });
+      return stopped;
+    },
+  });
+  const page = new AbortController();
+  const response = await fetch(`http://127.0.0.1:${port}/demo/api/sessions/${session.id}/narration`, {
+    signal: page.signal,
+  });
+  assert.equal(response.headers.get("Content-Type"), "text/event-stream");
+  const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader();
+  let text = "";
+  while (text.split("\n\n").length < 3) text += (await reader.read()).value;
+
+  assert.deepEqual(
+    text
+      .split("\n\n")
+      .filter(Boolean)
+      .map((event) => JSON.parse(event.replace(/^data: /, ""))),
+    [null, { src: "narration/playlist?render=r1", live: true, playing: false, position: 3, rate: 1 }],
+  );
+  page.abort();
+  await stoppedWatching;
 });

@@ -5,7 +5,8 @@ import { basename, join, relative } from "node:path";
 
 import { type Limrun, type Ios } from "@limrun/api";
 
-import { JUDGES_DEMO_FILES, JUDGES_DEMO_FOLDER } from "../../shared/capture/judges-demo.ts";
+import { JUDGES_DEMO_FILES, JUDGES_DEMO_FOLDER, type DemoNarration } from "../../shared/capture/judges-demo.ts";
+import { cachedNarrationPath } from "./narration.ts";
 
 const BUNDLE_ID = "app.artlog.ios";
 export const DEMO_LABEL = "artlog-judges-demo";
@@ -15,10 +16,12 @@ const LOCATION = "40.7794,-73.9632";
 const PERMISSIONS = ["photos", "photos-add", "location", "camera"];
 const LIVE_STATES = new Set(["creating", "assigned", "ready"]);
 const DAY_MS = 24 * 60 * 60 * 1000;
+// Polled because Limrun's app log stream carries only stdout and stderr, which React Native's logs never reach.
+const NARRATION_POLL_MS = 500;
 
 type IosInstance = Awaited<ReturnType<Limrun["iosInstances"]["create"]>>;
 type Instances = Pick<Limrun["iosInstances"], "create" | "list" | "get" | "delete">;
-type DeviceClient = Pick<Ios.InstanceClient, "pushFile" | "simctl" | "launchApp" | "disconnect">;
+type DeviceClient = Pick<Ios.InstanceClient, "pushFile" | "pullFile" | "simctl" | "launchApp" | "disconnect">;
 
 export type DemoConfig = {
   appAsset: string;
@@ -112,8 +115,9 @@ export function createDemoSessions(
     }
   }
 
+  const appData = { bundleId: BUNDLE_ID, containerType: "data" };
   const pushToApp = (client: DeviceClient, source: string, path: string) =>
-    client.pushFile(source, `Documents/${JUDGES_DEMO_FOLDER}/${path}`, { bundleId: BUNDLE_ID, containerType: "data" });
+    client.pushFile(source, `Documents/${JUDGES_DEMO_FOLDER}/${path}`, appData);
 
   async function prepare(instance: IosInstance): Promise<void> {
     await withDevice(instance, async (client) => {
@@ -223,7 +227,53 @@ export function createDemoSessions(
     await pushBytes(await readyInstance(id), JSON.stringify({ painting }), JUDGES_DEMO_FILES.walk);
   }
 
-  return { start, stop, upload, walk, codeRequired: Boolean(config.accessCode) };
+  /**
+   * Calls `onChange` with the app's narration report each time it changes, null until the app writes one, until the
+   * returned function stops watching.
+   */
+  async function watchNarration(id: string, onChange: (state: DemoNarration | null) => void): Promise<() => void> {
+    const { apiUrl, token } = (await readyInstance(id)).status;
+    if (!apiUrl || !token) throw new Error("Instance is missing its control endpoint");
+    const client = await connect(apiUrl, token);
+    let last: string | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    const poll = async () => {
+      // The file is missing until the first narration plays; a failed read later keeps the last report.
+      const text = await client
+        .pullFile(`Documents/${JUDGES_DEMO_FOLDER}/${JUDGES_DEMO_FILES.narration}`, appData)
+        .then((bytes) => bytes.toString("utf8"))
+        .catch(() => last ?? "null");
+      if (stopped) return;
+      if (text !== last) {
+        let state: DemoNarration | null | undefined;
+        try {
+          state = JSON.parse(text) as DemoNarration | null;
+        } catch {
+          // A write in progress; read again on the next poll.
+        }
+        if (state !== undefined) {
+          last = text;
+          onChange(state);
+        }
+      }
+      timer = setTimeout(() => void poll(), NARRATION_POLL_MS);
+    };
+    // A timer rather than a call, so the caller has its stop function before the first change arrives.
+    timer = setTimeout(() => void poll(), 0);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      client.disconnect();
+    };
+  }
+
+  /** A narration the app has cached, which the phone plays from its own storage. */
+  async function narrationFile(id: string, renderId: string): Promise<Buffer> {
+    return withDevice(await readyInstance(id), (client) => client.pullFile(cachedNarrationPath(renderId), appData));
+  }
+
+  return { start, stop, upload, walk, watchNarration, narrationFile, codeRequired: Boolean(config.accessCode) };
 }
 
 export type DemoSessions = ReturnType<typeof createDemoSessions>;

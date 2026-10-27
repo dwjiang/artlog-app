@@ -9,8 +9,9 @@ The cloud iPhone has no camera the app can open and streams no sound. The demo b
 judge picks a painting under the phone on the page, then walks up to it while the app's rectangle detection and
 automatic capture run on the frames. The server writes the pick into the app's demo folder as `walk.json`; Scan takes it
 whenever it is looking for an artwork, so a pick made on another tab or during a scan waits until then. **Photos** opens the demo's own picker with the gallery stills and the judge's
-uploads (**Upload a photo** under the phone), never the phone's sample photos. The audio guide is followed through its
-transcript.
+uploads (**Upload a photo** under the phone), never the phone's sample photos. The page plays the audio guide: the
+app writes what its guide plays to `Documents/judges-demo/narration.json`, the server polls that file and relays it,
+and the page plays the same narration, streamed through the server from the backend or pulled from the phone's cache.
 
 ## Run it locally
 
@@ -66,7 +67,8 @@ uv run www/scripts/render-viewfinder.py
 ## Refresh the app build
 
 The phone runs a Release simulator build pointed at the production backend. `EXPO_PUBLIC_JUDGES_DEMO=1` makes it
-skip the welcome and use the viewfinder video and demo photo picker on Scan.
+skip the welcome, use the viewfinder video and demo photo picker on Scan, and report its audio guide to the page.
+`NARRATION_SITE` in `server/demo-server.ts` must match the build's `EXPO_PUBLIC_CONVEX_SITE_URL`.
 
 ```sh
 printf 'EXPO_PUBLIC_CONVEX_URL=https://admired-goldfinch-660.convex.cloud\nEXPO_PUBLIC_CONVEX_SITE_URL=https://admired-goldfinch-660.convex.site\nEXPO_PUBLIC_JUDGES_DEMO=1\n' > .env.production.local
