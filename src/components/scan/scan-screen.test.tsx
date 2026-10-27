@@ -4,13 +4,12 @@ import { AccessibilityInfo, AppState, DeviceEventEmitter, Linking, type AppState
 
 import { Spacing } from "@/constants/theme";
 import type { CaptureFeedback, CaptureState } from "@/lib/capture/capture-controller";
-import type { DemoVideo } from "@/lib/capture/demo-viewfinder";
+import { WALK_REQUEST_POLL_MS, type DemoVideo } from "@/lib/capture/demo-viewfinder";
 import type { CaptureTimings, Quad } from "@/lib/capture/stages";
 import { reportError } from "@/lib/observability";
 import { useToastLift } from "@/lib/ui/toast";
 import type { VenueView } from "@/lib/venue/use-venue";
 
-import { WALK_REQUEST_POLL_MS } from "./demo-viewfinder";
 import { ScanScreen } from "./scan-screen";
 
 jest.mock("@/lib/audio/use-listening");
@@ -214,6 +213,7 @@ jest.mock("@/lib/capture/use-rect-detector", () => ({
 }));
 jest.mock("@/lib/judges-demo", () => ({ isJudgesDemo: () => mockDemoVideo !== undefined }));
 jest.mock("@/lib/capture/demo-viewfinder", () => ({
+  WALK_REQUEST_POLL_MS: jest.requireActual("@/lib/capture/demo-viewfinder").WALK_REQUEST_POLL_MS,
   findDemoVideo: () => mockDemoVideo ?? undefined,
   takeWalkRequest: (walks: number) => mockTakeWalkRequest(walks),
 }));

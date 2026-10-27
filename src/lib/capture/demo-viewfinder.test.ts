@@ -1,6 +1,7 @@
-import { findDemoVideo, takeWalkRequest } from "./demo-viewfinder";
+import { findDemoVideo, takeWalkRequest, walkRequestTime } from "./demo-viewfinder";
 
 const mockFiles = new Map<string, string>();
+const mockModified = new Map<string, number>();
 
 jest.mock("expo-file-system", () => {
   const join = (parts: unknown[]) =>
@@ -18,6 +19,9 @@ jest.mock("expo-file-system", () => {
     }
     get exists() {
       return mockFiles.has(this.uri);
+    }
+    get modificationTime() {
+      return mockModified.get(this.uri) ?? null;
     }
     textSync() {
       return mockFiles.get(this.uri)!;
@@ -42,7 +46,10 @@ const manifest = {
   ],
 };
 
-beforeEach(() => mockFiles.clear());
+beforeEach(() => {
+  mockFiles.clear();
+  mockModified.clear();
+});
 
 it("has no video until the demo host copies the video and its manifest in", () => {
   expect(findDemoVideo()).toBeUndefined();
@@ -91,6 +98,17 @@ describe("walk requests from the demo page", () => {
     mockFiles.set(request, JSON.stringify({ painting }));
     expect(takeWalkRequest(8)).toBeUndefined();
     expect(mockFiles.has(request)).toBe(false);
+  });
+
+  it("tells when a waiting request was written, until it is taken", () => {
+    expect(walkRequestTime()).toBeUndefined();
+    mockFiles.set(request, JSON.stringify({ painting: 3 }));
+    mockModified.set(request, 1_000);
+    expect(walkRequestTime()).toBe(1_000);
+
+    takeWalkRequest(8);
+
+    expect(walkRequestTime()).toBeUndefined();
   });
 
   it("leaves a request it cannot read yet for the next check", () => {

@@ -6,7 +6,10 @@ export const JUDGES_DEMO_FILES = {
   video: "viewfinder.mp4",
   /** Where each segment of the video starts and ends, and each painting's title and thumbnail for the demo page. */
   manifest: "viewfinder.json",
-  /** The painting the demo page last asked the viewfinder to walk up to. The app deletes it once it walks there. */
+  /**
+   * The painting the demo page last asked the viewfinder to walk up to. The app opens Scan when one is written and
+   * deletes it once it walks there.
+   */
   walk: "walk.json",
   /** Gallery stills offered for import. */
   photos: "photos",

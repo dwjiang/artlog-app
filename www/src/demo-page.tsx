@@ -120,8 +120,8 @@ export function DemoPage() {
         </p>
         <ol className="steps">
           <li>
-            <strong>Scan.</strong> Open the <em>Scan</em> tab and pick a painting under the iPhone. The camera walks up
-            to it, and the app outlines and scans it on its own.
+            <strong>Scan.</strong> Pick a painting under the iPhone. The app opens <em>Scan</em>, the camera walks up to
+            it, and the app outlines and scans it on its own.
           </li>
           <li>
             <strong>Or scan a photo.</strong> Tap <em>Photos</em> for a gallery photo, or add your own with{" "}
