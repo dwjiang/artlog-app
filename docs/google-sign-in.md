@@ -52,3 +52,28 @@ References: [native Expo setup](https://react-native-google-signin.github.io/doc
 The bundled `assets/images/google-g.png` is Google's unmodified
 [official logo asset](https://developers.google.com/static/identity/images/g-logo.png)
 from its [sign-in branding guidance](https://developers.google.com/identity/branding-guidelines).
+
+## Failure diagnostics
+
+`auth.google_sign_in` failures include an allowlisted operation context: failed
+stage, bounded elapsed times, client-configuration presence, app lifecycle changes,
+and numeric/known native error codes with known domains from up to three NSError
+levels. Native error descriptions, userInfo payloads, credentials, client IDs,
+account data, callback URLs, and view content are not included. The reported and
+rethrown error has fixed copy so the outer account reporter deduplicates it.
+Expected cancellations do not report errors.
+
+The optional `SignInDiagnostics` iOS module takes read-only main-thread snapshots
+before the SDK sign-in call and after failure. It records Guided Access state and
+whether the SDK's presenter exists, has an attached window, or is transitioning.
+These snapshots are not atomic with the SDK's presentation attempt. The
+`native_sign_in` stage also includes the SDK waiting for configuration; it does
+not prove that a browser or sheet opened. Snapshot absence, failure or a 150 ms
+timeout must not prevent sign-in.
+
+A native rebuild is required for the presentation module. When investigating a
+new event, compare its release/build with that build's resolved `Podfile.lock`
+versions for GoogleSignIn, AppAuth and GTMAppAuth; JavaScript package versions do
+not identify the resolved native dependencies. Reproduce on iOS with normal and
+interrupted sign-in, cancellation, and Guided Access where appropriate. These
+diagnostics do not themselves fix browser presentation or establish recovery.
