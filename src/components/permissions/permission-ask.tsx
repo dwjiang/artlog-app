@@ -1,21 +1,22 @@
 import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
 
+import { AppIcon } from "@/components/app-icon";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { SAFETY_CHECKS_LIMIT, SAFETY_CHECKS_USE } from "@/lib/social/safety-checks";
-
-const APP_ICON = require("../../../assets/images/icon.png");
 
 export type PermissionKind = "camera" | "photos" | "location" | "notifications";
 /** Safety checks ask for consent in-app; no iPhone prompt follows them. */
 type AskKind = PermissionKind | "safetyChecks";
 
+type AskReason = { symbol: string; text: string };
+
 type PermissionCopy = {
   name: string;
   symbol: string;
   headline: string;
-  use: { symbol: string; text: string };
+  use: AskReason;
   limit: string;
 };
 
@@ -70,7 +71,9 @@ export function PermissionAsk({ kind }: { kind: AskKind }) {
       <ThemedText variant="display" accessibilityRole="header" style={styles.headline}>
         {PERMISSION_COPY[kind].headline}
       </ThemedText>
-      <PermissionReasons kind={kind} />
+      <AskReasons
+        reasons={[PERMISSION_COPY[kind].use, { symbol: "hand.raised.fill", text: PERMISSION_COPY[kind].limit }]}
+      />
     </View>
   );
 }
@@ -80,26 +83,28 @@ function PermissionMark({ kind }: { kind: AskKind }) {
   const { name, symbol } = PERMISSION_COPY[kind];
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={`${name} permission`} style={styles.mark}>
-      <Image source={APP_ICON} style={styles.tile} />
+      <AppIcon size={TILE} />
       <View style={styles.link}>
         {[0, 1, 2].map((dot) => (
           <View key={dot} style={styles.dot} />
         ))}
       </View>
-      <View style={[styles.tile, styles.permission]}>
+      <View style={styles.tile}>
         <Image source={`sf:${symbol}`} tintColor={Gallery.surface} style={styles.symbol} />
       </View>
     </View>
   );
 }
 
-/** What the access does, then where it stops, on one gray card. */
-function PermissionReasons({ kind }: { kind: AskKind }) {
-  const { use, limit } = PERMISSION_COPY[kind];
+/** A welcome step's reasons, one row each, on one gray card. */
+export function AskReasons({ reasons }: { reasons: AskReason[] }) {
   return (
     <View style={styles.reasons}>
-      <Reason symbol={use.symbol}>{use.text}</Reason>
-      <Reason symbol="hand.raised.fill">{limit}</Reason>
+      {reasons.map(({ symbol, text }) => (
+        <Reason key={text} symbol={symbol}>
+          {text}
+        </Reason>
+      ))}
     </View>
   );
 }
@@ -121,9 +126,16 @@ const styles = StyleSheet.create({
   ask: { gap: Spacing.three },
   headline: { textAlign: "center" },
   mark: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: Spacing.compact },
-  // App-icon corners, so both tiles read as icons from the Home Screen and Settings.
-  tile: { width: TILE, height: TILE, borderRadius: Radius.card, borderCurve: "continuous", overflow: "hidden" },
-  permission: { backgroundColor: Gallery.accent, alignItems: "center", justifyContent: "center" },
+  // App-icon corners, so the tile reads as a Settings icon beside Artlog's.
+  tile: {
+    width: TILE,
+    height: TILE,
+    borderRadius: Radius.card,
+    borderCurve: "continuous",
+    backgroundColor: Gallery.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   symbol: { width: 28, height: 28 },
   link: { flexDirection: "row", gap: Spacing.one },
   dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: Gallery.controlBorder },

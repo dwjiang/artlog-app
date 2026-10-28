@@ -59,14 +59,12 @@ beforeEach(() => {
   };
 });
 
-it("shows context, starts Apple sign-in, and lets a guest dismiss", async () => {
+it("titles the sheet for its context and starts Apple sign-in", async () => {
   await render(<SignInScreen context="wall" />);
   expect(screen.getByRole("header", { name: "Sign in to share your wall" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Continue with Apple" }));
   expect(mockSignIn).toHaveBeenCalledTimes(1);
   expect(mockBack).not.toHaveBeenCalled();
-  await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
-  expect(mockBack).toHaveBeenCalledTimes(1);
 });
 
 it("links the terms and privacy policy under the sign-in buttons", async () => {
@@ -88,7 +86,7 @@ it("keeps sign-in errors retryable and closes only after linking finishes", asyn
     account: { linked: true, accountId: "account-a", hasProfile: false },
   };
   await view.rerender(<SignInScreen />);
-  expect(screen.getByRole("button", { name: "Not Now" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Close sign-in" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Continue with Apple" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
   expect(mockBack).not.toHaveBeenCalled();
@@ -144,14 +142,14 @@ it("waits for the device with a spinner online and explains the wait offline", a
   await view.rerender(<SignInScreen />);
   expect(screen.queryByRole("progressbar")).toBeNull();
   expect(screen.getByText("Connect to the internet to sign in.")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Not Now" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Close sign-in" })).toBeEnabled();
 });
 
 it("explains unavailable sign-in without preventing dismissal", async () => {
   mockAccount.available = false;
   await render(<SignInScreen />);
   expect(screen.getByText("Apple sign-in is unavailable on this device.")).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Not Now" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Close sign-in" })).toBeEnabled();
 });
 
 it.each([undefined, "friends"] as const)(

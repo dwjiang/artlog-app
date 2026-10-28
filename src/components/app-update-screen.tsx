@@ -1,10 +1,10 @@
-import { Image } from "expo-image";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppIcon } from "@/components/app-icon";
 import { AppUpdateButton } from "@/components/app-update-button";
 import { ThemedText } from "@/components/themed-text";
-import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { Gallery, Spacing } from "@/constants/theme";
 import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 
 export function AppUpdateScreen() {
@@ -25,12 +25,7 @@ export function AppUpdateScreen() {
     >
       <View style={styles.header}>
         <View style={[styles.brand, largeText && styles.brandStacked]}>
-          <Image
-            source={require("../../assets/images/icon.png")}
-            style={styles.logo}
-            contentFit="contain"
-            accessible={false}
-          />
+          <AppIcon size={64} />
           <ThemedText variant={largeText ? "display" : "wordmark"}>Artlog</ThemedText>
         </View>
       </View>
@@ -57,6 +52,5 @@ const styles = StyleSheet.create({
   },
   brand: { flexDirection: "row", alignItems: "center", gap: Spacing.three },
   brandStacked: { flexDirection: "column", alignItems: "flex-start" },
-  logo: { width: 64, height: 64, borderRadius: Radius.card, borderCurve: "continuous" },
   message: { flexGrow: 1, justifyContent: "center", gap: Spacing.content, paddingVertical: Spacing.six },
 });

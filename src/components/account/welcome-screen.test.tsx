@@ -181,7 +181,8 @@ it("raises each iPhone prompt before saving a name and completing onboarding", a
   expect(await settings.getSetting("safety-checks")).toBe("off");
   expect(mockConvexMutation).not.toHaveBeenCalled();
   expect(screen.getByRole("header", { name: "Save your collection." })).toBeOnTheScreen();
-  expect(screen.getByText("Sync your collection, share your wall, and connect with friends.")).toBeOnTheScreen();
+  expect(screen.getByText("Brings your collection and visits to a new iPhone when you sign in.")).toBeOnTheScreen();
+  expect(screen.getByText("Lets you share your wall and visits with friends.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Continue with Apple" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
   expect(screen.getByLabelText("Step 6 of 6")).toBeOnTheScreen();

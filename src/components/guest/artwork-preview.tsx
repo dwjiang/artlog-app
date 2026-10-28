@@ -77,22 +77,6 @@ export function ArtworkCollage() {
   );
 }
 
-export function ArtworkStrip() {
-  return (
-    <View accessibilityElementsHidden style={styles.strip}>
-      {Object.values(introArtworks).map((artwork) => (
-        <Image
-          key={artwork.title}
-          source={artwork.source}
-          contentFit="cover"
-          accessible={false}
-          style={styles.thumbnail}
-        />
-      ))}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   center: { alignItems: "center" },
   print: {
@@ -102,11 +86,4 @@ const styles = StyleSheet.create({
     boxShadow: "0 4px 10px rgba(17,17,17,0.16)",
   },
   image: { width: "100%", height: "100%" },
-  strip: {
-    flexDirection: "row",
-    gap: Spacing.two,
-    maxWidth: 400,
-    width: "100%",
-  },
-  thumbnail: { flex: 1, aspectRatio: 0.9, maxHeight: 136 },
 });
