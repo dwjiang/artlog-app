@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
 
 import { chooseProfilePhoto, profilePhotoBytes } from "@/lib/social/profile-photo";
@@ -11,7 +11,14 @@ const mockBack = jest.fn();
 const mockDismissTo = jest.fn();
 const mockReplace = jest.fn();
 const mockRefresh = jest.fn();
-let mockSession: { key: string; status: string; offline: boolean; refresh: () => void };
+const mockAnswerSafety = jest.fn();
+let mockSession: {
+  key: string;
+  status: string;
+  offline: boolean;
+  safetyChecksAnswered?: boolean;
+  refresh: () => void;
+};
 let mockSuggestion: string | null;
 let mockTaken: Set<string>;
 let mockMine: { username: string; name: string; photoUrl?: string } | undefined;
@@ -45,6 +52,9 @@ jest.mock("@/lib/social/use-social-query", () => ({
 jest.mock("@/lib/account/local-profile", () => ({
   useLocalProfile: () => ({ loading: false, avatar: "great-wave" }),
 }));
+jest.mock("@/lib/account/safety-checks-answer", () => ({
+  answerSafetyChecks: (...args: unknown[]) => mockAnswerSafety(...args),
+}));
 jest.mock("@/lib/social/profile-photo", () => ({
   chooseProfilePhoto: jest.fn(),
   profilePhotoBytes: jest.fn(),
@@ -53,7 +63,14 @@ jest.mock("@/lib/social/profile-photo", () => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockSession = { key: "account:a", status: "profile-required", offline: false, refresh: mockRefresh };
+  mockSession = {
+    key: "account:a",
+    status: "profile-required",
+    offline: false,
+    safetyChecksAnswered: true,
+    refresh: mockRefresh,
+  };
+  mockAnswerSafety.mockResolvedValue(undefined);
   mockSuggestion = "alex_morgan";
   mockTaken = new Set();
   mockMine = undefined;
@@ -209,4 +226,43 @@ it("shows an existing profile instead of asking for setup again", async () => {
   expect(screen.getByRole("header", { name: "Your profile is ready." })).toBeOnTheScreen();
   expect(screen.getByText("@alex")).toBeOnTheScreen();
   expect(screen.queryByText("Step 1 of 3")).toBeNull();
+});
+
+it.each([
+  ["Allow", true],
+  ["Don’t Allow", false],
+] as const)("asks an account that hasn’t answered about safety checks last, then saves %s", async (label, enabled) => {
+  mockSession.safetyChecksAnswered = false;
+  await render(<ProfileSetupScreen suggestedName="Alex Morgan" />);
+  expect(screen.getByText("Step 1 of 4")).toBeOnTheScreen();
+  await reachPhoto();
+  await continueTo("Keep posts safe.");
+  expect(screen.getByText("Step 4 of 4")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: label }));
+  expect(mockAnswerSafety).toHaveBeenCalledWith(enabled, true);
+  expect(screen.getByRole("header", { name: "Your profile is ready." })).toBeOnTheScreen();
+});
+
+it("keeps the safety step while its answer saves and lets a failed save be retried", async () => {
+  mockSession.safetyChecksAnswered = false;
+  mockAnswerSafety.mockRejectedValueOnce(new Error("offline"));
+  const view = await render(<ProfileSetupScreen suggestedName="Alex Morgan" />);
+  await reachPhoto();
+  await continueTo("Keep posts safe.");
+  await fireEvent.press(screen.getByRole("button", { name: "Allow" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("Your choice couldn’t be saved. Please try again.");
+  let save = () => {};
+  mockAnswerSafety.mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      save = resolve;
+    }),
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Allow" }));
+  // The account reports the answer before the save resolves; the step count must not shrink under the person.
+  mockSession = { ...mockSession, safetyChecksAnswered: true };
+  await view.rerender(<ProfileSetupScreen suggestedName="Alex Morgan" />);
+  expect(screen.getByText("Step 4 of 4")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Don’t Allow" })).toBeDisabled();
+  await act(async () => save());
+  expect(screen.getByRole("header", { name: "Your profile is ready." })).toBeOnTheScreen();
 });

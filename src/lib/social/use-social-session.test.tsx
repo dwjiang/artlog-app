@@ -176,3 +176,15 @@ it("offers profile creation when the account has no usable profile and reports f
   await view.rerender({});
   expect(view.result.current.status).toBe("error");
 });
+
+it("tells whether a linked account has answered safety checks, and stays unsure for a guest", async () => {
+  mockAccount = { ...(mockAccount as object), safetyChecks: null };
+  const view = await renderHook(useSocialSession);
+  expect(view.result.current).toMatchObject({ safetyChecks: false, safetyChecksAnswered: false });
+  mockAccount = { ...(mockAccount as object), safetyChecks: false };
+  await view.rerender({});
+  expect(view.result.current).toMatchObject({ safetyChecks: false, safetyChecksAnswered: true });
+  mockAccount = { linked: false, accountId: null, profileId: null, claimComplete: true, safetyChecks: null, scope: "" };
+  await view.rerender({});
+  expect(view.result.current.safetyChecksAnswered).toBeUndefined();
+});

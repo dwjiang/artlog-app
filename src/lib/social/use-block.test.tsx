@@ -32,6 +32,7 @@ const session: SocialSession = {
   offline: false,
   accountReady: true,
   safetyChecks: true,
+  safetyChecksAnswered: true,
   prefetch: { public: false, profile: false },
   error: undefined,
   refresh: jest.fn(),

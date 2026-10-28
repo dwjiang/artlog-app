@@ -53,6 +53,8 @@ export function useSocialSession() {
     offline,
     accountReady,
     safetyChecks: account.data?.safetyChecks === true,
+    // Undefined until the check finds a linked account; a guest's null says nothing about the account it signs into.
+    safetyChecksAnswered: account.data?.linked ? account.data.safetyChecks !== null : undefined,
     prefetch: { public: checking, profile: checking && likelyProfile },
     refresh: account.refresh,
   };
