@@ -28,6 +28,7 @@ export const journalVisit = v.object({
   startedAt: v.optional(v.number()),
   endedAt: v.optional(v.number()),
   reflection: v.optional(v.string()),
+  deletedAt: v.optional(v.number()),
 });
 export const journalSave = v.object({
   localId: v.string(),
@@ -73,6 +74,7 @@ export function validateVisit(visit: JournalVisit, now = Date.now()): void {
       && (!isTimestamp(visit.startedAt) || calendarDate(visit.startedAt, visit.timeZone) !== visit.visitedOn))
     || (visit.endedAt !== undefined
       && (!isTimestamp(visit.endedAt) || visit.startedAt === undefined || visit.endedAt < visit.startedAt))
+    || (visit.deletedAt !== undefined && !isTimestamp(visit.deletedAt))
   ) {
     throw new ConvexError({ code: "invalid_visit" });
   }

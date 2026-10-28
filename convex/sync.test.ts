@@ -233,6 +233,21 @@ it("keeps deletion terminal through stale pushes and preserves its empty visit",
   expect((await sync()).visits).toHaveLength(1);
 });
 
+it("keeps a discarded visit discarded through stale pushes, without its notes or artwork links", async () => {
+  const { t, user, visit, sync } = await fixture();
+  const work = { ...save(), visitLocalId: visit.localId, venueId: visit.venueId };
+  await sync(user, { visits: [{ ...visit, reflection: "Private words" }], saves: [work] });
+  await sync(user, { visits: [{ ...visit, deletedAt: 2 }] });
+  const pulled = await sync(user, { visits: [{ ...visit, reflection: "Stale edit" }] });
+  expect(pulled.visits[0]).toMatchObject({ localId: visit.localId, deletedAt: 2 });
+  expect(pulled.visits[0]).not.toHaveProperty("reflection");
+  // A save another device made on the visit before it heard of the discard stays out of it too.
+  const late = { ...save(), visitLocalId: visit.localId, venueId: visit.venueId };
+  expect((await sync(user, { saves: [late] })).saves.map((row) => row.deletedAt)).toEqual([undefined, undefined]);
+  const encounters = await t.run((ctx) => ctx.db.query("artworkEncounters").collect());
+  expect(encounters.map((row) => row.deletedAt)).toEqual([2, 2]);
+});
+
 it("accepts the note an older build still sends and stores none", async () => {
   const { t, user, sync } = await fixture();
   const work = { ...save(), note: "From before notes were removed" };

@@ -42,6 +42,7 @@ export async function upsertVisit(visit: VisitDraft, owner = getLocalOwner(), ar
     if (existing && existing.venueId !== visit.venueId) {
       throw new ConvexError({ code: "invalid_visit" });
     }
+    if (existing && existing.deletedAt !== null) throw new ConvexError({ code: "not_found" });
     const fields = {
       ...visitInput({
         ...visit,
@@ -51,6 +52,7 @@ export async function upsertVisit(visit: VisitDraft, owner = getLocalOwner(), ar
       reflection: visit.reflection ?? null,
       startedAt: visit.startedAt ?? null,
       endedAt: visit.endedAt ?? null,
+      deletedAt: null,
     };
     if (!existing || Object.entries(fields).some(([key, value]) => existing[key as keyof Visit] !== value)) {
       tx.insert(visits)
@@ -98,11 +100,12 @@ export async function upsertVisit(visit: VisitDraft, owner = getLocalOwner(), ar
   });
   requestCollectionSync();
 }
-export async function getVisit(localId: string, owner = getLocalOwner()) {
+/** `discarded` also returns a discarded visit, for callers that must tell it apart from a missing one. */
+export async function getVisit(localId: string, owner = getLocalOwner(), { discarded = false } = {}) {
   return db
     .select()
     .from(visits)
-    .where(and(eq(visits.owner, owner), eq(visits.localId, localId)))
+    .where(and(eq(visits.owner, owner), eq(visits.localId, localId), discarded ? undefined : isNull(visits.deletedAt)))
     .get();
 }
 /** The visit at the museum on that calendar day, the latest started first; `open` skips visits that have ended. */
@@ -112,7 +115,12 @@ export async function findVisitOnDay(
   owner = getLocalOwner(),
   { open = false } = {},
 ) {
-  const day = and(eq(visits.owner, owner), eq(visits.venueId, venueId), eq(visits.visitedOn, visitedOn));
+  const day = and(
+    eq(visits.owner, owner),
+    eq(visits.venueId, venueId),
+    eq(visits.visitedOn, visitedOn),
+    isNull(visits.deletedAt),
+  );
   return db
     .select()
     .from(visits)
@@ -130,7 +138,7 @@ export async function patchVisit(
   db.transaction((tx) => {
     const target = and(eq(visits.owner, owner), eq(visits.localId, localId));
     const existing = tx.select().from(visits).where(target).get();
-    if (!existing) throw new ConvexError({ code: "not_found" });
+    if (!existing || existing.deletedAt !== null) throw new ConvexError({ code: "not_found" });
     const merged = { ...existing, ...fields };
     validateVisit(visitInput(merged));
     tx.update(visits)
@@ -152,7 +160,7 @@ export async function moveVisit(
   db.transaction((tx) => {
     const target = and(eq(visits.owner, owner), eq(visits.localId, localId));
     const existing = tx.select().from(visits).where(target).get();
-    if (!existing) throw new ConvexError({ code: "not_found" });
+    if (!existing || existing.deletedAt !== null) throw new ConvexError({ code: "not_found" });
     const fields = { ...to, ...moveVisitTimes(existing, to) };
     validateVisit(visitInput({ ...existing, ...fields }));
     tx.update(visits)
@@ -167,6 +175,31 @@ export async function moveVisit(
     tx.update(pendingScans)
       .set({ venueId: to.venueId })
       .where(and(eq(pendingScans.owner, owner), eq(pendingScans.visitLocalId, localId), isNull(pendingScans.scanId)))
+      .run();
+  });
+  requestCollectionSync();
+}
+/**
+ * Discards a visit for good: its artworks and photos stay in the collection, unlinked from it, and its notes go. Other
+ * devices learn of it through sync, and the server takes down its post.
+ */
+export function discardVisit(localId: string, owner = getLocalOwner(), at = Date.now()): void {
+  db.transaction((tx) => {
+    const target = and(eq(visits.owner, owner), eq(visits.localId, localId), isNull(visits.deletedAt));
+    if (!tx.select().from(visits).where(target).get()) throw new ConvexError({ code: "not_found" });
+    tx.update(visits)
+      .set({ deletedAt: at, reflection: null, syncedAt: null, revision: sql`${visits.revision} + 1` })
+      .where(target)
+      .run();
+    tx.update(artworkEncounters)
+      .set({ deletedAt: at, syncedAt: null, revision: sql`${artworkEncounters.revision} + 1` })
+      .where(
+        and(
+          eq(artworkEncounters.owner, owner),
+          eq(artworkEncounters.visitLocalId, localId),
+          isNull(artworkEncounters.deletedAt),
+        ),
+      )
       .run();
   });
   requestCollectionSync();
@@ -215,7 +248,11 @@ export function listUnsyncedVisits(owner = getLocalOwner()) {
     .limit(50);
 }
 export function listVisits(owner = getLocalOwner()) {
-  return db.select().from(visits).where(eq(visits.owner, owner)).orderBy(desc(visits.visitedOn), desc(visits.localId));
+  return db
+    .select()
+    .from(visits)
+    .where(and(eq(visits.owner, owner), isNull(visits.deletedAt)))
+    .orderBy(desc(visits.visitedOn), desc(visits.localId));
 }
 export async function markVisitsSynced(
   rows: {
@@ -245,9 +282,12 @@ export async function upsertVisitsFromRemote(rows: Doc<"visits">[], owner = getL
       validateVisit(row, Math.max(Date.now(), row.updatedAt));
       const target = and(eq(visits.owner, owner), eq(visits.localId, row.localId));
       const existing = tx.select().from(visits).where(target).get();
+      // A remote discard overrides pending edits; a live response cannot restore a local discard.
       if (
         existing
-        && (existing.syncedAt === null
+        && row.deletedAt === undefined
+        && (existing.deletedAt !== null
+          || existing.syncedAt === null
           || existing.syncedAt > row.updatedAt
           || (existing.syncedAt === row.updatedAt && (existing.syncedBy ?? "") > row.updatedBy))
       ) {
@@ -264,6 +304,7 @@ export async function upsertVisitsFromRemote(rows: Doc<"visits">[], owner = getL
         reflection: row.reflection ?? null,
         startedAt: row.startedAt ?? null,
         endedAt: row.endedAt ?? null,
+        deletedAt: row.deletedAt ?? null,
         remoteVisitId: row._id,
         syncedAt: row.updatedAt,
         syncedBy: row.updatedBy,

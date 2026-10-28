@@ -29,6 +29,7 @@ const visit = (localId: string, fields: Partial<JournalVisit> = {}): JournalVisi
   syncedAt: null,
   syncedBy: null,
   revision: 0,
+  deletedAt: null,
   ...fields,
 });
 

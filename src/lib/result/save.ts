@@ -82,13 +82,17 @@ export async function saveResult(
   let visit: LinkedVisit | undefined;
   let outcome: VisitOutcome | undefined;
   if (choice.kind === "visit") {
-    visit = await getVisit(choice.localId, current.owner);
-    if (!visit) {
+    const linked = await getVisit(choice.localId, current.owner, { discarded: !session.visit });
+    if (!linked) {
       throw new Error(
         session.visit ? "Choose an available visit before saving." : "The capture is linked to an invalid visit",
       );
     }
-    outcome = openBefore === visit.localId ? "joined" : "past";
+    // A capture whose visit was discarded before it was saved keeps its museum and joins no visit.
+    if (linked.deletedAt === null) {
+      visit = linked;
+      outcome = openBefore === visit.localId ? "joined" : "past";
+    }
   } else if (choice.kind === "venue" && !withoutVisit) {
     // The first save at a museum starts its visit, dated by the shutter; later saves join it.
     const started = await visitForSave(choice.venueId, capture.capturedAt);

@@ -85,7 +85,7 @@ export function publicationForVisit(ctx: QueryCtx, profileId: Id<"profiles">, vi
 export async function ownedVisit(ctx: QueryCtx, owner: JournalOwner, localId: string) {
   if (!isUuid(localId)) throw new ConvexError({ code: "not_found" });
   const visit = await findOwnedVisit(ctx, owner, localId);
-  if (!visit) throw new ConvexError({ code: "not_found" });
+  if (!visit || visit.deletedAt !== undefined) throw new ConvexError({ code: "not_found" });
   return visit;
 }
 export async function selectedSaves(

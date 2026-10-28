@@ -75,11 +75,13 @@ const mockVisit = {
   ],
 } as VisitSummary;
 const mockEnd = jest.fn();
+const mockDiscard = jest.fn();
 const mockMove = jest.fn();
 let mockOpenVisit: { localId: string } | undefined;
 jest.mock("@/lib/venue/use-venue", () => ({
   useVenue: () => ({
     end: mockEnd,
+    discard: mockDiscard,
     move: mockMove,
     visit: mockOpenVisit ? { ...mockVisit, ...mockOpenVisit } : undefined,
   }),
@@ -154,6 +156,7 @@ beforeEach(() => {
   mockVisit.visibility = "public";
   mockVisit.syncedAt = null;
   mockEnd.mockReset().mockResolvedValue(undefined);
+  mockDiscard.mockReset().mockResolvedValue(undefined);
   mockMove.mockReset().mockResolvedValue(undefined);
   mockOpenVisit = undefined;
   mockToast.mockClear();
@@ -587,6 +590,64 @@ it("offers only Save & end visit on the open visit, ending it in one step", asyn
   await fireEvent.press(screen.getByRole("button", { name: "Save & end visit" }));
   await waitFor(() => expect(mockEnd).toHaveBeenCalledWith("visit"));
   expect(mockToast).toHaveBeenCalledWith("Visit saved.");
+});
+
+it("discards the open visit after confirming, keeping its artworks, and goes back", async () => {
+  mockVisit.endedAt = null;
+  mockOpenVisit = { localId: "visit" };
+  const navigation = await renderRouter(
+    { _layout: () => <Stack />, index: () => <Text>Home</Text>, "journal/[visitId]": VisitDetailScreen },
+    { initialUrl: "/" },
+  );
+  await act(() => router.push({ pathname: "/journal/[visitId]", params: { visitId: "visit", endVisit: "true" } }));
+  expect(screen.queryByRole("button", { name: "Delete Visit…" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Discard visit" }));
+  const [title, message, buttons] = jest.mocked(Alert.alert).mock.calls.at(-1)!;
+  expect([title, message]).toEqual(["Discard this visit?", "Its artworks and photos stay in your collection."]);
+  await act(() => buttons?.find((button) => button.text === "Cancel")?.onPress?.());
+  expect(mockDiscard).not.toHaveBeenCalled();
+  await act(() => buttons?.find((button) => button.style === "destructive")?.onPress?.());
+  expect(mockDiscard).toHaveBeenCalledWith("visit");
+  expect(mockEnd).not.toHaveBeenCalled();
+  expect(mockToast).toHaveBeenCalledWith("Visit discarded.");
+  expect(navigation.getPathname()).toBe("/");
+});
+
+it("discards the open visit mid-visit from the screen the visit band opens", async () => {
+  mockVisit.endedAt = null;
+  mockOpenVisit = { localId: "visit" };
+  const navigation = await renderRouter({
+    _layout: () => <Stack />,
+    index: () => <VisitBand />,
+    "journal/[visitId]": VisitDetailScreen,
+  });
+  await fireEvent.press(screen.getByRole("button", { name: "Visit open at Museum" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Discard visit" }));
+  const buttons = jest.mocked(Alert.alert).mock.calls.at(-1)?.[2];
+  await act(() => buttons?.find((button) => button.style === "destructive")?.onPress?.());
+  expect(mockDiscard).toHaveBeenCalledWith("visit");
+  expect(mockToast).toHaveBeenCalledWith("Visit discarded.");
+  expect(navigation.getPathname()).toBe("/");
+});
+
+it("deletes a saved visit from its menu, warning that its post comes down", async () => {
+  mockVisit.owner = "account:test-account";
+  switchOwner(mockVisit.owner);
+  mockPublication = published("public");
+  await renderRouter(
+    { _layout: () => <Stack />, "journal/[visitId]": VisitDetailScreen },
+    { initialUrl: "/journal/visit" },
+  );
+  expect(screen.queryByRole("button", { name: "Discard visit" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Delete Visit…" }));
+  const [title, message, buttons] = jest.mocked(Alert.alert).mock.calls.at(-1)!;
+  expect([title, message]).toEqual([
+    "Delete this visit?",
+    "Its artworks and photos stay in your collection. Its post will be removed.",
+  ]);
+  await act(() => buttons?.find((button) => button.style === "destructive")?.onPress?.());
+  expect(mockDiscard).toHaveBeenCalledWith("visit");
+  expect(mockToast).toHaveBeenCalledWith("Visit deleted.");
 });
 
 it("lets the open visit change the museum scans match from its menu, but not from the end review", async () => {

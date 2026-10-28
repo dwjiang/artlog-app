@@ -99,6 +99,7 @@ beforeEach(async () => {
     declinePrompt: mockDeclinePrompt,
     promptChooser: jest.fn(),
     end: mockEnd,
+    discard: jest.fn(),
     startVisit: mockStartVisit,
     move: jest.fn(),
   };

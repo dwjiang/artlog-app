@@ -8,7 +8,15 @@ import { AppState, type AppStateStatus } from "react-native";
 
 import { activateVisit, visitSettingKeys } from "@/db/repos/current-visit";
 import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
-import { findVisitOnDay, getVisit, latestVisitSaveAt, moveVisit, patchVisit, upsertVisit } from "@/db/repos/visits";
+import {
+  discardVisit,
+  findVisitOnDay,
+  getVisit,
+  latestVisitSaveAt,
+  moveVisit,
+  patchVisit,
+  upsertVisit,
+} from "@/db/repos/visits";
 import type { NewVisit, Visit } from "@/db/schema";
 import { flushJournal } from "@/lib/account/collection-sync";
 import { useIntroduction } from "@/lib/account/introduction";
@@ -17,7 +25,7 @@ import { signPayload } from "@/lib/attested-write";
 import { convex } from "@/lib/convex-client";
 import { prepareCaptureVisit } from "@/lib/journal/capture-visit";
 import { museumDay } from "@/lib/journal/visit-date";
-import { markWrapUp } from "@/lib/journal/wrap-up";
+import { clearWrapUp, markWrapUp } from "@/lib/journal/wrap-up";
 import { errorMessage, SyncUnavailableError } from "@/lib/network-error";
 import { isOffline } from "@/lib/network-state";
 import { addBreadcrumb, reportError } from "@/lib/observability";
@@ -99,6 +107,8 @@ export type VenueController = {
   promptChooser: () => void;
   /** Ends the open visit by hand. Closes it only while it is still `localId`; a stale end-visit review is a no-op. */
   end: (localId: string) => Promise<void>;
+  /** Discards a visit; the open one ends first, so saves at its museum start no visit by themselves for the rest of the day. */
+  discard: (localId: string) => Promise<void>;
   /** Opens today's visit without a save; a prompt may replace the named open visit. Cancellation is honored until commit. */
   startVisit: (venueId: Id<"museums">, options?: StartVisitOptions) => Promise<CurrentVisit>;
   /** Moves a visit to another museum or day; the open visit carries the change into the venue state. */
@@ -300,10 +310,10 @@ export function createVenueController(): VenueController {
   async function refreshOpenVisit(ownership: ReturnType<typeof captureOwner>): Promise<void> {
     const open = state.visit;
     if (!ownership.isCurrent() || !open) return;
-    const row = await getVisit(open.localId, ownership.owner);
+    const row = await getVisit(open.localId, ownership.owner, { discarded: true });
     if (!ownership.isCurrent() || state.visit?.localId !== open.localId || !row || row.startedAt === null) return;
-    if (row.endedAt !== null) {
-      dispatch({ type: "visitEnded", localId: row.localId, at: row.endedAt });
+    if (row.endedAt !== null || row.deletedAt !== null) {
+      dispatch({ type: "visitEnded", localId: row.localId, at: row.endedAt ?? row.deletedAt! });
     } else {
       const selected = state.venue;
       dispatch({
@@ -462,7 +472,7 @@ export function createVenueController(): VenueController {
     const localId = await getSetting(visitSettingKeys(owner).current);
     const row = localId ? await getVisit(localId, owner) : undefined;
     const endedId = await getSetting(visitSettingKeys(owner).ended);
-    const endedRow = endedId ? await getVisit(endedId, owner) : undefined;
+    const endedRow = endedId ? await getVisit(endedId, owner, { discarded: true }) : undefined;
     const answers = {
       picked: parseSetting<VenuePick>(await getSetting(pickedKey(owner))),
       notHere: parseSetting<VenueState["notHere"]>(await getSetting(notHereKey(owner))),
@@ -650,6 +660,16 @@ export function createVenueController(): VenueController {
     await updateLocally(() => closeVisit(visit, Date.now(), owner));
   }
 
+  function discard(localId: string): Promise<void> {
+    const ownership = captureOwner();
+    return updateLocally(async () => {
+      const { visit } = state;
+      if (visit?.localId === localId && ownership.isCurrent()) await closeVisit(visit, Date.now(), ownership.owner);
+      discardVisit(localId, ownership.owner);
+      await clearWrapUp(ownership.owner, localId);
+    });
+  }
+
   function move(localId: string, to: Pick<Visit, "venueId" | "venueName" | "visitedOn" | "timeZone">): Promise<void> {
     const ownership = captureOwner();
     return updateLocally(async () => {
@@ -675,6 +695,7 @@ export function createVenueController(): VenueController {
     declinePrompt,
     promptChooser,
     end,
+    discard,
     startVisit,
     move,
     visitByDefault,
@@ -729,6 +750,7 @@ export type VenueView = {
   declinePrompt: VenueController["declinePrompt"];
   promptChooser: VenueController["promptChooser"];
   end: VenueController["end"];
+  discard: VenueController["discard"];
   startVisit: VenueController["startVisit"];
   move: VenueController["move"];
 };
@@ -751,6 +773,7 @@ export function useVenue(controller: VenueController = venueController): VenueVi
     declinePrompt: controller.declinePrompt,
     promptChooser: controller.promptChooser,
     end: controller.end,
+    discard: controller.discard,
     startVisit: controller.startVisit,
     move: controller.move,
   };
