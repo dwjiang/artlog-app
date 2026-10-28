@@ -69,6 +69,8 @@ jest.mock("@/lib/journal/use-visits", () => ({
   useVisits: () => ({ owner: mockMovingVisit.owner, visits: [mockMovingVisit], loading: false }),
 }));
 jest.mock("@/lib/venue/venue-db", () => ({
+  openVenueDb: async () => ({}),
+  filterExcludedPlaces: async (_db: unknown, places: unknown[]) => places,
   venueMetadataForIds: async () => [mockVenue],
   onVenueMetadataChange: () => () => {},
 }));

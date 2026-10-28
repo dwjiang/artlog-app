@@ -22,11 +22,12 @@ import { playErrorHaptic } from "@/lib/ui/haptics";
 import { formatDistance } from "@/lib/venue/resolve";
 import { confirmVisitStarted } from "@/lib/venue/use-start-visit";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
-import { useVenueSearch } from "@/lib/venue/use-venue-search";
+import { useVenueSearch, type VenueSearch } from "@/lib/venue/use-venue-search";
 import { venueOptionKey, type VenueOption } from "@/lib/venue/venue-reducer";
+import { LIMITS } from "@/shared/journal/limits";
 
 import { MuseumMap, useOptionCoordinates } from "./museum-map";
-import { MuseumSearchRow } from "./museum-search-row";
+import { MuseumSearchResults, museumSearchEmptyDetail, museumSearchFailure } from "./museum-search-results";
 
 function optionDistance(option: VenueOption, units: MeasurementUnits | undefined): string | undefined {
   return (units && formatDistance(option.distanceM ?? Number.NaN, units)) || undefined;
@@ -73,16 +74,16 @@ function ChooserSheet({
   const sheetStyle = [styles.groupedContainer, useFittedFormSheetStyle()];
   const { status, options, error, confirm, dismiss, declinePrompt, resolve, fix, visit, startVisit } = view;
   // Starting a visit asks on a map with the nearest museum selected; the mode is fixed when the sheet opens.
-  const [picking, setPicking] = useState(() => starts && view.options.length > 0);
+  const [picking] = useState(() => starts && view.options.length > 0);
   const [selectedKey, setSelectedKey] = useState<string | undefined>(
     () => view.options[0] && venueOptionKey(view.options[0]),
   );
   const coordinates = useOptionCoordinates(picking ? options : []);
   const [location, requestLocation] = Location.useForegroundPermissions();
   const [query, setQuery] = useState("");
-  // The fitted sheet resizes to its content, so the last answer, or the nearby list before the first, stays up while
-  // the next query is searched rather than collapsing to a spinner and back on every keystroke.
-  const { latest: results } = useVenueSearch(query, 200);
+  // The fitted sheet resizes to its content, so the last answer, or the nearby list (or map) before the first, stays up
+  // while the next query is searched rather than collapsing to a spinner and back on every keystroke.
+  const { latest: results, retry } = useVenueSearch(query, 200, { near: fix });
   const [busy, setBusy] = useState<string>();
   const [failure, setFailure] = useState<string>();
   const searchInput = useRef<TextInputInstance>(null);
@@ -158,6 +159,28 @@ function ChooserSheet({
     router.back();
   }
 
+  const searchField = (
+    <SearchField
+      inputRef={searchInput}
+      value={query}
+      label="Search museums"
+      placeholder="Museum or city"
+      showLabel={false}
+      maxLength={LIMITS.searchMax}
+      onChange={setQuery}
+      onClear={() => setQuery("")}
+    />
+  );
+  const matches = results && (
+    <SearchMatches
+      results={results}
+      busy={busy}
+      onRetry={retry}
+      onChoose={(option) => {
+        void choose(option);
+      }}
+    />
+  );
   const emptyDetail = keepVisit
     ? "Search by museum or city, or keep your current visit."
     : "Search by museum or city. You can also keep scanning without a museum.";
@@ -198,7 +221,7 @@ function ChooserSheet({
             label="Start visit"
             variant="filled"
             fullWidth
-            disabled={!selected}
+            disabled={!selected || !!results}
             busy={!!busy}
             busyLabel="Starting…"
             onPress={() => {
@@ -216,6 +239,7 @@ function ChooserSheet({
         <SafeAreaScrollView
           accessibilityLabel="Nearby museums"
           style={styles.pickerScroll}
+          keyboardShouldPersistTaps="handled"
           contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={[styles.content, pinned && styles.pinnedContent]}
           bounces={false}
@@ -229,34 +253,35 @@ function ChooserSheet({
               : "The nearest museum is a short walk away."}
             {endsVisit && ` ${endsVisit}`}
           </ThemedText>
-          {center && <MuseumMap center={center} pins={pins} selectedKey={selectedKey} onSelect={setSelectedKey} />}
-          <ListSection>
-            {options.map((option, index) => {
-              const key = venueOptionKey(option);
-              return (
-                <ListRow
-                  key={key}
-                  first={index === 0}
-                  title={option.name}
-                  subtitle={optionCategory(option)}
-                  detail={optionDistance(option, displayUnits)}
-                  leading={<ListIcon name="building.columns" />}
-                  accessory="check"
-                  accessibilityRole="radio"
-                  selected={key === selectedKey}
-                  disabled={!!busy}
-                  onPress={() => setSelectedKey(key)}
-                />
-              );
-            })}
-            <ListRow
-              last
-              title="Search for another museum"
-              leading={<ListIcon name="magnifyingglass" />}
-              accessory="chevron"
-              onPress={() => setPicking(false)}
-            />
-          </ListSection>
+          {searchField}
+          {results ? (
+            matches
+          ) : (
+            <>
+              {center && <MuseumMap center={center} pins={pins} selectedKey={selectedKey} onSelect={setSelectedKey} />}
+              <ListSection>
+                {options.map((option, index) => {
+                  const key = venueOptionKey(option);
+                  return (
+                    <ListRow
+                      key={key}
+                      first={index === 0}
+                      last={index === options.length - 1}
+                      title={option.name}
+                      subtitle={optionCategory(option)}
+                      detail={optionDistance(option, displayUnits)}
+                      leading={<ListIcon name="building.columns" />}
+                      accessory="check"
+                      accessibilityRole="radio"
+                      selected={key === selectedKey}
+                      disabled={!!busy}
+                      onPress={() => setSelectedKey(key)}
+                    />
+                  );
+                })}
+              </ListSection>
+            </>
+          )}
           {!pinned && actions}
         </SafeAreaScrollView>
         {pinned && <View style={styles.pickerFooter}>{actions}</View>}
@@ -275,50 +300,9 @@ function ChooserSheet({
         Choose museum
       </ThemedText>
       {endsVisit && <ThemedText themeColor="textSecondary">{endsVisit}</ThemedText>}
-      <SearchField
-        inputRef={searchInput}
-        value={query}
-        label="Search museums"
-        placeholder="Museum or city"
-        showLabel={false}
-        onChange={setQuery}
-        onClear={() => setQuery("")}
-      />
+      {searchField}
       {results ? (
-        results.failed ? (
-          <ThemedText themeColor="error" accessibilityRole="alert">
-            Museums could not load. Try another search.
-          </ThemedText>
-        ) : results.rows.length === 0 ? (
-          <EmptyState
-            inset={false}
-            title="No museums found."
-            detail="Try the city or a shorter name."
-            visual={<EmptyMap />}
-          />
-        ) : (
-          <ListSection>
-            {results.rows.map((row, index) => (
-              <MuseumSearchRow
-                key={row.id}
-                venue={row}
-                first={index === 0}
-                last={index === results.rows.length - 1}
-                query={results.query}
-                busy={busy === row.id}
-                disabled={!!busy}
-                onPress={() => {
-                  void choose({
-                    kind: "seeded",
-                    venueId: row.id,
-                    name: row.name,
-                    manual: museumDay(row, Date.now()),
-                  });
-                }}
-              />
-            ))}
-          </ListSection>
-        )
+        matches
       ) : locating ? (
         <LoadingRing accessibilityLabel="Locating your museum" />
       ) : options.length === 0 ? (
@@ -390,10 +374,57 @@ function ChooserSheet({
   );
 }
 
+/** The latest search answer; a museum or place chosen here is picked by hand, so it stands for the museum's day. */
+function SearchMatches({
+  results,
+  busy,
+  onRetry,
+  onChoose,
+}: {
+  results: VenueSearch & { query: string };
+  busy?: string;
+  onRetry: () => void;
+  onChoose: (option: VenueOption) => void;
+}) {
+  if (results.failed) {
+    return (
+      <View style={styles.failure}>
+        <ThemedText themeColor="error" accessibilityRole="alert">
+          {museumSearchFailure(results.failed)}
+        </ThemedText>
+        <GalleryButton label="Try again" fullWidth onPress={onRetry} />
+      </View>
+    );
+  }
+  if (results.rows.length === 0 && results.places.length === 0) {
+    return (
+      <EmptyState
+        inset={false}
+        title="No museums found."
+        detail={museumSearchEmptyDetail(results.query)}
+        visual={<EmptyMap />}
+      />
+    );
+  }
+  return (
+    <MuseumSearchResults
+      query={results.query}
+      search={results}
+      busyKey={busy}
+      disabled={!!busy}
+      onChooseVenue={(row) =>
+        onChoose({ kind: "seeded", venueId: row.id, name: row.name, manual: museumDay(row, Date.now()) })
+      }
+      onChoosePlace={onChoose}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   groupedContainer: { backgroundColor: Gallery.groupedBackground },
   content: { padding: Spacing.content, paddingTop: Spacing.four, gap: Spacing.three },
   pickerScroll: { flexGrow: 0 },
+  failure: { gap: Spacing.two },
   pinnedContent: { paddingBottom: 0 },
   pickerFooter: {
     padding: Spacing.content,

@@ -603,6 +603,7 @@ export function createVenueController(): VenueController {
         name: row.name,
         ...(option.distanceM === undefined ? {} : { distanceM: option.distanceM }),
         ...(row.website ? { website: row.website } : {}),
+        ...(option.manual ? { manual: day } : {}),
       };
     }
     return updateLocally(async () => {

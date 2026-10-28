@@ -1496,6 +1496,18 @@ it("keeps a searched museum through denied location, relaunch, and scans until t
   expect(mockVisits.get(visit.localId)?.endedAt).not.toBeNull();
 });
 
+it("keeps an Apple Maps place found by name through denied location, unlike one found near the phone", async () => {
+  mockGetPermission.mockResolvedValue({ granted: false });
+  const found = { kind: "poi", name: place.name, lat: place.lat, lng: place.lng, category: "unknown" } as const;
+  await controller.confirm({ ...found, manual: true });
+  expect(controller.getState().venue?.manual).toEqual(museumDay({ lat: 40.8, lng: -73.9 }, mockNow));
+  expect(await controller.resolve()).toEqual({ venueId: "id-corner" });
+  const nearby = createVenueController();
+  await nearby.confirm(found);
+  expect(nearby.getState().venue?.manual).toBeUndefined();
+  expect(await nearby.resolve()).toEqual({});
+});
+
 it.each([false, true])(
   "refreshes location without replacing a manually selected museum (open visit: %s)",
   async (openVisit) => {
