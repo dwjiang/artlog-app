@@ -10,6 +10,7 @@ import Animated, {
   withSpring,
   type SharedValue,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 
 import { ThemedText as Text } from "@/components/themed-text";
@@ -74,6 +75,7 @@ export function WallGallery({
 }: {
   pieces: WallPiece[];
   wallpaper: Wallpaper;
+  /** The width artworks hang across, inside the horizontal safe area; the wallpaper runs on to the screen edges. */
   width: number;
   editing?: boolean;
   locked?: boolean;
@@ -91,6 +93,7 @@ export function WallGallery({
   children?: ReactNode;
 }) {
   const light = isLightWall(wallpaper.color);
+  const { left, right } = useSafeAreaInsets();
   const [headerHeight, setHeaderHeight] = useState(0);
   // Placements the wall has not saved yet: a resting drag's preview, then the release until the save lands.
   const arrangement = useSharedValue<WallArrangement>({});
@@ -132,13 +135,19 @@ export function WallGallery({
 
   const canvasMinHeight = minHeight - (header ? headerHeight : 0);
   return (
-    <View style={{ width }}>
+    <View style={{ width: left + width + right }}>
       <View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, wallpaperStyle(wallpaper), { bottom: -backgroundBottomInset }]}
       />
       {header && <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>{header}</View>}
-      <View style={{ height: Math.max(canvasMinHeight, wallBottom(pieces, width) * width + 85) + bottomInset }}>
+      <View
+        style={{
+          marginLeft: left,
+          width,
+          height: Math.max(canvasMinHeight, wallBottom(pieces, width) * width + 85) + bottomInset,
+        }}
+      >
         {editing && selectedId && onDeselect && (
           <Pressable
             style={StyleSheet.absoluteFill}

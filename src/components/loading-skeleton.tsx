@@ -1,17 +1,12 @@
 import { Fragment, type ReactNode } from "react";
-import {
-  StyleSheet,
-  View,
-  useWindowDimensions,
-  type DimensionValue,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, View, type DimensionValue, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { cubicBezier } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { VisitSeparator } from "@/components/social/visit-separator";
 import { Gallery, Motion, Radius } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
 const pulse = {
   "0%": { opacity: 1 },
@@ -290,13 +285,19 @@ const WALL_PIECES = [
 
 /** A full-bleed wall with framed pieces and their labels, as WallGallery hangs them. */
 export function WallSkeleton({ label = "Opening wall…" }: { label?: string }) {
-  const { width } = useWindowDimensions();
+  const width = useSafeAreaWidth();
+  const { left } = useSafeAreaInsets();
   return (
     <LoadingSkeleton label={label} style={{ height: 580 }} fill>
       {WALL_PIECES.map((piece, index) => (
         <View
           key={index}
-          style={{ position: "absolute", left: piece.x * width, top: piece.y * width, width: piece.width * width }}
+          style={{
+            position: "absolute",
+            left: left + piece.x * width,
+            top: piece.y * width,
+            width: piece.width * width,
+          }}
         >
           <Ghost height={piece.height * width} />
           <View style={{ marginTop: 17, gap: 8 }}>

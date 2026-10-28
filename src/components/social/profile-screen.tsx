@@ -154,7 +154,7 @@ export function ProfileScreen({ profileId }: { profileId: string }) {
   }
   // The photo fits between iOS 26 bar items; older bars blur their full width, so the photo stays below them.
   const pulledToSafeArea = { marginTop: -raisedBy };
-  // The wall keeps its own full-width geometry, as on Collection; the list pads only the content around it.
+  // The wallpaper reaches the screen edges, as on Collection; the wall hangs its artworks inside the safe area.
   const fullBleed = { marginLeft: -left, marginRight: -right };
   // Until the profile arrives, the same layout draws ghosts in place of the header, actions, and the open section.
   const person = profile.data;
