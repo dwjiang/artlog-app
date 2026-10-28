@@ -3,6 +3,7 @@ import { Button, Menu } from "@expo/ui/swift-ui";
 import { accessibilityLabel, buttonStyle, frame } from "@expo/ui/swift-ui/modifiers";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
+import { useVerticalBarEdgeIOS } from "expo-status-bar";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,6 +29,9 @@ export function NowPlayingScreen() {
   const [wide, setWide] = useState(false);
   const audio = useListening();
   const { bottom, left, right } = useSafeAreaInsets();
+  // The iPhone Duo's side bar holds only the camera and status items at its top, so below the header the player runs
+  // into its column instead of leaving it blank. Landscape camera housings span the full height and keep their inset.
+  const verticalBar = useVerticalBarEdgeIOS();
   if (!audio.current) {
     return (
       <View style={styles.empty}>
@@ -102,13 +106,19 @@ export function NowPlayingScreen() {
   const minimize = <AudioIconButton name="chevron.down" label="Minimize player" onPress={() => router.back()} />;
   // Beside the print, the header splits over the two columns, so the label can rise beside the options menu.
   const splitHeader = wide && view === "player";
+  const barLeft = !wide && verticalBar === "leading" ? left : 0;
+  const barRight = !wide && verticalBar === "trailing" ? right : 0;
+  const besideBar = { paddingLeft: barLeft, paddingRight: barRight };
   return (
     <View
       onLayout={({ nativeEvent: { layout } }) => setWide(layout.width > layout.height)}
-      style={[styles.screen, { paddingBottom: Math.max(8, bottom), paddingLeft: left, paddingRight: right }]}
+      style={[
+        styles.screen,
+        { paddingBottom: Math.max(8, bottom), paddingLeft: left - barLeft, paddingRight: right - barRight },
+      ]}
     >
       {!splitHeader && (
-        <View style={styles.header}>
+        <View style={[styles.header, besideBar]}>
           {minimize}
           {view === "saved" ? (
             <>
@@ -156,11 +166,12 @@ export function NowPlayingScreen() {
               contentInsetAdjustmentBehavior="never"
               alwaysBounceVertical={false}
             >
-              <ArtworkPrint work={work} />
+              {/* Inset alike on both sides, the print stays centred over the transport and clear of the bar's top. */}
+              <ArtworkPrint work={work} inset={Math.max(Spacing.four, barLeft + barRight)} />
               {label}
             </ScrollView>
           )}
-          {list}
+          {view !== "player" && <View style={[styles.fill, besideBar]}>{list}</View>}
           <View style={view !== "player" && styles.footer}>{transport}</View>
         </>
       )}
@@ -170,7 +181,7 @@ export function NowPlayingScreen() {
 }
 
 /** The artwork hung like a print: drawn at its own proportions so the paper shadow follows its edges. */
-function ArtworkPrint({ work }: { work: ListeningWork }) {
+function ArtworkPrint({ work, inset = Spacing.four }: { work: ListeningWork; inset?: number }) {
   const [space, setSpace] = useState({ width: 0, height: 0 });
   const [aspect, setAspect] = useState(1);
   const fit = (ratio: number) => {
@@ -181,7 +192,7 @@ function ArtworkPrint({ work }: { work: ListeningWork }) {
   };
   return (
     <View
-      style={styles.print}
+      style={[styles.print, { marginHorizontal: inset }]}
       onLayout={({ nativeEvent: { layout } }) => setSpace({ width: layout.width, height: layout.height })}
     >
       {space.width > 0 && space.height > 0 && work.imageUri ? (
@@ -235,7 +246,6 @@ const styles = StyleSheet.create({
     minHeight: 64,
     alignItems: "center",
     justifyContent: "center",
-    marginHorizontal: Spacing.four,
     marginVertical: Spacing.four,
   },
   paper: {

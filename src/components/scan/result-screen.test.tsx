@@ -3,7 +3,7 @@ import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { getFunctionName } from "convex/server";
 import * as SQLite from "expo-sqlite";
 import type { ReactNode } from "react";
-import { AppState } from "react-native";
+import { AppState, Dimensions } from "react-native";
 
 import { db } from "@/db/client";
 import { enqueuePendingScan, pendingScansQuery } from "@/db/repos/pending-scans";
@@ -343,6 +343,29 @@ it("shows listen controls and the audio guide transcript inline once narration e
   expect(screen.getByText("Monet grew these lilies in his garden at Giverny.")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "1 source" }));
   expect(screen.getByRole("link", { name: "Test Museum" })).toBeOnTheScreen();
+});
+
+it("keeps the sources sheet open through portrait and landscape rotation", async () => {
+  const original = Dimensions.get("window");
+  try {
+    Dimensions.set({ window: { ...original, width: 402, height: 874 } });
+    await render(result());
+    await fireEvent.press(screen.getByRole("button", { name: "2 sources" }));
+    expect(screen.getByRole("header", { name: "Sources" })).toBeOnTheScreen();
+
+    for (const size of [
+      { width: 874, height: 402 },
+      { width: 402, height: 874 },
+    ]) {
+      await act(() => Dimensions.set({ window: { ...original, ...size } }));
+      expect(screen.getByRole("header", { name: "Sources" })).toBeOnTheScreen();
+      expect(screen.getByRole("link", { name: "The Met" })).toBeOnTheScreen();
+    }
+    await fireEvent.press(screen.getByRole("button", { name: "Done" }));
+    expect(screen.queryByRole("header", { name: "Sources" })).toBeNull();
+  } finally {
+    await act(() => Dimensions.set({ window: original }));
+  }
 });
 
 it("shows a confident match with its fields, chip, prose and sources", async () => {

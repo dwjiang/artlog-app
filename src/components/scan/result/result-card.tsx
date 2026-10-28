@@ -18,6 +18,7 @@ import { canSave, draftFromCandidate, draftFromConfirmed, type SnapshotDraft } f
 import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
 import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 import { useLiftToasts } from "@/lib/ui/toast";
+import { useLandscape } from "@/lib/ui/use-landscape";
 
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { FieldsForm } from "./fields-form";
@@ -77,6 +78,8 @@ export function ResultCard({
   );
   const [editingDetails, setEditingDetails] = useState(manual);
   const { bottom } = useSafeAreaInsets();
+  // In landscape the photo sits beside the details, so the title opens above the save bar instead of under it.
+  const landscape = useLandscape();
   const saveBarPadding = useHorizontalSafeAreaPadding(styles.save);
   const [saveBarHeight, setSaveBarHeight] = useState<number>();
   useLiftToasts(saveBarHeight, useIsFocused());
@@ -97,6 +100,77 @@ export function ResultCard({
         }
       : undefined,
     !editable,
+  );
+  const details = (
+    <>
+      <ArtworkIdentity
+        title={view.kind === "soft" ? `Could this be ${draft.title}?` : draft.title || "Unidentified artwork"}
+        artist={attributed ? draft.artist : undefined}
+        date={attributed ? draft.date : undefined}
+        medium={!editingDetails && named ? draft.medium : undefined}
+        institution={!editingDetails && named ? draft.institution : undefined}
+      />
+      {!named && !manual && (
+        <View style={styles.recovery}>
+          <ThemedText themeColor="textSecondary">
+            {view.primary
+              ? "This match needs a closer look. Scan the museum label to check the details, or keep your photo for later."
+              : "No match yet. Scan the museum label, or save the photo and add details later."}
+          </ThemedText>
+          {view.kind === "soft" && (
+            <ThemedText variant="secondary" themeColor="textSecondary">
+              Possible artist · {draft.artist || "Unknown"}
+            </ThemedText>
+          )}
+          <GalleryButton
+            label={LABEL_BUTTON}
+            icon="text.viewfinder"
+            fullWidth
+            variant="outlined"
+            disabled={!editable}
+            onPress={onLabel}
+          />
+        </View>
+      )}
+      {view.primary?.identityStatus === "tentative" && <TentativeOriginNotice />}
+      {editingDetails && (
+        <FieldsForm
+          draft={draft}
+          editable={editable}
+          onChange={(field, value) => {
+            onEdit();
+            setDraft((current) => ({ ...current, [field]: value }));
+          }}
+        />
+      )}
+      {named && (
+        <ArtworkStory
+          artworkId={view.primary?.artworkId}
+          title={draft.title}
+          artist={draft.artist}
+          date={draft.date}
+          scanId={captureInput?.scanId}
+          savedId={savedId}
+          imageUri={captureInput?.capture ? captureFileUri(scanDisplayPath(captureInput.capture.cropPath)) : undefined}
+          docent={view.docent}
+          factSheet={view.factSheet}
+          status={view.docentStatus}
+          onRetry={onRetryDocent}
+          report={
+            view.primary
+              ? { kind: "docent", artworkId: view.primary.artworkId }
+              : scanId && { kind: "scanDocent", scanId }
+          }
+        />
+      )}
+      {suggestions.length > 0 && (
+        <View style={styles.section}>
+          <HighlightHeading>Other possibilities</HighlightHeading>
+          <RunnerUps candidates={suggestions} onPick={onPick} />
+        </View>
+      )}
+      {context}
+    </>
   );
   return (
     <>
@@ -140,78 +214,10 @@ export function ResultCard({
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustKeyboardInsets
         keyboardDismissMode="interactive"
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, landscape && styles.columns]}
       >
-        {header}
-        <ArtworkIdentity
-          title={view.kind === "soft" ? `Could this be ${draft.title}?` : draft.title || "Unidentified artwork"}
-          artist={attributed ? draft.artist : undefined}
-          date={attributed ? draft.date : undefined}
-          medium={!editingDetails && named ? draft.medium : undefined}
-          institution={!editingDetails && named ? draft.institution : undefined}
-        />
-        {!named && !manual && (
-          <View style={styles.recovery}>
-            <ThemedText themeColor="textSecondary">
-              {view.primary
-                ? "This match needs a closer look. Scan the museum label to check the details, or keep your photo for later."
-                : "No match yet. Scan the museum label, or save the photo and add details later."}
-            </ThemedText>
-            {view.kind === "soft" && (
-              <ThemedText variant="secondary" themeColor="textSecondary">
-                Possible artist · {draft.artist || "Unknown"}
-              </ThemedText>
-            )}
-            <GalleryButton
-              label={LABEL_BUTTON}
-              icon="text.viewfinder"
-              fullWidth
-              variant="outlined"
-              disabled={!editable}
-              onPress={onLabel}
-            />
-          </View>
-        )}
-        {view.primary?.identityStatus === "tentative" && <TentativeOriginNotice />}
-        {editingDetails && (
-          <FieldsForm
-            draft={draft}
-            editable={editable}
-            onChange={(field, value) => {
-              onEdit();
-              setDraft((current) => ({ ...current, [field]: value }));
-            }}
-          />
-        )}
-        {named && (
-          <ArtworkStory
-            artworkId={view.primary?.artworkId}
-            title={draft.title}
-            artist={draft.artist}
-            date={draft.date}
-            scanId={captureInput?.scanId}
-            savedId={savedId}
-            imageUri={
-              captureInput?.capture ? captureFileUri(scanDisplayPath(captureInput.capture.cropPath)) : undefined
-            }
-            docent={view.docent}
-            factSheet={view.factSheet}
-            status={view.docentStatus}
-            onRetry={onRetryDocent}
-            report={
-              view.primary
-                ? { kind: "docent", artworkId: view.primary.artworkId }
-                : scanId && { kind: "scanDocent", scanId }
-            }
-          />
-        )}
-        {suggestions.length > 0 && (
-          <View style={styles.section}>
-            <HighlightHeading>Other possibilities</HighlightHeading>
-            <RunnerUps candidates={suggestions} onPick={onPick} />
-          </View>
-        )}
-        {context}
+        <View style={landscape && styles.aside}>{header}</View>
+        <View style={[styles.details, landscape && styles.main]}>{details}</View>
       </SafeAreaScrollView>
       <View
         onLayout={(event) => setSaveBarHeight(event.nativeEvent.layout.height)}
@@ -244,6 +250,10 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.four,
     gap: Spacing.three,
   },
+  columns: { flexDirection: "row", alignItems: "flex-start", gap: Spacing.content },
+  aside: { width: "40%" },
+  main: { flex: 1 },
+  details: { gap: Spacing.three },
   section: { gap: Spacing.compact, paddingTop: Spacing.two },
   recovery: { gap: Spacing.two, padding: Spacing.three, borderRadius: Radius.card, backgroundColor: Gallery.fill },
   save: {

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 
 import { dismissToast, showErrorToast } from "@/lib/ui/toast";
 
@@ -42,9 +43,12 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({}),
   router: { back: jest.fn(), push: (...args: unknown[]) => mockPush(...args) },
 }));
+let mockInsets = { bottom: 0, left: 0, right: 0 };
+let mockVerticalBar: "leading" | "trailing" | null = null;
 jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ bottom: 0, left: 0, right: 0 }),
+  useSafeAreaInsets: () => mockInsets,
 }));
+jest.mock("expo-status-bar", () => ({ useVerticalBarEdgeIOS: () => mockVerticalBar }));
 jest.mock("./listening-queue", () => ({
   ListeningQueue: ({ onAdd }: { onAdd: () => void }) => {
     const { Pressable, Text } = jest.requireActual("react-native");
@@ -145,4 +149,40 @@ it("shows narration failures as a toast above the modal player", async () => {
   expect(retry).toHaveBeenCalledTimes(1);
   expect(screen.queryByText("Narration is unavailable right now.")).toBeNull();
   dismissToast();
+});
+
+type HostElement = ReturnType<typeof screen.getByRole>;
+
+// How far the views around an element push it in from the screen's right edge.
+function rightInset(element: HostElement) {
+  let inset = 0;
+  for (let node = element.parent; node; node = node.parent) {
+    const {
+      padding = 0,
+      paddingHorizontal = padding,
+      paddingRight = paddingHorizontal,
+    } = StyleSheet.flatten(node.props.style) ?? {};
+    inset += Number(paddingRight);
+  }
+  return inset;
+}
+
+it.each([
+  { bars: "the iPhone Duo's side bar", verticalBar: "trailing" as const, player: 0 },
+  { bars: "landscape camera housings", verticalBar: null, player: 84 },
+])("keeps the header clear of $bars and lets only a side bar's empty column hold the player", async (bars) => {
+  mockInsets = { bottom: 0, left: 0, right: 84 };
+  mockVerticalBar = bars.verticalBar;
+  mockAudio.phase = "ready";
+  mockAudio.sentences = [{ sentence: "Take a moment to notice the lilies.", factIds: ["f1"], section: "hook" }];
+  try {
+    await render(<NowPlayingScreen />);
+    expect(rightInset(screen.getByRole("button", { name: "Minimize player" }))).toBe(84);
+    expect(rightInset(screen.getByRole("button", { name: "Up next" }))).toBe(bars.player);
+    await fireEvent.press(screen.getByRole("button", { name: "Transcript and sources" }));
+    expect(rightInset(screen.getByText("Take a moment to notice the lilies."))).toBeGreaterThanOrEqual(84);
+  } finally {
+    mockInsets = { bottom: 0, left: 0, right: 0 };
+    mockVerticalBar = null;
+  }
 });

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { Text } from "react-native";
+import { Dimensions, Text } from "react-native";
 
 import { LABEL_BUTTON, SaveBar } from "./save-bar";
 
@@ -51,4 +51,22 @@ it("shows the visit above the actions until the work is saved", async () => {
   expect(screen.getByText("Visit: Today · The Met")).toBeOnTheScreen();
   await view.rerender(<SaveBar canSave saving={false} savedId="saved-1" {...handlers} visit={visit} />);
   expect(screen.queryByText("Visit: Today · The Met")).toBeNull();
+});
+
+it("keeps the visit and every action when the bar lays out side by side in landscape", async () => {
+  const portrait = Dimensions.get("window");
+  Dimensions.set({ window: { ...portrait, width: 874, height: 402 } });
+  try {
+    const visit = <Text>Visit: Today · The Met</Text>;
+    const view = await render(<SaveBar canSave saving={false} {...handlers} visit={visit} />);
+    expect(screen.getByText("Visit: Today · The Met")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: "Save to collection" }));
+    expect(handlers.onSave).toHaveBeenCalledTimes(1);
+    await view.rerender(<SaveBar canSave saving={false} savedId="saved-1" {...handlers} visit={visit} />);
+    expect(screen.getByRole("button", { name: "Scan next artwork" })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: "View artwork" }));
+    expect(handlers.onViewSaved).toHaveBeenCalledTimes(1);
+  } finally {
+    Dimensions.set({ window: portrait });
+  }
 });
