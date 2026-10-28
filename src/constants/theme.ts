@@ -47,7 +47,6 @@ export const Colors = {
     overlayText: "#FFFFFF",
     // The Camera app's focus-box yellow, so tap-to-focus reads as the familiar system control.
     cameraFocus: "#FFD60A",
-    cameraProgress: "#7A9AF6",
   },
   dark: {
     text: "#ffffff",
