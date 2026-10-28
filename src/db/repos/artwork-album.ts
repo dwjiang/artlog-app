@@ -29,16 +29,16 @@ function requireWork(localId: string, owner: string) {
   if (!work) throw new Error("Artwork is unavailable");
   return work;
 }
-function requireVisit(localId: string, owner: string) {
-  if (
-    !db
-      .select()
-      .from(visits)
-      .where(and(eq(visits.owner, owner), eq(visits.localId, localId)))
-      .get()
-  ) {
+function requireVisit(localId: string, owner: string, { discarded = false } = {}) {
+  const visit = db
+    .select()
+    .from(visits)
+    .where(and(eq(visits.owner, owner), eq(visits.localId, localId)))
+    .get();
+  if (!visit || (!discarded && visit.deletedAt !== null)) {
     throw new Error("Visit is unavailable");
   }
+  return visit;
 }
 export function selectArtworkPhotos(savedLocalId: string, owner = getLocalOwner()) {
   return db
@@ -214,7 +214,11 @@ export function editArtworkPhoto(
     throw new Error("An artwork can hold 100 photos");
   }
   db.transaction(() => {
-    if (moving && photo.visitLocalId) {
+    if (
+      moving
+      && photo.visitLocalId
+      && requireVisit(photo.visitLocalId, owner, { discarded: true }).deletedAt === null
+    ) {
       linkArtworkVisit(patch.savedLocalId!, photo.visitLocalId, owner);
     }
     db.update(artworkPhotos)

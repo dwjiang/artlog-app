@@ -8,7 +8,6 @@ import { calendarDate } from "@/shared/journal/limits";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { VenueCandidate } from "./resolve";
 import { createVenueController, VenueResolver, VisitInProgressError, type VenueController } from "./use-venue";
-import { NOT_HERE_MS } from "./venue-reducer";
 
 const mockActivateVisit = jest.fn();
 const mockRequestPermission = jest.fn();
@@ -30,6 +29,9 @@ const mockSettings = new Map<string, string>();
 jest.mock("@/lib/journal/wrap-up", () => ({
   markWrapUp: async (owner: string, visitId: string) => {
     mockSettings.set(`wrapUpVisit:${owner}`, visitId);
+  },
+  clearWrapUp: async (owner: string, visitId: string) => {
+    if (mockSettings.get(`wrapUpVisit:${owner}`) === visitId) mockSettings.delete(`wrapUpVisit:${owner}`);
   },
 }));
 const mockVisits = new Map<string, Visit>();
@@ -95,16 +97,24 @@ jest.mock("@/db/repos/visits", () => ({
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
       ...existing,
       ...Object.fromEntries(Object.entries(visit).filter(([, v]) => v !== undefined)),
     } as Visit;
     mockVisits.set(visit.localId, merged);
   },
-  getVisit: async (localId: string) => mockVisits.get(localId),
+  getVisit: async (localId: string, _owner: string, { discarded = false } = {}) => {
+    const row = mockVisits.get(localId);
+    return discarded || !row?.deletedAt ? row : undefined;
+  },
   findVisitOnDay: async (venueId: string, visitedOn: string, _owner: string, { open = false } = {}) =>
     [...mockVisits.values()]
       .filter(
-        (visit) => visit.venueId === venueId && visit.visitedOn === visitedOn && (!open || visit.endedAt === null),
+        (visit) =>
+          visit.venueId === venueId
+          && visit.visitedOn === visitedOn
+          && !visit.deletedAt
+          && (!open || visit.endedAt === null),
       )
       .sort((a, b) => (b.startedAt ?? -Infinity) - (a.startedAt ?? -Infinity))[0],
   patchVisit: async (localId: string, fields: Partial<Visit>) => {
@@ -116,6 +126,10 @@ jest.mock("@/db/repos/visits", () => ({
     if (row) mockVisits.set(localId, { ...row, ...to, syncedAt: null });
   },
   latestVisitSaveAt: async (localId: string) => mockLatestSaves.get(localId),
+  discardVisit: (localId: string) => {
+    const row = mockVisits.get(localId);
+    if (row) mockVisits.set(localId, { ...row, deletedAt: mockNow, reflection: null, syncedAt: null });
+  },
 }));
 jest.mock("@/lib/observability", () => ({
   reportError: jest.fn(),
@@ -189,6 +203,9 @@ const place = {
 const CURRENT = "currentVisit:device:test-installation";
 const ENDED = "endedVisit:device:test-installation";
 const DAY = 24 * 60 * 60 * 1000;
+/** The phone's first midnight after the starting `mockNow`, in the America/Los_Angeles zone Jest pins. */
+const NEXT_MIDNIGHT = 8 * 60 * 60 * 1000;
+const PICKER = { pathname: "/venue-picker", params: { mode: "choose" } };
 /** A museum picked from search on the museum's current day. */
 const byHand = () => museumDay(met, mockNow);
 
@@ -231,6 +248,7 @@ beforeEach(() => {
         syncedAt: null,
         syncedBy: null,
         revision: 0,
+        deletedAt: null,
         ...Object.fromEntries(Object.entries(visit).filter(([, value]) => value !== undefined)),
         ...existing,
         startedAt: visit.startedAt,
@@ -358,15 +376,14 @@ describe("resolving the museum", () => {
     expect(mockRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it("asks between two seeded venues, opens the picker once, and a choice resolves that museum without a visit", async () => {
+  it("leaves two seeded venues undecided until the camera opens the picker, and a choice resolves that museum without a visit", async () => {
     mockNearest.mockResolvedValue([metRow, neueRow]);
     await mountResolver();
     expect(controller.getState().status).toBe("choose");
+    expect(mockPush).not.toHaveBeenCalled();
+    await act(async () => controller.promptChooser());
     expect(mockPush).toHaveBeenCalledTimes(1);
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/venue-picker",
-      params: { mode: "choose" },
-    });
+    expect(mockPush).toHaveBeenCalledWith(PICKER);
     expect(controller.getContext()).toEqual({});
     const option = controller.getState().options[1];
     await act(async () => {
@@ -378,7 +395,7 @@ describe("resolving the museum", () => {
     expect(mockMutation).not.toHaveBeenCalled();
   });
 
-  it("searches MapKit when nothing seeded is near and confirms a place through the attested mutation", async () => {
+  it("lists MapKit places when nothing seeded is near without opening the picker, and confirms one through the attested mutation", async () => {
     mockSearchNearby.mockResolvedValue([place]);
     await mountResolver();
     expect(mockSearchNearby).toHaveBeenCalledWith(met.lat, met.lng, 300);
@@ -386,7 +403,8 @@ describe("resolving the museum", () => {
       status: "none",
       options: [{ kind: "poi", name: "Corner Gallery", distanceM: 80 }],
     });
-    expect(mockPush).toHaveBeenCalledTimes(1);
+    await act(async () => controller.promptChooser());
+    expect(mockPush).not.toHaveBeenCalled();
     await act(async () => {
       await controller.confirm(controller.getState().options[0]);
     });
@@ -439,19 +457,25 @@ describe("resolving the museum", () => {
     expect(mockMutation).not.toHaveBeenCalled();
   });
 
-  it("opens the picker on launch once onboarding is behind the person", async () => {
+  it("never opens the picker on launch or when the app comes back; only the camera asks", async () => {
     mockNearest.mockResolvedValue([metRow, neueRow]);
     await act(async () => {
       await render(<VenueResolver controller={controller} />);
     });
     await act(async () => {});
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/venue-picker",
-      params: { mode: "choose" },
+    mockNow += 5 * 60 * 1000;
+    await act(async () => {
+      appStateListener?.("background");
+      appStateListener?.("active");
     });
+    expect(mockGetPosition).toHaveBeenCalledTimes(2);
+    expect(controller.getState().status).toBe("choose");
+    expect(mockPush).not.toHaveBeenCalled();
+    await act(async () => controller.promptChooser());
+    expect(mockPush).toHaveBeenCalledWith(PICKER);
   });
 
-  it("checks location only after the welcome, and leaves the museum unasked when onboarding hands off to Home", async () => {
+  it("checks location only after the welcome", async () => {
     mockIntroduction = "pending";
     mockNearest.mockResolvedValue([metRow, neueRow]);
     const view = await render(<VenueResolver controller={controller} />);
@@ -465,14 +489,6 @@ describe("resolving the museum", () => {
     await act(async () => {});
     expect(mockGetPermission).toHaveBeenCalledTimes(1);
     expect(controller.getState().status).toBe("choose");
-    expect(mockPush).not.toHaveBeenCalled();
-
-    // Opening the camera still asks, as it does for anyone at an undecided spot.
-    await act(async () => controller.promptChooser());
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/venue-picker",
-      params: { mode: "choose" },
-    });
   });
 
   it("records a denied permission without asking for a position", async () => {
@@ -645,6 +661,7 @@ describe("the visit a save links to", () => {
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
     } as Visit;
     mockVisits.set(manual.localId, manual);
     mockNearest.mockResolvedValue([metRow]);
@@ -866,7 +883,7 @@ describe("scans", () => {
     expect(mockVisits.size).toBe(1);
   });
 
-  it("never opens the sheet over a scan; the next foreground asks instead", async () => {
+  it("never opens the sheet over a scan or when the app comes back", async () => {
     mockNearest.mockResolvedValue([metRow, neueRow]);
     mockSearchNearby.mockResolvedValue([place]);
     await act(async () => {
@@ -884,12 +901,13 @@ describe("scans", () => {
       await controller.resolveForScan(mockNow);
     });
     expect(controller.getState().options).toEqual([expect.objectContaining({ kind: "poi" })]);
-    expect(mockPush).not.toHaveBeenCalled();
+    mockNearest.mockResolvedValue([metRow, neueRow]);
     await act(async () => {
       appStateListener?.("background");
       appStateListener?.("active");
     });
-    expect(mockPush).toHaveBeenCalledTimes(1);
+    expect(controller.getState().status).toBe("choose");
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });
 
@@ -989,6 +1007,33 @@ describe("pausing, ending and the day", () => {
     expect(mockVisits.size).toBe(1);
   });
 
+  it("discards the open visit as an ending, so saves at its museum start no visit for the rest of the day", async () => {
+    mockNearest.mockResolvedValue([metRow]);
+    await controller.resolve();
+    await controller.visitForSave(metId, mockNow);
+    mockSettings.set("wrapUpVisit:device:test-installation", "uuid-1");
+    mockNow += 10 * 60 * 1000;
+    await controller.discard("uuid-1");
+    expect(mockVisits.get("uuid-1")).toMatchObject({ endedAt: mockNow, deletedAt: mockNow });
+    expect(mockSettings.has(CURRENT)).toBe(false);
+    expect(mockSettings.has("wrapUpVisit:device:test-installation")).toBe(false);
+    expect(controller.getState().visit).toBeUndefined();
+    expect(controller.visitByDefault(metId)).toBe(false);
+    const relaunched = createVenueController();
+    await relaunched.hydrate();
+    expect(relaunched.getState().visit).toBeUndefined();
+    expect(relaunched.visitByDefault(metId)).toBe(false);
+  });
+
+  it("closes the open visit once another device discards it", async () => {
+    mockNearest.mockResolvedValue([metRow]);
+    await controller.resolve();
+    await controller.visitForSave(metId, mockNow);
+    mockVisits.set("uuid-1", { ...mockVisits.get("uuid-1")!, deletedAt: mockNow });
+    await controller.syncRemoteVisit();
+    expect(controller.getState().visit).toBeUndefined();
+  });
+
   it("leaves the current visit open when saving an older end-visit review", async () => {
     mockNearest.mockResolvedValue([metRow]);
     await controller.resolve();
@@ -1015,6 +1060,7 @@ describe("pausing, ending and the day", () => {
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
     });
     mockSettings.set(CURRENT, "existing");
     mockNearest.mockResolvedValue([metRow]);
@@ -1057,6 +1103,7 @@ describe("pausing, ending and the day", () => {
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
     };
     mockVisits.set("stale", stale);
     mockVisits.set("elsewhere", {
@@ -1100,6 +1147,7 @@ describe("pausing, ending and the day", () => {
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
     });
     mockSettings.set(CURRENT, "empty");
     await controller.hydrate();
@@ -1153,17 +1201,16 @@ describe("the sheet", () => {
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
     });
     mockSettings.set(CURRENT, "old");
     mockNearest.mockResolvedValue([metRow, neueRow]);
     await act(async () => {
       await render(<VenueResolver controller={controller} />);
     });
+    await act(async () => controller.promptChooser());
     expect(mockPush).toHaveBeenCalledTimes(1);
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/venue-picker",
-      params: { mode: "choose" },
-    });
+    expect(mockPush).toHaveBeenCalledWith(PICKER);
     await act(async () => {
       controller.dismiss();
     });
@@ -1175,6 +1222,7 @@ describe("the sheet", () => {
     await act(async () => {
       await controller.resolve();
     });
+    await act(async () => controller.promptChooser());
     expect(mockGetPosition).toHaveBeenCalledTimes(2);
     expect(mockPush).toHaveBeenCalledTimes(1);
   });
@@ -1349,6 +1397,7 @@ describe("the sheet", () => {
   it("keeps a museum picked from the list through backgrounding and a relaunch without asking again", async () => {
     mockNearest.mockResolvedValue([metRow, neueRow]);
     await mountResolver();
+    await act(async () => controller.promptChooser());
     expect(mockPush).toHaveBeenCalledTimes(1);
     await act(async () => {
       await controller.confirm(controller.getState().options[1]);
@@ -1362,6 +1411,7 @@ describe("the sheet", () => {
     expect(controller.getContext()).toEqual({ venueId: "id-neue" });
     controller = createVenueController();
     await mountResolver();
+    await act(async () => controller.promptChooser());
     expect(controller.getContext()).toEqual({ venueId: "id-neue" });
     expect(mockPush).toHaveBeenCalledTimes(1);
   });
@@ -1388,6 +1438,7 @@ describe("the sheet", () => {
   });
 
   it("declines a swiped-away prompt like Not here unless a museum resolved while it was open", async () => {
+    const neueAlone = [neueRow];
     const moveTo = async (rows: VenueCandidate[]) => {
       mockNearest.mockResolvedValue(rows);
       mockNow += 5 * 60 * 1000;
@@ -1395,14 +1446,14 @@ describe("the sheet", () => {
         appStateListener?.("background");
         appStateListener?.("active");
       });
+      await act(async () => controller.promptChooser());
     };
-    mockSearchNearby.mockResolvedValue([place]);
     mockNearest.mockResolvedValue([metRow]);
     await mountResolver();
     await act(async () => {
       await controller.visitForSave(metId, mockNow);
     });
-    await moveTo([]);
+    await moveTo(neueAlone);
     expect(mockPush).toHaveBeenCalledTimes(1);
     await moveTo([metRow]);
     await act(async () => {
@@ -1413,17 +1464,24 @@ describe("the sheet", () => {
       visitLocalId: "uuid-1",
     });
     expect(mockVisits.get("uuid-1")?.endedAt).toBeNull();
-    await moveTo([]);
+    await moveTo(neueAlone);
     expect(mockPush).toHaveBeenCalledTimes(2);
     await act(async () => {
       controller.declinePrompt();
     });
-    await moveTo([]);
+    await moveTo(neueAlone);
     expect(mockPush).toHaveBeenCalledTimes(2);
     expect(controller.getState().visit?.localId).toBe("uuid-1");
   });
 
-  it("remembers Not here across a relaunch for two hours, then asks again", async () => {
+  it("remembers Not here across a relaunch for the rest of the day, then asks again", async () => {
+    const cameraAsksAt = async (at: number) => {
+      mockNow = at;
+      await act(async () => {
+        await controller.resolve();
+      });
+      await act(async () => controller.promptChooser());
+    };
     mockNearest.mockResolvedValue([metRow, neueRow]);
     await mountResolver();
     await act(async () => {
@@ -1431,12 +1489,10 @@ describe("the sheet", () => {
     });
     controller = createVenueController();
     await mountResolver();
+    await cameraAsksAt(NEXT_MIDNIGHT - 1);
+    expect(mockPush).not.toHaveBeenCalled();
+    await cameraAsksAt(NEXT_MIDNIGHT);
     expect(mockPush).toHaveBeenCalledTimes(1);
-    mockNow += NOT_HERE_MS;
-    await act(async () => {
-      await controller.resolve();
-    });
-    expect(mockPush).toHaveBeenCalledTimes(2);
   });
 
   it("keeps the other same-name place available after confirming one branch", async () => {
@@ -1488,6 +1544,18 @@ it("keeps a searched museum through denied location, relaunch, and scans until t
   expect(mockVisits.get(visit.localId)?.endedAt).not.toBeNull();
 });
 
+it("keeps an Apple Maps place found by name through denied location, unlike one found near the phone", async () => {
+  mockGetPermission.mockResolvedValue({ granted: false });
+  const found = { kind: "poi", name: place.name, lat: place.lat, lng: place.lng, category: "unknown" } as const;
+  await controller.confirm({ ...found, manual: true });
+  expect(controller.getState().venue?.manual).toEqual(museumDay({ lat: 40.8, lng: -73.9 }, mockNow));
+  expect(await controller.resolve()).toEqual({ venueId: "id-corner" });
+  const nearby = createVenueController();
+  await nearby.confirm(found);
+  expect(nearby.getState().venue?.manual).toBeUndefined();
+  expect(await nearby.resolve()).toEqual({});
+});
+
 it.each([false, true])(
   "refreshes location without replacing a manually selected museum (open visit: %s)",
   async (openVisit) => {
@@ -1495,13 +1563,13 @@ it.each([false, true])(
     if (openVisit) await controller.visitForSave(metId, mockNow);
     const selected = controller.getState().venue;
     mockGetPermission.mockResolvedValue({ granted: false });
-    await controller.resolve({ quiet: true });
+    await controller.resolve();
     expect(controller.getState().venue).toEqual(selected);
     expect(mockGetPosition).not.toHaveBeenCalled();
 
     mockGetPermission.mockResolvedValue({ granted: true });
     mockNearest.mockResolvedValue([neueRow]);
-    await controller.resolve({ quiet: true });
+    await controller.resolve();
     expect(controller.getState()).toMatchObject({ status: "resolved", fix: { lat: met.lat, lng: met.lng } });
     expect(controller.getState().venue).toEqual(selected);
     expect(mockPush).not.toHaveBeenCalled();

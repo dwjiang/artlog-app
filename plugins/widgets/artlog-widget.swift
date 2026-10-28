@@ -12,6 +12,14 @@ private var sharedDirectory: URL? {
     .appendingPathComponent("ExpoWidgets/artlog", isDirectory: true)
 }
 
+/// Registers Space Grotesk for every widget in the extension, the visit Live Activity included. The app copies the file
+/// into the shared directory after install, so each call retries a registration that found no file.
+func registerArtlogFont() {
+  if let font = sharedDirectory?.appendingPathComponent("space-grotesk-semibold.ttf") {
+    CTFontManagerRegisterFontsForURL(font as CFURL, .process, nil)
+  }
+}
+
 private struct ArtlogEntry: TimelineEntry {
   let date: Date
   let props: [String: Any]?
@@ -57,9 +65,7 @@ private struct ArtlogEntryView: View {
 
   init(entry: ArtlogEntry) {
     self.entry = entry
-    if let font = sharedDirectory?.appendingPathComponent("space-grotesk-semibold.ttf") {
-      CTFontManagerRegisterFontsForURL(font as CFURL, .process, nil)
-    }
+    registerArtlogFont()
   }
 
   private var background: Color {

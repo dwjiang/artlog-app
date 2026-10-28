@@ -19,7 +19,7 @@ import {
 } from "./artwork-album";
 import { createJournalRepository } from "./journal";
 import { insertSavedWork, softDeleteSavedWork, selectSavedWork } from "./saved-works";
-import { upsertVisit } from "./visits";
+import { discardVisit, upsertVisit } from "./visits";
 
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
@@ -223,6 +223,38 @@ it("moves photos and their visit link atomically and reuses deleted capacity", a
       .all()
       .find((row) => row.savedLocalId === "move-target"),
   ).toMatchObject({ visitLocalId });
+});
+
+it("moves a retained photo without linking its discarded visit to the destination artwork", async () => {
+  const visitLocalId = "ab7f8f54-0af5-4ac0-8839-bc5fc00e3343";
+  await upsertVisit({
+    localId: visitLocalId,
+    venueId: "museum" as never,
+    venueName: "Museum",
+    visitedOn: "2026-09-01",
+    timeZone: "UTC",
+  });
+  await insertSavedWork({
+    localId: "discarded-source",
+    title: "Source",
+    artist: "",
+    savedAt: 1,
+    photoPath: "retained.jpg",
+    visitLocalId,
+    venueId: "museum" as never,
+  });
+  await insertSavedWork({ localId: "discarded-target", title: "Target", artist: "", savedAt: 1 });
+  discardVisit(visitLocalId);
+  editArtworkPhoto("discarded-source", { savedLocalId: "discarded-target", kind: "detail", caption: "Retained" });
+  expect(selectArtworkPhotos("discarded-source").all()).toEqual([]);
+  expect(selectArtworkPhotos("discarded-target").all()).toMatchObject([
+    { path: "retained.jpg", kind: "detail", caption: "Retained", visitLocalId, deletedAt: null, syncedAt: null },
+  ]);
+  expect(
+    selectArtworkEncounters()
+      .all()
+      .filter((row) => row.savedLocalId === "discarded-target"),
+  ).toEqual([]);
 });
 
 it("reports media a publish depends on as pending until its rows and bytes reach the server", async () => {

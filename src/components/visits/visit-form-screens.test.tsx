@@ -69,6 +69,8 @@ jest.mock("@/lib/journal/use-visits", () => ({
   useVisits: () => ({ owner: mockMovingVisit.owner, visits: [mockMovingVisit], loading: false }),
 }));
 jest.mock("@/lib/venue/venue-db", () => ({
+  openVenueDb: async () => ({}),
+  filterExcludedPlaces: async (_db: unknown, places: unknown[]) => places,
   venueMetadataForIds: async () => [mockVenue],
   onVenueMetadataChange: () => () => {},
 }));
@@ -300,6 +302,29 @@ describe("a museum our table does not know", () => {
     expect(await screen.findByText("No museums found.")).toBeOnTheScreen();
     expect(screen.getByText("Type more of the name to search Apple Maps too.")).toBeOnTheScreen();
     expect(mockSearchByName).not.toHaveBeenCalled();
+  });
+
+  it("keeps the last results on screen while the next search runs, but not across a cleared field", async () => {
+    const answers: ((places: unknown[]) => void)[] = [];
+    mockSearchByName.mockImplementation(() => new Promise((resolve) => answers.push(resolve)));
+    await render(<VisitCreateScreen />);
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "museum");
+    const tableRow = { name: "Museum of Art, New York, United States" };
+    await screen.findByRole("button", tableRow);
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel");
+    await waitFor(() => expect(answers).toHaveLength(1));
+    expect(screen.getByRole("button", tableRow)).toBeOnTheScreen();
+    expect(screen.queryByRole("progressbar", { name: "Searching museums…" })).toBeNull();
+    await act(async () => answers[0]([place]));
+    expect(
+      await screen.findByRole("button", { name: "Fraenkel Gallery, San Francisco, United States" }),
+    ).toBeOnTheScreen();
+    expect(screen.queryByRole("button", tableRow)).toBeNull();
+
+    await fireEvent.press(screen.getByRole("button", { name: "Clear search" }));
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel gallery");
+    expect(screen.getByRole("progressbar", { name: "Searching museums…" })).toBeOnTheScreen();
+    expect(screen.queryByRole("header", { name: "From Apple Maps" })).toBeNull();
   });
 
   it("offers a retry when Apple Maps fails, naming Apple Maps rather than the table that answered", async () => {

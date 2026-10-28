@@ -52,6 +52,8 @@ export function ToastPill({
           accessibilityState={{ disabled: busy, busy }}
           disabled={busy}
           onPress={action.onPress}
+          // The 44-point target reaches past the pill rather than stretching it taller than a message alone.
+          hitSlop={ACTION_SLOP}
           style={[styles.action, { opacity: busy ? 0.6 : 1 }]}
         >
           <ThemedText style={styles.actionLabel}>{action.label}</ThemedText>
@@ -61,12 +63,16 @@ export function ToastPill({
   );
 }
 
+const IMAGE_SIZE = 32;
+const ACTION_SLOP = { top: Spacing.compact, bottom: Spacing.compact };
+
 const styles = StyleSheet.create({
   pill: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.compact,
     minWidth: 180,
+    minHeight: IMAGE_SIZE + 2 * Spacing.two,
     maxWidth: "100%",
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
@@ -76,9 +82,9 @@ const styles = StyleSheet.create({
   },
   stacked: { flexDirection: "column", alignItems: "stretch" },
   busy: { justifyContent: "center" },
-  image: { width: 32, height: 32, borderRadius: Radius.thumbnail },
+  image: { width: IMAGE_SIZE, height: IMAGE_SIZE, borderRadius: Radius.thumbnail },
   message: { flexShrink: 1, color: Gallery.surface },
-  action: { minWidth: 44, minHeight: 44, justifyContent: "center" },
+  action: { minWidth: 44, justifyContent: "center" },
   actionLabel: {
     ...Typography.secondary,
     fontWeight: "600",

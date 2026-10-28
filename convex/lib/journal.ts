@@ -21,6 +21,8 @@ export async function upsertJournalVisit(
 ) {
   validateVisit(input);
   const existing = await findOwnedVisit(ctx, owner, input.localId);
+  // A discarded visit stays discarded; a device that has not seen the discard yet may still send older edits.
+  if (existing?.deletedAt !== undefined) return existing;
   const venue = await ctx.db.get("museums", input.venueId);
   if (!venue) throw new ConvexError({ code: "invalid_venue" });
   const unchanged =
@@ -32,7 +34,7 @@ export async function upsertJournalVisit(
   if (unchanged) return existing;
   const fields = {
     ...input,
-    reflection: input.reflection,
+    reflection: input.deletedAt === undefined ? input.reflection : undefined,
     startedAt: input.startedAt,
     endedAt: input.endedAt,
     owner,
@@ -56,7 +58,9 @@ export async function upsertJournalVisit(
       });
     }
   }
-  if (
+  if (input.deletedAt !== undefined) {
+    await discardVisitRecords(ctx, owner, id, input.deletedAt);
+  } else if (
     existing
     && (existing.visitedOn !== input.visitedOn
       || existing.visibility !== input.visibility
@@ -79,6 +83,32 @@ export async function upsertJournalVisit(
   }
   await recordVisitScore(ctx, owner, input, existing ?? undefined);
   return (await ctx.db.get("visits", id))!;
+}
+/** A discarded visit's artworks stay in the collection, unlinked, and its post comes down with its notes. */
+async function discardVisitRecords(ctx: MutationCtx, owner: JournalOwner, visitId: Id<"visits">, deletedAt: number) {
+  for await (const encounter of ctx.db
+    .query("artworkEncounters")
+    .withIndex("by_visitId", (q) => q.eq("visitId", visitId))) {
+    if (encounter.deletedAt !== undefined) continue;
+    await ctx.db.patch("artworkEncounters", encounter._id, {
+      deletedAt,
+      updatedAt: Date.now(),
+      changeVersion: await nextChangeVersion(ctx, owner),
+    });
+  }
+  const publication = await ctx.db
+    .query("sharedVisits")
+    .withIndex("by_visitId", (q) => q.eq("visitId", visitId))
+    .unique();
+  if (publication) {
+    await ctx.db.patch("sharedVisits", publication._id, {
+      status: "private",
+      reflection: "",
+      mentions: undefined,
+      publicationRevision: publication.publicationRevision + 1,
+      updatedAt: Date.now(),
+    });
+  }
 }
 export async function upsertJournalSave(
   ctx: MutationCtx,
@@ -145,7 +175,7 @@ export async function upsertJournalSave(
       saveId: id,
       visitLocalId: visit.localId,
       visitId: visit._id,
-      deletedAt: input.deletedAt,
+      deletedAt: input.deletedAt ?? visit.deletedAt,
       updatedAt: stamps.updatedAt,
       changeVersion: await nextChangeVersion(ctx, owner),
     });

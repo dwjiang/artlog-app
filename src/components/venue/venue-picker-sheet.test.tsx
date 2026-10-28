@@ -15,6 +15,14 @@ jest.mock("expo-localization", () => ({
   getLocales: () => [{ measurementSystem: "metric" }],
 }));
 jest.mock("@/lib/venue/search-venues", () => ({ searchVenues: jest.fn() }));
+jest.mock("@/lib/venue/venue-db", () => ({
+  openVenueDb: async () => ({}),
+  filterExcludedPlaces: async (_db: unknown, places: unknown[]) => places,
+}));
+const mockSearchByName = jest.fn();
+jest.mock("../../../modules/poi-search/src", () => ({
+  getPoiSearch: () => ({ searchByName: (...args: unknown[]) => mockSearchByName(...args) }),
+}));
 jest.mock("@/hooks/use-reduced-motion", () => ({
   useReducedMotion: () => true,
 }));
@@ -85,6 +93,7 @@ beforeEach(async () => {
     option.kind === "seeded" ? option.venueId : "id-confirmed-place",
   );
   mockEnd.mockResolvedValue(undefined);
+  mockSearchByName.mockResolvedValue([]);
   mockStartVisit.mockImplementation(async (venueId: string) => ({ ...visit, localId: "visit-new", venueId }));
   mockParams = {};
   mockLocation = { granted: false, canAskAgain: false };
@@ -99,6 +108,7 @@ beforeEach(async () => {
     declinePrompt: mockDeclinePrompt,
     promptChooser: jest.fn(),
     end: mockEnd,
+    discard: jest.fn(),
     startVisit: mockStartVisit,
     move: jest.fn(),
   };
@@ -128,7 +138,7 @@ describe("the location prompt", () => {
     expect(mockBack).toHaveBeenCalledTimes(1);
   });
 
-  it("starts the visit at a museum found through search", async () => {
+  it("searches in place of the map, and starts the visit at a museum found there", async () => {
     const { searchVenues } = jest.requireMock("@/lib/venue/search-venues");
     searchVenues.mockResolvedValue([
       {
@@ -145,13 +155,52 @@ describe("the location prompt", () => {
       },
     ]);
     await render(<VenuePickerSheet />);
-    await fireEvent.press(screen.getByRole("button", { name: "Search for another museum" }));
     await fireEvent.changeText(screen.getByLabelText("Search museums"), "Frick");
-    await fireEvent.press(await screen.findByRole("button", { name: "The Frick Collection, New York, United States" }));
+    const found = await screen.findByRole("button", { name: "The Frick Collection, New York, United States" });
+    expect(screen.getByRole("header", { name: "Start a visit?" })).toBeOnTheScreen();
+    expect(screen.queryByRole("radio", { name: seeded.name })).toBeNull();
+    expect(screen.getByRole("button", { name: "Start visit" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Not at a museum" })).toBeEnabled();
+    await fireEvent.press(found);
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ venueId: "id-frick", manual: expect.anything() }),
+      expect.anything(),
+    );
     expect(mockStartVisit).toHaveBeenCalledWith("id-frick", {
       signal: expect.any(AbortSignal),
       replaceVisitLocalId: undefined,
     });
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("brings back the map with the nearest museum still selected when the search is cleared", async () => {
+    const { searchVenues } = jest.requireMock("@/lib/venue/search-venues");
+    searchVenues.mockResolvedValue([]);
+    await render(<VenuePickerSheet />);
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "Nowhere");
+    expect(await screen.findByText("No museums found.")).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "");
+    expect(screen.getByRole("radio", { name: seeded.name })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Start visit" })).toBeEnabled();
+  });
+
+  it("starts the visit at an Apple Maps place when our table has no match, keeping it as a museum picked by hand", async () => {
+    const { searchVenues } = jest.requireMock("@/lib/venue/search-venues");
+    searchVenues.mockResolvedValue([]);
+    mockView = { ...mockView, fix: { lat: 37.77, lng: -122.42, at: 1 } };
+    mockSearchByName.mockResolvedValue([
+      { name: "Fraenkel Gallery", lat: 37.79, lng: -122.4, city: "San Francisco", country: "US", category: "store" },
+    ]);
+    await render(<VenuePickerSheet />);
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel");
+    expect(await screen.findByRole("header", { name: "From Apple Maps" })).toBeOnTheScreen();
+    expect(mockSearchByName).toHaveBeenCalledWith("fraenkel", 37.77, -122.42);
+    await fireEvent.press(screen.getByRole("button", { name: "Fraenkel Gallery, San Francisco, United States" }));
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "poi", name: "Fraenkel Gallery", lat: 37.79, lng: -122.4, manual: true }),
+      expect.any(AbortSignal),
+    );
+    expect(mockStartVisit).toHaveBeenCalledWith("id-confirmed-place", expect.anything());
     expect(mockBack).toHaveBeenCalledTimes(1);
   });
 
@@ -169,20 +218,16 @@ describe("the location prompt", () => {
     expect(mockDeclinePrompt).not.toHaveBeenCalled();
   });
 
-  it('leaves the spot undecided with "Not at a museum" and can switch to the search list', async () => {
+  it('leaves the spot undecided with "Not at a museum"', async () => {
     const view = await render(<VenuePickerSheet />);
     await fireEvent.press(screen.getByRole("button", { name: "Not at a museum" }));
     expect(mockDismiss).toHaveBeenCalledTimes(1);
     expect(mockConfirm).not.toHaveBeenCalled();
     await view.unmount();
     expect(mockDeclinePrompt).not.toHaveBeenCalled();
-    await render(<VenuePickerSheet />);
-    await fireEvent.press(screen.getByRole("button", { name: "Search for another museum" }));
-    expect(screen.getByRole("header", { name: "Choose museum" })).toBeOnTheScreen();
-    expect(screen.getByRole("button", { name: seeded.name })).toBeOnTheScreen();
   });
 
-  it("pins Start visit and Not at a museum below a long museum list that ends in search, and scrolls them with it at accessibility text sizes", async () => {
+  it("pins Start visit and Not at a museum below a long museum list, and scrolls them with it at accessibility text sizes", async () => {
     const window = Dimensions.get("window");
     mockView.options = Array.from({ length: 12 }, (_, index) => ({
       ...neighbour,
@@ -196,7 +241,6 @@ describe("the location prompt", () => {
       expect(list().getByRole("radio", { name: "Gallery 12" })).toBeOnTheScreen();
       expect(list().queryByRole("button", { name: "Start visit" })).toBeNull();
       expect(list().queryByRole("button", { name: "Not at a museum" })).toBeNull();
-      expect(list().getByRole("button", { name: "Search for another museum" })).toBeOnTheScreen();
       await act(() => Dimensions.set({ window: { ...window, fontScale: 3.12 } }));
       expect(list().getByRole("button", { name: "Start visit" })).toBeOnTheScreen();
       expect(list().getByRole("button", { name: "Not at a museum" })).toBeOnTheScreen();
@@ -237,6 +281,19 @@ describe("choosing a museum", () => {
     expect(mockConfirm).toHaveBeenCalledWith(neighbour, expect.any(AbortSignal));
   });
 
+  it("names Apple Maps when it cannot be reached and searches again on Try again", async () => {
+    const { searchVenues } = jest.requireMock("@/lib/venue/search-venues");
+    searchVenues.mockResolvedValue([]);
+    mockSearchByName
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue([{ name: "Fraenkel Gallery", lat: 37.79, lng: -122.4, category: "store" }]);
+    await render(<VenuePickerSheet />);
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "fraenkel");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Apple Maps could not be reached. Try again.");
+    await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByRole("button", { name: "Fraenkel Gallery" })).toBeOnTheScreen();
+  });
+
   it("keeps the no-museum exit available while searching and when nothing matches", async () => {
     const { searchVenues } = jest.requireMock("@/lib/venue/search-venues");
     searchVenues.mockResolvedValue([]);
@@ -247,6 +304,46 @@ describe("choosing a museum", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Continue without a museum" }));
     expect(mockConfirm).not.toHaveBeenCalled();
     expect(mockDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the nearby list, then the last results, on screen while the next search runs", async () => {
+    const { searchVenues } = jest.requireMock("@/lib/venue/search-venues");
+    const answers: ((rows: unknown[]) => void)[] = [];
+    searchVenues.mockImplementation(() => new Promise((resolve) => answers.push(resolve)));
+    const frick = {
+      id: "id-frick",
+      key: "wikidata:Q682827",
+      name: "The Frick Collection",
+      lat: 40.7711,
+      lng: -73.9674,
+      website: null,
+      region: "new-york",
+      city: "New York",
+      cityKey: "new-york",
+      country: "US",
+    };
+    await render(<VenuePickerSheet />);
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "Fri");
+    await waitFor(() => expect(answers).toHaveLength(1));
+    expect(screen.getByRole("button", { name: "Neue Galerie" })).toBeOnTheScreen();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    await act(async () => answers[0]([frick]));
+    const result = { name: "The Frick Collection, New York, United States" };
+    expect(await screen.findByRole("button", result)).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Neue Galerie" })).toBeNull();
+
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "Frix");
+    await waitFor(() => expect(answers).toHaveLength(2));
+    expect(screen.getByRole("button", result)).toBeOnTheScreen();
+    await act(async () => answers[1]([]));
+    expect(await screen.findByText("No museums found.")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", result)).toBeNull();
+
+    await fireEvent.press(screen.getByRole("button", { name: "Clear search" }));
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "Neue");
+    await waitFor(() => expect(answers).toHaveLength(3));
+    expect(screen.queryByText("No museums found.")).toBeNull();
+    expect(screen.getByRole("button", { name: "Neue Galerie" })).toBeOnTheScreen();
   });
 
   it("confirms a searched museum by hand for the museum’s current day", async () => {

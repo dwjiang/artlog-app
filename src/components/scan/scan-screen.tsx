@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/react-native";
 import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } from "expo-router";
 import { useIsFocused, type ParamListBase } from "expo-router/react-navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { AppState, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -51,7 +51,7 @@ export function ScanScreen() {
   const listening = useHasListeningTrack();
   const { fontScale } = useWindowDimensions();
   const stackRetryActions = fontScale > 1.4;
-  // Scans resolve quietly, so an undecided spot asks here, once, when the camera comes up.
+  // The camera is the only place the museum sheet opens on its own: once per undecided spot, when the camera comes up.
   const { status: venueStatus, options: venueOptions, promptChooser } = useVenue();
   const audioInset = listening ? MINI_PLAYER_HEIGHT + 16 : 0;
   const isFocused = useIsFocused();
@@ -168,11 +168,7 @@ export function ScanScreen() {
         { paddingTop: top + Spacing.three + controls.top + Spacing.four, paddingBottom: controlsBottom },
       ]}
     >
-      <View
-        pointerEvents="box-none"
-        style={styles.bottom}
-        onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}
-      >
+      <ControlsFrame setControls={setControls}>
         <DevTimings timings={busy ? undefined : capture.timings} detection={detecting ? detectionLog : undefined} />
         {message ? (
           <Animated.View entering={FAILURE_SHAKE} accessible accessibilityRole="alert">
@@ -218,7 +214,7 @@ export function ScanScreen() {
             )}
           </CaptureControls>
         )}
-      </View>
+      </ControlsFrame>
     </View>
   );
 
@@ -309,6 +305,26 @@ export function ScanScreen() {
           onComplete={() => capture.completeReveal(capture.presentation!.attempt)}
         />
       )}
+    </View>
+  );
+}
+
+/** The bottom controls, measured for toasts to float above; when the permission page replaces them, toasts drop back. */
+function ControlsFrame({
+  setControls,
+  children,
+}: {
+  setControls: Dispatch<SetStateAction<{ top: number; bottom: number }>>;
+  children: ReactNode;
+}) {
+  useEffect(() => () => setControls((value) => ({ ...value, bottom: 0 })), [setControls]);
+  return (
+    <View
+      pointerEvents="box-none"
+      style={styles.bottom}
+      onLayout={({ nativeEvent: { layout } }) => setControls((value) => ({ ...value, bottom: layout.height }))}
+    >
+      {children}
     </View>
   );
 }

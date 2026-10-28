@@ -1,7 +1,14 @@
 import { ConvexError } from "convex/values";
 
 import { db } from "@/db/client";
-import { getVisit, upsertVisit, markVisitsSynced, moveVisit } from "@/db/repos/visits";
+import {
+  discardVisit,
+  getVisit,
+  upsertVisit,
+  upsertVisitsFromRemote,
+  markVisitsSynced,
+  moveVisit,
+} from "@/db/repos/visits";
 import { visits } from "@/db/schema";
 import { initializeOwner, switchOwner } from "@/lib/account/owner-store";
 import { isTransientError, SyncUnavailableError } from "@/lib/network-error";
@@ -55,6 +62,14 @@ it("rejects missing visits before sending anything", async () => {
   expect(mockFlush).not.toHaveBeenCalled();
 });
 
+it("lets a scan go on without a visit that was discarded, before sending anything", async () => {
+  const localId = "7288f45f-956f-5e34-ba13-5a375a2f4d78";
+  await upsertVisit({ localId, venueId, venueName: "Museum", visitedOn: "1970-01-01", timeZone: "UTC" });
+  discardVisit(localId);
+  await expect(resolveScanVisit(localId)).resolves.toBeUndefined();
+  expect(mockFlush).not.toHaveBeenCalled();
+});
+
 async function movedSyncedVisit() {
   const localId = "7288f45f-956f-5e34-ba13-5a375a2f4d78";
   const visit = { localId, venueId, venueName: "Museum", visitedOn: "1970-01-01", timeZone: "UTC" };
@@ -70,6 +85,32 @@ async function movedSyncedVisit() {
   await moveVisit(localId, { ...visit, venueId: "new-museum" as never, venueName: "New Museum" });
   return { localId, acknowledgement: { ...acknowledgement, revision: 1, updatedAt: 4 } };
 }
+
+it("lets a scan continue without its visit when the discard arrives during sync", async () => {
+  const { localId, acknowledgement } = await movedSyncedVisit();
+  mockFlush.mockImplementation(async () => {
+    await markVisitsSynced([acknowledgement]);
+    await upsertVisitsFromRemote([
+      {
+        _id: acknowledgement.visitId,
+        _creationTime: 1,
+        owner: { kind: "device", deviceId: acknowledgement.updatedBy },
+        localId,
+        venueId: "new-museum" as never,
+        venueName: "New Museum",
+        visitedOn: "1970-01-01",
+        timeZone: "UTC",
+        visibility: "public",
+        deletedAt: 3,
+        updatedAt: acknowledgement.updatedAt,
+        updatedBy: acknowledgement.updatedBy,
+        changeVersion: 2,
+      },
+    ]);
+  });
+  await expect(resolveScanVisit(localId)).resolves.toBeUndefined();
+  expect(mockFlush).toHaveBeenCalledTimes(1);
+});
 
 it("syncs a museum edit before returning an existing remote visit for a queued scan", async () => {
   const { localId, acknowledgement } = await movedSyncedVisit();

@@ -105,7 +105,7 @@ export type CaptureDependencies = {
   isOnline: () => boolean;
   recognizeOffline?: (payload: CapturePayload) => Promise<void>;
   /** Syncs a visit's pending edits before identification uses its museum, including visits with an existing remote ID. */
-  resolveVisitId?: (visitLocalId: string) => Promise<NonNullable<CapturePayload["visitId"]>>;
+  resolveVisitId?: (visitLocalId: string) => Promise<CapturePayload["visitId"]>;
   store: CaptureStore;
   /** Retain presentation images before enqueue moves their files. Visual errors must not fail capture. */
   onPrepared?: (painting: PreparedPainting) => Promise<void>;

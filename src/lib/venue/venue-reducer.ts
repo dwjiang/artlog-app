@@ -1,3 +1,4 @@
+import { nextLocalMidnight } from "@/lib/journal/visit-date";
 import { calendarDate } from "@/shared/journal/limits";
 
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -5,8 +6,6 @@ import { type Coordinate, type VenueCandidate, type VenueResolution } from "./re
 
 /** A fix younger than this is reused instead of asking Core Location again. */
 export const FIX_MAX_AGE_MS = 3 * 60 * 1000;
-/** How long "Not here" keeps the museums it was tapped over from resolving or opening the sheet. */
-export const NOT_HERE_MS = 2 * 60 * 60 * 1000;
 
 /** A calendar day in a museum's time zone; visits and hand-picked museums both live by it. */
 export type MuseumDay = Pick<CurrentVisit, "visitedOn" | "timeZone">;
@@ -29,6 +28,8 @@ export type PoiOption = {
   city?: string;
   country?: string;
   category: string;
+  /** Found by name rather than near the phone; once confirmed it stands like a museum picked in the sheet's search. */
+  manual?: true;
 };
 export type VenueOption = SeededOption | PoiOption;
 
@@ -63,18 +64,17 @@ export type VenueState = {
   /** Seeded rows within 400 m, or MapKit places when nothing seeded is near; what the sheet lists. */
   options: VenueOption[];
   fix?: Fix;
-  /** Changes whenever the picker should open; consumers react to the change, not the value. */
+  /** Changes whenever the camera's ask should open the picker; consumers react to the change, not the value. */
   prompt: number;
   /** For the rest of its day, a fix that lists this museum resolves to it instead of asking again, until a visit elsewhere takes over. */
   picked?: VenuePick;
-  /** When "Not here" lapses for each option key it was tapped over. */
+  /** When "Not here" lapses for each option key it was tapped over: the phone's next midnight. */
   notHere: Record<string, number>;
   /** The museum and day a visit was ended there; location alone starts no new visit at that museum until the next day. */
   ended?: { venueId: Id<"museums"> } & MuseumDay;
   error?: string;
 };
 
-/** `quiet` resolutions never open the sheet; a scan's is quiet so the sheet never covers the camera or result. */
 export type VenueEvent =
   | {
       type: "hydrated";
@@ -87,8 +87,8 @@ export type VenueEvent =
   | { type: "locating" }
   | { type: "denied"; at: number }
   | { type: "failed"; error: string }
-  | { type: "resolved"; fix: Fix; resolution: VenueResolution; quiet?: boolean }
-  | { type: "poiOptions"; options: PoiOption[]; quiet?: boolean }
+  | { type: "resolved"; fix: Fix; resolution: VenueResolution }
+  | { type: "poiOptions"; options: PoiOption[] }
   | {
       type: "chosen";
       option: SeededOption;
@@ -98,7 +98,10 @@ export type VenueEvent =
   | { type: "visitStarted"; visit: CurrentVisit }
   | { type: "visitEnded"; localId: string; at: number }
   | { type: "dismissed"; at: number }
-  /** The camera asks for the sheet again while the museum is still undecided; answered or declined spots stay quiet. */
+  /**
+   * Only the camera opens the sheet, while seeded museums nearby are undecided; answered or declined spots stay quiet,
+   * and MapKit places wait for the person to open the chooser.
+   */
   | { type: "prompt"; at: number }
   | { type: "backgrounded" };
 
@@ -270,23 +273,13 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
         if (current) {
           return { ...base, status: "resolved", venue: current, options };
         }
-        return {
-          ...base,
-          status: "choose",
-          venue: undefined,
-          options,
-          prompt: !event.quiet && promptAllowed(state, options, fix.at) ? state.prompt + 1 : state.prompt,
-        };
+        return { ...base, status: "choose", venue: undefined, options };
       }
       // Leaving the radius pauses the visit; it resumes on return and stays open for the rest of its museum day.
       return { ...base, status: "none", venue: undefined, options: [] };
     }
-    case "poiOptions": {
-      if (state.status !== "none" || !state.fix) return state;
-      const prompt =
-        !event.quiet && promptAllowed(state, event.options, state.fix.at) ? state.prompt + 1 : state.prompt;
-      return { ...state, options: event.options, prompt };
-    }
+    case "poiOptions":
+      return state.status === "none" && state.fix ? { ...state, options: event.options } : state;
     case "chosen": {
       const selectedKey = venueOptionKey(event.replaces);
       const options = [
@@ -342,7 +335,7 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
       if (state.venue) keys.add(state.venue.venueId);
       const notHere = Object.fromEntries([
         ...Object.entries(state.notHere).filter(([, until]) => until > event.at),
-        ...[...keys].map((key) => [key, event.at + NOT_HERE_MS] as const),
+        ...[...keys].map((key) => [key, nextLocalMidnight(event.at)] as const),
       ]);
       return {
         ...state,
@@ -352,11 +345,9 @@ export function venueReducer(state: VenueState, event: VenueEvent): VenueState {
         notHere,
       };
     }
-    case "prompt": {
-      const undecided = state.status === "choose" || (state.status === "none" && state.options.length > 0);
-      if (!undecided || !promptAllowed(state, state.options, event.at)) return state;
+    case "prompt":
+      if (state.status !== "choose" || !promptAllowed(state, state.options, event.at)) return state;
       return { ...state, prompt: state.prompt + 1 };
-    }
     case "backgrounded":
       return { ...state, fix: undefined };
   }

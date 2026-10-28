@@ -8,7 +8,15 @@ import { AppState, type AppStateStatus } from "react-native";
 
 import { activateVisit, visitSettingKeys } from "@/db/repos/current-visit";
 import { getSetting, removeSetting, setSetting } from "@/db/repos/settings";
-import { findVisitOnDay, getVisit, latestVisitSaveAt, moveVisit, patchVisit, upsertVisit } from "@/db/repos/visits";
+import {
+  discardVisit,
+  findVisitOnDay,
+  getVisit,
+  latestVisitSaveAt,
+  moveVisit,
+  patchVisit,
+  upsertVisit,
+} from "@/db/repos/visits";
 import type { NewVisit, Visit } from "@/db/schema";
 import { flushJournal } from "@/lib/account/collection-sync";
 import { useIntroduction } from "@/lib/account/introduction";
@@ -17,7 +25,7 @@ import { signPayload } from "@/lib/attested-write";
 import { convex } from "@/lib/convex-client";
 import { prepareCaptureVisit } from "@/lib/journal/capture-visit";
 import { museumDay } from "@/lib/journal/visit-date";
-import { markWrapUp } from "@/lib/journal/wrap-up";
+import { clearWrapUp, markWrapUp } from "@/lib/journal/wrap-up";
 import { errorMessage, SyncUnavailableError } from "@/lib/network-error";
 import { isOffline } from "@/lib/network-state";
 import { addBreadcrumb, reportError } from "@/lib/observability";
@@ -81,10 +89,10 @@ export type VenueController = {
   /** Restores the open visit from the local store; one left open past its museum day is closed first and queued for a wrap-up. */
   hydrate: () => Promise<void>;
   /**
-   * One-shot fix and table lookup; reuses a fix younger than three minutes. Resolves the museum only, never a visit.
-   * A quiet resolve leaves an undecided spot for the camera or the venue pill to ask about instead of opening the sheet.
+   * One-shot fix and table lookup; reuses a fix younger than three minutes. Resolves the museum only, never a visit,
+   * and never opens the sheet: an undecided spot waits for the camera, the Now card or the venue pill to ask.
    */
-  resolve: (options?: { quiet?: boolean }) => Promise<VenueContext>;
+  resolve: () => Promise<VenueContext>;
   /** The context a scan carries: a fresh resolution when it is quick, else the last known one, with the open visit when the phone is at its museum. */
   resolveForScan: (capturedAt: number) => Promise<VenueContext>;
   /**
@@ -95,10 +103,12 @@ export type VenueController = {
   dismiss: () => void;
   /** Swiping the location prompt away declines it like `dismiss`, unless a museum resolved while it was open. */
   declinePrompt: () => void;
-  /** Asks for the museum sheet again while the spot is still undecided, e.g. when the camera opens. */
+  /** Opens the museum sheet when the camera comes up at a spot still undecided between seeded museums. */
   promptChooser: () => void;
   /** Ends the open visit by hand. Closes it only while it is still `localId`; a stale end-visit review is a no-op. */
   end: (localId: string) => Promise<void>;
+  /** Discards a visit; the open one ends first, so saves at its museum start no visit by themselves for the rest of the day. */
+  discard: (localId: string) => Promise<void>;
   /** Opens today's visit without a save; a prompt may replace the named open visit. Cancellation is honored until commit. */
   startVisit: (venueId: Id<"museums">, options?: StartVisitOptions) => Promise<CurrentVisit>;
   /** Moves a visit to another museum or day; the open visit carries the change into the venue state. */
@@ -300,10 +310,10 @@ export function createVenueController(): VenueController {
   async function refreshOpenVisit(ownership: ReturnType<typeof captureOwner>): Promise<void> {
     const open = state.visit;
     if (!ownership.isCurrent() || !open) return;
-    const row = await getVisit(open.localId, ownership.owner);
+    const row = await getVisit(open.localId, ownership.owner, { discarded: true });
     if (!ownership.isCurrent() || state.visit?.localId !== open.localId || !row || row.startedAt === null) return;
-    if (row.endedAt !== null) {
-      dispatch({ type: "visitEnded", localId: row.localId, at: row.endedAt });
+    if (row.endedAt !== null || row.deletedAt !== null) {
+      dispatch({ type: "visitEnded", localId: row.localId, at: row.endedAt ?? row.deletedAt! });
     } else {
       const selected = state.venue;
       dispatch({
@@ -428,7 +438,7 @@ export function createVenueController(): VenueController {
     });
   }
 
-  async function searchNearbyPlaces(fix: { lat: number; lng: number }, quiet: boolean): Promise<void> {
+  async function searchNearbyPlaces(fix: { lat: number; lng: number }): Promise<void> {
     const ownership = captureOwner();
     try {
       const places = await getPoiSearch().searchNearby(fix.lat, fix.lng, POI_RADIUS_M);
@@ -437,7 +447,6 @@ export function createVenueController(): VenueController {
       if (!ownership.isCurrent()) return;
       dispatch({
         type: "poiOptions",
-        quiet,
         options: available.map((place) => ({
           kind: "poi",
           name: place.name,
@@ -462,7 +471,7 @@ export function createVenueController(): VenueController {
     const localId = await getSetting(visitSettingKeys(owner).current);
     const row = localId ? await getVisit(localId, owner) : undefined;
     const endedId = await getSetting(visitSettingKeys(owner).ended);
-    const endedRow = endedId ? await getVisit(endedId, owner) : undefined;
+    const endedRow = endedId ? await getVisit(endedId, owner, { discarded: true }) : undefined;
     const answers = {
       picked: parseSetting<VenuePick>(await getSetting(pickedKey(owner))),
       notHere: parseSetting<VenueState["notHere"]>(await getSetting(notHereKey(owner))),
@@ -497,9 +506,9 @@ export function createVenueController(): VenueController {
     }
   }
 
-  // A scan resolves quietly (no sheet) and is the only resolve that may raise the system location prompt: launch and
-  // foreground resolves keep whatever the person chose on the welcome's Access page or in the museum sheet.
-  async function runResolve(forScan: boolean, quiet: boolean): Promise<VenueContext> {
+  // A scan is the only resolve that may raise the system location prompt: launch and foreground resolves keep whatever
+  // the person chose on the welcome's Access page or in the museum sheet.
+  async function runResolve(forScan: boolean): Promise<VenueContext> {
     void syncRemoteVisit();
     // Coming back to the app on a later day closes yesterday's visit before the fix decides where the phone is now.
     await updateLocally(() => endExpiredVisit(captureOwner())).catch((error: unknown) => {
@@ -543,10 +552,10 @@ export function createVenueController(): VenueController {
             : resolution.options.map((row) => `${row.name} ${Math.round(row.distanceM)} m`),
         );
       }
-      dispatch({ type: "resolved", fix, resolution, quiet });
+      dispatch({ type: "resolved", fix, resolution });
       addBreadcrumb("venue.resolved", { kind: resolution.kind });
       if (state.status === "none" && resolution.kind === "none") {
-        await searchNearbyPlaces(fix, quiet);
+        await searchNearbyPlaces(fix);
       }
       return venueContext(state);
     } catch (error) {
@@ -561,15 +570,15 @@ export function createVenueController(): VenueController {
     }
   }
 
-  function startResolve(forScan: boolean, quiet: boolean): Promise<VenueContext> {
-    inFlight ??= runResolve(forScan, quiet).finally(() => {
+  function startResolve(forScan: boolean): Promise<VenueContext> {
+    inFlight ??= runResolve(forScan).finally(() => {
       inFlight = undefined;
     });
     return inFlight;
   }
 
-  function resolve({ quiet = false }: { quiet?: boolean } = {}): Promise<VenueContext> {
-    return startResolve(false, quiet);
+  function resolve(): Promise<VenueContext> {
+    return startResolve(false);
   }
 
   async function resolveForScan(capturedAt: number): Promise<VenueContext> {
@@ -578,7 +587,7 @@ export function createVenueController(): VenueController {
     const timeout = new Promise<VenueContext>((settle) => {
       timer = setTimeout(() => settle(venueContext(state)), SCAN_FIX_TIMEOUT_MS);
     });
-    await Promise.race([startResolve(true, true), timeout]).finally(() => clearTimeout(timer));
+    await Promise.race([startResolve(true), timeout]).finally(() => clearTimeout(timer));
     await updateLocally(() => refreshOpenVisit(ownership));
     if (!ownership.isCurrent()) throw new Error("Journal owner changed");
     return prepareCaptureVisit(venueContext(state), capturedAt);
@@ -604,6 +613,7 @@ export function createVenueController(): VenueController {
         name: row.name,
         ...(option.distanceM === undefined ? {} : { distanceM: option.distanceM }),
         ...(row.website ? { website: row.website } : {}),
+        ...(option.manual ? { manual: day } : {}),
       };
     }
     return updateLocally(async () => {
@@ -650,6 +660,16 @@ export function createVenueController(): VenueController {
     await updateLocally(() => closeVisit(visit, Date.now(), owner));
   }
 
+  function discard(localId: string): Promise<void> {
+    const ownership = captureOwner();
+    return updateLocally(async () => {
+      const { visit } = state;
+      if (visit?.localId === localId && ownership.isCurrent()) await closeVisit(visit, Date.now(), ownership.owner);
+      discardVisit(localId, ownership.owner);
+      await clearWrapUp(ownership.owner, localId);
+    });
+  }
+
   function move(localId: string, to: Pick<Visit, "venueId" | "venueName" | "visitedOn" | "timeZone">): Promise<void> {
     const ownership = captureOwner();
     return updateLocally(async () => {
@@ -675,6 +695,7 @@ export function createVenueController(): VenueController {
     declinePrompt,
     promptChooser,
     end,
+    discard,
     startVisit,
     move,
     visitByDefault,
@@ -729,6 +750,7 @@ export type VenueView = {
   declinePrompt: VenueController["declinePrompt"];
   promptChooser: VenueController["promptChooser"];
   end: VenueController["end"];
+  discard: VenueController["discard"];
   startVisit: VenueController["startVisit"];
   move: VenueController["move"];
 };
@@ -751,12 +773,13 @@ export function useVenue(controller: VenueController = venueController): VenueVi
     declinePrompt: controller.declinePrompt,
     promptChooser: controller.promptChooser,
     end: controller.end,
+    discard: controller.discard,
     startVisit: controller.startVisit,
     move: controller.move,
   };
 }
 
-/** Mounted once under the database gate: resolves on launch and foreground, opens the sheet, syncs the visit. */
+/** Mounted once under the database gate: resolves on launch and foreground, opens the sheet the camera asks for, syncs the visit. */
 export function VenueResolver({ controller = venueController }: { controller?: VenueController }): null {
   const owner = useLocalOwner();
   const router = useRouter();
@@ -773,13 +796,11 @@ export function VenueResolver({ controller = venueController }: { controller?: V
   const introduction = useIntroduction();
 
   useEffect(() => {
-    // The location request and the museum sheet would otherwise land on top of a first launch's welcome.
+    // A first launch checks location only after the welcome's Access page has asked for it.
     if (introduction === "pending") return;
-    // Onboarding ends on Home, where an unasked-for museum sheet would read as one more onboarding step.
-    const quiet = introduction === "justEnded";
     void controller
       .hydrate()
-      .then(() => controller.resolve({ quiet }))
+      .then(() => controller.resolve())
       .catch((error: unknown) => {
         reportError(error, "venue.visit.restore");
         console.warn("Could not restore the visit", error);

@@ -85,6 +85,13 @@
       "when": 1791676800002,
       "tag": "0011_defer-remote-album-recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793212625337,
+      "tag": "0012_visit-discard",
+      "breakpoints": true
     }
   ]
 }

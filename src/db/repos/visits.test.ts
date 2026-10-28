@@ -188,6 +188,68 @@ it("accepts a remote visit the server stamped after this device crossed local mi
   }
 });
 
+it("discards a visit for good, keeping its artworks and photos but not its notes or links", async () => {
+  const owner = "account:me";
+  await repo.upsertVisit({ ...visit, reflection: "Private words" }, owner);
+  await db.insert(savedWorks).values({
+    owner,
+    localId: "kept",
+    title: "Painting",
+    artist: "Artist",
+    savedAt: 1,
+    visitLocalId: first,
+    venueId,
+  });
+  addArtworkPhoto(
+    { savedLocalId: "kept", localId: "photo", path: "photo.jpg", kind: "full", capturedAt: 1, visitLocalId: first },
+    owner,
+  );
+  const requests = jest.fn();
+  const unsubscribe = onCollectionChange(requests);
+  try {
+    repo.discardVisit(first, owner, 5);
+    expect(requests).toHaveBeenCalled();
+  } finally {
+    unsubscribe();
+  }
+  expect(await repo.listVisits(owner)).toEqual([]);
+  expect(await repo.getVisit(first, owner)).toBeUndefined();
+  expect(await repo.findVisitOnDay(venueId, visit.visitedOn, owner)).toBeUndefined();
+  expect(await repo.listUnsyncedVisits(owner)).toMatchObject([{ localId: first, deletedAt: 5, reflection: null }]);
+  expect(await db.select().from(artworkEncounters)).toMatchObject([
+    { savedLocalId: "kept", visitLocalId: first, deletedAt: 5, syncedAt: null },
+  ]);
+  expect(await db.select().from(savedWorks)).toMatchObject([{ localId: "kept", deletedAt: null }]);
+  expect(await db.select().from(artworkPhotos)).toMatchObject([{ localId: "photo", deletedAt: null }]);
+  const notFound = { data: { code: "not_found" } };
+  await expect(repo.patchVisit(first, { reflection: "Edit" }, owner)).rejects.toMatchObject(notFound);
+  await expect(repo.upsertVisit(visit, owner)).rejects.toMatchObject(notFound);
+  expect(() => repo.discardVisit(first, owner)).toThrow("not_found");
+  expect(() => linkArtworkVisit("kept", first, owner)).toThrow("Visit is unavailable");
+});
+
+it("applies a discard made on another device", async () => {
+  await repo.upsertVisitsFromRemote([
+    {
+      visibility: "public" as const,
+      _id: "remote" as never,
+      _creationTime: 1,
+      owner: { kind: "device", deviceId: "device" as never },
+      localId: first,
+      venueId,
+      venueName: "Museum",
+      visitedOn: visit.visitedOn,
+      timeZone: "UTC",
+      deletedAt: 5,
+      updatedAt: 6,
+      updatedBy: "device" as never,
+      changeVersion: 1,
+    },
+  ]);
+  expect(await repo.listVisits()).toEqual([]);
+  expect(await repo.getVisit(first, undefined, { discarded: true })).toMatchObject({ deletedAt: 5, syncedAt: 6 });
+});
+
 it("defaults new visits to Public and preserves an explicit Private choice across later saves", async () => {
   await repo.upsertVisit(visit);
   expect(await repo.getVisit(first)).toMatchObject({ visibility: "public" });

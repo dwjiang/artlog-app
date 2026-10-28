@@ -1,5 +1,5 @@
 import { Stack, useRouter } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
@@ -31,15 +31,19 @@ export function SignInScreen({
   const continuingVisit = context === "visit" && !!visitId;
   const waitingForJournal = continuingVisit && !!account?.linked && owner !== `account:${account.accountId}`;
   const setupOffer = useProfileSetupOffer();
+  // Taking the offer re-renders this sheet before the replace unmounts it; that render must not close setup again.
+  const handedOff = useRef(false);
   useEffect(() => {
-    if (!account?.linked || busy) return;
+    if (!account?.linked || busy || handedOff.current) return;
     // A first sign-in continues into profile setup; setup itself carries the visit on afterwards.
     if (setupOffer && account.hasProfile === false) {
+      handedOff.current = true;
       takeProfileSetupOffer();
       router.replace(profileSetupRoute(setupOffer, continuingVisit ? visitId : undefined, audience));
       return;
     }
     if (waitingForJournal) return;
+    handedOff.current = true;
     if (continuingVisit) {
       router.replace({
         pathname: "/visit-share/[visitId]",

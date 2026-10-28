@@ -2,7 +2,6 @@ import { randomUUID } from "expo-crypto";
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Keyboard, TextInput, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ListSkeleton } from "@/components/loading-skeleton";
@@ -30,13 +29,13 @@ import { CancelToolbar, CommitToolbar } from "./visit-sheet-toolbar";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 
 function VisitFormPage({ children, scrollEnabled }: { children: ReactNode; scrollEnabled?: boolean }) {
-  const { bottom } = useSafeAreaInsets();
   return (
     <>
       <VisitPage style={{ backgroundColor: Gallery.groupedBackground }} scrollEnabled={scrollEnabled}>
         {children}
       </VisitPage>
-      <ToastLayer offset={-bottom} />
+      {/* These sheets open to full height, so unlike a fitted sheet they reach the home indicator. */}
+      <ToastLayer offset={0} />
     </>
   );
 }

@@ -2,18 +2,21 @@ import { useEffect, useState } from "react";
 import { Keyboard, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { Gallery, PinnedFooterBorder, Radius } from "@/constants/theme";
 
-/** The end-of-visit form's Save & end visit; it steps aside while the keyboard covers it. */
+/** The open visit's Save & end visit, with Discard beneath; it steps aside while the keyboard covers it. */
 export function VisitActionBar({
   saving,
   disabled,
   onSave,
+  onDiscard,
 }: {
   saving: boolean;
   disabled: boolean;
   onSave: () => void;
+  onDiscard: () => void;
 }) {
   const { bottom, left, right } = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(() => Keyboard.isVisible());
@@ -37,16 +40,22 @@ export function VisitActionBar({
         ...PinnedFooterBorder,
       }}
     >
-      <GalleryButton
-        label="Save & end visit"
-        busy={saving}
-        busyLabel="Saving…"
-        variant="filled"
-        fullWidth
-        cornerRadius={Radius.sheet}
-        disabled={disabled}
-        onPress={onSave}
-      />
+      <ActionStack
+        textActions={
+          <GalleryButton label="Discard visit" destructive fullWidth disabled={saving} onPress={onDiscard} />
+        }
+      >
+        <GalleryButton
+          label="Save & end visit"
+          busy={saving}
+          busyLabel="Saving…"
+          variant="filled"
+          fullWidth
+          cornerRadius={Radius.sheet}
+          disabled={disabled}
+          onPress={onSave}
+        />
+      </ActionStack>
     </View>
   );
 }

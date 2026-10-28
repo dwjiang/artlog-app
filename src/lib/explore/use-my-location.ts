@@ -25,7 +25,7 @@ export function useMyLocationAction({ following, home }: Partial<Pick<ExploreDat
   }, [getPermission]);
   const follow = async () => {
     chooseCity(undefined);
-    await resolve({ quiet: true });
+    await resolve();
   };
   const failed = (cause: unknown) => reportError(cause, "explore.location", { level: "warning" });
   if (permission?.granted) {

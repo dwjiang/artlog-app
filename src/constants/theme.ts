@@ -47,7 +47,6 @@ export const Colors = {
     overlayText: "#FFFFFF",
     // The Camera app's focus-box yellow, so tap-to-focus reads as the familiar system control.
     cameraFocus: "#FFD60A",
-    cameraProgress: "#7A9AF6",
   },
   dark: {
     text: "#ffffff",
@@ -138,6 +137,8 @@ export const NavigationTheme = {
   headerLargeTitleStyle: { color: Gallery.ink, fontFamily: Fonts.display },
   headerShadowVisible: false,
   contentStyle: { backgroundColor: Gallery.paper },
+  // Ends editing as a screen disappears; otherwise UIKit refocuses the field, keyboard and all, when it reappears.
+  keyboardHandlingEnabled: true,
 } as const satisfies NativeStackNavigationOptions;
 
 /** Automatic scroll insets work on every iOS version; before native scroll edges, the bar supplies its own blur. */

@@ -4,12 +4,11 @@ import { useState } from "react";
 import { Alert } from "react-native";
 
 import {
-  ActionRow,
   GroupedButtons,
   GroupedFooter,
   GroupedSection,
+  ListButton,
   NavigationRow,
-  OutlinedListButton,
   ValueRow,
 } from "@/components/grouped-list";
 import { signInRoute } from "@/lib/account/sign-in-context";
@@ -43,39 +42,39 @@ export function AccountSection() {
   const checks = useSafetyChecks({ safetyChecks: account?.safetyChecks === true });
   const profileRequired = session.status === "profile-required";
   const status = error ? <GroupedFooter tone="destructive">{error}</GroupedFooter> : undefined;
-  // Offline, the account query never resolves; keep the sign-in row instead of an endless indicator.
   if (!account?.linked) {
     return (
       <>
-        <GroupedSection footer={status}>
-          {(account === undefined && !session.offline) || (busy && operation !== "delete") ? (
-            <ValueRow label="Account" loading />
-          ) : (
-            <ActionRow
-              label="Sign in to Artlog"
-              icon="person.crop.circle"
-              disabled={busy}
-              onPress={() => router.push(signInRoute("account"))}
-            />
-          )}
-        </GroupedSection>
-        {(account || operation === "delete") && (
-          <GroupedButtons>
-            <OutlinedListButton
-              label="Delete my data"
-              busy={operation === "delete"}
-              destructive
-              disabled={busy}
-              onPress={() =>
-                confirmDelete(
-                  "Delete your data?",
-                  "Your collection, visits and photos will be erased from this iPhone and from Artlog. This can’t be undone.",
-                  "Delete",
-                )
-              }
-            />
-          </GroupedButtons>
-        )}
+        <GroupedButtons
+          footer={status}
+          textActions={
+            (account || operation === "delete") && (
+              <ListButton
+                label="Delete my data"
+                variant="text"
+                busy={operation === "delete"}
+                destructive
+                disabled={busy}
+                onPress={() =>
+                  confirmDelete(
+                    "Delete your data?",
+                    "Your collection, visits and photos will be erased from this iPhone and from Artlog. This can’t be undone.",
+                    "Delete",
+                  )
+                }
+              />
+            )
+          }
+        >
+          <ListButton
+            label="Sign in"
+            variant="filled"
+            // Offline, the account query never resolves; offer sign-in instead of an endless indicator.
+            busy={(account === undefined && !session.offline) || (busy && operation !== "delete")}
+            disabled={busy}
+            onPress={() => router.push(signInRoute("account"))}
+          />
+        </GroupedButtons>
       </>
     );
   }
@@ -107,8 +106,25 @@ export function AccountSection() {
           onValueChange={(on) => void (on ? checks.turnOn() : checks.turnOff())}
         />
       </GroupedSection>
-      <GroupedButtons>
-        <OutlinedListButton
+      <GroupedButtons
+        textActions={
+          <ListButton
+            label="Delete account"
+            variant="text"
+            busy={operation === "delete"}
+            destructive
+            disabled={busy}
+            onPress={() =>
+              confirmDelete(
+                "Delete account?",
+                `Your profile, posts and collection will be erased from Artlog and this iPhone, and your other devices will be signed out.${appleConfirmation} This can’t be undone.`,
+                "Delete account",
+              )
+            }
+          />
+        }
+      >
+        <ListButton
           label="Sign out"
           busy={operation === "sign-out"}
           disabled={busy}
@@ -126,19 +142,6 @@ export function AccountSection() {
                   },
                 },
               ],
-            )
-          }
-        />
-        <OutlinedListButton
-          label="Delete account"
-          busy={operation === "delete"}
-          destructive
-          disabled={busy}
-          onPress={() =>
-            confirmDelete(
-              "Delete account?",
-              `Your profile, posts and collection will be erased from Artlog and this iPhone, and your other devices will be signed out.${appleConfirmation} This can’t be undone.`,
-              "Delete account",
             )
           }
         />

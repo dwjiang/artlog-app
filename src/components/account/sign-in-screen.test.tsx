@@ -189,6 +189,16 @@ it.each([undefined, "friends"] as const)(
   },
 );
 
+it("hands a new account over to profile setup without closing it again", async () => {
+  const view = await render(<SignInScreen />);
+  mockAccount = { ...mockAccount, account: { linked: true, accountId: "account-a", hasProfile: false } };
+  await act(() => offerProfileSetup({ name: "Alex Morgan" }));
+  await view.rerender(<SignInScreen />);
+  expect(mockReplace).toHaveBeenCalledTimes(1);
+  expect(mockReplace).toHaveBeenCalledWith({ pathname: "/create-profile", params: { name: "Alex Morgan" } });
+  expect(mockBack).not.toHaveBeenCalled();
+});
+
 it("closes as before when the signed-in account already has a profile", async () => {
   offerProfileSetup({ name: "Alex Morgan" });
   mockAccount = { ...mockAccount, account: { linked: true, accountId: "account-a", hasProfile: true } };

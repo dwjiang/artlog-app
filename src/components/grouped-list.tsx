@@ -236,34 +236,60 @@ export function ActionRow({
   );
 }
 
-/** Full-width buttons styled like outlined GalleryButtons, stacked as in ActionStack, inside the native list. */
-export function GroupedButtons({ children }: { children: ReactNode }) {
+/** Full-width ListButtons stacked as in ActionStack, with text actions flush beneath them, inside the native list. */
+export function GroupedButtons({
+  children,
+  textActions,
+  footer,
+}: {
+  children: ReactNode;
+  textActions?: ReactNode;
+  footer?: ReactNode;
+}) {
   return (
-    <Section modifiers={[listRowBackground("clear")]}>
+    <Section footer={footer} modifiers={[listRowBackground("clear")]}>
       <Column
-        spacing={Spacing.two}
+        spacing={0}
         modifiers={[listRowInsets({ top: 0, bottom: 0, leading: 0, trailing: 0 }), listRowSeparator("hidden")]}
       >
-        {children}
+        <Column spacing={Spacing.two}>{children}</Column>
+        {textActions}
       </Column>
     </Section>
   );
 }
 
-export function OutlinedListButton({
+/** A full-width GalleryButton for native lists, where React Native views cannot be list rows. */
+export function ListButton({
   label,
   onPress,
+  variant = "outlined",
   disabled = false,
   destructive = false,
   busy = false,
 }: {
   label: string;
   onPress: () => void;
+  variant?: "filled" | "outlined" | "text";
   disabled?: boolean;
   destructive?: boolean;
   busy?: boolean;
 }) {
-  const color = destructive ? Gallery.destructive : Gallery.accent;
+  const filled = variant === "filled";
+  const tone = destructive ? Gallery.destructive : Gallery.accent;
+  const color = filled ? Gallery.surface : tone;
+  const surface = {
+    filled: [background(tone, shapes.roundedRectangle({ cornerRadius: Radius.button }))],
+    outlined: [
+      strokeBorder({
+        color: destructive ? Gallery.destructive : Gallery.accentBorder,
+        style: { lineWidth: 1 },
+        shape: "roundedRectangle",
+        cornerRadius: Radius.button,
+      }),
+    ],
+    text: [],
+  }[variant];
   return (
     <Button
       variant="text"
@@ -280,19 +306,14 @@ export function OutlinedListButton({
         spacing={Spacing.two}
         alignment="center"
         modifiers={[
-          frame({ maxWidth: Infinity, minHeight: 44 }),
+          frame({ maxWidth: Infinity, minHeight: filled ? 52 : 44 }),
           padding({ horizontal: Spacing.compact }),
           contentShape(shapes.rectangle()),
-          strokeBorder({
-            color: destructive ? Gallery.destructive : Gallery.accentBorder,
-            style: { lineWidth: 1 },
-            shape: "roundedRectangle",
-            cornerRadius: Radius.button,
-          }),
+          ...surface,
         ]}
       >
         {busy && <NativeLoadingRing label={`${label} in progress`} color={color} />}
-        <Text modifiers={[font({ textStyle: "body" })]} textStyle={{ color }}>
+        <Text modifiers={[font({ textStyle: "body", weight: filled ? "semibold" : "regular" })]} textStyle={{ color }}>
           {label}
         </Text>
       </Row>

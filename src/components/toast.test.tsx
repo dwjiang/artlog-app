@@ -1,10 +1,13 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { StyleSheet } from "react-native";
 
 import { BottomTabInset, Spacing } from "@/constants/theme";
+import type { ListeningController } from "@/lib/audio/listening-controller";
+import { ListeningContext } from "@/lib/audio/use-listening";
 import { dismissToast, showToast } from "@/lib/ui/toast";
 
+import { MINI_PLAYER_HEIGHT } from "./audio/mini-player";
 import { ToastLayer, toastLayerBottom } from "./toast";
 import { ToastPill } from "./toast-pill";
 
@@ -18,6 +21,14 @@ afterEach(() => {
   mockVerticalBarEdge = null;
   dismissToast();
 });
+
+function listening(track: boolean) {
+  const controller = {
+    subscribe: () => () => {},
+    snapshot: () => ({ current: track ? {} : undefined }),
+  } as unknown as ListeningController;
+  return ({ children }: { children: ReactNode }) => <ListeningContext value={controller}>{children}</ListeningContext>;
+}
 
 function layerBottom(text: string) {
   let node = screen.getByText(text).parent;
@@ -69,7 +80,19 @@ it.each([
 ])("clears the tab bar only while it sits at the bottom: %j, vertical bar %s", async (segments, edge, offset) => {
   mockSegments = segments;
   mockVerticalBarEdge = edge;
-  await render(<ToastLayer />);
+  await render(<ToastLayer />, { wrapper: listening(false) });
   await act(() => showToast("Saved"));
   expect(layerBottom("Saved")).toBe(offset + Spacing.content);
+});
+
+it.each([
+  [["(tabs)"], BottomTabInset],
+  [["saved"], 0],
+])("clears the mini player above the tab bar or along a pushed screen: %j", async (segments, bar) => {
+  mockSegments = segments;
+  await render(<ToastLayer />, { wrapper: listening(true) });
+  await act(() => showToast("Added to your Metropolitan Museum of Art visit."));
+  expect(layerBottom("Added to your Metropolitan Museum of Art visit.")).toBe(
+    bar + MINI_PLAYER_HEIGHT + Spacing.two + Spacing.content,
+  );
 });

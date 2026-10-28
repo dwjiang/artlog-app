@@ -58,60 +58,62 @@ export function VisitBand({ onCamera = false, beforeVisit = false }: { onCamera?
     />
   );
   return (
-    <SafeAreaBand style={[styles.band, { paddingTop: windowTop }, padding]}>
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={[StyleSheet.absoluteFill, styles.passThrough]}
-      >
-        {reduceTransparency && visit ? (
-          <View style={[StyleSheet.absoluteFill, styles.opaque]} />
-        ) : onCamera && (newestPhoto(works) || museumPhoto) ? (
-          // The photo matches the band on the other tabs; the blend keeps a second picture from sitting over the camera.
-          <>
-            <BlurView tint="systemUltraThinMaterialDark" intensity={CAMERA_BLUR} style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, styles.blend]}>{backdrop}</View>
-            <View style={[StyleSheet.absoluteFill, styles.blendScrim]} />
-          </>
+    <SafeAreaBand style={[styles.band, !onCamera && styles.headerGap]}>
+      <View style={[styles.surface, { paddingTop: windowTop }, padding]}>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[StyleSheet.absoluteFill, styles.passThrough]}
+        >
+          {reduceTransparency && visit ? (
+            <View style={[StyleSheet.absoluteFill, styles.opaque]} />
+          ) : onCamera && (newestPhoto(works) || museumPhoto) ? (
+            // The photo matches the band on the other tabs; the blend keeps a second picture from sitting over the camera.
+            <>
+              <BlurView tint="systemUltraThinMaterialDark" intensity={CAMERA_BLUR} style={StyleSheet.absoluteFill} />
+              <View style={[StyleSheet.absoluteFill, styles.blend]}>{backdrop}</View>
+              <View style={[StyleSheet.absoluteFill, styles.blendScrim]} />
+            </>
+          ) : (
+            backdrop
+          )}
+        </View>
+        {visit ? (
+          <OpenVisitRow
+            visit={visit}
+            here={visit.venueId === venue?.venueId}
+            onCamera={onCamera}
+            count={loading || error ? undefined : `${works.length} ${works.length === 1 ? "artwork" : "artworks"}`}
+          />
         ) : (
-          backdrop
+          ready && (
+            <View style={styles.row}>
+              <BandButton
+                label={ready.kind === "here" ? ready.venue.name : "Which museum?"}
+                hint="Opens the museum chooser"
+                chevron="chevron.down"
+                onPress={() => router.push("/venue-picker")}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityHint={ready.kind === "here" ? undefined : "Opens the museum chooser"}
+                accessibilityState={{ disabled: starting, busy: starting }}
+                disabled={starting}
+                onPress={() => (ready.kind === "here" ? start(ready.venue.venueId) : choose())}
+                style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+              >
+                <View style={[styles.pill, styles.startPill]}>
+                  <Text type="smallBold" maxFontSizeMultiplier={MAX_TEXT_SCALE} style={styles.start}>
+                    Start visit
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+          )
         )}
+        {/* Light text on the band's photo; screens above the tabs keep their own status bar. */}
+        {focused && <StatusBar style="light" />}
       </View>
-      {visit ? (
-        <OpenVisitRow
-          visit={visit}
-          here={visit.venueId === venue?.venueId}
-          onCamera={onCamera}
-          count={loading || error ? undefined : `${works.length} ${works.length === 1 ? "artwork" : "artworks"}`}
-        />
-      ) : (
-        ready && (
-          <View style={styles.row}>
-            <BandButton
-              label={ready.kind === "here" ? ready.venue.name : "Which museum?"}
-              hint="Opens the museum chooser"
-              chevron="chevron.down"
-              onPress={() => router.push("/venue-picker")}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityHint={ready.kind === "here" ? undefined : "Opens the museum chooser"}
-              accessibilityState={{ disabled: starting, busy: starting }}
-              disabled={starting}
-              onPress={() => (ready.kind === "here" ? start(ready.venue.venueId) : choose())}
-              style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-            >
-              <View style={[styles.pill, styles.startPill]}>
-                <Text type="smallBold" maxFontSizeMultiplier={MAX_TEXT_SCALE} style={styles.start}>
-                  Start visit
-                </Text>
-              </View>
-            </Pressable>
-          </View>
-        )
-      )}
-      {/* Light text on the band's photo; screens above the tabs keep their own status bar. */}
-      {focused && <StatusBar style="light" />}
     </SafeAreaBand>
   );
 }
@@ -217,7 +219,11 @@ const MAX_TEXT_SCALE = 1.4;
 const BUTTON_SIZE = 34;
 
 const styles = StyleSheet.create({
-  band: { position: "absolute", top: 0, left: 0, right: 0, overflow: "hidden" },
+  band: { position: "absolute", top: 0, left: 0, right: 0, pointerEvents: "box-none" },
+  // A clear strip inside the reserved safe area keeps the header's glass buttons off the photo; the camera spaces its
+  // own controls.
+  headerGap: { paddingBottom: Spacing.compact },
+  surface: { overflow: "hidden" },
   passThrough: { pointerEvents: "none" },
   opaque: { backgroundColor: Gallery.ink },
   // White text keeps 4.5:1 over a cream photo; only a near-white one leans on the text shadow.

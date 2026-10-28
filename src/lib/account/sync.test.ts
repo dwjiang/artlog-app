@@ -154,6 +154,47 @@ it("resumes at the last applied change after an interrupted pull", async () => {
   expect(api.mock.calls[2][0].since).toBe(1);
 });
 
+it("applies a remote discard despite a local edit made while sync is in flight", async () => {
+  await visits.upsertVisitsFromRemote([remoteVisit]);
+  checkpoint = "1";
+  api.mockImplementationOnce(async () => {
+    await visits.patchVisit(remoteVisit.localId, { reflection: "Edited during sync" });
+    return {
+      ...empty,
+      visits: [{ ...remoteVisit, deletedAt: 3, updatedAt: 4, changeVersion: 2 }],
+      checkpoint: 2,
+    };
+  });
+  await syncJournal(deps, context);
+  expect(await visits.listVisits()).toEqual([]);
+  expect(await visits.getVisit(remoteVisit.localId, undefined, { discarded: true })).toMatchObject({
+    deletedAt: 3,
+    reflection: null,
+    syncedAt: 4,
+  });
+  expect(await visits.listUnsyncedVisits()).toEqual([]);
+  await syncJournal(deps, context);
+  expect(await visits.listVisits()).toEqual([]);
+});
+
+it("keeps a local discard when an older live visit arrives after its acknowledgement", async () => {
+  await visits.upsertVisitsFromRemote([remoteVisit]);
+  visits.discardVisit(remoteVisit.localId, context.owner, 3);
+  api.mockResolvedValueOnce({
+    ...empty,
+    acceptedVisits: [
+      { localId: remoteVisit.localId, visitId: remoteVisit._id, updatedAt: 4, updatedBy: context.deviceId },
+    ],
+    visits: [{ ...remoteVisit, reflection: "Before discard" }],
+  });
+  await syncJournal(deps, context);
+  expect(await visits.listVisits()).toEqual([]);
+  expect(await visits.getVisit(remoteVisit.localId, undefined, { discarded: true })).toMatchObject({
+    deletedAt: 3,
+    reflection: null,
+  });
+});
+
 it("discards in-flight responses after account changes", async () => {
   let active = true;
   api.mockImplementationOnce(async () => {

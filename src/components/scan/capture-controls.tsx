@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GlassSurface } from "@/components/glass-surface";
 import { ThemedText } from "@/components/themed-text";
@@ -21,26 +22,31 @@ export function CaptureControls({
   importLabel?: string;
 }) {
   const { fontScale } = useWindowDimensions();
+  const { left, right } = useSafeAreaInsets();
   const stacked = fontScale > 1.4;
+  // The overlay pads each side by its safe area; the row runs back out to even gutters so the shutter centers on the
+  // camera preview even beside a one-sided bar (the iPhone Duo's rail). Photos keeps its place inside the safe area.
   return (
-    <View style={[styles.controls, stacked && styles.stackedControls]}>
-      <GlassSurface isInteractive style={styles.importButton}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={importLabel}
-          disabled={importDisabled}
-          accessibilityState={{ disabled: importDisabled }}
-          onPress={onImport}
-          style={({ pressed }) => [styles.importContent, (pressed || importDisabled) && styles.dimmed]}
-        >
-          <Image source="sf:photo" style={styles.importIcon} tintColor={Colors.light.overlayText} />
-          <ThemedText variant="metadata" themeColor="overlayText">
-            Photos
-          </ThemedText>
-        </Pressable>
-      </GlassSurface>
+    <View style={[styles.controls, stacked && styles.stackedControls, { marginLeft: -left, marginRight: -right }]}>
+      <View style={!stacked && styles.side}>
+        <GlassSurface isInteractive style={[styles.importButton, !stacked && { marginLeft: left }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={importLabel}
+            disabled={importDisabled}
+            accessibilityState={{ disabled: importDisabled }}
+            onPress={onImport}
+            style={({ pressed }) => [styles.importContent, (pressed || importDisabled) && styles.dimmed]}
+          >
+            <Image source="sf:photo" style={styles.importIcon} tintColor={Colors.light.overlayText} />
+            <ThemedText variant="metadata" themeColor="overlayText">
+              Photos
+            </ThemedText>
+          </Pressable>
+        </GlassSurface>
+      </View>
       {children}
-      {!stacked && <View style={styles.controlsSpacer} />}
+      {!stacked && <View style={styles.side} />}
     </View>
   );
 }
@@ -79,9 +85,9 @@ export function ShutterButton({
 }
 
 const styles = StyleSheet.create({
-  controls: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  controls: { flexDirection: "row", alignItems: "center" },
   stackedControls: { flexDirection: "column", gap: Spacing.three },
-  controlsSpacer: { width: IMPORT_SIZE },
+  side: { flex: 1, alignItems: "flex-start" },
   importButton: { borderRadius: 12, overflow: "hidden" },
   importContent: {
     minWidth: IMPORT_SIZE,

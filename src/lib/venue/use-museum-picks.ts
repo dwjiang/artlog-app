@@ -6,6 +6,7 @@ import { AppState } from "react-native";
 
 import { listSavedArtworkIds } from "@/db/repos/saved-works";
 import { useLocalOwner } from "@/lib/account/owner-store";
+import { nextLocalMidnight } from "@/lib/journal/visit-date";
 import { reportError } from "@/lib/observability";
 import { useDeviceReady } from "@/lib/use-device-ready";
 import { calendarDate } from "@/shared/journal/limits";
@@ -24,9 +25,7 @@ function useCurrentDay() {
     const refresh = () => {
       clearTimeout(timer);
       setDay(currentDay());
-      const midnight = new Date(Date.now());
-      midnight.setHours(24, 0, 0, 0);
-      timer = setTimeout(refresh, Math.max(1, midnight.getTime() - Date.now()));
+      timer = setTimeout(refresh, Math.max(1, nextLocalMidnight(Date.now()) - Date.now()));
     };
     refresh();
     const subscription = AppState.addEventListener("change", (state) => {

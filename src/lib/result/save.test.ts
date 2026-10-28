@@ -4,7 +4,7 @@ import { bridge, confidentScan, lilies, missScan, SCAN_ID, softScan } from "@/co
 import { db } from "@/db/client";
 import { selectArtworkPhotos, selectArtworkEncounters, editArtworkPhoto } from "@/db/repos/artwork-album";
 import { getSavedWork } from "@/db/repos/saved-works";
-import { moveVisit, upsertVisit } from "@/db/repos/visits";
+import { discardVisit, moveVisit, upsertVisit } from "@/db/repos/visits";
 import { artworkPhotos, artworkEncounters, savedWorks, settings } from "@/db/schema";
 import { readPhotoDraft, writePhotoDraft, updatePhotoSession, isLabelCapture } from "@/lib/capture/photo-draft";
 import type { Quad } from "@/lib/capture/stages";
@@ -634,6 +634,28 @@ it.each([{ visitLocalId: "missing" }, { visitLocalId: "" }, { visitId: "wrong-vi
     expect(mockMutation).not.toHaveBeenCalled();
   },
 );
+
+it("saves a capture whose visit was discarded with its museum and no visit", async () => {
+  const localId = "00000000-0000-4000-8000-000000000098";
+  await upsertVisit({
+    localId,
+    venueId: capture.venueId,
+    venueName: "The Met",
+    visitedOn: "1970-01-01",
+    timeZone: "UTC",
+  });
+  discardVisit(localId);
+  const result = await saveResult({
+    scanId: SCAN_ID,
+    capture: { ...capture, localId: "discarded-capture", visitLocalId: localId },
+    view: toResultViewState(confidentScan),
+    draft: draftFromCandidate(lilies),
+  });
+  await result.synced;
+  expect(await getSavedWork(result.localId)).toMatchObject({ visitLocalId: null, venueId: "museum-met" });
+  expect(result.completion.visitOutcome).toBeUndefined();
+  expect(mockVisitForSave).not.toHaveBeenCalled();
+});
 
 it("tells the user to pick another visit when the chosen draft visit no longer exists", async () => {
   updatePhotoSession(capture.owner, capture.photoPath, {

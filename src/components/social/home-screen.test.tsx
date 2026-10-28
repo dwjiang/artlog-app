@@ -124,6 +124,7 @@ beforeEach(() => {
     offline: false,
     accountReady: true,
     safetyChecks: true,
+    safetyChecksAnswered: true,
     prefetch: { public: false, profile: false },
     refresh: jest.fn(),
     error: undefined,

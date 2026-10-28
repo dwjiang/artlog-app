@@ -37,6 +37,7 @@ export const visits = sqliteTable(
     syncedAt: integer(),
     syncedBy: text().$type<Id<"devices">>(),
     revision: integer().notNull().default(0),
+    deletedAt: integer(),
   },
   (table) => [
     primaryKey({ columns: [table.owner, table.localId] }),

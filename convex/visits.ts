@@ -14,7 +14,7 @@ export const detail = query({
   handler: async (ctx, { scope, localId }) => {
     const { owner } = await requireJournalOwner(ctx, scope);
     const visit = await findOwnedVisit(ctx, owner, localId);
-    if (!visit) throw new ConvexError({ code: "not_found" });
+    if (!visit || visit.deletedAt !== undefined) throw new ConvexError({ code: "not_found" });
     return visit;
   },
 });
@@ -39,7 +39,7 @@ export const history = query({
       : ctx.db.query("visits").withIndex("by_owner_history", (q) => q.eq("owner", owner));
     const result = await rows.order("desc").paginate(pagination(args));
     return {
-      page: result.page,
+      page: result.page.filter((visit) => visit.deletedAt === undefined),
       cursor: result.isDone ? null : result.continueCursor,
       isDone: result.isDone,
     };
@@ -56,7 +56,7 @@ export const savedWorks = query({
   handler: async (ctx, args) => {
     const { owner } = await requireJournalOwner(ctx, args.scope);
     const visit = await findOwnedVisit(ctx, owner, args.localId);
-    if (!visit) throw new ConvexError({ code: "not_found" });
+    if (!visit || visit.deletedAt !== undefined) throw new ConvexError({ code: "not_found" });
     const result = await ctx.db
       .query("artworkEncounters")
       .withIndex("by_visitId", (q) => q.eq("visitId", visit._id))

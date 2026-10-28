@@ -7,10 +7,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ActionStack } from "@/components/action-stack";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
+import { PermissionAsk } from "@/components/permissions/permission-ask";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
 import { useLocalProfile } from "@/lib/account/local-profile";
 import { captureOwner } from "@/lib/account/owner-store";
+import { answerSafetyChecks } from "@/lib/account/safety-checks-answer";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { profilePictureArgs, shownPicture, useProfilePictureDraft } from "@/lib/social/profile-picture";
@@ -28,7 +30,8 @@ import { ProfileField, UsernameField } from "./profile-fields";
 import { ProfilePicturePicker } from "./profile-picture-picker";
 import { SocialGate } from "./social-state";
 
-const STEPS = ["username", "name", "photo"] as const;
+const PROFILE_STEPS = ["username", "name", "photo"] as const;
+type Step = (typeof PROFILE_STEPS)[number] | "safety";
 
 export function ProfileSetupScreen({
   suggestedName = "",
@@ -50,7 +53,7 @@ export function ProfileSetupScreen({
   const localProfile = useLocalProfile();
   const { picture, choose } = useProfilePictureDraft();
   const [picking, setPicking] = useState(false);
-  const [operation, setOperation] = useState<"username" | "name" | "picture">();
+  const [operation, setOperation] = useState<"username" | "name" | "picture" | "allow" | "decline">();
   const [error, setError] = useState<string>();
   const [created, setCreated] = useState(false);
   const [finished, setFinished] = useState(false);
@@ -77,6 +80,13 @@ export function ProfileSetupScreen({
   const done = finished || (session.status === "ready" && !created && operation !== "username");
   const mine = useSocialQuery(api.profiles.mine, done ? {} : "skip", session.key);
   const busy = operation !== undefined;
+  // An account that never answered, such as one signed into after signing out, is asked last. Fixed once known, so
+  // saving the answer cannot drop the step from under the person.
+  const [asksSafety, setAsksSafety] = useState<boolean>();
+  if (asksSafety === undefined && session.safetyChecksAnswered !== undefined) {
+    setAsksSafety(!session.safetyChecksAnswered);
+  }
+  const steps: readonly Step[] = asksSafety ? [...PROFILE_STEPS, "safety"] : PROFILE_STEPS;
 
   function close() {
     router.back();
@@ -88,6 +98,10 @@ export function ProfileSetupScreen({
   function goTo(next: number) {
     setError(undefined);
     setStep(next);
+  }
+  function afterPicture() {
+    if (step < steps.length - 1) goTo(step + 1);
+    else finish();
   }
   // Claiming the username creates the profile, so a name taken by someone else surfaces on this step.
   async function claimUsername() {
@@ -143,7 +157,7 @@ export function ProfileSetupScreen({
   async function savePicture() {
     if (busy) return;
     if (!picture) {
-      finish();
+      afterPicture();
       return;
     }
     const owner = captureOwner();
@@ -153,7 +167,7 @@ export function ProfileSetupScreen({
       const pictureArgs = await profilePictureArgs(picture);
       if (!owner.isOwnerCurrent() || !mounted.current) return;
       await saveProfile({ name: savedName, ...pictureArgs });
-      if (owner.isOwnerCurrent() && mounted.current) finish();
+      if (owner.isOwnerCurrent() && mounted.current) afterPicture();
     } catch (cause) {
       reportError(cause, "profile.photo.save");
       if (owner.isOwnerCurrent() && mounted.current) {
@@ -163,6 +177,22 @@ export function ProfileSetupScreen({
             : "Your picture wasn’t saved. Try again.",
         );
       }
+    } finally {
+      if (mounted.current) setOperation(undefined);
+    }
+  }
+
+  async function answerSafety(enabled: boolean) {
+    if (busy) return;
+    const owner = captureOwner();
+    setOperation(enabled ? "allow" : "decline");
+    setError(undefined);
+    try {
+      await answerSafetyChecks(enabled, true);
+      if (owner.isOwnerCurrent() && mounted.current) finish();
+    } catch (cause) {
+      reportError(cause, "profile.safety_checks");
+      if (owner.isOwnerCurrent() && mounted.current) setError("Your choice couldn’t be saved. Please try again.");
     } finally {
       if (mounted.current) setOperation(undefined);
     }
@@ -229,7 +259,7 @@ export function ProfileSetupScreen({
   const bar = (
     <View style={styles.bar}>
       {/* The username is claimed on the first step, so only the photo step can go back. */}
-      {STEPS[step] === "photo" ? (
+      {steps[step] === "photo" ? (
         <GalleryIconButton
           label="Back"
           icon="chevron.left"
@@ -241,7 +271,7 @@ export function ProfileSetupScreen({
         <View style={styles.barSpacer} />
       )}
       <View style={styles.chip}>
-        <Text style={styles.chipText}>{`Step ${step + 1} of ${STEPS.length}`}</Text>
+        <Text style={styles.chipText}>{`Step ${step + 1} of ${steps.length}`}</Text>
       </View>
       <GalleryButton label="Not Now" fullWidth={false} disabled={busy} onPress={close} />
     </View>
@@ -261,7 +291,7 @@ export function ProfileSetupScreen({
     </Text>
   );
 
-  if (STEPS[step] === "username") {
+  if (steps[step] === "username") {
     const waiting = session.status === "loading";
     return (
       <SetupPage bar={bar}>
@@ -297,7 +327,7 @@ export function ProfileSetupScreen({
     );
   }
 
-  if (STEPS[step] === "name") {
+  if (steps[step] === "name") {
     return (
       <SetupPage bar={bar}>
         <Heading title="Your name" detail="It appears on your profile and on visits you share." />
@@ -333,6 +363,41 @@ export function ProfileSetupScreen({
     );
   }
 
+  if (steps[step] === "safety") {
+    return (
+      <SetupPage bar={bar}>
+        <PermissionAsk kind="safetyChecks" />
+        {errorText}
+        {/* No iPhone prompt follows this step, so it holds the choice itself. */}
+        <ActionStack>
+          <GalleryButton
+            label="Allow"
+            variant="filled"
+            fullWidth
+            disabled={busy}
+            busy={operation === "allow"}
+            busyLabel="Saving…"
+            onPress={() => {
+              void answerSafety(true);
+            }}
+          />
+          <GalleryButton
+            label="Don’t Allow"
+            variant="filled"
+            tone="neutral"
+            fullWidth
+            disabled={busy}
+            busy={operation === "decline"}
+            busyLabel="Saving…"
+            onPress={() => {
+              void answerSafety(false);
+            }}
+          />
+        </ActionStack>
+      </SetupPage>
+    );
+  }
+
   return (
     <SetupPage bar={bar}>
       <Heading title="Your picture" detail="It appears on your public profile." />
@@ -356,7 +421,7 @@ export function ProfileSetupScreen({
         textActions={
           error
           && picture?.kind === "photo" && (
-            <GalleryButton label="Continue without photo" fullWidth disabled={busy} onPress={finish} />
+            <GalleryButton label="Continue without photo" fullWidth disabled={busy} onPress={afterPicture} />
           )
         }
       >
