@@ -147,19 +147,7 @@ export function VisitWrapUpSheet() {
           {failure}
         </ThemedText>
       )}
-      <ActionStack
-        textActions={
-          <GalleryButton
-            label="Keep it private"
-            variant="outlined"
-            fullWidth
-            disabled={busy === "share"}
-            busy={busy === "keep"}
-            busyLabel="Saving…"
-            onPress={() => void finish(false)}
-          />
-        }
-      >
+      <ActionStack>
         <GalleryButton
           label="Share with friends"
           icon="square.and.arrow.up"
@@ -169,6 +157,15 @@ export function VisitWrapUpSheet() {
           busy={busy === "share"}
           busyLabel="Saving…"
           onPress={() => void finish(true)}
+        />
+        <GalleryButton
+          label="Keep it private"
+          variant="outlined"
+          fullWidth
+          disabled={busy === "share"}
+          busy={busy === "keep"}
+          busyLabel="Saving…"
+          onPress={() => void finish(false)}
         />
       </ActionStack>
     </SafeAreaScrollView>

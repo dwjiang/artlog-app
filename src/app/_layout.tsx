@@ -319,10 +319,10 @@ function AppContent() {
               </Stack>
               <NotificationResponder />
               {isJudgesDemo() && <DemoWalkResponder />}
+              <ToastLayer>
+                <RemovalToast />
+              </ToastLayer>
             </ListeningProvider>
-            <ToastLayer>
-              <RemovalToast />
-            </ToastLayer>
           </ThemeProvider>
         </WidgetProvider>
       </ConvexAuthProvider>
