@@ -249,6 +249,46 @@ describe("choosing a museum", () => {
     expect(mockDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the nearby list, then the last results, on screen while the next search runs", async () => {
+    const { searchVenues } = jest.requireMock("@/lib/venue/search-venues");
+    const answers: ((rows: unknown[]) => void)[] = [];
+    searchVenues.mockImplementation(() => new Promise((resolve) => answers.push(resolve)));
+    const frick = {
+      id: "id-frick",
+      key: "wikidata:Q682827",
+      name: "The Frick Collection",
+      lat: 40.7711,
+      lng: -73.9674,
+      website: null,
+      region: "new-york",
+      city: "New York",
+      cityKey: "new-york",
+      country: "US",
+    };
+    await render(<VenuePickerSheet />);
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "Fri");
+    await waitFor(() => expect(answers).toHaveLength(1));
+    expect(screen.getByRole("button", { name: "Neue Galerie" })).toBeOnTheScreen();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    await act(async () => answers[0]([frick]));
+    const result = { name: "The Frick Collection, New York, United States" };
+    expect(await screen.findByRole("button", result)).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Neue Galerie" })).toBeNull();
+
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "Frix");
+    await waitFor(() => expect(answers).toHaveLength(2));
+    expect(screen.getByRole("button", result)).toBeOnTheScreen();
+    await act(async () => answers[1]([]));
+    expect(await screen.findByText("No museums found.")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", result)).toBeNull();
+
+    await fireEvent.press(screen.getByRole("button", { name: "Clear search" }));
+    await fireEvent.changeText(screen.getByLabelText("Search museums"), "Neue");
+    await waitFor(() => expect(answers).toHaveLength(3));
+    expect(screen.queryByText("No museums found.")).toBeNull();
+    expect(screen.getByRole("button", { name: "Neue Galerie" })).toBeOnTheScreen();
+  });
+
   it("confirms a searched museum by hand for the museum’s current day", async () => {
     jest.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 8, 19, 2, 30));
     const { searchVenues } = jest.requireMock("@/lib/venue/search-venues");
