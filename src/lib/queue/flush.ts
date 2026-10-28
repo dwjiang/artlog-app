@@ -29,7 +29,7 @@ export type FlushDependencies = {
   ) => Promise<{ status: PendingScanStatus; attempts: number }>;
   resetAttemptsForModel(localId: string, modelVersion: string): Promise<void>;
   updateFeatures(localId: string, features: ScanFeatures & { modelVersion: string }): Promise<void>;
-  resolveVisitId(localId: string): Promise<Id<"visits">>;
+  resolveVisitId(localId: string): Promise<Id<"visits"> | undefined>;
   identify(args: IdentifyArgs): Promise<IdentifyResponse>;
   runLabelFlow(scanId: Id<"scans">, label: LabelInput): Promise<void>;
   reembed(cropPath: string): Promise<ScanFeatures>;

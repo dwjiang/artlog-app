@@ -30,6 +30,9 @@ jest.mock("@/lib/journal/wrap-up", () => ({
   markWrapUp: async (owner: string, visitId: string) => {
     mockSettings.set(`wrapUpVisit:${owner}`, visitId);
   },
+  clearWrapUp: async (owner: string, visitId: string) => {
+    if (mockSettings.get(`wrapUpVisit:${owner}`) === visitId) mockSettings.delete(`wrapUpVisit:${owner}`);
+  },
 }));
 const mockVisits = new Map<string, Visit>();
 const mockLatestSaves = new Map<string, number>();
@@ -94,16 +97,24 @@ jest.mock("@/db/repos/visits", () => ({
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
       ...existing,
       ...Object.fromEntries(Object.entries(visit).filter(([, v]) => v !== undefined)),
     } as Visit;
     mockVisits.set(visit.localId, merged);
   },
-  getVisit: async (localId: string) => mockVisits.get(localId),
+  getVisit: async (localId: string, _owner: string, { discarded = false } = {}) => {
+    const row = mockVisits.get(localId);
+    return discarded || !row?.deletedAt ? row : undefined;
+  },
   findVisitOnDay: async (venueId: string, visitedOn: string, _owner: string, { open = false } = {}) =>
     [...mockVisits.values()]
       .filter(
-        (visit) => visit.venueId === venueId && visit.visitedOn === visitedOn && (!open || visit.endedAt === null),
+        (visit) =>
+          visit.venueId === venueId
+          && visit.visitedOn === visitedOn
+          && !visit.deletedAt
+          && (!open || visit.endedAt === null),
       )
       .sort((a, b) => (b.startedAt ?? -Infinity) - (a.startedAt ?? -Infinity))[0],
   patchVisit: async (localId: string, fields: Partial<Visit>) => {
@@ -115,6 +126,10 @@ jest.mock("@/db/repos/visits", () => ({
     if (row) mockVisits.set(localId, { ...row, ...to, syncedAt: null });
   },
   latestVisitSaveAt: async (localId: string) => mockLatestSaves.get(localId),
+  discardVisit: (localId: string) => {
+    const row = mockVisits.get(localId);
+    if (row) mockVisits.set(localId, { ...row, deletedAt: mockNow, reflection: null, syncedAt: null });
+  },
 }));
 jest.mock("@/lib/observability", () => ({
   reportError: jest.fn(),
@@ -233,6 +248,7 @@ beforeEach(() => {
         syncedAt: null,
         syncedBy: null,
         revision: 0,
+        deletedAt: null,
         ...Object.fromEntries(Object.entries(visit).filter(([, value]) => value !== undefined)),
         ...existing,
         startedAt: visit.startedAt,
@@ -645,6 +661,7 @@ describe("the visit a save links to", () => {
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
     } as Visit;
     mockVisits.set(manual.localId, manual);
     mockNearest.mockResolvedValue([metRow]);
@@ -990,6 +1007,33 @@ describe("pausing, ending and the day", () => {
     expect(mockVisits.size).toBe(1);
   });
 
+  it("discards the open visit as an ending, so saves at its museum start no visit for the rest of the day", async () => {
+    mockNearest.mockResolvedValue([metRow]);
+    await controller.resolve();
+    await controller.visitForSave(metId, mockNow);
+    mockSettings.set("wrapUpVisit:device:test-installation", "uuid-1");
+    mockNow += 10 * 60 * 1000;
+    await controller.discard("uuid-1");
+    expect(mockVisits.get("uuid-1")).toMatchObject({ endedAt: mockNow, deletedAt: mockNow });
+    expect(mockSettings.has(CURRENT)).toBe(false);
+    expect(mockSettings.has("wrapUpVisit:device:test-installation")).toBe(false);
+    expect(controller.getState().visit).toBeUndefined();
+    expect(controller.visitByDefault(metId)).toBe(false);
+    const relaunched = createVenueController();
+    await relaunched.hydrate();
+    expect(relaunched.getState().visit).toBeUndefined();
+    expect(relaunched.visitByDefault(metId)).toBe(false);
+  });
+
+  it("closes the open visit once another device discards it", async () => {
+    mockNearest.mockResolvedValue([metRow]);
+    await controller.resolve();
+    await controller.visitForSave(metId, mockNow);
+    mockVisits.set("uuid-1", { ...mockVisits.get("uuid-1")!, deletedAt: mockNow });
+    await controller.syncRemoteVisit();
+    expect(controller.getState().visit).toBeUndefined();
+  });
+
   it("leaves the current visit open when saving an older end-visit review", async () => {
     mockNearest.mockResolvedValue([metRow]);
     await controller.resolve();
@@ -1016,6 +1060,7 @@ describe("pausing, ending and the day", () => {
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
     });
     mockSettings.set(CURRENT, "existing");
     mockNearest.mockResolvedValue([metRow]);
@@ -1058,6 +1103,7 @@ describe("pausing, ending and the day", () => {
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
     };
     mockVisits.set("stale", stale);
     mockVisits.set("elsewhere", {
@@ -1101,6 +1147,7 @@ describe("pausing, ending and the day", () => {
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
     });
     mockSettings.set(CURRENT, "empty");
     await controller.hydrate();
@@ -1154,6 +1201,7 @@ describe("the sheet", () => {
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
     });
     mockSettings.set(CURRENT, "old");
     mockNearest.mockResolvedValue([metRow, neueRow]);

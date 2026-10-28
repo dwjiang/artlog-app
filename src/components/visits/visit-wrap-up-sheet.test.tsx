@@ -80,6 +80,7 @@ beforeEach(async () => {
       syncedAt: null,
       syncedBy: null,
       revision: 0,
+      deletedAt: null,
       location: "New York",
       works: [{ localId: "a" }, { localId: "b" }, { localId: "c" }] as VisitSummary["works"],
     },

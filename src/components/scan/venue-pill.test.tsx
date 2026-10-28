@@ -38,6 +38,7 @@ function view(status: VenueView["status"], venue?: VenueView["venue"], current?:
     declinePrompt: jest.fn(),
     promptChooser: jest.fn(),
     end: jest.fn(),
+    discard: jest.fn(),
     startVisit: jest.fn(),
     move: jest.fn(),
   };

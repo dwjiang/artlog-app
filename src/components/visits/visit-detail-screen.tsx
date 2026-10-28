@@ -78,7 +78,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     if (visit.endedAt !== null) markVisitSeen(visit.localId, visit.owner);
   }, [visit.localId, visit.owner, visit.endedAt]);
   const [search, setSearch] = useState("");
-  const { end, move, visit: open } = useVenue();
+  const { end, discard, move, visit: open } = useVenue();
   // The open visit saves only by ending it, whether opened from the visit band or reviewed for ending, and a
   // visibility change waits for that save.
   const ending = endingVisit || open?.localId === visit.localId;
@@ -274,6 +274,47 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     }
   }
   const count = visit.works.length;
+  /** The open visit is discarded like a draft; a saved one is deleted. Either way its artworks stay. */
+  function confirmDiscard() {
+    const message = [
+      count > 0 && "Its artworks and photos stay in your collection.",
+      published && "Its post will be removed.",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const action = ending ? "Discard visit" : "Delete visit";
+    Alert.alert(ending ? "Discard this visit?" : "Delete this visit?", message || undefined, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: action,
+        style: "destructive",
+        onPress: () => {
+          void discardVisit();
+        },
+      },
+    ]);
+  }
+  async function discardVisit() {
+    const session = captureOwner();
+    if (session.owner !== visit.owner || submitting.current) return;
+    submitting.current = true;
+    try {
+      await discard(visit.localId);
+      if (!session.isCurrent()) return;
+      showToast(ending ? "Visit discarded." : "Visit deleted.");
+      if (router.canGoBack()) router.back();
+    } catch (cause) {
+      reportError(cause, "visit.discard");
+      if (session.isOwnerCurrent()) {
+        playErrorHaptic();
+        showErrorToast(ending ? "Couldn’t discard the visit." : "Couldn’t delete the visit.", () => {
+          void discardVisit();
+        });
+      }
+    } finally {
+      submitting.current = false;
+    }
+  }
   return (
     <>
       {/* Native large-title collapse follows the first descendant; keep the scroll wrappers in the native tree. */}
@@ -392,6 +433,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
             onSave={() => {
               void save();
             }}
+            onDiscard={confirmDiscard}
           />
         )}
       </View>
@@ -437,6 +479,11 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
                 }}
               >
                 Copy Link
+              </Stack.Toolbar.MenuAction>
+            )}
+            {!ending && (
+              <Stack.Toolbar.MenuAction icon="trash" destructive onPress={confirmDiscard}>
+                Delete Visit…
               </Stack.Toolbar.MenuAction>
             )}
           </Stack.Toolbar.Menu>

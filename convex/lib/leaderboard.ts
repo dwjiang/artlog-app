@@ -30,11 +30,14 @@ type MuseumDay = Pick<JournalVisit, "venueId" | "visitedOn">;
 /** The account's journal visits plus the posts it is named on as a companion, at one museum on one day; two suffice. */
 async function museumDayEntries(ctx: MutationCtx, accountId: Id<"accounts">, { venueId, visitedOn }: MuseumDay) {
   const owner = { kind: "account" as const, accountId };
-  const own = await ctx.db
+  let own = 0;
+  for await (const visit of ctx.db
     .query("visits")
-    .withIndex("by_owner_venue_history", (q) => q.eq("owner", owner).eq("venueId", venueId).eq("visitedOn", visitedOn))
-    .take(2);
-  if (own.length === 2) return 2;
+    .withIndex("by_owner_venue_history", (q) =>
+      q.eq("owner", owner).eq("venueId", venueId).eq("visitedOn", visitedOn),
+    )) {
+    if (visit.deletedAt === undefined && ++own === 2) return 2;
+  }
   const profile = await ctx.db
     .query("profiles")
     .withIndex("by_accountId", (q) => q.eq("accountId", accountId))
@@ -47,7 +50,7 @@ async function museumDayEntries(ctx: MutationCtx, accountId: Id<"accounts">, { v
         )
         .take(2)
     : [];
-  return own.length + named.length;
+  return own + named.length;
 }
 /** The visits metric counts museum days: a day scores with its first entry and stops when its last one goes. */
 async function moveMuseumDay(ctx: MutationCtx, accountId: Id<"accounts">, day?: MuseumDay, previous?: MuseumDay) {
@@ -59,9 +62,11 @@ async function moveMuseumDay(ctx: MutationCtx, accountId: Id<"accounts">, day?: 
     await increment(ctx, accountId, "visits", 1);
   }
 }
-/** Runs after the visit is written, with the museum day it held before. */
-export async function recordVisitScore(ctx: MutationCtx, owner: JournalOwner, visit: MuseumDay, previous?: MuseumDay) {
-  if (owner.kind === "account") await moveMuseumDay(ctx, owner.accountId, visit, previous);
+type VisitDay = MuseumDay & Pick<JournalVisit, "deletedAt">;
+/** Runs after the visit is written, with the museum day it held before; a discarded visit holds none. */
+export async function recordVisitScore(ctx: MutationCtx, owner: JournalOwner, visit: VisitDay, previous?: VisitDay) {
+  const day = (row?: VisitDay) => (row?.deletedAt === undefined ? row : undefined);
+  if (owner.kind === "account") await moveMuseumDay(ctx, owner.accountId, day(visit), day(previous));
 }
 /** Runs after a companion row is written or deleted, with the museum day it holds now and held before. */
 export async function recordCompanionScore(

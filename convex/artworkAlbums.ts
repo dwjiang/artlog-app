@@ -106,7 +106,7 @@ export const sync = mutation({
         .query("artworkEncounters")
         .withIndex("by_save_visit", (q) => q.eq("saveId", save._id).eq("visitId", visit._id))
         .unique();
-      const deletedAt = save.deletedAt ?? input.deletedAt;
+      const deletedAt = save.deletedAt ?? visit.deletedAt ?? input.deletedAt;
       if (existing && existing.deletedAt === deletedAt) {
         continue;
       }

@@ -52,6 +52,30 @@ it("publishes in the chosen order without private fields", async () => {
   ]);
 });
 
+it("takes a discarded visit's post down with its notes and never publishes it again", async () => {
+  const t = harness();
+  const a = await socialUser(t);
+  const draft = await socialVisit(t, a);
+  await t.run((ctx) => ctx.db.patch("visits", draft.visit._id, { reflection: "Shared words" }));
+  const selection = { ...draft.selection, reflection: "Shared words" };
+  const { postId } = await a.as.action(api.sharedVisits.publish, selection);
+  const { localId, venueId, visitedOn, timeZone, visibility } = draft.visit;
+  await a.as.mutation(api.visits.upsertJournal, {
+    scope: a.scope,
+    visit: { localId, venueId, visitedOn, timeZone, visibility, deletedAt: Date.now() },
+  });
+  await expect(a.as.query(api.sharedVisits.get, { postId: postId! })).rejects.toMatchObject(notFound);
+  const [publication] = await t.run((ctx) => ctx.db.query("sharedVisits").collect());
+  expect(publication).toMatchObject({ status: "private", reflection: "" });
+  await expect(
+    a.as.action(api.sharedVisits.publish, {
+      ...selection,
+      reflection: "",
+      revision: publication.publicationRevision,
+    }),
+  ).rejects.toMatchObject(notFound);
+});
+
 it("rejects forged selections, private visits, duplicate UUIDs, and missing shared text", async () => {
   const t = harness();
   const a = await socialUser(t);

@@ -9,7 +9,15 @@ export type VisitPayload = FunctionArgs<typeof api.visits.upsertJournal>["visit"
 export function visitInput(
   visit: Pick<
     NewVisit,
-    "localId" | "venueId" | "visitedOn" | "timeZone" | "reflection" | "startedAt" | "endedAt" | "visibility"
+    | "localId"
+    | "venueId"
+    | "visitedOn"
+    | "timeZone"
+    | "reflection"
+    | "startedAt"
+    | "endedAt"
+    | "visibility"
+    | "deletedAt"
   >,
 ): VisitPayload {
   return {
@@ -21,5 +29,6 @@ export function visitInput(
     reflection: visit.reflection ?? undefined,
     startedAt: visit.startedAt ?? undefined,
     endedAt: visit.endedAt ?? undefined,
+    deletedAt: visit.deletedAt ?? undefined,
   };
 }

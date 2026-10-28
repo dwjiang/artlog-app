@@ -466,6 +466,33 @@ it("deduplicates museum days across backdated visits and venue changes", async (
   expect((await a.as.query(api.leaderboards.list, query)).rows[0].score).toBe(1);
 });
 
+it("drops a museum day once its last visit there is discarded", async () => {
+  const t = harness();
+  const a = await socialUser(t, "Ada");
+  const venueId = await t.run(seedMuseum);
+  await a.as.mutation(api.leaderboards.setPreference, { visibility: "global" });
+  const first = {
+    visibility: "public" as const,
+    localId: crypto.randomUUID(),
+    venueId,
+    visitedOn: "2026-09-01",
+    timeZone: "UTC",
+  };
+  const second = { ...first, localId: crypto.randomUUID() };
+  const upsert = (visit: typeof first & { deletedAt?: number }) =>
+    a.as.mutation(api.visits.upsertJournal, { scope: a.scope, visit });
+  const score = async () =>
+    (await a.as.query(api.leaderboards.list, { metric: "visits", audience: "global" })).rows[0].score;
+  await upsert(first);
+  await upsert(second);
+  await upsert({ ...first, deletedAt: 2 });
+  expect(await score()).toBe(1);
+  await upsert({ ...second, deletedAt: 2 });
+  expect(await score()).toBe(0);
+  await upsert(second);
+  expect(await score()).toBe(0);
+});
+
 it("keeps shared index activity separate from artwork totals", async () => {
   const t = harness();
   const a = await socialUser(t, "Ada");

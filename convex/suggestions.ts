@@ -101,7 +101,9 @@ async function gatherEvidence(
     .withIndex("by_owner_history", (q) => q.eq("owner", owner))
     .order("desc")
     .take(SAMPLE.visits);
-  const venues = new Map(visits.map((visit) => [visit.venueId, visit.venueName]));
+  const venues = new Map(
+    visits.filter((visit) => visit.deletedAt === undefined).map((visit) => [visit.venueId, visit.venueName]),
+  );
   for (const [venueId, venueName] of venues) {
     const others = await ctx.db
       .query("visits")
@@ -247,10 +249,15 @@ export const inCommonWith = query({
       const venueId = access?.visit.venueId;
       if (!access || !venueId || seenVenues.has(venueId)) continue;
       seenVenues.add(venueId);
-      const mine = await ctx.db
+      let mine = false;
+      for await (const visit of ctx.db
         .query("visits")
-        .withIndex("by_owner_venue_history", (q) => q.eq("owner", owner).eq("venueId", venueId))
-        .first();
+        .withIndex("by_owner_venue_history", (q) => q.eq("owner", owner).eq("venueId", venueId))) {
+        if (visit.deletedAt === undefined) {
+          mine = true;
+          break;
+        }
+      }
       if (!mine) continue;
       const city = (await ctx.db.get("museums", venueId))?.city;
       museums.push({ venueId, name: access.visit.venueName, ...(city ? { city } : {}) });
