@@ -138,6 +138,8 @@ export const NavigationTheme = {
   headerLargeTitleStyle: { color: Gallery.ink, fontFamily: Fonts.display },
   headerShadowVisible: false,
   contentStyle: { backgroundColor: Gallery.paper },
+  // Ends editing as a screen disappears; otherwise UIKit refocuses the field, keyboard and all, when it reappears.
+  keyboardHandlingEnabled: true,
 } as const satisfies NativeStackNavigationOptions;
 
 /** Automatic scroll insets work on every iOS version; before native scroll edges, the bar supplies its own blur. */
