@@ -51,7 +51,7 @@ export function ScanScreen() {
   const listening = useHasListeningTrack();
   const { fontScale } = useWindowDimensions();
   const stackRetryActions = fontScale > 1.4;
-  // Scans resolve quietly, so an undecided spot asks here, once, when the camera comes up.
+  // The camera is the only place the museum sheet opens on its own: once per undecided spot, when the camera comes up.
   const { status: venueStatus, options: venueOptions, promptChooser } = useVenue();
   const audioInset = listening ? MINI_PLAYER_HEIGHT + 16 : 0;
   const isFocused = useIsFocused();

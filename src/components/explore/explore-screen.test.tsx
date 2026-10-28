@@ -45,7 +45,7 @@ let mockDiscoverable: Set<string> | null | undefined;
 let mockVenueStatus: string;
 let mockPermission: { granted: boolean; canAskAgain: boolean } | null;
 const mockRequestPermission = jest.fn(async () => ({ granted: true, canAskAgain: true }));
-const mockResolve = jest.fn(async (_options?: { quiet?: boolean }) => ({}));
+const mockResolve = jest.fn(async () => ({}));
 let mockCached: Map<string, unknown>;
 let mockMuseumPhotos: Map<string, unknown>;
 // Stills last the app session, so each museum gets the same answer in every test: BAMPFA has one, OMCA none, and the
@@ -518,7 +518,7 @@ describe("Explore", () => {
     await fireEvent.press(useMyLocation);
 
     expect(mockRequestPermission).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(mockResolve).toHaveBeenCalledWith({ quiet: true }));
+    await waitFor(() => expect(mockResolve).toHaveBeenCalledTimes(1));
     // The pick is cleared, so the city follows the fix the resolve brings.
     expect(screen.getByLabelText("City, San Francisco Bay Area")).toBeOnTheScreen();
   });

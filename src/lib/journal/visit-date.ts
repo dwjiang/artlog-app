@@ -12,6 +12,13 @@ export function museumDay(venue: Pick<VenueRow, "lat" | "lng">, at: number): { t
   return { timeZone, visitedOn: calendarDate(at, timeZone) };
 }
 
+/** The first midnight after `at` in the phone's time zone. */
+export function nextLocalMidnight(at: number): number {
+  const midnight = new Date(at);
+  midnight.setHours(24, 0, 0, 0);
+  return midnight.getTime();
+}
+
 // DatePicker uses the device timezone. Only its calendar fields belong in the journal.
 export function pickerDate(value: string): Date {
   const [year, month, day] = value.split("-").map(Number);
