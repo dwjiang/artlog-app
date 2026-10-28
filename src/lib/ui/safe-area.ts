@@ -1,5 +1,5 @@
-import { StyleSheet, useWindowDimensions, type DimensionValue, type StyleProp, type ViewStyle } from "react-native";
-import { useSafeAreaInsets, type EdgeInsets } from "react-native-safe-area-context";
+import { StyleSheet, type DimensionValue, type StyleProp, type ViewStyle } from "react-native";
+import { useSafeAreaFrame, useSafeAreaInsets, type EdgeInsets } from "react-native-safe-area-context";
 
 /**
  * A style's own left and right padding plus the horizontal safe area, so content clears a side bar (the iPhone Duo's
@@ -35,9 +35,12 @@ export function useSafeAreaBleed(contentStyle?: StyleProp<ViewStyle>) {
   return safeAreaBleed(contentStyle, useSafeAreaInsets());
 }
 
-/** The window's width beside its horizontal safe area: the room a padded screen's content has. */
+/**
+ * The screen's width beside its horizontal safe area: the room a padded screen's content has. Each tab has its own
+ * frame, which excludes a sidebar beside it where the window's width would not.
+ */
 export function useSafeAreaWidth() {
-  const { width } = useWindowDimensions();
+  const { width } = useSafeAreaFrame();
   const { left, right } = useSafeAreaInsets();
   return width - left - right;
 }

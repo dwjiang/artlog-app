@@ -24,6 +24,8 @@ import { PlayerTransport, type PlayerView } from "./player-transport";
 export function NowPlayingScreen() {
   const { view: initialView } = useLocalSearchParams<{ view?: string }>();
   const [view, setView] = useState<PlayerView>(initialView === "queue" ? "queue" : "player");
+  // Wider than tall (landscape, the iPhone Duo's tent pose), the print or list sits beside the controls.
+  const [wide, setWide] = useState(false);
   const audio = useListening();
   const { bottom, left, right } = useSafeAreaInsets();
   if (!audio.current) {
@@ -71,55 +73,97 @@ export function NowPlayingScreen() {
       </Menu>
     </Host>
   );
-  return (
-    <View style={[styles.screen, { paddingBottom: Math.max(8, bottom), paddingLeft: left, paddingRight: right }]}>
-      <View style={styles.header}>
-        <AudioIconButton name="chevron.down" label="Minimize player" onPress={() => router.back()} />
-        {view === "saved" ? (
-          <>
-            <Text variant="secondary" style={styles.headerTitle}>
-              Add saved works
-            </Text>
-            <GalleryButton label="Done" onPress={() => setView("queue")} />
-          </>
-        ) : (
-          options
-        )}
-      </View>
-      {view === "player" && (
-        <ScrollView
-          style={styles.fill}
-          contentContainerStyle={styles.player}
-          contentInsetAdjustmentBehavior="never"
-          alwaysBounceVertical={false}
-        >
-          <ArtworkPrint work={work} />
-          <View style={styles.label}>
-            <Text selectable variant="display" style={styles.title}>
-              {work.title}
-            </Text>
-            <Text selectable variant="secondary" themeColor="textSecondary">
-              {[work.artist, work.date].filter(Boolean).join(" · ")}
-            </Text>
-            <ReportableHeading
-              report={
-                audio.renderId ? { kind: "audio", artworkId: work.artworkId, renderId: audio.renderId } : undefined
-              }
-              disabled={audio.phase === "loading"}
-            >
-              <Text variant="metadata" themeColor="textSecondary">
-                AI-generated voice
-              </Text>
-            </ReportableHeading>
-          </View>
-        </ScrollView>
-      )}
+  const label = (
+    <View style={styles.label}>
+      <Text selectable variant="display" style={styles.title}>
+        {work.title}
+      </Text>
+      <Text selectable variant="secondary" themeColor="textSecondary">
+        {[work.artist, work.date].filter(Boolean).join(" · ")}
+      </Text>
+      <ReportableHeading
+        report={audio.renderId ? { kind: "audio", artworkId: work.artworkId, renderId: audio.renderId } : undefined}
+        disabled={audio.phase === "loading"}
+      >
+        <Text variant="metadata" themeColor="textSecondary">
+          AI-generated voice
+        </Text>
+      </ReportableHeading>
+    </View>
+  );
+  const transport = <PlayerTransport view={view} onView={setView} />;
+  const list = (
+    <>
       {view === "transcript" && <GuideFollowAlong />}
       {view === "queue" && <ListeningQueue onAdd={() => setView("saved")} />}
       {view === "saved" && <AddSavedWorks />}
-      <View style={view !== "player" && styles.footer}>
-        <PlayerTransport view={view} onView={setView} />
-      </View>
+    </>
+  );
+  const minimize = <AudioIconButton name="chevron.down" label="Minimize player" onPress={() => router.back()} />;
+  // Beside the print, the header splits over the two columns, so the label can rise beside the options menu.
+  const splitHeader = wide && view === "player";
+  return (
+    <View
+      onLayout={({ nativeEvent: { layout } }) => setWide(layout.width > layout.height)}
+      style={[styles.screen, { paddingBottom: Math.max(8, bottom), paddingLeft: left, paddingRight: right }]}
+    >
+      {!splitHeader && (
+        <View style={styles.header}>
+          {minimize}
+          {view === "saved" ? (
+            <>
+              <Text variant="secondary" style={styles.headerTitle}>
+                Add saved works
+              </Text>
+              <GalleryButton label="Done" onPress={() => setView("queue")} />
+            </>
+          ) : (
+            options
+          )}
+        </View>
+      )}
+      {wide ? (
+        <View style={[styles.fill, styles.row]}>
+          <View style={styles.fill}>
+            {splitHeader && <View style={styles.header}>{minimize}</View>}
+            {view === "player" ? <ArtworkPrint work={work} /> : list}
+          </View>
+          <View style={styles.fill}>
+            {splitHeader ? (
+              <View style={[styles.fill, styles.row]}>
+                <ScrollView
+                  style={styles.fill}
+                  contentContainerStyle={styles.besidePrint}
+                  contentInsetAdjustmentBehavior="never"
+                  alwaysBounceVertical={false}
+                >
+                  {label}
+                </ScrollView>
+                <View style={[styles.header, styles.top]}>{options}</View>
+              </View>
+            ) : (
+              <View style={styles.fill} />
+            )}
+            {transport}
+          </View>
+        </View>
+      ) : (
+        <>
+          {view === "player" && (
+            <ScrollView
+              style={styles.fill}
+              contentContainerStyle={styles.player}
+              contentInsetAdjustmentBehavior="never"
+              alwaysBounceVertical={false}
+            >
+              <ArtworkPrint work={work} />
+              {label}
+            </ScrollView>
+          )}
+          {list}
+          <View style={view !== "player" && styles.footer}>{transport}</View>
+        </>
+      )}
       <ToastLayer offset={0} />
     </View>
   );
@@ -181,6 +225,10 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   // The print takes whatever height the label and transport leave, and the page scrolls once that is too little.
   player: { flexGrow: 1 },
+  row: { flexDirection: "row" },
+  top: { alignSelf: "flex-start" },
+  // Beside the print, the label rests on the transport.
+  besidePrint: { flexGrow: 1, justifyContent: "flex-end" },
   print: {
     flex: 1,
     // Low enough that a three-line title still clears the transport on a 667-point screen (iPhone SE, iPad).

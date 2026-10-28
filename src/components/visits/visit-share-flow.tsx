@@ -35,6 +35,7 @@ import { offerNotifications } from "@/lib/notifications/offer";
 import { reportError } from "@/lib/observability";
 import { confirmAlert, useSafetyChecks } from "@/lib/social/safety-checks";
 import { useSocialSession } from "@/lib/social/use-social-session";
+import { gridColumns } from "@/lib/ui/grid-columns";
 import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { horizontalSafeAreaPadding, useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { showToast } from "@/lib/ui/toast";
@@ -330,7 +331,7 @@ export function VisitShareScreen() {
     setStyling(true);
     scrollRef.current?.scrollTo({ y: bandTop.current - headerHeight, animated: !reduced });
   }
-  const columns = fontScale > 1.4 ? 1 : 2;
+  const columns = gridColumns(2, width, fontScale);
   const tileSize = (width - 2 * GUTTER - (columns - 1) * TILE_GAP) / columns;
   const postLabel = acknowledged?.status === "active" ? "Update" : "Post";
   const tile = (work: VisitSummary["works"][number]) => {

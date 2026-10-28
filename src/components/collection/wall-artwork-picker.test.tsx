@@ -1,5 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
-import { useState } from "react";
+import { fireEvent, render as renderComponent, screen } from "@testing-library/react-native";
+import { useState, type ReactElement, type ReactNode } from "react";
+import { Dimensions } from "react-native";
+import { SafeAreaProvider, type SafeAreaProviderProps } from "react-native-safe-area-context";
 
 import type { SavedWork } from "@/db/schema";
 import { playToggleHaptic } from "@/lib/ui/haptics";
@@ -10,9 +12,37 @@ import { WallArtworkPicker } from "./wall-artwork-picker";
 
 jest.mock("expo-router", () => ({ useSegments: () => [] }));
 jest.mock("@/lib/ui/haptics");
-jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
-}));
+
+jest.mock("react-native-safe-area-context", () => {
+  const actual = jest.requireActual("react-native-safe-area-context");
+  return {
+    ...actual,
+    SafeAreaProvider: (props: SafeAreaProviderProps) => (
+      <actual.SafeAreaProvider {...props} testID="native-safe-area" />
+    ),
+  };
+});
+
+const originalWindow = Dimensions.get("window");
+beforeEach(() => Dimensions.set({ window: { ...originalWindow, fontScale: 1 } }));
+afterEach(() => Dimensions.set({ window: originalWindow }));
+
+function PresentingTab({ children }: { children: ReactNode }) {
+  return (
+    <SafeAreaProvider
+      initialMetrics={{
+        frame: { x: 300, y: 0, width: 651, height: 669 },
+        insets: { top: 0, bottom: 0, left: 0, right: 84 },
+      }}
+    >
+      {children}
+    </SafeAreaProvider>
+  );
+}
+
+function render(ui: ReactElement) {
+  return renderComponent(ui, { wrapper: PresentingTab });
+}
 const work = (localId: string, title: string, artist: string, savedAt = 1): SavedWork =>
   ({
     localId,
@@ -51,6 +81,32 @@ function Picker({
     />
   );
 }
+
+it("fits the modal's own frame after rotation while keeping selected artworks", async () => {
+  await render(<Picker />);
+  const providers = screen.getAllByTestId("native-safe-area");
+  expect(providers).toHaveLength(2);
+  const modalProvider = providers[1];
+  await fireEvent(modalProvider, "insetsChange", {
+    nativeEvent: {
+      frame: { x: 0, y: 0, width: 951, height: 669 },
+      insets: { top: 0, bottom: 0, left: 0, right: 84 },
+    },
+  });
+  expect(screen.getByRole("checkbox", { name: "Sunflowers" })).toHaveStyle({ width: 197.75 });
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Sunflowers" }));
+
+  await fireEvent(modalProvider, "insetsChange", {
+    nativeEvent: {
+      frame: { x: 0, y: 0, width: 402, height: 874 },
+      insets: { top: 62, bottom: 34, left: 0, right: 0 },
+    },
+  });
+  expect(screen.getByRole("checkbox", { name: "Sunflowers" })).toHaveStyle({ width: 175 });
+  expect(screen.getByRole("checkbox", { name: "Sunflowers" })).toBeChecked();
+  await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));
+  expect(onAdd).toHaveBeenLastCalledWith(["a"]);
+});
 
 it("limits selection to remaining wall space and releases space when unchecked", async () => {
   jest.mocked(playToggleHaptic).mockClear();

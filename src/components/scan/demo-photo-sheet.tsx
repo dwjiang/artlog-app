@@ -1,8 +1,9 @@
 import { Image } from "expo-image";
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { Modal, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { Modal } from "@/components/modal";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
@@ -10,6 +11,7 @@ import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { copyForImport, listDemoPhotos, type DemoPhotos } from "@/lib/capture/demo-photos";
 import type { PickedPhoto } from "@/lib/capture/use-capture";
 import { reportError } from "@/lib/observability";
+import { gridColumns } from "@/lib/ui/grid-columns";
 
 export type DemoPhotoSheetHandle = { pick(): Promise<PickedPhoto | null> };
 
@@ -63,7 +65,7 @@ export function DemoPhotoSheet({ ref }: { ref: Ref<DemoPhotoSheetHandle> }) {
       finish(null);
     }
   };
-  const columns = fontScale > 1.4 ? 1 : 3;
+  const columns = gridColumns(3, width, fontScale);
   const size = (width - Spacing.content * 2 - (columns - 1) * Spacing.two) / columns;
   const grid = (uris: string[], label: string) => (
     <View style={styles.grid}>

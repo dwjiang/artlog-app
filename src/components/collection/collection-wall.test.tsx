@@ -55,8 +55,10 @@ const mockTransport = {
 } satisfies WallTransport;
 jest.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => mockToken }));
 jest.mock("react-native-safe-area-context", () => ({
+  SafeAreaProvider: jest.requireActual("react-native").View,
   SafeAreaView: jest.requireActual("react-native").View,
   useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
+  useSafeAreaFrame: () => ({ x: 0, y: 0, width: 750, height: 1334 }),
 }));
 jest.mock("expo-network", () => ({
   useNetworkState: () => ({ isInternetReachable: true }),

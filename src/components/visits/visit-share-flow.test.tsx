@@ -87,6 +87,7 @@ jest.mock("@/lib/journal/use-visits", () => ({
 jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116 }));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 34, left: 0, right: 0 }),
+  useSafeAreaFrame: () => ({ x: 0, y: 0, width: 750, height: 1334 }),
 }));
 jest.mock("@/lib/visits/use-visit-sharing", () => ({
   useVisitSharing: (...args: unknown[]) => {

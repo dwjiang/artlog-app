@@ -24,6 +24,7 @@ jest.mock("expo-router", () => ({
 }));
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  useSafeAreaFrame: () => ({ x: 0, y: 0, width: 750, height: 1334 }),
 }));
 jest.mock("@/lib/social/use-social-session", () => ({
   useSocialSession: () => mockSession,

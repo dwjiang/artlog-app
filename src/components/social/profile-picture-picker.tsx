@@ -1,9 +1,10 @@
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
-import { Modal, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { Modal } from "@/components/modal";
 import { MotionPressable } from "@/components/motion-pressable";
 import { PopInBadge } from "@/components/pop-on-turn-on";
 import { ThemedText as Text } from "@/components/themed-text";
