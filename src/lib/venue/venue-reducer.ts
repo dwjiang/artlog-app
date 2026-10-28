@@ -28,6 +28,8 @@ export type PoiOption = {
   city?: string;
   country?: string;
   category: string;
+  /** Found by name rather than near the phone; once confirmed it stands like a museum picked in the sheet's search. */
+  manual?: true;
 };
 export type VenueOption = SeededOption | PoiOption;
 
