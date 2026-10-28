@@ -80,8 +80,9 @@ function ChooserSheet({
   const coordinates = useOptionCoordinates(picking ? options : []);
   const [location, requestLocation] = Location.useForegroundPermissions();
   const [query, setQuery] = useState("");
-  const searching = !!query.trim();
-  const { result: results } = useVenueSearch(query, 200);
+  // The fitted sheet resizes to its content, so the last answer, or the nearby list before the first, stays up while
+  // the next query is searched rather than collapsing to a spinner and back on every keystroke.
+  const { latest: results } = useVenueSearch(query, 200);
   const [busy, setBusy] = useState<string>();
   const [failure, setFailure] = useState<string>();
   const searchInput = useRef<TextInputInstance>(null);
@@ -161,7 +162,7 @@ function ChooserSheet({
     ? "Search by museum or city, or keep your current visit."
     : "Search by museum or city. You can also keep scanning without a museum.";
   const locating = status === "locating" || asking;
-  const nearbyEmpty = !searching && !locating && options.length === 0;
+  const nearbyEmpty = !results && !locating && options.length === 0;
   const endsVisit = starts && visit ? `Your visit to ${visit.venueName} ends when a new one starts.` : undefined;
   const leaveButton = (
     <GalleryButton
@@ -283,10 +284,8 @@ function ChooserSheet({
         onChange={setQuery}
         onClear={() => setQuery("")}
       />
-      {searching ? (
-        !results ? (
-          <LoadingRing accessibilityLabel="Searching museums" />
-        ) : results.failed ? (
+      {results ? (
+        results.failed ? (
           <ThemedText themeColor="error" accessibilityRole="alert">
             Museums could not load. Try another search.
           </ThemedText>
@@ -305,7 +304,7 @@ function ChooserSheet({
                 venue={row}
                 first={index === 0}
                 last={index === results.rows.length - 1}
-                query={query}
+                query={results.query}
                 busy={busy === row.id}
                 disabled={!!busy}
                 onPress={() => {

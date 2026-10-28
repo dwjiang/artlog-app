@@ -65,12 +65,16 @@ export function MuseumSearch({
   const [adding, setAdding] = useState<string>();
   const selection = useRef<AbortController | null>(null);
   useEffect(() => () => selection.current?.abort(), []);
-  const currentResults = results?.query === query && results.retry === retry ? results : undefined;
-  const venues = currentResults?.rows ?? [];
-  const places = currentResults?.places ?? [];
-  const searchError = currentResults?.error;
   const hasQuery = !!query.trim();
-  const searching = hasQuery && !currentResults;
+  if (!hasQuery && results) setResults(undefined);
+  // A new query keeps the last answer up until its own arrives, so the list does not flash to a skeleton on every
+  // keystroke; a retry shows the skeleton.
+  const shownResults = results?.retry === retry ? results : undefined;
+  const shownQuery = shownResults?.query ?? query;
+  const venues = shownResults?.rows ?? [];
+  const places = shownResults?.places ?? [];
+  const searchError = shownResults?.error;
+  const searching = hasQuery && !shownResults;
   useEffect(() => {
     let active = true;
     if (!query.trim()) return;
@@ -159,7 +163,7 @@ export function MuseumSearch({
         <SearchEmptyState
           title="No museums found."
           detail={
-            query.trim().length < PLACE_SEARCH_MIN
+            shownQuery.trim().length < PLACE_SEARCH_MIN
               ? "Type more of the name to search Apple Maps too."
               : "Try the city or a shorter name."
           }
@@ -174,7 +178,7 @@ export function MuseumSearch({
               venue={row}
               first={index === 0}
               last={index === venues.length - 1}
-              query={query}
+              query={shownQuery}
               disabled={disabled}
               onPress={() => choose(row)}
             />
@@ -191,7 +195,7 @@ export function MuseumSearch({
                 first={index === 0}
                 last={index === places.length - 1}
                 title={place.name}
-                query={query}
+                query={shownQuery}
                 subtitle={adding === key ? "Adding this museum…" : placeLocation(place)}
                 leading={<ListIcon name="mappin.and.ellipse" />}
                 accessory="chevron"
