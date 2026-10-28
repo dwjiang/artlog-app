@@ -4,7 +4,9 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, View, type ViewInstance } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { MINI_PLAYER_HEIGHT } from "@/components/audio/mini-player";
 import { BottomTabInset, Spacing } from "@/constants/theme";
+import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { dismissToast, useToast, useToastLift, type ToastLift } from "@/lib/ui/toast";
 
 import { ToastPill } from "./toast-pill";
@@ -12,7 +14,8 @@ import { ToastPill } from "./toast-pill";
 /** Floats the current toast (and any extra pills passed as children) above the bottom edge; screens report outcomes through
  *  `showToast` instead of inline banners. Natively presented sheets cover the root layer, so a flow inside one mounts its own.
  *  Without an explicit offset the layer clears the tab bar only while a tab is focused and the bar sits at the bottom:
- *  root-stack screens cover the tabs, and iPhone Duo can move the bar into a vertical bar beside the content. */
+ *  root-stack screens cover the tabs, and iPhone Duo can move the bar into a vertical bar beside the content. It also
+ *  clears the mini player, which rides above the tab bar or along the bottom of a pushed screen while a track is loaded. */
 export function ToastLayer({ children, offset }: { children?: ReactNode; offset?: number }) {
   return offset === undefined ? (
     <RoutedToastLayer>{children}</RoutedToastLayer>
@@ -24,9 +27,10 @@ export function ToastLayer({ children, offset }: { children?: ReactNode; offset?
 function RoutedToastLayer({ children }: { children?: ReactNode }) {
   const [root] = useSegments();
   const verticalBar = useVerticalBarEdgeIOS();
+  const player = useHasListeningTrack() ? MINI_PLAYER_HEIGHT + Spacing.two : 0;
   const bottomTabBar = root === "(tabs)" && verticalBar === null;
   return (
-    <PositionedToastLayer offset={bottomTabBar ? BottomTabInset : 0} lifted>
+    <PositionedToastLayer offset={(bottomTabBar ? BottomTabInset : 0) + player} lifted>
       {children}
     </PositionedToastLayer>
   );

@@ -13,6 +13,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { WallpaperEditor } from "@/components/collection/wallpaper-editor";
 import { MotionPressable } from "@/components/motion-pressable";
+import { useKeyboardOffsetProps } from "@/components/safe-area-scroll";
 import { ProfileForm } from "@/components/social/profile-form";
 import { ThemedText as Text } from "@/components/themed-text";
 import {
@@ -157,6 +158,9 @@ export function VisitShareScreen() {
   const { fontScale } = useWindowDimensions();
   const width = useSafeAreaWidth();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const keyboardOffset = useKeyboardOffsetProps(scrollInsets, (y) =>
+    scrollRef.current?.scrollTo({ y, animated: true }),
+  );
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
@@ -375,10 +379,10 @@ export function VisitShareScreen() {
       />
       <Animated.ScrollView
         ref={scrollRef}
-        contentInsetAdjustmentBehavior="automatic"
+        {...scrollInsets}
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
+        {...keyboardOffset}
         contentContainerStyle={[share.content, horizontalSafeAreaPadding(share.content, insets)]}
       >
         <View style={share.header}>
@@ -496,6 +500,7 @@ export function VisitShareScreen() {
     </GestureHandlerRootView>
   );
 }
+const scrollInsets = { contentInsetAdjustmentBehavior: "automatic", automaticallyAdjustKeyboardInsets: true } as const;
 const GUTTER = 20;
 const TILE_GAP = 12;
 const ROW_GAP = 22;
