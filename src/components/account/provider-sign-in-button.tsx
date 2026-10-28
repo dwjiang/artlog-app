@@ -9,6 +9,9 @@ import { Gallery, Radius, Spacing } from "@/constants/theme";
 export const SIGN_IN_BUTTON_HEIGHT = 52;
 const LABEL_SIZE = 17;
 const GOOGLE_LOGO_SIZE = 18;
+// Caps Dynamic Type so "Continue" and the Apple logo still share a line inside the narrowest sheet's button, 302
+// points on an iPhone 16e; past that the label breaks mid-word.
+const MAX_FONT_SCALE = 2.6;
 
 export function ProviderSignInButton({
   provider,
@@ -23,7 +26,7 @@ export function ProviderSignInButton({
   minHeight?: number;
   onPress: () => void;
 }) {
-  const { fontScale } = useWindowDimensions();
+  const fontScale = Math.min(useWindowDimensions().fontScale, MAX_FONT_SCALE);
   const apple = provider === "apple";
   const label = apple ? "Continue with Apple" : "Continue with Google";
   // Apple sizes its logo artwork for a title at 43% of the button height, so it follows the title to keep the glyph
@@ -60,7 +63,12 @@ export function ProviderSignInButton({
           style={logoSize}
         />
       </View>
-      <Text style={[styles.label, apple && styles.appleLabel, busy && styles.hidden]}>{label}</Text>
+      <Text
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
+        style={[styles.label, apple && styles.appleLabel, busy && styles.hidden]}
+      >
+        {label}
+      </Text>
       {busy && (
         <LoadingRing color={apple ? "#FFFFFF" : Gallery.ink} accessible={false} style={StyleSheet.absoluteFill} />
       )}

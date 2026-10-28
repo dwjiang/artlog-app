@@ -17,7 +17,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { GlassSurface } from "@/components/glass-surface";
 import { MotionPressable } from "@/components/motion-pressable";
-import { PermissionAsk } from "@/components/permissions/permission-ask";
+import { AskReasons, PermissionAsk } from "@/components/permissions/permission-ask";
 import { ProfileAvatar } from "@/components/social/profile-avatar";
 import { ProfilePicturePicker } from "@/components/social/profile-picture-picker";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -34,7 +34,6 @@ import {
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { profileSetupRoute, takeProfileSetupOffer } from "@/lib/account/profile-setup-offer";
 import { answerSafetyChecks } from "@/lib/account/safety-checks-answer";
-import { signInContexts } from "@/lib/account/sign-in-context";
 import { useAccount } from "@/lib/account/use-account";
 import { reportError } from "@/lib/observability";
 import { shownPicture, useProfilePictureDraft } from "@/lib/social/profile-picture";
@@ -43,6 +42,7 @@ import { LIMITS } from "@/shared/journal/limits";
 
 import { LegalNotice } from "./legal-notice";
 import { SignInActions } from "./sign-in-actions";
+import { SignInHeader } from "./sign-in-header";
 import { useWelcomeAccess, type AccessStep } from "./welcome-access";
 import {
   AccessArt,
@@ -293,8 +293,15 @@ export function WelcomeScreen() {
               </>
             }
           >
-            <Headline>Save your collection.</Headline>
-            <Text themeColor="textSecondary">{signInContexts.account.detail}</Text>
+            <View style={styles.signIn}>
+              <SignInHeader title="Save your collection." />
+              <AskReasons
+                reasons={[
+                  { symbol: "person.2.fill", text: "Lets you share your wall and visits with friends." },
+                  { symbol: "iphone", text: "Brings your collection and visits to a new iPhone when you sign in." },
+                ]}
+              />
+            </View>
           </WelcomePage>
         )}
         {guest && (
@@ -545,6 +552,7 @@ const styles = StyleSheet.create({
   actions: { gap: Spacing.two, paddingHorizontal: Spacing.content, paddingTop: Spacing.four },
   wordmark: { fontFamily: Fonts.display, fontSize: 20, lineHeight: 26, letterSpacing: -0.5, color: Gallery.ink },
   title: { ...Typography.display, color: Gallery.ink },
+  signIn: { gap: Spacing.three },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 14, marginTop: Spacing.two },
   photoBadge: {
     position: "absolute",
