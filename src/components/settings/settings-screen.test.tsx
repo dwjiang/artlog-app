@@ -172,15 +172,15 @@ it("lets a guest delete their data from the account page behind their collection
   expect(mockDelete).toHaveBeenCalledTimes(1);
 });
 
-it("holds the account row behind a ghost only while the account can still load", async () => {
+it("holds sign-in in place with progress only while the account can still load", async () => {
   mockAccount = undefined;
   const view = await render(<SettingsDetailScreen section="account" />);
-  expect(screen.getByRole("progressbar", { name: "Loading account" })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Sign in to Artlog" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled();
+  expect(screen.getByRole("progressbar", { name: "Sign in in progress" })).toBeOnTheScreen();
   mockOffline = true;
   await view.rerender(<SettingsDetailScreen section="account" />);
   expect(screen.queryByRole("progressbar")).toBeNull();
-  expect(screen.getByRole("button", { name: "Sign in to Artlog" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
 });
 
 it("shows account details and controls without device counts or sync copy", async () => {
