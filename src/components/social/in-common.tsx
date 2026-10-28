@@ -8,6 +8,7 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
 import { useSocialQuery } from "@/lib/social/use-social-query";
 import type { SocialSession } from "@/lib/social/use-social-session";
+import { gridColumns } from "@/lib/ui/grid-columns";
 import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
 import { api } from "../../../convex/_generated/api";
@@ -23,7 +24,7 @@ export function InCommonSection({ profileId, session }: { profileId: Id<"profile
   const readable = session.status === "ready" && !session.offline && profileId !== session.profileId;
   const { data } = useSocialQuery(api.suggestions.inCommonWith, readable ? { profileId } : "skip", session.key);
   if (!data || (data.artworks.length === 0 && data.museums.length === 0)) return null;
-  const columns = fontScale > 1.4 ? 1 : 3;
+  const columns = gridColumns(3, width, fontScale);
   const tile = (width - Spacing.content * 2 - GAP * (columns - 1)) / columns;
   return (
     <View style={styles.section}>

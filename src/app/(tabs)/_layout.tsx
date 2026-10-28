@@ -27,6 +27,8 @@ export default function TabsLayout() {
         <TabBarVisibility value={setHidden}>
           <NativeTabs
             minimizeBehavior="never"
+            // Where tabs can become a sidebar (the open iPhone Duo), they must: the wide tab bar there shows only Search.
+            preferredPlacement="sidebar"
             hidden={hidden}
             tintColor={Gallery.accent}
             backgroundColor={Gallery.paper}

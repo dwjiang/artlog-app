@@ -430,9 +430,14 @@ function WelcomePage({
   children: ReactNode;
 }) {
   const { top, left, right } = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const [overlayHeight, setOverlayHeight] = useState(0);
-  // Absolute overlays do not grow the scroll content; reserve their full height below the fixed header.
-  const artHeight = Math.max(300, top + HEADER_HEIGHT + Spacing.three + overlayHeight + SHEET_RADIUS);
+  // Absolute overlays do not grow the scroll content; reserve their full height below the fixed header. The picture
+  // gives up height in landscape so the copy and buttons stay in view.
+  const artHeight = Math.max(
+    Math.min(300, height / 2),
+    top + HEADER_HEIGHT + Spacing.three + overlayHeight + SHEET_RADIUS,
+  );
   return (
     <View
       style={{ width }}

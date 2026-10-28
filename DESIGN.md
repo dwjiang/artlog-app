@@ -19,7 +19,7 @@ omitted:
 ## Overview
 
 Artlog records artworks and visits in a personal collection. It is an iPhone
-portrait app in light mode only. The interface is calm, spacious, and typographic, with dark ink on white,
+app in light mode only, in portrait and landscape. The interface is calm, spacious, and typographic, with dark ink on white,
 ultramarine actions, and pale blue selection accents. Artwork supplies the visual detail, so chrome stays quiet: content
 rows and thin dividers give structure, and white cards appear only where content
 needs grouping. Native navigation, dialogs, Apple sign-in, menus, and sharing
@@ -65,7 +65,7 @@ Use 20-point page gutters, 24-point section spacing, 16-point row padding, and
 under another button gets no added gap (`ActionStack`): its 44-point target
 already leaves about 11 points above the label. Long names,
 titles, and notes wrap. Above 1.4× text scale, artwork grids collapse to one
-column. Scrolling, keyboard avoidance, and safe areas take precedence over a
+column; wider screens repeat the phone grid side by side. Scrolling, keyboard avoidance, and safe areas take precedence over a
 fixed-height composition. Gutters, pinned bars, and floating controls start
 inside the left and right safe area; backgrounds, photos, and the camera still
 reach the screen edges. The movable Wall keeps its own geometry and accessible

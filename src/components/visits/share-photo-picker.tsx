@@ -13,6 +13,7 @@ import { selectVisitArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
+import { gridColumns } from "@/lib/ui/grid-columns";
 import { playToggleHaptic } from "@/lib/ui/haptics";
 import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
@@ -61,7 +62,7 @@ export function SharePhotoPicker({
     if (error) reportError(error, "visit.share-photos.load");
   }, [error]);
   const photos = data.filter((row) => row.owner === work.owner);
-  const columns = fontScale > 1.4 ? 1 : 2;
+  const columns = gridColumns(2, width, fontScale);
   const size = (width - 2 * GUTTER - (columns - 1) * GAP) / columns;
   return (
     <SafeAreaScrollView

@@ -5,6 +5,7 @@ import { DisplayMedia } from "@/components/artwork/display-media";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Fonts, Gallery, OnPhoto, Radius, Spacing, Typography } from "@/constants/theme";
+import { gridColumns } from "@/lib/ui/grid-columns";
 import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
 import type { api } from "../../../convex/_generated/api";
@@ -38,7 +39,7 @@ export function PopularTags({ tags, onOpen }: { tags: PopularTag[]; onOpen: (tag
     );
   }
   // Large text gets the whole row, as artwork grids do above 1.4×.
-  const columns = fontScale > 1.4 ? 1 : 2;
+  const columns = gridColumns(2, width, fontScale);
   const tileWidth = (width - Spacing.content * 2 - GAP * (columns - 1)) / columns;
   const tileHeight = Math.round(TILE_HEIGHT * Math.min(Math.max(fontScale, 1), 1.4));
   return (

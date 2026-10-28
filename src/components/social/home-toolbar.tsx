@@ -1,4 +1,5 @@
 import { Stack, useRouter } from "expo-router";
+import { useVerticalBarEdgeIOS } from "expo-status-bar";
 import { StyleSheet, View } from "react-native";
 
 import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
@@ -11,6 +12,7 @@ import { countBadge } from "@/lib/social/unseen-notifications";
 export type Feed = "friends" | "global";
 
 const FEED_LABELS: Record<Feed, string> = { friends: "Friends", global: "Global" };
+const FEED_ICONS = { friends: "person.2", global: "globe" } as const satisfies Record<Feed, string>;
 
 type HomeToolbarProps = {
   requests: number;
@@ -39,20 +41,33 @@ export function HomeToolbar({ requests, unseen, feed, onFeedChange }: HomeToolba
       badge: unseenBadge,
     },
   ] as const;
-  const feedLabel = FEED_LABELS[feed ?? "friends"];
+  const shownFeed = feed ?? "friends";
+  const feedLabel = FEED_LABELS[shownFeed];
+  // Side bars (iPhone Duo) show symbols only; a title-only item would stay behind in a horizontal bar over the content.
+  // UIKit draws only the symbol when an item has both, so horizontal bars keep the word.
+  const sideBars = useVerticalBarEdgeIOS() !== null;
   return (
     <>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Menu
           hidden={!feed || isJudgesDemo()}
+          icon={sideBars ? FEED_ICONS[shownFeed] : undefined}
           accessibilityLabel={`${feedLabel} feed`}
           tintColor={Gallery.ink}
         >
           <Stack.Toolbar.Label>{feedLabel}</Stack.Toolbar.Label>
-          <Stack.Toolbar.MenuAction icon="person.2" isOn={feed === "friends"} onPress={() => onFeedChange("friends")}>
+          <Stack.Toolbar.MenuAction
+            icon={FEED_ICONS.friends}
+            isOn={feed === "friends"}
+            onPress={() => onFeedChange("friends")}
+          >
             {FEED_LABELS.friends}
           </Stack.Toolbar.MenuAction>
-          <Stack.Toolbar.MenuAction icon="globe" isOn={feed === "global"} onPress={() => onFeedChange("global")}>
+          <Stack.Toolbar.MenuAction
+            icon={FEED_ICONS.global}
+            isOn={feed === "global"}
+            onPress={() => onFeedChange("global")}
+          >
             {FEED_LABELS.global}
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>

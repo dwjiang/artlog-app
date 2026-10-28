@@ -20,6 +20,7 @@ import { markVisitSeen } from "@/lib/journal/visit-seen";
 import type { VisitSummary } from "@/lib/journal/visit-summaries";
 import { saveVisitVisibility } from "@/lib/journal/visit-visibility";
 import { reportError } from "@/lib/observability";
+import { gridColumns } from "@/lib/ui/grid-columns";
 import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { useHorizontalSafeAreaPadding, useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { retryAction, showErrorToast, showToast } from "@/lib/ui/toast";
@@ -92,7 +93,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   const width = useSafeAreaWidth();
   const [galleryWidth, setGalleryWidth] = useState(width - Spacing.content * 2);
   const toastPadding = useHorizontalSafeAreaPadding();
-  const columns = fontScale > 1.4 ? 1 : fontScale > 1.15 || galleryWidth < 320 ? 2 : 3;
+  const columns = gridColumns(fontScale > 1.15 || galleryWidth < 320 ? 2 : 3, width, fontScale);
   const artworkWidth = (galleryWidth - Spacing.compact * (columns - 1)) / columns;
   const photos = useLiveQuery(selectAllArtworkPhotos(visit.owner), [visit.owner]);
   useEffect(() => {

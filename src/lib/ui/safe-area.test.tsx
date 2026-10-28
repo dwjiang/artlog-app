@@ -1,4 +1,8 @@
-import { horizontalSafeAreaPadding, safeAreaBleed } from "./safe-area";
+import { renderHook } from "@testing-library/react-native";
+import type { ReactNode } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+
+import { horizontalSafeAreaPadding, safeAreaBleed, useSafeAreaWidth } from "./safe-area";
 
 const RAIL_RIGHT = { left: 0, right: 84 };
 
@@ -25,4 +29,20 @@ it("runs a row out to the screen edges while its content starts and ends inside 
   const bleed = safeAreaBleed(row, { left: 62, right: 84 });
   expect(bleed.style).toEqual({ marginLeft: -62, marginRight: -84 });
   expect(bleed.contentContainerStyle).toEqual([row, { paddingLeft: 82, paddingRight: 104 }]);
+});
+
+it("measures a screen's room from its own frame, which excludes a sidebar beside the tab", async () => {
+  // The open iPhone Duo: a 951-point window, a sidebar taking 300 points, and the rail inset on the right.
+  const tab = ({ children }: { children: ReactNode }) => (
+    <SafeAreaProvider
+      initialMetrics={{
+        frame: { x: 300, y: 0, width: 651, height: 669 },
+        insets: { top: 0, bottom: 0, left: 0, right: 84 },
+      }}
+    >
+      {children}
+    </SafeAreaProvider>
+  );
+  const { result } = await renderHook(() => useSafeAreaWidth(), { wrapper: tab });
+  expect(result.current).toBe(567);
 });

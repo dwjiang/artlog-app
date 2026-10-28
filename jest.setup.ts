@@ -108,13 +108,18 @@ jest.mock("expo-notifications", () => ({
   clearLastNotificationResponse: jest.fn(),
 }));
 
-// Components render without the provider Expo Router mounts; router tests still read its insets.
+// Components render without the provider Expo Router mounts; router tests still read its insets, and its frame is the
+// window's.
 jest.mock("react-native-safe-area-context", () => {
   const actual = jest.requireActual("react-native-safe-area-context");
   const { useContext } = jest.requireActual("react");
   return {
     ...actual,
     useSafeAreaInsets: () => useContext(actual.SafeAreaInsetsContext) ?? { top: 0, right: 0, bottom: 0, left: 0 },
+    useSafeAreaFrame: () => {
+      const { width, height } = jest.requireActual("react-native").Dimensions.get("window");
+      return useContext(actual.SafeAreaFrameContext) ?? { x: 0, y: 0, width, height };
+    },
   };
 });
 

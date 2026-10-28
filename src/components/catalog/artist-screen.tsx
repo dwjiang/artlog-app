@@ -17,6 +17,7 @@ import { useCatalogReady } from "@/lib/catalog/use-catalog-ready";
 import { useSavedCatalogWorks } from "@/lib/catalog/use-saved-catalog-works";
 import { isIOS26OrLater } from "@/lib/ios-version";
 import { useCursorPages, useSocialQuery } from "@/lib/social/use-social-query";
+import { gridColumns } from "@/lib/ui/grid-columns";
 import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { artistKey } from "@/shared/catalog/text";
 
@@ -47,7 +48,7 @@ export function ArtistScreen({ artistId }: { artistId: Id<"artists"> }) {
   const { fontScale } = useWindowDimensions();
   const width = useSafeAreaWidth();
   const { scrollRef, headingRef, measureHeading, onScroll } = useScrollTitle(artist.data?.name ?? "");
-  const columns = fontScale > 1.4 ? 1 : 2;
+  const columns = gridColumns(2, width, fontScale);
   const tileWidth = Math.max(1, (width - Spacing.content * 2 - (columns - 1) * GAP) / columns);
 
   if (!catalog.ready && catalog.offline) {

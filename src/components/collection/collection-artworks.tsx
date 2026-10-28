@@ -16,6 +16,7 @@ import { signInRoute } from "@/lib/account/sign-in-context";
 import { artistSections } from "@/lib/collection/artist-sections";
 import { filterWorks } from "@/lib/collection/search";
 import type { useCollectionData } from "@/lib/collection/use-collection-data";
+import { gridColumns } from "@/lib/ui/grid-columns";
 import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 
@@ -55,7 +56,7 @@ export function CollectionArtworks({
     }, [wall.repository]),
   );
   const filtered = filterWorks(works, search);
-  const columns = fontScale > 1.4 ? 1 : 2;
+  const columns = gridColumns(2, width, fontScale);
   const tileWidth = Math.max(1, (width - 40 - (columns - 1) * 14) / columns);
   const rows: Row[] = [];
   function addWorks(items: Work[]) {
