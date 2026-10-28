@@ -9,13 +9,25 @@ let mockHydrated = false;
 let mockVisit: CurrentVisit | undefined;
 let mockLoading = false;
 let mockCount = 1;
+let mockPhotos: (string | null)[] = [];
 let mockInstances: { update: jest.Mock; end: jest.Mock }[] = [];
 const mockStart = jest.fn();
 const mockReportError = jest.fn();
+const mockPrepareThumbnails = jest.fn(async (paths: string[]) => paths.map((path) => `file:///shared/${path}.jpg`));
+const mockPruneThumbnails = jest.fn();
+const mockPrepareFont = jest.fn(async () => {});
 jest.mock("@/lib/account/owner-store", () => ({ useLocalOwner: () => "device:test" }));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({ visit: mockVisit, hydrated: mockHydrated }) }));
 jest.mock("@/lib/journal/use-visit-works", () => ({
-  useVisitWorks: () => ({ works: Array(mockCount), loading: mockLoading }),
+  useVisitWorks: () => ({
+    works: Array.from({ length: mockCount }, (_, index) => ({ cropPath: mockPhotos[index] ?? null })),
+    loading: mockLoading,
+  }),
+}));
+jest.mock("./widget-storage", () => ({
+  prepareWidgetFont: () => mockPrepareFont(),
+  prepareVisitThumbnails: (paths: string[]) => mockPrepareThumbnails(paths),
+  pruneVisitThumbnails: (keep: string[]) => mockPruneThumbnails(keep),
 }));
 jest.mock("@/lib/observability", () => ({ reportError: (...args: unknown[]) => mockReportError(...args) }));
 jest.mock("./visit-activity", () => ({
@@ -46,6 +58,7 @@ beforeEach(() => {
   mockVisit = undefined;
   mockLoading = false;
   mockCount = 1;
+  mockPhotos = [];
   mockInstances = [];
 });
 afterEach(() => jest.restoreAllMocks());
@@ -64,7 +77,7 @@ it("waits for visit hydration and its artwork count before adopting the restored
   expect(activity.update).not.toHaveBeenCalled();
   mockLoading = false;
   await view.rerender(<VisitActivitySync />);
-  expect(activity.update).toHaveBeenCalledWith({ venueName: "Met", count: 1, since: "1:00 PM" });
+  expect(activity.update).toHaveBeenCalledWith({ venueName: "Met", count: 1, since: "1:00 PM", thumbnails: [] });
   expect(mockStart).not.toHaveBeenCalled();
 });
 
@@ -126,4 +139,38 @@ it("reports native failures and continues syncing later snapshots", async () => 
   mockCount = 2;
   await view.rerender(<VisitActivitySync />);
   expect(activity.update).toHaveBeenLastCalledWith(expect.objectContaining({ count: 2 }));
+});
+
+it("shows the newest three visit photos and removes thumbnails the activity no longer shows", async () => {
+  const activity = { update: jest.fn().mockResolvedValue(undefined), end: jest.fn() };
+  mockInstances = [activity];
+  mockHydrated = true;
+  mockVisit = visit;
+  mockCount = 5;
+  mockPhotos = ["newest", null, "second", "third", "fourth"];
+  await render(<VisitActivitySync />);
+  const thumbnails = ["file:///shared/newest.jpg", "file:///shared/second.jpg", "file:///shared/third.jpg"];
+  expect(activity.update).toHaveBeenCalledWith(expect.objectContaining({ count: 5, thumbnails }));
+  expect(mockPruneThumbnails).toHaveBeenLastCalledWith(thumbnails);
+  expect(activity.update.mock.invocationCallOrder[0]).toBeLessThan(mockPruneThumbnails.mock.invocationCallOrder[0]);
+});
+
+it("removes every visit thumbnail once the visit's activity has ended", async () => {
+  const activity = { update: jest.fn(), end: jest.fn().mockResolvedValue(undefined) };
+  mockInstances = [activity];
+  mockHydrated = true;
+  await render(<VisitActivitySync />);
+  expect(activity.end).toHaveBeenCalledWith("immediate");
+  expect(mockPruneThumbnails).toHaveBeenCalledWith([]);
+  expect(activity.end.mock.invocationCallOrder[0]).toBeLessThan(mockPruneThumbnails.mock.invocationCallOrder[0]);
+});
+
+it("starts the activity in the system font when the widget font cannot be prepared", async () => {
+  const failure = new Error("Widget font is unavailable");
+  mockPrepareFont.mockRejectedValueOnce(failure);
+  mockHydrated = true;
+  mockVisit = visit;
+  await render(<VisitActivitySync />);
+  expect(mockReportError).toHaveBeenCalledWith(failure, "visit.live-activity.font", { level: "warning" });
+  expect(mockStart).toHaveBeenCalledWith(expect.objectContaining({ venueName: "Met" }), "artlog:///scan");
 });

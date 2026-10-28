@@ -7,6 +7,9 @@ import { reportError } from "@/lib/observability";
 import { useVenue } from "@/lib/venue/use-venue";
 
 import { VisitActivity } from "./visit-activity";
+import { prepareVisitThumbnails, prepareWidgetFont, pruneVisitThumbnails } from "./widget-storage";
+
+const THUMBNAIL_COUNT = 3;
 
 /**
  * Keeps one Live Activity in step with the open visit: started with the visit, updated with each save, ended when the
@@ -20,6 +23,11 @@ export function VisitActivitySync() {
   const since = visit ? formatVisitStart(visit.startedAt, visit.timeZone) : undefined;
   const localId = visit?.localId;
   const venueName = visit?.venueName;
+  // Joined so the effect reruns only when the newest photos change, not on every query snapshot.
+  const photos = works
+    .flatMap((work) => (work.cropPath ? [work.cropPath] : []))
+    .slice(0, THUMBNAIL_COUNT)
+    .join("\n");
   // Native updates cannot be cancelled once started; finish them before applying the next visit snapshot.
   const writes = useRef(Promise.resolve());
   useEffect(() => {
@@ -33,9 +41,16 @@ export function VisitActivitySync() {
             if (cancelled) return;
             await activity.end("immediate");
           }
+          pruneVisitThumbnails([]);
           return;
         }
-        const props = { venueName, count, since };
+        // Without the font the extension falls back to the system face, which beats no activity.
+        await prepareWidgetFont().catch((cause: unknown) => {
+          reportError(cause, "visit.live-activity.font", { level: "warning" });
+        });
+        const thumbnails = await prepareVisitThumbnails(photos ? photos.split("\n") : []);
+        if (cancelled) return;
+        const props = { venueName, count, since, thumbnails };
         const [adopted, ...extra] = VisitActivity.getInstances();
         for (const activity of extra) {
           if (cancelled) return;
@@ -47,6 +62,7 @@ export function VisitActivitySync() {
         } else {
           VisitActivity.start(props, "artlog:///scan");
         }
+        pruneVisitThumbnails(thumbnails);
       })
       .catch((cause: unknown) => {
         reportError(cause, "visit.live-activity", { level: "warning" });
@@ -54,6 +70,6 @@ export function VisitActivitySync() {
     return () => {
       cancelled = true;
     };
-  }, [owner, hydrated, localId, venueName, count, since]);
+  }, [owner, hydrated, localId, venueName, count, since, photos]);
   return null;
 }
