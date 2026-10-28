@@ -3,6 +3,7 @@ import { useState, type ReactElement } from "react";
 import { PixelRatio, StyleSheet } from "react-native";
 import { GestureHandlerRootView, State, type LegacyPanGesture } from "react-native-gesture-handler";
 import { fireGestureHandler, getByGestureTestId } from "react-native-gesture-handler/jest-utils";
+import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 
 import { playLightHaptic } from "@/lib/ui/haptics";
 import { wallPieceBounds, type WallArrangement, type WallPiece } from "@/lib/wall/wall-layout";
@@ -85,6 +86,38 @@ it("hangs the label under the artwork without scaling its text", async () => {
   const transforms = labelTransforms();
   expect(transforms.some((operation) => "scale" in operation)).toBe(false);
   expect(transforms.reduce((sum, operation) => sum + Number(operation.translateY ?? 0), 0)).toBeCloseTo(0);
+});
+
+type HostElement = ReturnType<typeof screen.getByRole>;
+
+// How far right of the gallery's left edge a view sits: the offsets and padding of every view around it.
+function leftEdge(view: HostElement) {
+  let x = 0;
+  for (let node: HostElement | null = view; node; node = node.parent) {
+    const { left = 0, marginLeft = 0, padding = 0, transform } = StyleSheet.flatten(node.props.style) ?? {};
+    const shift = Array.isArray(transform) ? transform.reduce((sum, step) => sum + Number(step.translateX ?? 0), 0) : 0;
+    x += Number(left) + Number(marginLeft) + shift + (node === view ? 0 : Number(padding));
+  }
+  return x;
+}
+
+it.each([
+  { bars: "the iPhone Duo's rail", left: 0, right: 84 },
+  { bars: "the camera housings in landscape", left: 62, right: 62 },
+])("hangs artworks clear of $bars while the wallpaper runs under them", async ({ left, right }) => {
+  const rightmost = { ...piece, layout: { ...piece.layout, x: 0.5, width: 0.475 } };
+  await render(
+    <SafeAreaInsetsContext.Provider value={{ top: 0, bottom: 0, left, right }}>
+      <WallGallery pieces={[rightmost]} wallpaper={{ color: "#FCFCF9" }} width={390} onSelect={jest.fn()} />
+    </SafeAreaInsetsContext.Provider>,
+  );
+  const artwork = leftEdge(screen.getByRole("button", { name: "Water Lilies, Claude Monet" }));
+  expect(artwork).toBe(left + 195);
+  expect(artwork + 0.475 * 390).toBeLessThanOrEqual(left + 390);
+  const wallpaper = screen.root!.queryAll(
+    (node) => StyleSheet.flatten(node.props.style)?.backgroundColor === "#FCFCF9",
+  );
+  expect(StyleSheet.flatten(wallpaper[0].parent!.props.style)).toMatchObject({ width: left + 390 + right });
 });
 
 it.each([

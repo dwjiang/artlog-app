@@ -90,9 +90,10 @@ export function CollectionWallContent({
   const editBarPadding = useHorizontalSafeAreaPadding(styles.toolbar);
   const errorPadding = useHorizontalSafeAreaPadding(styles.error);
   const blankPadding = useHorizontalSafeAreaPadding(styles.blank);
-  const emptyPadding = useHorizontalSafeAreaPadding(styles.empty);
   const [editing, setEditing] = useState(false);
-  const [width, setWidth] = useState(0);
+  const [wallWidth, setWallWidth] = useState(0);
+  // Artworks hang beside side bars (the iPhone Duo's rail, the camera housing in landscape), not under them.
+  const width = wallWidth && wallWidth - insets.left - insets.right;
   useHideTabBar(editing);
   const [canvasTop, setCanvasTop] = useState(0);
   const [paletteHeight, setPaletteHeight] = useState(0);
@@ -441,7 +442,7 @@ export function CollectionWallContent({
               accessibilityLabel="Collection wall"
               style={{ flexGrow: 1 }}
               onLayout={(event) => {
-                setWidth(event.nativeEvent.layout.width);
+                setWallWidth(event.nativeEvent.layout.width);
                 wallTop.current = event.nativeEvent.layout.y;
                 edge.wallTop.set(event.nativeEvent.layout.y);
                 setCanvasTop(event.nativeEvent.layout.y);
@@ -482,7 +483,7 @@ export function CollectionWallContent({
                   }}
                 >
                   {!count && (
-                    <View style={[styles.empty, emptyPadding]}>
+                    <View style={styles.empty}>
                       {!opening && (
                         <Text variant="display" style={[styles.emptyTitle, { color: wallInk }]}>
                           No artworks on your wall yet.

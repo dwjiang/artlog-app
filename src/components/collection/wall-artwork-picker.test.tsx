@@ -1,8 +1,9 @@
-import { fireEvent, render as renderComponent, screen } from "@testing-library/react-native";
+import { act, fireEvent, render as renderComponent, screen } from "@testing-library/react-native";
 import { useState, type ReactElement, type ReactNode } from "react";
 import { Dimensions } from "react-native";
 import { SafeAreaProvider, type SafeAreaProviderProps } from "react-native-safe-area-context";
 
+import { scrollViewHolding } from "@/components/scroll-view.testing";
 import type { SavedWork } from "@/db/schema";
 import { playToggleHaptic } from "@/lib/ui/haptics";
 import type { WallPiece } from "@/lib/wall/wall-layout";
@@ -106,6 +107,36 @@ it("fits the modal's own frame after rotation while keeping selected artworks", 
   expect(screen.getByRole("checkbox", { name: "Sunflowers" })).toBeChecked();
   await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));
   expect(onAdd).toHaveBeenLastCalledWith(["a"]);
+});
+
+it("lets the search and filters scroll with the artworks in landscape, keeping the search", async () => {
+  await render(<Picker />);
+  await fireEvent.changeText(screen.getByLabelText("Search artworks"), "monet");
+  expect(() => scrollViewHolding(screen.getByLabelText("Search artworks"))).toThrow("Not inside a scroll view");
+
+  await act(() => Dimensions.set({ window: { ...originalWindow, width: 874, height: 402, fontScale: 1 } }));
+  const grid = scrollViewHolding(screen.getByRole("checkbox", { name: "Water Lilies" }));
+  expect(scrollViewHolding(screen.getByLabelText("Search artworks"))).toBe(grid);
+  expect(screen.getByLabelText("Search artworks")).toHaveProp("value", "monet");
+  expect(scrollViewHolding(screen.getByRole("button", { name: "Not on Wall" }))).toBe(grid);
+});
+
+it("keeps review, clear and add working after enlarging landscape text", async () => {
+  Dimensions.set({ window: { ...originalWindow, width: 874, height: 402, fontScale: 1 } });
+  await render(<Picker />);
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Sunflowers" }));
+  await act(() => Dimensions.set({ window: { ...originalWindow, width: 874, height: 402, fontScale: 1.6 } }));
+
+  await fireEvent.press(screen.getByRole("button", { name: "Review selected artworks" }));
+  expect(screen.getByRole("checkbox", { name: "Sunflowers" })).toBeChecked();
+  expect(screen.queryByRole("checkbox", { name: "Water Lilies" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Clear selection" }));
+  expect(screen.getByRole("button", { name: "Add artworks to wall" })).toBeDisabled();
+
+  await fireEvent.press(screen.getByRole("button", { name: "Library" }));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Water Lilies" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add 1 artwork to wall" }));
+  expect(onAdd).toHaveBeenLastCalledWith(["b"]);
 });
 
 it("limits selection to remaining wall space and releases space when unchecked", async () => {

@@ -18,6 +18,7 @@ import { formatVisitDate } from "@/lib/journal/history";
 import { gridColumns } from "@/lib/ui/grid-columns";
 import { playToggleHaptic } from "@/lib/ui/haptics";
 import { useHorizontalSafeAreaPadding, useSafeAreaWidth } from "@/lib/ui/safe-area";
+import { useLandscape } from "@/lib/ui/use-landscape";
 import { canHangArtwork, libraryArtworks, type ArtworkSort, type LibraryVisit } from "@/lib/wall/artwork-library";
 import type { WallPiece } from "@/lib/wall/wall-layout";
 import { LIMITS } from "@/shared/journal/limits";
@@ -68,10 +69,13 @@ function PickerContent({
   onAdd,
 }: WallArtworkPickerProps) {
   const { fontScale } = useWindowDimensions();
+  // In landscape the filters scroll with the artworks; the footer shares a row when text size leaves room.
+  const landscape = useLandscape();
+  const inlineFooter = landscape && fontScale <= 1.4;
   const width = useSafeAreaWidth();
   const insets = useSafeAreaInsets();
   const headerPadding = useHorizontalSafeAreaPadding(styles.header);
-  const filtersPadding = useHorizontalSafeAreaPadding(styles.filters);
+  const filtersPadding = useHorizontalSafeAreaPadding(styles.gutter);
   const gridPadding = useHorizontalSafeAreaPadding(styles.grid);
   const footerPadding = useHorizontalSafeAreaPadding(styles.footer);
   const [search, setSearch] = useState("");
@@ -105,6 +109,42 @@ function PickerContent({
       label: `${item.venueName} · ${formatVisitDate(item.visitedOn)}`,
     })),
   ];
+  const filters = (
+    <View style={styles.filters}>
+      <SearchField
+        value={search}
+        label="Search artworks"
+        placeholder="Search title or artist"
+        showLabel={false}
+        filled
+        onChange={setSearch}
+        onClear={() => setSearch("")}
+        editable={!disabled}
+        maxLength={LIMITS.searchMax}
+      />
+      <View style={styles.filterRow}>
+        <ChoiceMenu
+          label="Show artworks"
+          value={notOnWall ? "available" : "all"}
+          options={[
+            { value: "available", label: "Not on Wall" },
+            { value: "all", label: "All Artworks" },
+          ]}
+          onChange={(value) => setNotOnWall(value === "available")}
+          disabled={disabled}
+        />
+        <View style={{ flexShrink: 1 }}>
+          <ChoiceMenu
+            label="Visit"
+            value={visit?.localId ?? ""}
+            options={visitOptions}
+            onChange={setVisitId}
+            disabled={disabled}
+          />
+        </View>
+      </View>
+    </View>
+  );
   return (
     <KeyboardAvoidingView behavior="padding" style={[styles.screen, { paddingTop: insets.top }]}>
       <View style={[styles.header, headerPadding]}>
@@ -118,42 +158,7 @@ function PickerContent({
           {review ? "Selected artworks" : "Add artworks"}
         </Text>
       </View>
-      {!review && (
-        <View style={[styles.filters, filtersPadding]}>
-          <SearchField
-            value={search}
-            label="Search artworks"
-            placeholder="Search title or artist"
-            showLabel={false}
-            filled
-            onChange={setSearch}
-            onClear={() => setSearch("")}
-            editable={!disabled}
-            maxLength={LIMITS.searchMax}
-          />
-          <View style={styles.filterRow}>
-            <ChoiceMenu
-              label="Show artworks"
-              value={notOnWall ? "available" : "all"}
-              options={[
-                { value: "available", label: "Not on Wall" },
-                { value: "all", label: "All Artworks" },
-              ]}
-              onChange={(value) => setNotOnWall(value === "available")}
-              disabled={disabled}
-            />
-            <View style={{ flexShrink: 1 }}>
-              <ChoiceMenu
-                label="Visit"
-                value={visit?.localId ?? ""}
-                options={visitOptions}
-                onChange={setVisitId}
-                disabled={disabled}
-              />
-            </View>
-          </View>
-        </View>
-      )}
+      {!review && !landscape && <View style={filtersPadding}>{filters}</View>}
       <FlatList
         ref={list}
         key={columns}
@@ -170,25 +175,28 @@ function PickerContent({
         contentContainerStyle={[styles.grid, gridPadding]}
         columnWrapperStyle={columns > 1 ? { gap: Spacing.compact } : undefined}
         ListHeaderComponent={
-          <View style={styles.resultsHeading}>
-            <Text variant="metadata" themeColor="textSecondary">
-              {data.length} {data.length === 1 ? "artwork" : "artworks"}
-              {review ? " selected" : ""}
-            </Text>
-            {!review && (
-              <ChoiceMenu
-                label="Sort by"
-                value={sort}
-                onChange={setSort}
-                disabled={disabled}
-                options={[
-                  { value: "recent", label: "Recently Saved" },
-                  { value: "title", label: "Title" },
-                  { value: "artist", label: "Artist" },
-                ]}
-              />
-            )}
-          </View>
+          <>
+            {!review && landscape && filters}
+            <View style={styles.resultsHeading}>
+              <Text variant="metadata" themeColor="textSecondary">
+                {data.length} {data.length === 1 ? "artwork" : "artworks"}
+                {review ? " selected" : ""}
+              </Text>
+              {!review && (
+                <ChoiceMenu
+                  label="Sort by"
+                  value={sort}
+                  onChange={setSort}
+                  disabled={disabled}
+                  options={[
+                    { value: "recent", label: "Recently Saved" },
+                    { value: "title", label: "Title" },
+                    { value: "artist", label: "Artist" },
+                  ]}
+                />
+              )}
+            </View>
+          </>
         }
         renderItem={({ item }) => {
           const hung = hungIds.has(item.localId);
@@ -276,53 +284,66 @@ function PickerContent({
           </>
         }
       />
-      <View style={[styles.footer, footerPadding, { paddingBottom: Math.max(insets.bottom, Spacing.three) }]}>
-        <View style={styles.selectionRow}>
-          <Text variant="secondary" style={{ fontWeight: "600" }}>
-            {selected.length > 0 ? `${selected.length} selected` : "Select artworks"}
-          </Text>
-          <View style={styles.selectionActions}>
-            {!review && selected.length > 0 && (
-              <GalleryButton
-                label="Review"
-                accessibilityLabel="Review selected artworks"
-                size="compact"
-                disabled={disabled}
-                onPress={() => {
-                  Keyboard.dismiss();
-                  setReview(true);
-                }}
-              />
-            )}
-            {selected.length > 0 && (
-              <GalleryButton
-                label="Clear"
-                accessibilityLabel="Clear selection"
-                tone="ink"
-                size="compact"
-                disabled={disabled}
-                onPress={() => onChange([])}
-              />
-            )}
+      <View
+        style={[
+          styles.footer,
+          inlineFooter && styles.footerRow,
+          footerPadding,
+          { paddingBottom: Math.max(insets.bottom, Spacing.three) },
+        ]}
+      >
+        <View style={[styles.selection, inlineFooter && { flex: 1 }]}>
+          <View style={styles.selectionRow}>
+            <Text variant="secondary" style={{ fontWeight: "600" }}>
+              {selected.length > 0 ? `${selected.length} selected` : "Select artworks"}
+            </Text>
+            <View style={styles.selectionActions}>
+              {!review && selected.length > 0 && (
+                <GalleryButton
+                  label="Review"
+                  accessibilityLabel="Review selected artworks"
+                  size="compact"
+                  fullWidth={false}
+                  disabled={disabled}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setReview(true);
+                  }}
+                />
+              )}
+              {selected.length > 0 && (
+                <GalleryButton
+                  label="Clear"
+                  accessibilityLabel="Clear selection"
+                  tone="ink"
+                  size="compact"
+                  fullWidth={false}
+                  disabled={disabled}
+                  onPress={() => onChange([])}
+                />
+              )}
+            </View>
           </View>
+          {count + selected.length >= LIMITS.wallItems && (
+            <Text variant="metadata" themeColor="textSecondary">
+              Your wall holds up to {LIMITS.wallItems} artworks.
+            </Text>
+          )}
+          {signedIn && selected.length > 0 && (
+            <Text variant="metadata" themeColor="textSecondary">
+              Selected photos will appear on your public wall.
+            </Text>
+          )}
         </View>
-        {count + selected.length >= LIMITS.wallItems && (
-          <Text variant="metadata" themeColor="textSecondary">
-            Your wall holds up to {LIMITS.wallItems} artworks.
-          </Text>
-        )}
-        {signedIn && selected.length > 0 && (
-          <Text variant="metadata" themeColor="textSecondary">
-            Selected photos will appear on your public wall.
-          </Text>
-        )}
+        {/* The SwiftUI host's sizing mode is fixed on mount. */}
         <GalleryButton
+          key={inlineFooter ? "beside" : "below"}
           label={
             selected.length > 0
               ? `Add ${selected.length} ${selected.length === 1 ? "artwork" : "artworks"} to wall`
               : "Add artworks to wall"
           }
-          fullWidth
+          fullWidth={!inlineFooter}
           variant="filled"
           disabled={selected.length === 0 || disabled}
           busy={disabled && selected.length > 0}
@@ -346,7 +367,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.content,
     minHeight: 56,
   },
-  filters: { paddingHorizontal: Spacing.content, gap: Spacing.two, paddingTop: Spacing.two },
+  gutter: { paddingHorizontal: Spacing.content },
+  filters: { gap: Spacing.two, paddingTop: Spacing.two },
   filterRow: { flexDirection: "row", alignItems: "center", gap: Spacing.two, flexWrap: "wrap" },
   grid: { paddingHorizontal: Spacing.content, paddingBottom: Spacing.content },
   resultsHeading: {
@@ -390,6 +412,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     ...PinnedFooterBorder,
   },
+  footerRow: { flexDirection: "row", alignItems: "center", gap: Spacing.content },
+  selection: { gap: Spacing.two },
   selectionRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -397,5 +421,5 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     minHeight: 44,
   },
-  selectionActions: { flexDirection: "row", gap: Spacing.content },
+  selectionActions: { flexDirection: "row", flexWrap: "wrap", maxWidth: "100%", gap: Spacing.content },
 });
