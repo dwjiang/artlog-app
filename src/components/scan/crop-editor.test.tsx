@@ -25,7 +25,7 @@ jest.mock("expo-router", () => {
   Toolbar.Button = mockStack.Toolbar.Button;
   return { useNavigation: () => mockNavigation, Stack: { ...mockStack, Toolbar } };
 });
-jest.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
+jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116, useIsFocused: () => true }));
 const mockToast = jest.fn();
 jest.mock("@/lib/ui/toast", () => ({
   showErrorToast: (...args: unknown[]) => mockToast(...args),

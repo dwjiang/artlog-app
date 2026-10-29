@@ -1,6 +1,6 @@
 import { ImageManipulator } from "expo-image-manipulator";
 import { Stack, useNavigation } from "expo-router";
-import { useIsFocused } from "expo-router/react-navigation";
+import { useHeaderHeight, useIsFocused } from "expo-router/react-navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -54,6 +54,7 @@ export function CropEditor({
     setDragging(activeDrags.current > 0);
   }, []);
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
   const bottomPadding = Math.max(insets.bottom, 16);
   const [stage, setStage] = useState<{ width: number; height: number }>();
   const [controls, setControls] = useState<{ y: number; height: number }>();
@@ -147,7 +148,16 @@ export function CropEditor({
   }
   return (
     <View
-      style={[styles.screen, { paddingLeft: insets.left, paddingRight: insets.right, paddingBottom: bottomPadding }]}
+      style={[
+        styles.screen,
+        // The screen runs under the navigation bar, which only scroll views clear on their own.
+        {
+          paddingTop: headerHeight,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+          paddingBottom: bottomPadding,
+        },
+      ]}
     >
       {header}
       <Text style={styles.instructions}>Drag each corner onto the painting’s corners.</Text>
