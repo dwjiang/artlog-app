@@ -3,7 +3,7 @@ import { MAX_CROP_CANDIDATES } from "@/shared/capture/crop-limits";
 import type { RectObservation, RectPoint, StillDetection, SubjectObservation } from "../../../modules/vision-rect/src";
 import type { Quad } from "./stages";
 
-export const STABLE_WINDOW_MS = 800;
+export const STABLE_WINDOW_MS = 500;
 /**
  * Fraction of the frame diagonal a smoothed corner may move within the window and still count as
  * steady. Smoothing tolerates hand-held motion and Vision's per-frame corner wobble.
@@ -28,7 +28,7 @@ export const MIN_AREA_FRACTION = 0.1;
 export const EDGE_MARGIN = 0.02;
 export const MAX_OPPOSITE_EDGE_RATIO = 1.3;
 /** A detection gap shorter than this keeps the last result instead of resetting. */
-export const MISS_GRACE_MS = 300;
+export const MISS_GRACE_MS = 500;
 /** Normalized corner distance within which a still-image candidate matches the preview quad. */
 export const STILL_MATCH_TOLERANCE = 0.05;
 /**
@@ -137,9 +137,12 @@ function largestQuad(quads: Quad[]): Quad | undefined {
   );
 }
 
+function centroid(quad: Quad): [number, number] {
+  return [quad.reduce((sum, [x]) => sum + x, 0) / 4, quad.reduce((sum, [, y]) => sum + y, 0) / 4];
+}
+
 function enclosesCentroid(outer: Quad, inner: Quad): boolean {
-  const cx = inner.reduce((sum, [x]) => sum + x, 0) / 4;
-  const cy = inner.reduce((sum, [, y]) => sum + y, 0) / 4;
+  const [cx, cy] = centroid(inner);
   const xs = outer.map(([x]) => x);
   const ys = outer.map(([, y]) => y);
   return cx > Math.min(...xs) && cx < Math.max(...xs) && cy > Math.min(...ys) && cy < Math.max(...ys);
@@ -230,9 +233,30 @@ export class RectTracker {
     this.lastSeenAt = -Infinity;
   }
 
-  /** Switches to a different rectangle: the stability window restarts from it. */
-  private retarget(quad: Quad): Quad {
-    this.history = [];
+  /**
+   * Simultaneous boundaries distinguish an outline switch from moving toward the painting. Carry the old boundary's
+   * measured motion onto the new one; a shared center alone cannot establish that the phone stayed still.
+   */
+  private retarget(tracked: Quad, quad: Quad, size: FrameSize, candidates: Quad[]): Quad {
+    const tolerance = STABLE_MAX_DISPLACEMENT * Math.hypot(size.width, size.height);
+    const previous = candidates.find(
+      (candidate) =>
+        candidate !== quad
+        && maxCornerDistance(candidate, tracked, size) < tolerance
+        && quadArea(candidate) > NESTED_AREA_RATIO * quadArea(tracked)
+        && quadArea(tracked) > NESTED_AREA_RATIO * quadArea(candidate),
+    );
+    const sameCenter = previous && distance(centroid(previous), centroid(quad), size) < tolerance;
+    this.history =
+      previous && sameCenter
+        ? this.history.map(({ quad: sample, at }) => ({
+            quad: sample.map(([x, y], index) => [
+              x + quad[index][0] - previous[index][0],
+              y + quad[index][1] - previous[index][1],
+            ]) as Quad,
+            at,
+          }))
+        : [];
     return quad;
   }
 
@@ -243,8 +267,8 @@ export class RectTracker {
     const tracked = this.last.quad;
     const missedFor = now - this.lastSeenAt;
     // Vision returns the frame, the mat or the canvas on different frames. The outermost rectangle is
-    // the target: a larger candidate enclosing the tracked box takes over, a nested one is ignored while
-    // the outer was seen recently, and switching between them never counts as camera movement.
+    // the target: a larger candidate enclosing the tracked box takes over; a nested one is ignored while
+    // the outer was seen recently.
     const outer =
       tracked
       && largestQuad(
@@ -263,12 +287,12 @@ export class RectTracker {
     if (!tracked) {
       captureQuad = largestQuad(candidates);
     } else if (outer) {
-      captureQuad = this.retarget(outer);
+      captureQuad = this.retarget(tracked, outer, size, candidates);
     } else if (near && !nested) {
       captureQuad = near;
       smoothFrom = tracked;
     } else if (near && missedFor > MISS_GRACE_MS) {
-      captureQuad = this.retarget(near);
+      captureQuad = this.retarget(tracked, near, size, candidates);
     }
     if (!captureQuad) {
       if (missedFor > MISS_GRACE_MS) this.reset();

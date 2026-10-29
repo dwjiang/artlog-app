@@ -84,13 +84,13 @@ describe("RectTracker guidance", () => {
 
   it("reports hold progress from accepted frames and resets it when the painting moves", () => {
     const tracker = new RectTracker();
-    expect(holdSteady(tracker, framed, 0, 400).progress).toBe(0.5);
-    expect(holdSteady(tracker, framed, 500, 800).progress).toBe(1);
-    const moved = tracker.push(observe(shifted(framed, 0.12, 0.12)), frame, 900);
+    expect(holdSteady(tracker, framed, 0, 200).progress).toBe(200 / STABLE_WINDOW_MS);
+    expect(holdSteady(tracker, framed, 300, STABLE_WINDOW_MS).progress).toBe(1);
+    const moved = tracker.push(observe(shifted(framed, 0.12, 0.12)), frame, STABLE_WINDOW_MS + 100);
     expect(moved.progress).toBe(0);
     expect(moved.stable).toBe(false);
     tracker.reset();
-    expect(tracker.push(observe(framed), frame, 1000).progress).toBe(0);
+    expect(tracker.push(observe(framed), frame, STABLE_WINDOW_MS + 200).progress).toBe(0);
   });
 
   it("tolerates hand-held jitter and drops back to hold-still on a jump", () => {
@@ -129,7 +129,7 @@ describe("RectTracker guidance", () => {
     expect(ready.guidance).toBe("ready");
   });
 
-  it("ignores a nested inner candidate while the outer was seen recently, then accepts it after the grace period", () => {
+  it("ignores a nested inner candidate during the grace period, then requires a fresh hold without the outer", () => {
     const tracker = new RectTracker();
     const ready = holdSteady(tracker, framed, 0, STABLE_WINDOW_MS);
     const canvas = box(0.2, 0.28, 0.8, 0.72);
@@ -138,16 +138,58 @@ describe("RectTracker guidance", () => {
     const accepted = tracker.push(observe(canvas), frame, STABLE_WINDOW_MS + MISS_GRACE_MS + 1);
     expect(accepted.quad).toEqual(toQuad(canvas));
     expect(accepted.guidance).toBe("hold-still");
+    expect(
+      holdSteady(tracker, canvas, STABLE_WINDOW_MS + MISS_GRACE_MS + 1, 2 * STABLE_WINDOW_MS + MISS_GRACE_MS + 1)
+        .guidance,
+    ).toBe("ready");
   });
 
-  it("upgrades to a larger candidate that encloses the tracked box and restarts the window", () => {
+  it("waits for an enlarging centered painting to stop moving before capturing", () => {
+    const tracker = new RectTracker();
+    let corners = framed;
+    for (let now = 0; now <= STABLE_WINDOW_MS; now += 100) {
+      const half = (0.32 * 1.13 ** (now / 100)) / 2;
+      corners = box(0.5 - half, 0.5 - half, 0.5 + half, 0.5 + half);
+      expect(tracker.push(observe(corners), frame, now).stable).toBe(false);
+    }
+    expect(holdSteady(tracker, corners, STABLE_WINDOW_MS + 100, 2 * STABLE_WINDOW_MS).guidance).toBe("ready");
+  });
+
+  it("upgrades to a larger candidate around the tracked box and keeps the window, measuring motion on it", () => {
     const tracker = new RectTracker();
     const canvas = box(0.35, 0.4, 0.65, 0.6);
     expect(holdSteady(tracker, canvas, 0, STABLE_WINDOW_MS).guidance).toBe("move-closer");
     const upgraded = tracker.push([...observe(canvas), ...observe(framed)], frame, STABLE_WINDOW_MS + 100);
     expect(upgraded.quad).toEqual(toQuad(framed));
-    expect(upgraded).toMatchObject({ stable: false, guidance: "hold-still" });
-    expect(holdSteady(tracker, framed, STABLE_WINDOW_MS + 200, 2 * STABLE_WINDOW_MS + 100).guidance).toBe("ready");
+    expect(upgraded).toMatchObject({ stable: true, guidance: "ready", progress: 1 });
+    expect(tracker.push(observe(shifted(framed, 0.12, 0.12)), frame, STABLE_WINDOW_MS + 200)).toMatchObject({
+      stable: false,
+      guidance: "hold-still",
+    });
+  });
+
+  it("restarts the window on a larger candidate centered elsewhere, such as a wall panel", () => {
+    const tracker = new RectTracker();
+    const offCenter = box(0.2, 0.3, 0.45, 0.5);
+    holdSteady(tracker, offCenter, 0, STABLE_WINDOW_MS);
+    const upgraded = tracker.push(observe(framed), frame, STABLE_WINDOW_MS + 100);
+    expect(upgraded.quad).toEqual(toQuad(framed));
+    expect(upgraded).toMatchObject({ stable: false, guidance: "hold-still", progress: 0 });
+  });
+
+  it("preserves measured motion when both the canvas and its frame are detected", () => {
+    const tracker = new RectTracker();
+    const canvas = box(0.25, 0.35, 0.55, 0.65);
+    for (let now = 0; now < STABLE_WINDOW_MS; now += 100) {
+      tracker.push(observe(shifted(canvas, (0.03 * now) / 100)), frame, now);
+    }
+    const dx = (0.03 * STABLE_WINDOW_MS) / 100;
+    const result = tracker.push(
+      [...observe(shifted(canvas, dx)), ...observe(shifted(box(0.18, 0.2, 0.62, 0.8), dx))],
+      frame,
+      STABLE_WINDOW_MS,
+    );
+    expect(result).toMatchObject({ stable: false, guidance: "hold-still" });
   });
 
   it("keeps the last result through a short detection gap and resets after the grace period", () => {

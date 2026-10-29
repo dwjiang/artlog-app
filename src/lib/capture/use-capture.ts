@@ -26,7 +26,7 @@ import { captureOptions, defaultStages } from "./default-stages";
 import { extractCaptureMeta } from "./exif";
 import { runCapture } from "./pipeline";
 import { PresentationImages } from "./presentation-images";
-import type { CaptureInput, CaptureResult, CaptureTimings, PreparedPainting } from "./stages";
+import type { CaptureInput, CaptureResult, CaptureTimings, PreparedPainting, VenueContext } from "./stages";
 import type { UprightPhoto } from "./use-upright-photo";
 
 export type CapturePresentation = {
@@ -42,7 +42,6 @@ type Completed = {
   attempt: CaptureAttempt;
   result: Exclude<CaptureResult, { kind: "retake" }>;
 };
-type VenueContext = Pick<CaptureInput, "venueId" | "visitId" | "visitLocalId">;
 /** A photo chosen for import. The import consumes `uri`; `exif` dates and places the photo when its source keeps it. */
 export type PickedPhoto = { uri: string; exif?: ImagePicker.ImagePickerAsset["exif"] };
 
@@ -205,10 +204,8 @@ export function useCapture({
         }
         return photo;
       });
-      const context = chosen ?? (await resolveContext?.(input));
-      if (!current()) return;
       const result = await runCapture(
-        { ...input, ...context },
+        { ...input, context: chosen ? Promise.resolve(chosen) : resolveContext?.(input) },
         {
           ...defaultStages,
           onPrepared: async (painting) => {
@@ -246,6 +243,7 @@ export function useCapture({
           },
           rankCrops: (vectors, venueId) => rankCrops({ vectors, venueId, modelVersion: captureOptions.modelVersion }),
           isOnline: () => online.current,
+          isCurrent: current,
           resolveVisitId: resolveScanVisit,
         },
         captureOptions,
@@ -262,7 +260,7 @@ export function useCapture({
             source: "library",
           });
         }
-        playErrorHaptic();
+        if (!attempt.steady) playErrorHaptic();
         controller.fail(attempt, result.message);
       } else {
         pendingResult.current = { attempt, result };
@@ -276,7 +274,7 @@ export function useCapture({
         setPresentation((value) =>
           value?.source === "library" ? { attempt, photoUri: value.photoUri, source: "library" } : undefined,
         );
-        playErrorHaptic();
+        if (!attempt.steady) playErrorHaptic();
         controller.fail(
           attempt,
           isBackendError(error)
