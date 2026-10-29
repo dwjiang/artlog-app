@@ -127,7 +127,7 @@ export function DemoPage() {
         <h1>Point at a painting. Learn its story.</h1>
         <p className="lede">
           Artlog names the painting in front of you, tells its story with sources, and reads it aloud. Try it here on a
-          cloud iPhone connected to the App Store app&rsquo;s live backend; the tour takes about 4 minutes.
+          cloud iPhone that uses the App Store app&rsquo;s live backend. The tour takes about 4 minutes.
         </p>
         <ExternalLink className="listing" href={APP_STORE_URL} aria-label="Get Artlog on the App Store">
           <img className="app-icon" src={appIcon} alt="" width={60} height={60} />
@@ -140,36 +140,36 @@ export function DemoPage() {
         <ol className="steps">
           <li>
             <p>
-              <strong id="scan-step">Scan a painting.</strong> Pick one. A video stands in for the camera and walks up
-              to it; Artlog outlines and names it on its own.
+              <b>Scan a painting.</b> The cloud iPhone has no camera, so a video walks up to the painting you pick.
+              Artlog names it the same way it does through a real iPhone&rsquo;s camera.{" "}
+              <span className="quiet">
+                NVIDIA C-RADIOv3-B runs on the iPhone and matches it against about 400,000 artworks. The scan sends no
+                pixels.
+              </span>
             </p>
-            <PaintingPicker sessionId={liveId} labelledBy="scan-step" />
-            <p className="tech">
-              <b>NVIDIA C-RADIOv3-B</b> runs on the iPhone and turns the painting into a fingerprint, matched against
-              about 400,000 artworks. The scan sends no pixels.
+            <PaintingPicker sessionId={liveId} />
+          </li>
+          <li>
+            <p>
+              <b>Read its story.</b> Every sentence in About this work links to the page it came from.{" "}
+              <span className="quiet">
+                Tavily finds sources, Nemotron 3 Super pulls out quoted facts, and Nemotron 3.5 Lightning writes only
+                from those.
+              </span>
             </p>
           </li>
           <li>
             <p>
-              <strong>Read its story.</strong> Each sentence of About this work links to the page its fact came from.
-            </p>
-            <p className="tech">
-              <b>Tavily</b> finds sources; on <b>Nebius Token Factory</b>, <b>Nemotron 3 Super</b> extracts quoted facts
-              and <b>Nemotron 3.5 Lightning</b> writes from only those.
-            </p>
-          </li>
-          <li>
-            <p>
-              <strong>Listen.</strong> Tap Play audio guide with your sound on; this page plays it.
-            </p>
-            <p className="tech">
-              <b>Nemotron 3 Ultra</b> writes the guide from the same research, and the backend checks each
-              sentence&rsquo;s evidence word for word. An <b>OpenAI</b> voice reads it.
+              <b>Listen.</b> Turn your sound on and tap Play audio guide. The audio plays from this page.{" "}
+              <span className="quiet">
+                Nemotron 3 Ultra writes the guide, the backend checks each sentence&rsquo;s evidence word for word, and
+                an OpenAI voice reads it.
+              </span>
             </p>
           </li>
           <li>
             <p>
-              <strong>Try your own photo.</strong> Upload one, then tap Photos on the iPhone. No photo handy? Try{" "}
+              <b>Try your own photo.</b> Upload one, then tap Photos on the iPhone. No photo handy? Try{" "}
               <ExternalLink href={MET_OPEN_ACCESS_URL}>The Met&rsquo;s open-access collection</ExternalLink>.
             </p>
             <div className="upload">
@@ -181,7 +181,7 @@ export function DemoPage() {
               >
                 {upload.kind === "sending" ? "Sending…" : "Upload a photo"}
               </button>
-              <span className="tech">Uploads go only to your demo iPhone.</span>
+              <span className="caption">Uploads go only to your demo iPhone.</span>
             </div>
             <input
               ref={fileInput}
@@ -203,23 +203,26 @@ export function DemoPage() {
           </li>
           <li>
             <p>
-              <strong>See what&rsquo;s on.</strong> Open Explore for current exhibitions around New York; each links to
-              the page it came from.
-            </p>
-            <p className="tech">
-              <b>Tavily</b> reads museum pages that only load in a browser; <b>Nemotron 3 Super</b> lists each show,
-              kept only if its quoted title and dates are on the page.
+              <b>See what&rsquo;s on.</b> Open Explore for current exhibitions around New York, each linked to the page
+              it came from.{" "}
+              <span className="quiet">
+                Tavily reads museum pages that only load in a browser. Nemotron 3 Super lists each show, and Artlog
+                keeps one only if its quoted title and dates are on the page.
+              </span>
             </p>
           </li>
         </ol>
-        <p className="tech also">
-          <b>Also in the app:</b> for a painting Artlog doesn&rsquo;t know, <b>Nemotron 3 Super</b> sorts its wall
-          label&rsquo;s text into fields and <b>Tavily</b> checks them on the museum&rsquo;s website.{" "}
-          <b>Nemotron 3.5 Lightning</b> screens label text and contributions before they reach the shared catalog.
+        <p className="closing">
+          <b>Also in the app.</b>{" "}
+          <span className="quiet">
+            For a painting Artlog doesn&rsquo;t know, Nemotron 3 Super sorts the wall label&rsquo;s text into fields and
+            Tavily checks them on the museum&rsquo;s website. Nemotron 3.5 Lightning screens what people add. Every
+            Nemotron model runs on Nebius Token Factory.
+          </span>
         </p>
         <footer className="links">
           <ExternalLink href={REPO_URL}>Source on GitHub</ExternalLink>
-          <ExternalLink href={`${REPO_URL}#how-it-works`}>How it works</ExternalLink>
+          <ExternalLink href={`${REPO_URL}#how-it-works`}>Technical write-up</ExternalLink>
           {liveId && (
             <button type="button" className="text" onClick={end}>
               End session
