@@ -42,11 +42,11 @@ progress and uploads, so concurrent instances can exceed those two limits until 
 
 The page is served at https://artlog.dwjiang.com/demo by the Vercel project `artlog-www`, whose Root Directory is
 `www`; `api/demo.ts` serves the same API as the Vite servers. The project is connected to this repository: a push to
-`main` deploys to production and other branches get preview deployments, unless `ignoreCommand` in `vercel.json` finds
-no change under `www/`, `shared/`, or `assets/fonts/` since that branch's last successful deployment. If no previous
-deployment SHA is available, the build proceeds. Set `LIM_API_KEY` (and `DEMO_ACCESS_CODE` or `DEMO_APP_ASSET` when
-used) in the project's environment variables. Only Production has `LIM_API_KEY`, so preview deployments serve the
-page but not its API.
+`main` deploys to production, unless `ignoreCommand` in `vercel.json` finds no change under `www/`, `shared/`, or
+`assets/fonts/` since `main`'s last successful deployment. If no previous deployment SHA is available, the build
+proceeds. `git.deploymentEnabled` turns off deployments for every other branch, so pull requests get no preview; check
+a branch by running it locally. Set `LIM_API_KEY` (and `DEMO_ACCESS_CODE` or `DEMO_APP_ASSET` when used) in the
+project's Production environment variables.
 
 To deploy a local checkout without pushing, run from the repository root, so the function includes `shared/`:
 

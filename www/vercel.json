@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
   "outputDirectory": "dist",
+  "git": { "deploymentEnabled": { "**": false, "main": true } },
   "ignoreCommand": "test -n \"${VERCEL_GIT_PREVIOUS_SHA:-}\" && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- . ../shared ../assets/fonts || exit 1",
   "functions": {
     "api/demo.ts": { "maxDuration": 300, "includeFiles": "media/phone/**" }
