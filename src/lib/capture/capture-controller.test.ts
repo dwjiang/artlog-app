@@ -1,5 +1,6 @@
-import { CaptureController } from "./capture-controller";
-import { previewQuad, toCorners, type FrameSize } from "./rectangle";
+import { CaptureController, STEADY_CAPTURE_MS } from "./capture-controller";
+import type { DeviceMotion } from "./device-motion";
+import { MISS_GRACE_MS, previewQuad, STABLE_WINDOW_MS, toCorners, type FrameSize } from "./rectangle";
 import type { Quad } from "./stages";
 
 const frame = { width: 768, height: 1024 };
@@ -16,7 +17,14 @@ const small: Quad = [
   [0.35, 0.65],
 ];
 const shifted = (dx: number, dy = 0) => painting.map(([x, y]) => [x + dx, y + dy]) as Quad;
-function observe(controller: CaptureController, now: number, quads: Quad[] = [painting], preview: FrameSize = frame) {
+const aimed: DeviceMotion = { rotationRate: 0.05, upright: true };
+function observe(
+  controller: CaptureController,
+  now: number,
+  quads: Quad[] = [painting],
+  preview: FrameSize = frame,
+  motion?: DeviceMotion,
+) {
   return controller.observe(
     {
       ...frame,
@@ -27,13 +35,28 @@ function observe(controller: CaptureController, now: number, quads: Quad[] = [pa
     },
     preview,
     now,
+    motion,
   );
 }
 function hold(controller: CaptureController, from = 0, quads = [painting], preview = frame) {
-  for (let now = from; now < from + 800; now += 100) {
+  for (let now = from; now < from + STABLE_WINDOW_MS; now += 100) {
     expect(observe(controller, now, quads, preview)).toBeUndefined();
   }
-  return observe(controller, from + 800, quads, preview);
+  return observe(controller, from + STABLE_WINDOW_MS, quads, preview);
+}
+/** Holds the phone still on a view with `quads` until just before `until`, then observes at `until`. */
+function keepStill(
+  controller: CaptureController,
+  from: number,
+  until: number,
+  quads: Quad[] = [],
+  preview: FrameSize = frame,
+  motion: DeviceMotion | undefined = aimed,
+) {
+  for (let now = from; now < until; now += 100) {
+    expect(observe(controller, now, quads, preview, motion)).toBeUndefined();
+  }
+  return observe(controller, until, quads, preview, motion);
 }
 function failed(attempt = (controller: CaptureController) => hold(controller)!) {
   const controller = new CaptureController();
@@ -43,10 +66,10 @@ function failed(attempt = (controller: CaptureController) => hold(controller)!) 
   return controller;
 }
 
-it("captures once after 800 ms of steady framing and blocks overlapping imports and detections", () => {
+it("captures once after a steady window of framing and blocks overlapping imports and detections", () => {
   const controller = new CaptureController();
-  expect(hold(controller)).toMatchObject({ quad: painting, source: "camera" });
-  expect(observe(controller, 900)).toBeUndefined();
+  expect(hold(controller)).toMatchObject({ quad: painting, source: "camera", steady: false });
+  expect(observe(controller, STABLE_WINDOW_MS + 100)).toBeUndefined();
   expect(controller.begin("library")).toBeUndefined();
   expect(controller.begin("camera")).toBeUndefined();
   expect(controller.getSnapshot().phase).toBe("capturing");
@@ -66,8 +89,8 @@ it("starts a shutter capture without live corners and blocks overlapping work", 
 
 it("restarts stability after movement", () => {
   const controller = new CaptureController();
-  for (let now = 0; now < 800; now += 100) observe(controller, now);
-  expect(observe(controller, 800, [shifted(0.12, 0.12)])).toBeUndefined();
+  for (let now = 0; now < STABLE_WINDOW_MS; now += 100) observe(controller, now);
+  expect(observe(controller, STABLE_WINDOW_MS, [shifted(0.12, 0.12)])).toBeUndefined();
 });
 
 it("publishes preview-aligned corners and hold progress without rerendering the capture state", () => {
@@ -77,23 +100,23 @@ it("publishes preview-aligned corners and hold progress without rerendering the 
   const feedbackChanged = jest.fn();
   controller.subscribe(stateChanged);
   controller.subscribeFeedback(feedbackChanged);
-  for (let now = 0; now <= 400; now += 100) {
+  for (let now = 0; now <= 200; now += 100) {
     observe(controller, now, [painting], preview);
   }
   expect(controller.getFeedback()).toEqual({
     quad: previewQuad(painting, frame, preview),
-    progress: 0.5,
+    progress: 200 / STABLE_WINDOW_MS,
     guidance: "hold-still",
   });
   expect(feedbackChanged).toHaveBeenCalled();
   expect(stateChanged).not.toHaveBeenCalled();
-  observe(controller, 500, []);
-  expect(controller.getFeedback()?.progress).toBe(0.5);
-  observe(controller, 600);
-  expect(controller.getFeedback()?.progress).toBe(0.75);
-  observe(controller, 1000, []);
+  observe(controller, 300, []);
+  expect(controller.getFeedback()?.progress).toBe(200 / STABLE_WINDOW_MS);
+  observe(controller, 400);
+  expect(controller.getFeedback()?.progress).toBe(400 / STABLE_WINDOW_MS);
+  observe(controller, 500 + MISS_GRACE_MS, []);
   expect(controller.getFeedback()).toBeNull();
-  observe(controller, 1100);
+  observe(controller, 600 + MISS_GRACE_MS);
   expect(controller.getFeedback()?.progress).toBe(0);
   controller.resetDetection();
   expect(controller.getFeedback()).toBeNull();
@@ -101,15 +124,15 @@ it("publishes preview-aligned corners and hold progress without rerendering the 
 
 it("rides through a dropped or misplaced detection shorter than the grace period", () => {
   const dropped = new CaptureController();
-  for (let now = 0; now < 800; now += 100) {
-    expect(observe(dropped, now, now === 400 ? [] : [painting])).toBeUndefined();
+  for (let now = 0; now < STABLE_WINDOW_MS; now += 100) {
+    expect(observe(dropped, now, now === 200 ? [] : [painting])).toBeUndefined();
   }
-  expect(observe(dropped, 800)).toMatchObject({ quad: painting });
+  expect(observe(dropped, STABLE_WINDOW_MS)).toMatchObject({ quad: painting });
   const misplaced = new CaptureController();
-  for (let now = 0; now < 800; now += 100) {
-    expect(observe(misplaced, now, now === 400 ? [shifted(0.14)] : [painting])).toBeUndefined();
+  for (let now = 0; now < STABLE_WINDOW_MS; now += 100) {
+    expect(observe(misplaced, now, now === 200 ? [shifted(0.14)] : [painting])).toBeUndefined();
   }
-  expect(observe(misplaced, 800)).toMatchObject({ quad: painting });
+  expect(observe(misplaced, STABLE_WINDOW_MS)).toMatchObject({ quad: painting });
 });
 
 it("shows a visible but small painting with the framing hint and no capture progress", () => {
@@ -125,11 +148,11 @@ it("shows a visible but small painting with the framing hint and no capture prog
 it("keeps the framing hint through a dropped detection shorter than the grace period", () => {
   const controller = new CaptureController();
   observe(controller, 0, [small]);
-  for (let now = 100; now <= 300; now += 100) {
+  for (let now = 100; now <= MISS_GRACE_MS; now += 100) {
     observe(controller, now, []);
     expect(controller.getFeedback()?.guidance).toBe("move-closer");
   }
-  observe(controller, 400, []);
+  observe(controller, MISS_GRACE_MS + 100, []);
   expect(controller.getFeedback()).toBeNull();
 });
 
@@ -245,16 +268,16 @@ it("selects the largest eligible candidate from several rectangles", () => {
 
 it("requires a new full window after the candidate leaves the visible preview for longer than the grace period", () => {
   const controller = new CaptureController();
-  for (let now = 0; now < 800; now += 100) observe(controller, now);
-  observe(controller, 800, [], frame);
-  observe(controller, 1200, [], frame);
-  expect(hold(controller, 1300)).toBeDefined();
+  for (let now = 0; now < STABLE_WINDOW_MS; now += 100) observe(controller, now);
+  observe(controller, STABLE_WINDOW_MS, [], frame);
+  observe(controller, STABLE_WINDOW_MS + MISS_GRACE_MS + 100, [], frame);
+  expect(hold(controller, STABLE_WINDOW_MS + MISS_GRACE_MS + 200)).toBeDefined();
 });
 
-it("does not recapture an unchanged failure, even with another candidate present", () => {
+it("does not recapture an unchanged failure, even with another candidate present or the phone held still", () => {
   const controller = failed();
   for (let now = 900; now <= 5000; now += 100) {
-    expect(observe(controller, now, [painting, shifted(0.14, 0.14)])).toBeUndefined();
+    expect(observe(controller, now, [painting, shifted(0.14, 0.14)], frame, aimed)).toBeUndefined();
   }
   expect(controller.getSnapshot()).toMatchObject({
     phase: "retry",
@@ -311,9 +334,9 @@ it("keeps a shutter failure on screen until the artwork leaves the frame or the 
 
 it("pauses on focus loss or backgrounding and starts a fresh stability window", () => {
   const controller = new CaptureController();
-  for (let now = 0; now < 800; now += 100) observe(controller, now);
+  for (let now = 0; now < STABLE_WINDOW_MS; now += 100) observe(controller, now);
   controller.setActive(false);
-  expect(observe(controller, 800)).toBeUndefined();
+  expect(observe(controller, STABLE_WINDOW_MS)).toBeUndefined();
   expect(controller.begin("camera")).toBeUndefined();
   controller.setActive(true);
   expect(hold(controller, 900)).toBeDefined();
@@ -362,6 +385,89 @@ it("holds a failed import until the user chooses another photo or uses the camer
 it("does not count an unexplained gap in camera frames as steady detection", () => {
   const controller = new CaptureController();
   observe(controller, 0);
-  expect(observe(controller, 800)).toBeUndefined();
-  expect(hold(controller, 800)).toBeDefined();
+  expect(observe(controller, MISS_GRACE_MS + 100)).toBeUndefined();
+  expect(hold(controller, MISS_GRACE_MS + 100)).toBeDefined();
+});
+
+describe("holding the phone still", () => {
+  it.each(["canceled import", "result", "focus loss"])("rearms for a new scan after %s", (reason) => {
+    const controller = new CaptureController();
+    const attempt = controller.begin(reason === "canceled import" ? "library" : "camera")!;
+    if (reason === "result") controller.result(attempt);
+    controller.finish(attempt);
+    if (reason === "focus loss") controller.setActive(false);
+    controller.reset();
+    controller.setActive(true);
+    expect(keepStill(controller, 0, STEADY_CAPTURE_MS)).toMatchObject({ steady: true });
+  });
+
+  it("captures the whole view when no outline is found", () => {
+    const controller = new CaptureController();
+    expect(keepStill(controller, 0, STEADY_CAPTURE_MS)).toMatchObject({ source: "camera", quad: null, steady: true });
+    expect(controller.getSnapshot().phase).toBe("capturing");
+  });
+
+  it("captures the whole view when the outline never becomes capture-ready, such as one running off screen", () => {
+    const phone = { width: 390, height: 844 };
+    expect(keepStill(new CaptureController(), 0, STEADY_CAPTURE_MS, [painting], phone)).toMatchObject({
+      quad: null,
+      steady: true,
+    });
+  });
+
+  it("captures a capture-ready outline with its corners first", () => {
+    expect(keepStill(new CaptureController(), 0, STABLE_WINDOW_MS, [painting])).toMatchObject({
+      quad: painting,
+      steady: false,
+    });
+  });
+
+  it.each([
+    ["moving", { rotationRate: 0.5, upright: true }],
+    ["lying flat", { rotationRate: 0.01, upright: false }],
+    ["without motion sensors", undefined],
+  ])("does not capture while the phone is %s", (_case, motion) => {
+    const controller = new CaptureController();
+    for (let now = 0; now <= 3 * STEADY_CAPTURE_MS; now += 100) {
+      expect(observe(controller, now, [], frame, motion)).toBeUndefined();
+    }
+  });
+
+  it("starts the wait over when the phone moves or detection pauses", () => {
+    const controller = new CaptureController();
+    keepStill(controller, 0, 1000);
+    expect(observe(controller, 1100, [], frame, { rotationRate: 0.5, upright: true })).toBeUndefined();
+    expect(keepStill(controller, 1200, 1200 + STEADY_CAPTURE_MS)).toMatchObject({ steady: true });
+    const paused = new CaptureController();
+    keepStill(paused, 0, 1000);
+    expect(keepStill(paused, 1100 + MISS_GRACE_MS, 1100 + MISS_GRACE_MS + STEADY_CAPTURE_MS)).toMatchObject({
+      steady: true,
+    });
+  });
+
+  it("fails silently and waits for the phone to move before capturing the same view again", () => {
+    const controller = new CaptureController();
+    const attempt = keepStill(controller, 0, STEADY_CAPTURE_MS)!;
+    controller.fail(attempt, "Hold steady and try again");
+    controller.finish(attempt);
+    expect(controller.getSnapshot()).toMatchObject({
+      phase: "searching",
+      occupied: false,
+      message: undefined,
+      rearm: undefined,
+    });
+    for (let now = STEADY_CAPTURE_MS + 100; now <= 5000; now += 100) {
+      expect(observe(controller, now, [], frame, aimed)).toBeUndefined();
+    }
+    observe(controller, 5100, [], frame, { rotationRate: 0.5, upright: true });
+    expect(keepStill(controller, 5200, 5200 + STEADY_CAPTURE_MS)).toMatchObject({ steady: true });
+  });
+
+  it("keeps capturing framed outlines while it waits for the phone to move", () => {
+    const controller = new CaptureController();
+    const attempt = keepStill(controller, 0, STEADY_CAPTURE_MS)!;
+    controller.fail(attempt, "Hold steady and try again");
+    controller.finish(attempt);
+    expect(hold(controller, STEADY_CAPTURE_MS + 100)).toMatchObject({ quad: painting, steady: false });
+  });
 });

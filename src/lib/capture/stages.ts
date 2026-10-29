@@ -61,7 +61,8 @@ export type CapturePayload = Omit<FunctionArgs<typeof api.identify.identify>, "s
   contentBounds: CropContentBounds;
   visitLocalId?: string;
 };
-export type CaptureInput = Pick<CapturePayload, "capturedAt" | "venueId" | "visitId" | "visitLocalId"> & {
+export type VenueContext = Pick<CapturePayload, "venueId" | "visitId" | "visitLocalId">;
+export type CaptureInput = Pick<CapturePayload, "capturedAt"> & {
   photoUri: string;
   quad: Quad | null;
   source: "camera" | "library";
@@ -69,6 +70,8 @@ export type CaptureInput = Pick<CapturePayload, "capturedAt" | "venueId" | "visi
   turns?: number;
   /** The preview a camera photo was framed on. */
   view?: { width: number; height: number };
+  /** The museum and visit the capture belongs to. A location fix can take seconds, so the photo is cropped meanwhile. */
+  context?: Promise<VenueContext>;
 };
 export type CaptureTimings = Partial<
   Record<"warp" | "embed" | "rank" | "triage" | "orb" | "identify" | "enqueue", number>
@@ -103,6 +106,8 @@ export type CaptureDependencies = {
   /** Online only; without it, the likeliest boundary is identified. */
   rankCrops?: (vectors: number[][], venueId: CapturePayload["venueId"]) => Promise<number>;
   isOnline: () => boolean;
+  /** Cancels an abandoned attempt before persistence begins. */
+  isCurrent?: () => boolean;
   recognizeOffline?: (payload: CapturePayload) => Promise<void>;
   /** Syncs a visit's pending edits before identification uses its museum, including visits with an existing remote ID. */
   resolveVisitId?: (visitLocalId: string) => Promise<CapturePayload["visitId"]>;
