@@ -44,6 +44,7 @@ it("shows a soft match as a maybe without prose", () => {
     editable: true,
   });
   expect(view.docent).toBeUndefined();
+  expect(view.picked).toBeUndefined();
 });
 
 it("leaves a miss unidentified with every candidate offered as a suggestion", () => {
@@ -54,12 +55,13 @@ it("leaves a miss unidentified with every candidate offered as a suggestion", ()
   expect(view.editable).toBe(true);
 });
 
-it("promotes a chosen runner-up to a maybe and restores the original match among the suggestions", () => {
+it("names a chosen runner-up as the owner's pick, saved as a maybe, and restores the original match among the suggestions", () => {
   const view = toResultViewState(confidentScan, {
     chosenObjectId: bridge.objectId,
   });
   expect(view).toMatchObject({
     kind: "soft",
+    picked: true,
     primary: bridge,
     runnerUps: [lilies, haystacks],
   });
@@ -81,10 +83,12 @@ it("shows each candidate once even when the primary also appears in the runner-u
 });
 
 it("ignores a chosen id that is not among the candidates", () => {
-  expect(toResultViewState(softScan, { chosenObjectId: "obj-unknown" as never })).toMatchObject({
+  const view = toResultViewState(softScan, { chosenObjectId: "obj-unknown" as never });
+  expect(view).toMatchObject({
     kind: "soft",
     primary: softScan.best,
   });
+  expect(view.picked).toBeUndefined();
 });
 
 it("passes unsupported and failed scans through with their errors", () => {

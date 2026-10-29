@@ -13,7 +13,7 @@ export type NotRightSheetProps = {
   open: boolean;
   onDismiss: () => void;
   runnerUps: ResultCandidate[];
-  onPick: (candidate: ResultCandidate) => void;
+  onOpen: (candidate: ResultCandidate) => void;
   onLabel: () => void;
   onManual?: () => void;
   onSavePhoto?: () => void;
@@ -25,7 +25,7 @@ export function NotRightSheet({
   open,
   onDismiss,
   runnerUps,
-  onPick,
+  onOpen,
   onLabel,
   onManual,
   onSavePhoto,
@@ -91,7 +91,7 @@ export function NotRightSheet({
                   {notice}
                 </ThemedText>
               )}
-              {hasRunnerUps && <RunnerUps candidates={runnerUps} onPick={onPick} />}
+              {hasRunnerUps && <RunnerUps candidates={runnerUps} onOpen={onOpen} />}
             </View>
             {scrollAll && footer}
           </ScrollView>

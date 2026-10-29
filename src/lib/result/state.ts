@@ -19,6 +19,8 @@ export type ResultViewState = {
   confirmed?: ConfirmedResult;
   /** Where the owner named the catalogue work this card shows, when recognition didn't. */
   linked?: ConfirmedSource;
+  /** The owner chose the named work from the other matches; it stays a soft match for saving. */
+  picked?: boolean;
   runnerUps: ResultCandidate[];
   docent?: DocentSentence[];
   docentStatus?: DocentStatus;
@@ -110,15 +112,17 @@ export function toResultViewState(
 
   const chosenObjectId = scan.linked ? undefined : selection.chosenObjectId;
   const { primary, runnerUps } = selectResultCandidates(scan, chosenObjectId);
+  const picked = !!primary && primary.objectId === chosenObjectId;
   const kind: ResultKind = !primary
     ? "unidentified"
-    : primary.objectId === chosenObjectId || primary.identityStatus === "tentative" || scan.outcome !== "confident"
+    : picked || primary.identityStatus === "tentative" || scan.outcome !== "confident"
       ? "soft"
       : "confident";
   return {
     kind,
     primary,
     runnerUps,
+    ...(picked ? { picked } : {}),
     linked: scan.linked?.source,
     editable: true,
     ...(kind === "confident"

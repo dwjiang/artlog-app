@@ -41,7 +41,8 @@ type ResultCardProps = {
   /** Opens the details screen for an unidentified, confirmed or linked card; without it, details are edited in place. */
   onEnterDetails?: () => void;
   onRetryDocent?: () => Promise<unknown>;
-  onPick: (candidate: ResultCandidate) => void;
+  /** Opens another match's preview; choosing it happens there. */
+  onOpenMatch: (candidate: ResultCandidate) => void;
   onEdit: () => void;
   onSave: (draft: SnapshotDraft) => void;
   onSavePhoto: () => void;
@@ -65,7 +66,7 @@ export function ResultCard({
   onLabel,
   onEnterDetails,
   onRetryDocent,
-  onPick,
+  onOpenMatch,
   onEdit,
   onSave,
   onSavePhoto,
@@ -85,7 +86,9 @@ export function ResultCard({
   useLiftToasts(saveBarHeight, useIsFocused());
   const editable = !saving && !savedId;
   const named = view.kind === "confident" || view.kind === "confirmed";
-  const attributed = !editingDetails && view.kind !== "soft";
+  // A work the owner picked from the other matches reads as named, without the story recognition would bring.
+  const settled = named || !!view.picked;
+  const attributed = !editingDetails && (view.kind !== "soft" || !!view.picked);
   const suggestions = editable && view.kind !== "confident" ? view.runnerUps : [];
   // A suggested work keeps its catalogue link while its details are corrected in place; a work the owner named
   // from a label or their details goes back to where they named it.
@@ -104,13 +107,15 @@ export function ResultCard({
   const details = (
     <>
       <ArtworkIdentity
-        title={view.kind === "soft" ? `Could this be ${draft.title}?` : draft.title || "Unidentified artwork"}
+        title={
+          view.kind === "soft" && !view.picked ? `Could this be ${draft.title}?` : draft.title || "Unidentified artwork"
+        }
         artist={attributed ? draft.artist : undefined}
         date={attributed ? draft.date : undefined}
-        medium={!editingDetails && named ? draft.medium : undefined}
-        institution={!editingDetails && named ? draft.institution : undefined}
+        medium={!editingDetails && settled ? draft.medium : undefined}
+        institution={!editingDetails && settled ? draft.institution : undefined}
       />
-      {!named && !manual && (
+      {!settled && !manual && (
         <View style={styles.recovery}>
           <ThemedText themeColor="textSecondary">
             {view.primary
@@ -166,7 +171,7 @@ export function ResultCard({
       {suggestions.length > 0 && (
         <View style={styles.section}>
           <HighlightHeading>Other possibilities</HighlightHeading>
-          <RunnerUps candidates={suggestions} onPick={onPick} />
+          <RunnerUps candidates={suggestions} onOpen={onOpenMatch} />
         </View>
       )}
       {context}
@@ -185,7 +190,7 @@ export function ResultCard({
               Edit Details
             </Stack.Toolbar.MenuAction>
           )}
-          {view.kind === "confident" && (
+          {(view.kind === "confident" || view.picked) && (
             <Stack.Toolbar.MenuAction icon="text.viewfinder" disabled={!editable} onPress={onLabel}>
               Scan the Label
             </Stack.Toolbar.MenuAction>
@@ -232,7 +237,9 @@ export function ResultCard({
           saving={saving}
           savedId={savedId}
           error={saveError}
-          saveLabel={savePhotoOnly ? "Save photo for later" : named ? "Save to collection" : "Save with these details"}
+          saveLabel={
+            savePhotoOnly ? "Save photo for later" : settled ? "Save to collection" : "Save with these details"
+          }
           onSave={() => (savePhotoOnly ? onSavePhoto() : onSave(draft))}
           onViewSaved={onViewSaved}
           visit={visit}
@@ -248,7 +255,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.content,
     paddingTop: Spacing.two,
     paddingBottom: Spacing.four,
-    gap: Spacing.three,
+    // Keeps the status row under the photo close to the title it qualifies.
+    gap: Spacing.two,
   },
   columns: { flexDirection: "row", alignItems: "flex-start", gap: Spacing.content },
   aside: { width: "40%" },
