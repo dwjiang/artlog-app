@@ -361,7 +361,7 @@ it("keeps the sources sheet open through portrait and landscape rotation", async
       expect(screen.getByRole("header", { name: "Sources" })).toBeOnTheScreen();
       expect(screen.getByRole("link", { name: "The Met" })).toBeOnTheScreen();
     }
-    await fireEvent.press(screen.getByRole("button", { name: "Done" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("header", { name: "Sources" })).toBeNull();
   } finally {
     await act(() => Dimensions.set({ window: original }));
@@ -877,7 +877,7 @@ it("waits for the device before querying and shows the unsupported, failed and q
 it("saves an unsupported scan anyway with a typed title and keeps its scan id", async () => {
   results.set("scans:get", unsupportedScan);
   await render(result());
-  await fireEvent.press(await screen.findByRole("button", { name: "Add details (optional)" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Add Details (Optional)" }));
   await fireEvent.changeText(await screen.findByLabelText("Title"), "Blue room");
   await fireEvent.press(
     screen.getByRole("button", {

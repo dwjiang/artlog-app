@@ -109,6 +109,10 @@ Interface writing:
 - Do state privacy, consent, saving behavior, uncertainty, and recovery
   where a choice depends on them; reassurance alone is not information.
 - Do use natural contractions; warmth comes from clear, helpful wording.
+- Do write navigation, screen, and sheet titles, menu items, and alert and
+  action-sheet buttons in Apple title case (“Remove from Collection…”); headings,
+  body copy, captions, empty states, and question alert titles stay in sentence
+  case. Write dates as “Oct 29, 2026” and attribution as “Artist · 1889”.
 - Do let lettering within an illustration remain part of its visual design.
 - Don't imply a save or share succeeded before it has completed.
 - Don't add captions, helper text, or chips by default or to fill space. Keep
@@ -124,6 +128,10 @@ Behavior and privacy:
   failures; show an empty state only after loading completes.
 - Do keep busy actions labeled and in place, block duplicate activation, and
   announce progress.
+- Do close a sheet with nothing to save with an X at its top trailing edge.
+  Unsaved edits put Cancel (Back on a pushed form) at the bar's leading edge and
+  the commit (Save, Post) at its trailing edge. An edit mode on a page ends with
+  Done.
 - Do give every component VoiceOver labels, selected, busy, and disabled states,
   and gesture alternatives.
 - Don't let private notes, reflections, or unselected photos enter a sharing

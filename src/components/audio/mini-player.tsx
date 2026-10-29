@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { CompactBarMaxTextScale, Gallery } from "@/constants/theme";
 import { GUIDE_SECTION_TITLES, guideProgress, sectionAt } from "@/lib/audio/guide-timeline";
 import { canSeekTo } from "@/lib/audio/listening-controller";
 import { preparationLabel } from "@/lib/audio/narration-preparation";
@@ -79,10 +79,10 @@ function PlayerSummary({
   children: ReactNode;
 }) {
   const queueActions: { name: string; label: string; icon: LinkMenuActionProps["icon"]; run: () => void }[] = [
-    { name: "upNext", label: "Up next", icon: "list.bullet", run: () => openPlayer("queue") },
-    { name: "restart", label: "Restart narration", icon: "arrow.counterclockwise", run: audio.controller.restart },
+    { name: "upNext", label: "Up Next", icon: "list.bullet", run: () => openPlayer("queue") },
+    { name: "restart", label: "Restart Narration", icon: "arrow.counterclockwise", run: audio.controller.restart },
   ];
-  const stop = { name: "stop", label: "Stop listening", run: audio.controller.stop };
+  const stop = { name: "stop", label: "Stop Listening", run: audio.controller.stop };
   const actions = [...queueActions, stop];
   return (
     <Link href={{ pathname: "/now-playing", params: { view: "player" } }} push asChild>
@@ -131,22 +131,34 @@ export function MiniPlayer() {
         <ArtworkThumbnail uri={imageUri} size={32} />
         <View style={{ flex: 1, gap: 2 }}>
           {/* Native colors follow the glass accessory's contrast, even while the app stays in light mode. */}
-          <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: "600", color: Color.ios.label }}>
+          <Text
+            numberOfLines={1}
+            maxFontSizeMultiplier={CompactBarMaxTextScale}
+            style={{ fontSize: 14, fontWeight: "600", color: Color.ios.label }}
+          >
             {title}
           </Text>
           {status ? (
-            <Text numberOfLines={1} style={byline}>
+            <Text numberOfLines={1} maxFontSizeMultiplier={CompactBarMaxTextScale} style={byline}>
               {status}
             </Text>
           ) : (
             // A long artist name gives way so the section always reads in full.
             <View style={{ flexDirection: "row" }}>
               {!!artist && (
-                <Text numberOfLines={1} style={[byline, { flexShrink: 1 }]}>
+                <Text
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={CompactBarMaxTextScale}
+                  style={[byline, { flexShrink: 1 }]}
+                >
                   {artist}
                 </Text>
               )}
-              {sectionTitle && <Text style={byline}>{artist ? ` · ${sectionTitle}` : sectionTitle}</Text>}
+              {sectionTitle && (
+                <Text maxFontSizeMultiplier={CompactBarMaxTextScale} style={byline}>
+                  {artist ? ` · ${sectionTitle}` : sectionTitle}
+                </Text>
+              )}
             </View>
           )}
         </View>
@@ -165,7 +177,7 @@ export function MiniPlayer() {
 }
 const styles = StyleSheet.create({
   row: {
-    minHeight: MINI_PLAYER_HEIGHT,
+    height: MINI_PLAYER_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
     paddingLeft: 14,

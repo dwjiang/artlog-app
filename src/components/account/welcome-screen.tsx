@@ -25,12 +25,7 @@ import { Fonts, Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { setSetting } from "@/db/repos/settings";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { WELCOME_SEEN_SETTING } from "@/lib/account/introduction";
-import {
-  setLocalProfileAvatar,
-  setLocalProfileName,
-  setLocalProfilePhoto,
-  useLocalProfile,
-} from "@/lib/account/local-profile";
+import { setLocalProfileName, setLocalProfilePicture, useLocalProfile } from "@/lib/account/local-profile";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { profileSetupRoute, takeProfileSetupOffer } from "@/lib/account/profile-setup-offer";
 import { answerSafetyChecks } from "@/lib/account/safety-checks-answer";
@@ -158,8 +153,7 @@ export function WelcomeScreen() {
     try {
       await setLocalProfileName(name);
       saved = "picture";
-      if (picture?.kind === "photo") await setLocalProfilePhoto(picture.uri);
-      if (picture?.kind === "avatar") await setLocalProfileAvatar(picture.avatar);
+      await setLocalProfilePicture(picture);
       commit();
       await setSetting(WELCOME_SEEN_SETTING, "true");
       router.back();

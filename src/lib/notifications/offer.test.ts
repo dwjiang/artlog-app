@@ -22,11 +22,29 @@ it("offers notifications once, the first time a reply is worth hearing about", a
   jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(0));
 
   offerNotifications();
-  await waitFor(() => expect(router.push).toHaveBeenCalledWith("/turn-on-notifications"));
-  offerNotifications();
+  await waitFor(() =>
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/turn-on-notifications",
+      params: { ask: "notifications" },
+    }),
+  );
+  offerNotifications("exhibitionReminders");
   await waitFor(async () => expect(Notifications.getPermissionsAsync).toHaveBeenCalledTimes(1));
 
   expect(router.push).toHaveBeenCalledTimes(1);
+});
+
+it("opens the offer with the ask of the action that raised it", async () => {
+  jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(0));
+
+  offerNotifications("exhibitionReminders");
+
+  await waitFor(() =>
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/turn-on-notifications",
+      params: { ask: "exhibitionReminders" },
+    }),
+  );
 });
 
 it("never offers once the person has answered the iOS prompt", async () => {

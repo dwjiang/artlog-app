@@ -1,16 +1,16 @@
 import { Host, Icon, Row, Text as NativeText } from "@expo/ui";
 import { Group } from "@expo/ui/swift-ui";
-import { contentShape, font, frame, menuOrder, shapes } from "@expo/ui/swift-ui/modifiers";
+import { contentShape, dynamicTypeSize, font, frame, menuOrder, shapes } from "@expo/ui/swift-ui/modifiers";
 import Slider from "@react-native-community/slider";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, StyleSheet, View } from "react-native";
 import Animated, { type SharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { NativeChoiceMenu } from "@/components/choice-menu";
 import { LoadingRing } from "@/components/loading-ring";
 import { MotionPressable } from "@/components/motion-pressable";
-import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { TextScaleLimit, ThemedText as Text, useTextScale } from "@/components/themed-text";
+import { CompactBarMaxTextScale, CompactBarMaxTypeSize, Gallery, Radius, Spacing } from "@/constants/theme";
 import { type GuideTimeline, guideParts, guideProgress, sectionAt } from "@/lib/audio/guide-timeline";
 import { canSeekTo, type ListeningState } from "@/lib/audio/listening-controller";
 import { audioTime } from "@/lib/audio/narration";
@@ -27,7 +27,12 @@ export type PlayerView = "player" | "queue" | "transcript" | "saved";
 type TransportProps = { view: PlayerView; onView: (view: PlayerView) => void };
 export function PlayerTransport(props: TransportProps) {
   const audio = useListening();
-  return <Transport key={`${audio.current?.work.artworkId}:${audio.renderId}`} {...props} audio={audio} />;
+  return (
+    // Pinned under a list, the panel stops growing at accessibility sizes like a tab bar, so the list keeps room above.
+    <TextScaleLimit max={CompactBarMaxTextScale}>
+      <Transport key={`${audio.current?.work.artworkId}:${audio.renderId}`} {...props} audio={audio} />
+    </TextScaleLimit>
+  );
 }
 
 function Transport({ view, onView, audio }: TransportProps & { audio: ReturnType<typeof useListening> }) {
@@ -248,12 +253,12 @@ function SectionMenu({
   audio: ListeningState;
   onSelect: (start: number) => void;
 }) {
-  const { fontScale } = useWindowDimensions();
+  const textScale = useTextScale();
   const { sections } = timeline;
   return (
     <Host matchContents colorScheme="light">
       {/* The menu opens upward; a fixed order still lists the sections in the order they are spoken. */}
-      <Group modifiers={[menuOrder("fixed")]}>
+      <Group modifiers={[menuOrder("fixed"), dynamicTypeSize({ max: CompactBarMaxTypeSize })]}>
         <NativeChoiceMenu
           label="Section"
           value={current}
@@ -275,7 +280,7 @@ function SectionMenu({
             >
               {sections.find(({ section }) => section === current)?.title}
             </NativeText>
-            <Icon name="chevron.up.chevron.down" size={11 * fontScale} color={Gallery.muted} />
+            <Icon name="chevron.up.chevron.down" size={11 * textScale} color={Gallery.muted} />
           </Row>
         </NativeChoiceMenu>
       </Group>

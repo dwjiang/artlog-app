@@ -27,14 +27,16 @@ const mockController = {
 };
 const mockOpenPlayer = jest.fn();
 let mockAudio: ListeningState;
-let mockEnrichment: { narrationAvailable: boolean; narrationFacts?: typeof facts; narrationResearchUpdatedAt?: number };
+let mockEnrichment:
+  | { narrationAvailable: boolean; narrationFacts?: typeof facts; narrationResearchUpdatedAt?: number }
+  | undefined;
 let mockCachedDuration: number | undefined;
 
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("@/lib/ui/haptics");
 jest.mock("convex/react", () => ({
   useQueries: () => ({
-    enrichment: { ...mockEnrichment, narrationOpening: opening },
+    enrichment: mockEnrichment && { ...mockEnrichment, narrationOpening: opening },
   }),
 }));
 jest.mock("@/lib/audio/use-listening", () => ({
@@ -81,6 +83,18 @@ it("starts the artwork guide and opens its player from the listen row", async ()
     }),
   });
   expect(mockOpenPlayer).toHaveBeenCalledTimes(1);
+});
+
+it("holds the listen row in place, disabled, until the guide's availability is known", async () => {
+  mockEnrichment = undefined;
+  const view = await render(<ListenActions artworkId={artworkId} title="Water Lilies" artist="Claude Monet" />);
+  expect(screen.getByRole("button", { name: "Play audio guide" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Add to queue" })).toBeDisabled();
+  await fireEvent.press(screen.getByRole("button", { name: "Play audio guide" }));
+  expect(mockController.play).not.toHaveBeenCalled();
+  mockEnrichment = { narrationAvailable: false };
+  await view.rerender(<ListenActions artworkId={artworkId} title="Water Lilies" artist="Claude Monet" />);
+  expect(screen.queryByRole("button", { name: "Play audio guide" })).toBeNull();
 });
 
 it("omits the time instead of estimating when audio has not been cached", async () => {

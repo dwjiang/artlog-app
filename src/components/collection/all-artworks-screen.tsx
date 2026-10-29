@@ -27,7 +27,6 @@ function AllArtworks({ onRetry }: { onRetry: () => void }) {
             {data.works.length} {data.works.length === 1 ? "artwork" : "artworks"}
           </ThemedText>
           <SearchField
-            filled
             label="Search artworks"
             placeholder="Title, artist, date or place"
             showLabel={false}

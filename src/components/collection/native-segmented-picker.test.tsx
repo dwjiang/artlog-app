@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
+import { dynamicTypeSizeCaps } from "@/components/dynamic-type-test-utils";
+import { CompactBarMaxTypeSize } from "@/constants/theme";
 import { playSelectionHaptic } from "@/lib/ui/haptics";
 
 import { NativeSegmentedPicker } from "./native-segmented-picker";
@@ -72,4 +74,19 @@ it("ticks only when a tap moves the selection to another segment", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Visits", selected: false }));
   expect(playSelectionHaptic).toHaveBeenCalledTimes(1);
   expect(onChange).toHaveBeenLastCalledWith("visits");
+});
+
+it("stops a single row's labels growing at the largest standard size, so they stay side by side", async () => {
+  const options = [
+    { value: "wall", label: "Wall" },
+    { value: "visits", label: "Visits" },
+  ];
+  await render(<NativeSegmentedPicker label="Collection view" value="wall" options={options} onChange={jest.fn()} />);
+  expect(dynamicTypeSizeCaps(screen.getByText("Visits"))).toEqual([]);
+  await screen.rerender(
+    <NativeSegmentedPicker singleRow label="Collection view" value="wall" options={options} onChange={jest.fn()} />,
+  );
+  expect(dynamicTypeSizeCaps(screen.getByText("Visits"))).toEqual([
+    expect.objectContaining({ max: CompactBarMaxTypeSize }),
+  ]);
 });

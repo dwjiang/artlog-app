@@ -1,8 +1,6 @@
-import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { EmptyState } from "@/components/empty-state";
-import { LoadingImage } from "@/components/loading-image";
 import { MotionPressable } from "@/components/motion-pressable";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { StateScreen } from "@/components/social/social-state";
@@ -14,17 +12,16 @@ import { exhibitionById, museumById, useExhibitions } from "@/lib/explore/use-ex
 import { useWantToSee } from "@/lib/explore/want-to-see";
 import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 
-import { DetailActions, FactRow, openSourcePage, StatusChip } from "./detail-parts";
+import { DetailActions, FactRow, LocationPreview, openSourcePage, StatusChip } from "./detail-parts";
+import { HeaderPhoto, LINK_PREVIEW_ASPECT } from "./explore-image";
 import { openMuseum } from "./explore-routes";
 import { ExploreState } from "./explore-state";
 import { FriendStack } from "./friend-stack";
-import { LocationMap } from "./location-map";
 
 export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
   const explore = useExhibitions([exhibitionId]);
   const wantToSee = useWantToSee();
   const width = useSafeAreaWidth();
-  const [aspect, setAspect] = useState(1);
   const { data } = explore;
   const exhibition = data && exhibitionById(data, exhibitionId);
   const museum = data && exhibition && museumById(data, exhibition.museumId);
@@ -39,7 +36,7 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
   }
   const status = exhibitionStatus(exhibition, data.today);
   const saved = wantToSee.saved.has(exhibition.id);
-  const imageWidth = width - Spacing.content * 2;
+  const { image } = exhibition;
   const host = new URL(exhibition.sourceUrl).hostname.replace(/^www\./, "");
   return (
     <SafeAreaScrollView
@@ -51,7 +48,7 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
       onScroll={onScroll}
       scrollEventThrottle={16}
     >
-      {exhibition.image && (
+      {image && (
         // Credits the page the image came from; the image file itself is often on a CDN with an opaque host.
         <MotionPressable
           accessibilityRole="link"
@@ -60,12 +57,11 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
           onPress={() => openSourcePage(exhibition.sourceUrl, "explore.exhibition_page")}
           style={styles.image}
         >
-          <LoadingImage
-            uri={exhibition.image.uri}
-            label={exhibition.image.label}
-            contentFit="contain"
-            onLoad={({ source }) => setAspect(source.width / source.height)}
-            style={{ width: imageWidth, height: imageWidth / aspect }}
+          <HeaderPhoto
+            uri={image.uri}
+            label={image.label}
+            width={width - Spacing.content * 2}
+            fallbackAspect={LINK_PREVIEW_ASPECT}
           />
           <Text variant="metadata" themeColor="textSecondary">{`Image from ${host}`}</Text>
         </MotionPressable>
@@ -111,7 +107,7 @@ export function ExhibitionScreen({ exhibitionId }: { exhibitionId: string }) {
         </View>
         {museum && (
           <View style={styles.location}>
-            <LocationMap museum={museum} />
+            <LocationPreview museum={museum} />
             <Text variant="secondary" themeColor="textSecondary">
               {museum.distance ? `${museum.name} · ${museum.distance} away` : museum.name}
             </Text>

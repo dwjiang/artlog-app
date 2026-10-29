@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import type { ReactElement } from "react";
 import { Alert } from "react-native";
 
 import { getSavedWork, insertSavedWork } from "@/db/repos/saved-works";
@@ -43,6 +44,7 @@ jest.mock("expo-router", () => {
     <View accessibilityLabel={accessibilityLabel ?? "Menu section"}>{children as never}</View>
   );
   return {
+    router: { push: (...args: unknown[]) => mockPush(...args) },
     useRouter: () => ({ back: mockBack, push: mockPush }),
     Stack: {
       Toolbar: Object.assign(Group, {
@@ -71,10 +73,24 @@ beforeAll(async () => {
 });
 beforeEach(() => jest.clearAllMocks());
 
+/** Renders once the artwork has loaded, which enables its photo's Share button. */
+async function renderLoaded(toolbar: ReactElement) {
+  const view = await render(toolbar);
+  await waitFor(() => expect(screen.getByRole("button", { name: "Share artwork" })).toBeEnabled());
+  return view;
+}
+
+it("shows the header actions, disabled, before the artwork loads", async () => {
+  await render(<SavedWorkToolbar savedId="missing" />);
+  expect(screen.getByRole("button", { name: "Share artwork" })).toBeDisabled();
+  expect(screen.getByLabelText("More options")).toBeOnTheScreen();
+  expect(screen.queryByRole("button", { name: "Add Photos" })).toBeNull();
+});
+
 it("offers an undo window before deletion and returns to the collection", async () => {
   const alert = jest.spyOn(Alert, "alert");
-  await render(<SavedWorkToolbar savedId="plain" />);
-  await fireEvent.press(await screen.findByRole("button", { name: "Remove from Collection…" }));
+  await renderLoaded(<SavedWorkToolbar savedId="plain" />);
+  await fireEvent.press(screen.getByRole("button", { name: "Remove from Collection…" }));
   expect(scheduleRemoval).not.toHaveBeenCalled();
   const confirm = alert.mock.calls.at(-1)?.[2]?.find((button) => button.style === "destructive");
   expect(confirm).toBeDefined();
@@ -85,8 +101,8 @@ it("offers an undo window before deletion and returns to the collection", async 
 });
 
 it("shares the artwork photo and keeps sharing unavailable without one", async () => {
-  const view = await render(<SavedWorkToolbar savedId="plain" />);
-  await fireEvent.press(await screen.findByRole("button", { name: "Share artwork" }));
+  const view = await renderLoaded(<SavedWorkToolbar savedId="plain" />);
+  await fireEvent.press(screen.getByRole("button", { name: "Share artwork" }));
   expect(mockShare).toHaveBeenCalledWith("file:///documents/crops/plain.jpg", {
     dialogTitle: "Untitled",
   });
@@ -95,8 +111,8 @@ it("shares the artwork photo and keeps sharing unavailable without one", async (
 });
 
 it("routes editing actions from the overflow menu", async () => {
-  await render(<SavedWorkToolbar savedId="plain" visitId="visit-1" />);
-  await fireEvent.press(await screen.findByRole("button", { name: "Add Photos" }));
+  await renderLoaded(<SavedWorkToolbar savedId="plain" visitId="visit-1" />);
+  await fireEvent.press(screen.getByRole("button", { name: "Add Photos" }));
   expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/add-photos",
     params: {

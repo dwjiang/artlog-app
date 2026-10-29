@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 
+import { CompactBarMaxTextScale } from "@/constants/theme";
 import { guideTimeline } from "@/lib/audio/guide-timeline";
 
 import type { GuideSentence } from "../../../convex/lib/validators";
@@ -98,4 +100,25 @@ it("keeps the script still until its audio can seek", async () => {
   mockAudio.phase = "loading";
   await render(<GuideFollowAlong />);
   expect(screen.getByRole("button", { name: "Ann Lee painted this harbor." })).toBeDisabled();
+});
+
+type HostElement = ReturnType<typeof screen.getByText>;
+
+// The largest a text grows: its font size times the nearest scale cap set on it or on the text around it.
+function largestFontSize(element: HostElement) {
+  const { fontSize } = StyleSheet.flatten(element.props.style);
+  for (let node: HostElement | null = element; node; node = node.parent) {
+    if (node.props.maxFontSizeMultiplier) return fontSize * node.props.maxFontSizeMultiplier;
+  }
+  return Infinity;
+}
+
+it("stops the heading and its Report at bar size and the script at a native body line's size, so both fit above pinned controls", async () => {
+  await render(<GuideFollowAlong />);
+  for (const line of [screen.getByText("Harbor"), screen.getByText("Ann Lee · 1901"), screen.getByText("Report")]) {
+    expect(line.props.maxFontSizeMultiplier).toBeLessThanOrEqual(CompactBarMaxTextScale);
+  }
+  // 40 points is a native body line at the middle accessibility size.
+  for (const { sentence } of guide) expect(largestFontSize(screen.getByText(sentence))).toBeLessThanOrEqual(40);
+  for (const header of screen.getAllByRole("header")) expect(largestFontSize(header)).toBeLessThanOrEqual(40);
 });

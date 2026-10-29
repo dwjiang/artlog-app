@@ -392,7 +392,7 @@ it("keeps a guest on the consent page when saving their changed answer fails", a
 });
 
 it("saves a chosen photo with the name, and keeps the name page usable when Photos fails", async () => {
-  const savePhoto = jest.spyOn(localProfile, "setLocalProfilePhoto").mockResolvedValue();
+  const savePicture = jest.spyOn(localProfile, "setLocalProfilePicture").mockResolvedValue();
   const failure = new Error("Picker unavailable");
   jest.mocked(chooseProfilePhoto).mockRejectedValueOnce(failure).mockResolvedValueOnce("file:///cache/me.jpg");
   await render(<WelcomeScreen />);
@@ -407,17 +407,16 @@ it("saves a chosen photo with the name, and keeps the name page usable when Phot
   expect(await screen.findByText("Your photo")).toBeOnTheScreen();
   expect(screen.queryByRole("alert")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Save" }));
-  expect(savePhoto).not.toHaveBeenCalled();
+  expect(savePicture).not.toHaveBeenCalled();
 
   await fireEvent.changeText(screen.getByLabelText("Name"), "Alex");
   await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
-  expect(savePhoto).toHaveBeenCalledWith("file:///cache/me.jpg");
+  expect(savePicture).toHaveBeenCalledWith({ kind: "photo", uri: "file:///cache/me.jpg" });
   expect(await getLocalProfileName()).toBe("Alex");
 });
 
 it("saves a picked painting with the name", async () => {
-  const saveAvatar = jest.spyOn(localProfile, "setLocalProfileAvatar").mockResolvedValue();
   await render(<WelcomeScreen />);
   await reachNamePage();
   await fireEvent.press(screen.getByRole("button", { name: "Change picture" }));
@@ -426,5 +425,5 @@ it("saves a picked painting with the name", async () => {
   await fireEvent.changeText(screen.getByLabelText("Name"), "Alex");
   await fireEvent.press(screen.getByRole("button", { name: "Continue" }));
   await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
-  expect(saveAvatar).toHaveBeenCalledWith("klee");
+  expect(await settings.getSetting("local-profile-avatar")).toBe("klee");
 });

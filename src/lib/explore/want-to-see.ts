@@ -26,18 +26,18 @@ async function confirmSave(exhibition: Exhibition) {
   const permission = await notificationPermission();
   // The offer's own page explains reminders before iOS asks.
   if (permission === "undetermined") {
-    offerNotifications();
+    offerNotifications("exhibitionReminders");
     return;
   }
   if (permission === "denied") {
-    showToast("Saved. Turn on notifications to get reminders.", {
+    showToast("Added to Want to see. Turn on notifications to get reminders.", {
       label: "Settings",
       onPress: () => void Linking.openSettings(),
     });
     return;
   }
   const when = next.kind === "opening" ? "when it opens" : "a week before it closes";
-  showToast(`Saved. You’ll get a reminder ${reminderDay(next.at)}, ${when}.`);
+  showToast(`Added to Want to see. You’ll get a reminder ${reminderDay(next.at)}, ${when}.`);
 }
 
 type SavedList<T> = {

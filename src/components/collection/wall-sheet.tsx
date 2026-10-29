@@ -9,12 +9,11 @@ import {
 import type { ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 
+import { CloseButton } from "@/components/sheet-controls";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
 import { Gallery, PinnedFooterBorder } from "@/constants/theme";
 import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
-
-import { GalleryButton } from "./gallery-button";
 
 export function WallSheet({
   title,
@@ -25,7 +24,6 @@ export function WallSheet({
   onDismissed,
   presented = true,
   size = "fit",
-  dismissLabel = "Done",
   scrollAll = false,
   dismissDisabled = false,
 }: {
@@ -37,7 +35,6 @@ export function WallSheet({
   onDismiss: () => void;
   /** `fit` sizes the sheet to its header, children and footer; `large` leaves layout and scrolling to the children. */
   size?: "fit" | "large";
-  dismissLabel?: string;
   /** `presented={false}` animates the sheet out while it stays mounted; `onDismissed` fires once the presentation has fully ended. */
   presented?: boolean;
   onDismissed?: () => void;
@@ -54,7 +51,7 @@ export function WallSheet({
           <Text variant="section" accessibilityRole="header" style={styles.sheetTitle}>
             {title}
           </Text>
-          <GalleryButton label={dismissLabel} fullWidth={false} onPress={onDismiss} />
+          <CloseButton onPress={onDismiss} />
         </View>
       )}
     </View>

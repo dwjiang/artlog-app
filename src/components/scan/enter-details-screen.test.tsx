@@ -17,6 +17,7 @@ jest.mock("@/db/client", () => ({
 }));
 jest.mock("expo-router", () => ({
   useRouter: () => ({ dismissTo: mockDismissTo, back: mockBack }),
+  usePreventRemove: () => () => {},
 }));
 jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable: true }) }));
 jest.mock("@/lib/convex-client", () => ({

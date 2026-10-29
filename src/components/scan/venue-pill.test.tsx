@@ -6,9 +6,22 @@ import { VenuePill } from "./venue-pill";
 
 const mockPush = jest.fn();
 let mockView: VenueView;
+let mockPermission: { granted: boolean; canAskAgain: boolean } | null;
 
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => mockView }));
+jest.mock("expo-location", () => {
+  const { createPermissionHook } = jest.requireActual("expo-modules-core");
+  return {
+    useForegroundPermissions: createPermissionHook({
+      getMethod: async () => mockPermission,
+      requestMethod: async () => mockPermission,
+    }),
+  };
+});
+
+const askable = { granted: false, canAskAgain: true };
+const declined = { granted: false, canAskAgain: false };
 
 const legion = {
   kind: "seeded",
@@ -46,6 +59,7 @@ function view(status: VenueView["status"], venue?: VenueView["venue"], current?:
 
 beforeEach(() => {
   mockPush.mockReset();
+  mockPermission = askable;
 });
 
 it("names the museum the phone resolved and opens the museum chooser on tap", async () => {
@@ -91,12 +105,45 @@ it("keeps the visit venue while a fresh fix is in flight", async () => {
 });
 
 it.each([
-  ["none", "No museum nearby"],
-  ["denied", "Location is off"],
-  ["choose", "Which museum?"],
-] as [VenueView["status"], string][])("offers the picker when the status is %s", async (status, label) => {
+  ["none", askable, "No museum nearby"],
+  ["denied", askable, "Find your museum"],
+  ["denied", declined, "Location is off"],
+  ["choose", askable, "Which museum?"],
+] as const)("offers the picker when the status is %s", async (status, permission, label) => {
+  mockPermission = permission;
   mockView = view(status);
   await render(<VenuePill />);
+  await fireEvent.press(await screen.findByRole("button", { name: label }));
+  expect(mockPush).toHaveBeenCalledWith("/venue-picker");
+});
+
+it("says location is off once the iOS prompt is declined and the venue resolves again", async () => {
+  mockView = view("denied");
+  const pill = await render(<VenuePill />);
+  expect(await screen.findByRole("button", { name: "Find your museum" })).toBeOnTheScreen();
+
+  mockPermission = declined;
+  mockView = view("locating");
+  await pill.rerender(<VenuePill />);
+  mockView = view("denied");
+  await pill.rerender(<VenuePill />);
+
+  expect(await screen.findByRole("button", { name: "Location is off" })).toBeOnTheScreen();
+});
+
+it.each([
+  ["location", "Location unavailable"],
+  ["lookup", "Choose museum"],
+] as const)("doesn’t claim no museum is nearby after a failed %s fix", async (failure, label) => {
+  mockView = { ...view("none"), failure };
+  await render(<VenuePill />);
+  expect(screen.queryByText("No museum nearby")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: label }));
   expect(mockPush).toHaveBeenCalledWith("/venue-picker");
+});
+
+it("keeps naming the last museum when a later fix fails", async () => {
+  mockView = { ...view("resolved", legion), failure: "location" };
+  await render(<VenuePill />);
+  expect(screen.getByRole("button", { name: "Legion of Honor" })).toBeOnTheScreen();
 });

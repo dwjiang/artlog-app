@@ -242,7 +242,8 @@ it.each([false, true])("saves a cached match and returns to the camera (edited: 
     await fireEvent.press(screen.getByRole("button", { name: "Edit Details" }));
     await fireEvent.changeText(screen.getByLabelText("Title"), "My saved title");
   }
-  await fireEvent.press(await screen.findByRole("button", { name: "Save to collection" }));
+  // Earlier tests may already have saved Water Lilies, which turns its save into adding this photo.
+  await fireEvent.press(await screen.findByRole("button", { name: /^(Save to collection|Add this photo)$/ }));
   await expectReturnedToCamera();
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
     title: edited ? "My saved title" : "Water Lilies",
@@ -352,7 +353,7 @@ it("opens a ready result after the user explicitly discards the draft", async ()
   await complete("discard-completion");
   await fireEvent.press(screen.getByRole("button", { name: "View result" }));
   expect(mockReplace).not.toHaveBeenCalled();
-  const discard = alert.mock.calls[0][2]?.find((button) => button.text === "Discard edits");
+  const discard = alert.mock.calls[0][2]?.find((button) => button.text === "Discard Edits");
   expect(discard).toBeDefined();
   await act(() => discard?.onPress?.());
   expect(mockReplace).toHaveBeenCalledWith({

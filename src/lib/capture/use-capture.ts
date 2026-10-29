@@ -115,10 +115,7 @@ export function useCapture({
     }
     navigation.current.push({
       pathname: "/result/[scanId]",
-      params: {
-        scanId: pending.result.kind === "sent" ? pending.result.scanId : `local-${pending.result.localId}`,
-        entrance: "capture",
-      },
+      params: { scanId: pending.result.kind === "sent" ? pending.result.scanId : `local-${pending.result.localId}` },
     });
     // Keep the frozen artwork until the native transition takes focus away from Scan.
   }, [controller]);

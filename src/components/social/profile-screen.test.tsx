@@ -352,7 +352,7 @@ it("uses the same shared visit card as Home", async () => {
   await render(<ProfileScreen profileId="friend" />);
   await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
   expect(screen.getByText("Museum of Modern Art · New York")).toBeOnTheScreen();
-  expect(screen.getByLabelText("September 12, 2026")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Sep 12, 2026")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "View Jamie Chen’s profile" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "More options" })).toBeOnTheScreen();
 });
@@ -365,7 +365,7 @@ it("offers Block in a visit card’s menu after Report", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "More options" }));
   const [options, choose] = sheet.mock.calls[0];
   expect(options).toMatchObject({
-    options: ["View Jamie Chen’s profile", "Report visit", "Block Jamie Chen", "Cancel"],
+    options: ["View Jamie Chen’s Profile", "Report Visit", "Block Jamie Chen", "Cancel"],
     destructiveButtonIndex: 2,
   });
   choose(2);

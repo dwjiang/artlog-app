@@ -154,7 +154,6 @@ function LinkPicker({
                 value={search}
                 label={savedId ? "Search visits" : "Search artworks"}
                 showLabel={false}
-                filled
                 onChange={setSearch}
                 onClear={clearSearch}
               />

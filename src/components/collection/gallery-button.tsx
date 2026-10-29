@@ -4,6 +4,8 @@ import {
   accessibilityValue,
   buttonStyle,
   contentShape,
+  type DynamicTypeSizeValue,
+  dynamicTypeSize,
   fixedSize,
   font,
   frame,
@@ -40,6 +42,7 @@ export function GalleryButton({
   cornerRadius = Radius.button,
   maskInReplay = false,
   iconModifiers = [],
+  maxTypeSize,
 }: {
   label: string;
   accessibilityLabel?: string;
@@ -63,6 +66,8 @@ export function GalleryButton({
   cornerRadius?: number;
   maskInReplay?: boolean;
   iconModifiers?: ComponentProps<typeof Icon>["modifiers"];
+  /** The Dynamic Type size the label stops growing at, as `maxFontSizeMultiplier` caps React Native text. */
+  maxTypeSize?: DynamicTypeSizeValue;
 }) {
   const { fontScale } = useWindowDimensions();
   const expand = fullWidth ?? fontScale >= 1.5;
@@ -94,7 +99,8 @@ export function GalleryButton({
       }}
     >
       <View style={{ maxWidth: "100%", ...(expand ? { flex: 1 } : {}) }}>
-        {/* The enclosing screen handles insets; native safe areas would displace labels as the button scrolls. */}
+        {/* The enclosing screen handles insets; native safe areas would displace labels as the button scrolls.
+            The minimum size is the native frame's, so Yoga reserves it before SwiftUI first sizes the host. */}
         <Host
           key={fontScale}
           matchContents={expand ? { vertical: true } : true}
@@ -102,6 +108,8 @@ export function GalleryButton({
           colorScheme="light"
           seedColor={accent}
           style={{
+            minHeight,
+            minWidth: 44,
             maxWidth: "100%",
             borderRadius: cornerRadius,
             backgroundColor: variant === "filled" ? accent : "transparent",
@@ -138,6 +146,7 @@ export function GalleryButton({
                 }),
                 contentShape(shapes.rectangle()),
                 opacity(busy ? 0 : 1),
+                ...(maxTypeSize ? [dynamicTypeSize({ max: maxTypeSize })] : []),
               ]}
             >
               {icon && iconPosition === "leading" && (

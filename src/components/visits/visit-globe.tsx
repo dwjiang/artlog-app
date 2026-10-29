@@ -84,7 +84,7 @@ export function VisitGlobe({
         )}
       </View>
       {clusterIds.length > 0 && (
-        <WallSheet title="Museums here" onDismiss={() => setClusterIds([])}>
+        <WallSheet title="Museums Here" onDismiss={() => setClusterIds([])}>
           <View style={{ padding: 20, gap: 10 }}>
             {museums
               .filter((museum) => clusterIds.includes(museum.venueId))

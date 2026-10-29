@@ -102,7 +102,6 @@ export function CollectionVisits({
             value={search}
             label="Search your visits"
             showLabel={false}
-            filled
             onChange={onSearchChange}
             onClear={clearSearch}
           />

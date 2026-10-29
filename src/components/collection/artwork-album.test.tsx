@@ -17,7 +17,12 @@ const initialPhotos = Array.from({ length: 4 }, (_, index) => ({
 let mockPhotos = initialPhotos;
 let mockPhotosUpdatedAt: Date | undefined;
 let mockPhotosError: Error | undefined;
+let mockKnownSizes: Record<string, { width: number; height: number }> = {};
 jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+jest.mock("@/lib/ui/image-sizes", () => ({
+  knownImageSize: (uri: string) => mockKnownSizes[uri],
+  rememberImageSize: jest.fn(),
+}));
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///${path}`,
 }));
@@ -45,19 +50,55 @@ beforeEach(() => {
   mockPhotos = initialPhotos;
   mockPhotosUpdatedAt = undefined;
   mockPhotosError = undefined;
+  mockKnownSizes = {};
 });
 
-it("selects a thumbnail and edits that photo", async () => {
+it("opens the selected photo full screen, with its details one tap away", async () => {
   await render(<ArtworkAlbum work={work} />);
   expect(screen.getByLabelText("Photo thumbnails")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Show full photo 3" }));
   expect(screen.getByRole("button", { name: "Show full photo 3", selected: true })).toBeOnTheScreen();
   expect(screen.queryByText("Museum view 3")).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Edit full photo 3" }));
+  await fireEvent.press(screen.getByRole("button", { name: "View full photo 3" }));
+  expect(router.push).not.toHaveBeenCalled();
+  expect(screen.getByRole("image", { name: "full photo of Water Lilies" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Photo details" }));
   expect(router.push).toHaveBeenCalledWith({
     pathname: "/photo-details",
     params: { savedId: "work", photoId: "photo-2" },
   });
+  expect(screen.queryByRole("button", { name: "Photo details" })).toBeNull();
+});
+
+it("closes the full-screen photo back to the album", async () => {
+  await render(<ArtworkAlbum work={work} />);
+  await fireEvent.press(screen.getByRole("button", { name: "View full photo 1" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Close" }));
+  expect(screen.queryByRole("image", { name: "full photo of Water Lilies" })).toBeNull();
+  expect(router.push).not.toHaveBeenCalled();
+});
+
+it("still opens the details of a photo that can't be shown", async () => {
+  mockPhotos = [{ ...initialPhotos[0], path: "" }];
+  await render(<ArtworkAlbum work={work} />);
+  await fireEvent.press(screen.getByRole("button", { name: "Edit full photo 1" }));
+  expect(router.push).toHaveBeenCalledWith({
+    pathname: "/photo-details",
+    params: { savedId: "work", photoId: "photo-0" },
+  });
+});
+
+it("holds the saved photo's shape while the album loads, so the title stays put", async () => {
+  const { width } = Dimensions.get("window");
+  mockKnownSizes = { "file:///photo-0.jpg": { width: 1500, height: 1000 } };
+  mockPhotos = [];
+  const view = await render(<ArtworkAlbum work={{ ...work, photoPath: "photo-0.jpg" }} />);
+  expect(screen.getByLabelText("Loading photos…")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Artwork photos")).toHaveStyle({ height: (width - 40) / 1.5 });
+  mockPhotos = initialPhotos;
+  await view.rerender(<ArtworkAlbum work={{ ...work, photoPath: "photo-0.jpg" }} />);
+  expect(screen.getByLabelText("full photo 1 of Water Lilies")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Artwork photos")).toHaveStyle({ height: (width - 40) / 1.5 });
 });
 
 it("keeps captions out of the gallery while photo editing stays available", async () => {
@@ -68,7 +109,9 @@ it("keeps captions out of the gallery while photo editing stays available", asyn
   await fireEvent.press(screen.getByRole("button", { name: "Show full photo 2" }));
   expect(screen.queryByText("Museum view 1")).toBeNull();
   expect(screen.queryByText("Museum view 2")).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Edit full photo 2" }));
+  await fireEvent(screen.getByRole("button", { name: "View full photo 2" }), "accessibilityAction", {
+    nativeEvent: { actionName: "details" },
+  });
   expect(router.push).toHaveBeenCalledWith({
     pathname: "/photo-details",
     params: { savedId: "work", photoId: "photo-1" },

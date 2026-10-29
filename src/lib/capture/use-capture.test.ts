@@ -127,7 +127,7 @@ it.each([
   await act(() => hook.result.current.completeReveal(hook.result.current.presentation!.attempt));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/result/[scanId]",
-    params: { scanId, entrance: "capture" },
+    params: { scanId },
   });
   expect(hook.result.current.timings).toEqual({ total: 12 });
   const deps = mockPipeline.mock.calls[0][1] as CaptureDependencies;
@@ -493,7 +493,7 @@ it("holds the revealed artwork during slow recognition and navigates exactly onc
   expect(mockPush).toHaveBeenCalledTimes(1);
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/result/[scanId]",
-    params: { scanId: "local-offline", entrance: "capture" },
+    params: { scanId: "local-offline" },
   });
   await hook.unmount();
   expect(mockRelease).toHaveBeenCalledTimes(1);
@@ -617,7 +617,7 @@ it("publishes an imported photo before looking up its EXIF venue", async () => {
   });
 });
 
-it("keeps the artwork visible through the native result fade and releases it at transition end", async () => {
+it("keeps the artwork visible through the native result transition and releases it at transition end", async () => {
   const hook = await renderHook((props: { active: boolean; focused: boolean }) => useCapture(props), {
     initialProps: { active: true, focused: true },
   });

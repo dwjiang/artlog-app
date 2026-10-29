@@ -6,11 +6,13 @@ import { Alert, TextInput, View } from "react-native";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { SearchField } from "@/components/search-field";
+import { CommitToolbar } from "@/components/sheet-controls";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { applyAlbum } from "@/db/repos/artwork-album";
 import { editSavedWork, listSavedWorks, selectSavedWork, upsertFromRemote } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
+import { useDiscardEditsGuard } from "@/hooks/use-discard-edits-guard";
 import { flushCollectionMedia } from "@/lib/account/collection-sync";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { convex } from "@/lib/convex-client";
@@ -49,11 +51,21 @@ function ArtworkQuery({ owner, savedId, onRetry }: { owner: string; savedId: str
   );
 }
 function Editor({ work }: { work: SavedWork }) {
-  const [title, setTitle] = useState(work.title === "Unidentified artwork" ? "" : work.title);
-  const [artist, setArtist] = useState(work.artist);
+  const [initial] = useState({
+    title: work.title === "Unidentified artwork" ? "" : work.title,
+    artist: work.artist,
+    date: work.date ?? "",
+    medium: work.medium ?? "",
+  });
+  const [title, setTitle] = useState(initial.title);
+  const [artist, setArtist] = useState(initial.artist);
   const [focusedField, setFocusedField] = useState<string>();
-  const [date, setDate] = useState(work.date ?? "");
-  const [medium, setMedium] = useState(work.medium ?? "");
+  const [date, setDate] = useState(initial.date);
+  const [medium, setMedium] = useState(initial.medium);
+  // Merging or using a match replaces these details, so those leave without asking too.
+  const leave = useDiscardEditsGuard({
+    edited: title !== initial.title || artist !== initial.artist || date !== initial.date || medium !== initial.medium,
+  });
   const [search, setSearch] = useState("");
   const [choosing, setChoosing] = useState(false);
   const [mergingInto, setMergingInto] = useState<string>();
@@ -95,10 +107,12 @@ function Editor({ work }: { work: SavedWork }) {
       if (!session.isCurrent()) return;
       await removeUnreferencedPhotos(await upsertFromRemote(result.saves, session.owner));
       applyAlbum(result.photos, result.encounters, session.owner);
-      router.replace({
-        pathname: "/saved/[savedId]",
-        params: { savedId: target.localId },
-      });
+      leave(() =>
+        router.replace({
+          pathname: "/saved/[savedId]",
+          params: { savedId: target.localId },
+        }),
+      );
     } catch (cause) {
       reportError(cause, "collection.artwork.merge");
       setError("Could not merge these artworks. Check your connection. Albums over 100 photos need editing first.");
@@ -106,139 +120,138 @@ function Editor({ work }: { work: SavedWork }) {
       setMergingInto(undefined);
     }
   }
+  const save = () => {
+    try {
+      editSavedWork(
+        work.localId,
+        {
+          title: title.trim() || "Unidentified artwork",
+          artist: artist.trim(),
+          date: date.trim() || null,
+          medium: medium.trim() || null,
+        },
+        work.owner,
+      );
+      leave();
+    } catch (cause) {
+      reportError(cause, "collection.artwork.update");
+      setError("Your artwork details could not be saved. Your edits are still here. Try again.");
+    }
+  };
   return (
-    <SafeAreaScrollView
-      style={{ flex: 1, backgroundColor: Gallery.paper }}
-      contentInsetAdjustmentBehavior="automatic"
-      automaticallyAdjustKeyboardInsets
-      contentContainerStyle={{ padding: 20, gap: 18 }}
-    >
-      <SavedWorkImage path={work.cropPath} title={work.title} contain style={{ width: "100%", height: 160 }} />
-      <SavedRecognition work={work} disabled={merging} onBusyChange={setRecognizing} onAccepted={() => router.back()} />
-      <Text variant="section" accessibilityRole="header">
-        Artwork details
-      </Text>
-      {[
-        { label: "Title", value: title, change: setTitle },
-        { label: "Artist", value: artist, change: setArtist },
-        { label: "Date", value: date, change: setDate },
-        { label: "Medium", value: medium, change: setMedium },
-      ].map((field) => (
-        <View key={field.label} style={{ gap: 8 }}>
-          <Text style={{ color: Gallery.ink, fontSize: 15 }}>{field.label}</Text>
-          <TextInput
-            accessibilityLabel={field.label}
-            value={field.value}
-            onChangeText={field.change}
-            onFocus={() => setFocusedField(field.label)}
-            onBlur={() => setFocusedField(undefined)}
-            maxLength={500}
-            editable={!busy}
-            selectionColor={Gallery.accent}
-            keyboardAppearance="light"
-            style={{
-              backgroundColor: Gallery.surface,
-              color: Gallery.ink,
-              fontSize: 17,
-              padding: 16,
-              borderRadius: 8,
-              borderWidth: 1,
-              borderColor: focusedField === field.label ? Gallery.accent : Gallery.controlBorder,
-            }}
-          />
-        </View>
-      ))}
-      <View
-        style={{
-          borderTopWidth: 1,
-          borderColor: Gallery.separator,
-          paddingTop: 24,
-          gap: 8,
-        }}
+    <>
+      <CommitToolbar label="Save" disabled={busy} onPress={save} />
+      <SafeAreaScrollView
+        style={{ flex: 1, backgroundColor: Gallery.paper }}
+        contentInsetAdjustmentBehavior="automatic"
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={{ padding: 20, gap: 18 }}
       >
-        <GalleryButton
-          label="This is an artwork I already saved"
-          disabled={busy}
-          onPress={() => setChoosing(!choosing)}
-        />
-        {choosing && (
-          <View style={{ gap: 12 }}>
-            <SearchField
-              label="Find saved artwork"
-              placeholder="Search your collection"
-              value={search}
-              editable={!busy}
-              onChange={setSearch}
-              onClear={() => setSearch("")}
-            />
-            {works.error ? (
-              <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-                Couldn’t load your collection. Close and reopen this artwork to try again.
-              </Text>
-            ) : !works.updatedAt && matches.length === 0 ? (
-              <ListSkeleton label="Loading artworks…" rows={3} />
-            ) : matches.length === 0 ? (
-              <Text style={{ color: Gallery.muted }}>
-                {search ? "No matching artworks. Try another title or artist." : "No other saved artworks to combine."}
-              </Text>
-            ) : null}
-            {matches.map((target) => (
-              <GalleryButton
-                key={target.localId}
-                label={`${target.title} · ${target.artist}`}
-                maskInReplay
-                busy={mergingInto === target.localId}
-                busyLabel="Combining artworks…"
-                disabled={busy}
-                onPress={() =>
-                  Alert.alert(
-                    "Combine these artworks?",
-                    `Move all photos and visit links into “${target.title}”. The duplicate artwork and its shared placements will be removed.`,
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Combine artworks",
-                        onPress: () => {
-                          void merge(target);
-                        },
-                      },
-                    ],
-                  )
-                }
-              />
-            ))}
-          </View>
-        )}
-      </View>
-      <GalleryButton
-        label="Save details"
-        variant="filled"
-        fullWidth
-        disabled={busy}
-        onPress={() => {
-          try {
-            editSavedWork(
-              work.localId,
-              {
-                title: title.trim() || "Unidentified artwork",
-                artist: artist.trim(),
-                date: date.trim() || null,
-                medium: medium.trim() || null,
-              },
-              work.owner,
-            );
-            router.back();
-          } catch (cause) {
-            reportError(cause, "collection.artwork.update");
-            setError("Your artwork details could not be saved. Your edits are still here. Try again.");
-          }
-        }}
-      />
-      {error && (
-        <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
-          {error}
+        <SavedWorkImage path={work.cropPath} title={work.title} contain style={{ width: "100%", height: 160 }} />
+        <SavedRecognition work={work} disabled={merging} onBusyChange={setRecognizing} onAccepted={() => leave()} />
+        <Text variant="section" accessibilityRole="header">
+          Artwork details
         </Text>
-      )}
-    </SafeAreaScrollView>
+        {[
+          { label: "Title", value: title, change: setTitle },
+          { label: "Artist", value: artist, change: setArtist },
+          { label: "Date", value: date, change: setDate },
+          { label: "Medium", value: medium, change: setMedium },
+        ].map((field) => (
+          <View key={field.label} style={{ gap: 8 }}>
+            <Text style={{ color: Gallery.ink, fontSize: 15 }}>{field.label}</Text>
+            <TextInput
+              accessibilityLabel={field.label}
+              value={field.value}
+              onChangeText={field.change}
+              onFocus={() => setFocusedField(field.label)}
+              onBlur={() => setFocusedField(undefined)}
+              maxLength={500}
+              editable={!busy}
+              selectionColor={Gallery.accent}
+              keyboardAppearance="light"
+              style={{
+                backgroundColor: Gallery.surface,
+                color: Gallery.ink,
+                fontSize: 17,
+                padding: 16,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: focusedField === field.label ? Gallery.accent : Gallery.controlBorder,
+              }}
+            />
+          </View>
+        ))}
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderColor: Gallery.separator,
+            paddingTop: 24,
+            gap: 8,
+          }}
+        >
+          <GalleryButton
+            label="This is an artwork I already saved"
+            disabled={busy}
+            onPress={() => setChoosing(!choosing)}
+          />
+          {choosing && (
+            <View style={{ gap: 12 }}>
+              <SearchField
+                label="Find saved artwork"
+                placeholder="Search your collection"
+                value={search}
+                editable={!busy}
+                onChange={setSearch}
+                onClear={() => setSearch("")}
+              />
+              {works.error ? (
+                <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+                  Couldn’t load your collection. Close and reopen this artwork to try again.
+                </Text>
+              ) : !works.updatedAt && matches.length === 0 ? (
+                <ListSkeleton label="Loading artworks…" rows={3} />
+              ) : matches.length === 0 ? (
+                <Text style={{ color: Gallery.muted }}>
+                  {search
+                    ? "No matching artworks. Try another title or artist."
+                    : "No other saved artworks to combine."}
+                </Text>
+              ) : null}
+              {matches.map((target) => (
+                <GalleryButton
+                  key={target.localId}
+                  label={`${target.title} · ${target.artist}`}
+                  maskInReplay
+                  busy={mergingInto === target.localId}
+                  busyLabel="Combining artworks…"
+                  disabled={busy}
+                  onPress={() =>
+                    Alert.alert(
+                      "Combine these artworks?",
+                      `Move all photos and visit links into “${target.title}”. The duplicate artwork and its shared placements will be removed.`,
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Combine Artworks",
+                          onPress: () => {
+                            void merge(target);
+                          },
+                        },
+                      ],
+                    )
+                  }
+                />
+              ))}
+            </View>
+          )}
+        </View>
+        {error && (
+          <Text accessibilityRole="alert" style={{ color: Gallery.destructive }}>
+            {error}
+          </Text>
+        )}
+      </SafeAreaScrollView>
+    </>
   );
 }

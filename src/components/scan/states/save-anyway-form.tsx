@@ -77,7 +77,7 @@ export function SaveAnywayForm({
         <Host matchContents colorScheme="light">
           <Menu label="More options" modifiers={[accessibilityLabel("More scan options"), buttonStyle("plain")]}>
             <Button
-              label={editing ? "Hide details" : "Add details (optional)"}
+              label={editing ? "Hide Details" : "Add Details (Optional)"}
               modifiers={[disabled(!editable)]}
               onPress={() => setEditing((value) => !value)}
             />

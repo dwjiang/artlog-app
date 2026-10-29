@@ -2,7 +2,7 @@ import { router, Stack } from "expo-router";
 import type { ReactNode } from "react";
 
 import { Gallery } from "@/constants/theme";
-import { REPORT_NOUNS, reportHref } from "@/lib/social/report";
+import { reportHref, reportTitle } from "@/lib/social/report";
 import type { ReportKind } from "@/shared/social/contracts";
 
 /**
@@ -21,13 +21,12 @@ export function ReportToolbar({
   leading?: ReactNode;
   children?: ReactNode;
 }) {
-  const noun = REPORT_NOUNS[kind];
   return (
     <Stack.Toolbar placement="right">
       <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="More options" tintColor={Gallery.ink}>
         {leading}
         <Stack.Toolbar.MenuAction icon="flag" onPress={() => router.push(reportHref(kind, id))}>
-          {`Report ${noun[0].toUpperCase()}${noun.slice(1)}…`}
+          {`${reportTitle(kind)}…`}
         </Stack.Toolbar.MenuAction>
         {children ? <Stack.Toolbar.Menu inline>{children}</Stack.Toolbar.Menu> : null}
       </Stack.Toolbar.Menu>

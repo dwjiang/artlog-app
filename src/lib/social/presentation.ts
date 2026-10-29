@@ -1,16 +1,6 @@
-import { isCalendarDate, LIMITS, normalizeSearch } from "@/shared/journal/limits";
+import { LIMITS, normalizeSearch } from "@/shared/journal/limits";
 
 import type { FriendshipAction, Relationship, SuggestionReason } from "./types";
-
-export function visitDate(value: string, locale?: string, format: "full" | "short" = "full"): string {
-  if (!isCalendarDate(value)) return "Date unavailable";
-  return new Intl.DateTimeFormat(locale, {
-    month: format === "short" ? "short" : "long",
-    day: "numeric",
-    year: format === "full" ? "numeric" : undefined,
-    timeZone: "UTC",
-  }).format(new Date(`${value}T12:00:00Z`));
-}
 
 const MINUTE = 60_000;
 const UNITS = [

@@ -49,7 +49,9 @@ export function CollectionHeader({
         }
         stats={stats}
         accessory={settings}
-      />
+      >
+        <OwnProfileActions />
+      </ProfileHeader>
     );
   }
   const status = profile

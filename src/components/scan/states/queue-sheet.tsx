@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/empty-state";
 import { EmptyScans } from "@/components/empty-state-art";
 import { ListSkeleton } from "@/components/loading-skeleton";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll";
+import { CloseButton } from "@/components/sheet-controls";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
 import type { PendingScan } from "@/db/schema";
@@ -17,7 +18,7 @@ import { reportError } from "@/lib/observability";
 import { retryPendingScan } from "@/lib/queue/queue";
 import { useQueue } from "@/lib/queue/use-queue";
 
-import { QueueRow } from "./queue-row";
+import { QueueRow, queueResultHref } from "./queue-row";
 
 export const QUEUE_FOOTER = "Waiting scans continue when you’re back online.";
 
@@ -39,9 +40,9 @@ function QueueContent() {
 
   function discard(item: PendingScan) {
     Alert.alert("Discard this scan?", "Its unsaved photos will be removed from this device.", [
-      { text: "Keep scan", style: "cancel" },
+      { text: "Keep Scan", style: "cancel" },
       {
-        text: "Discard scan",
+        text: "Discard Scan",
         style: "destructive",
         onPress: () => {
           if (pending.current.has(item.localId)) return;
@@ -64,10 +65,7 @@ function QueueContent() {
 
   function open(item: PendingScan) {
     router.dismiss();
-    router.push({
-      pathname: "/result/[scanId]",
-      params: { scanId: `local-${item.localId}` },
-    });
+    router.push(queueResultHref(item));
   }
 
   function retry(item: PendingScan) {
@@ -98,7 +96,7 @@ function QueueContent() {
         <ThemedText type="title" style={styles.title}>
           Recent scans
         </ThemedText>
-        <GalleryButton label="Close" onPress={() => router.dismiss()} />
+        <CloseButton onPress={() => router.dismiss()} />
       </View>
       {loading && !error && items.length === 0 && <ListSkeleton label="Loading scans…" rows={3} />}
       {error && (

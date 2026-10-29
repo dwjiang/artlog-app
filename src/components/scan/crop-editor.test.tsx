@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ComponentProps, ReactNode } from "react";
+import { Alert, type AlertButton } from "react-native";
 
 import { wholePhoto } from "@/lib/capture/crop-geometry";
 import type { Quad } from "@/lib/capture/stages";
@@ -25,7 +26,7 @@ jest.mock("expo-router", () => {
   Toolbar.Button = mockStack.Toolbar.Button;
   return { useNavigation: () => mockNavigation, Stack: { ...mockStack, Toolbar } };
 });
-jest.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
+jest.mock("expo-router/react-navigation", () => ({ useHeaderHeight: () => 116, useIsFocused: () => true }));
 const mockToast = jest.fn();
 jest.mock("@/lib/ui/toast", () => ({
   showErrorToast: (...args: unknown[]) => mockToast(...args),
@@ -113,12 +114,16 @@ it("keeps the header out of the editor's own re-renders", async () => {
   expect(mockHeaderRender).toHaveBeenCalledTimes(1);
 });
 
-it("hides the back button only while the editor is open", async () => {
+it("lays the editor out below an overlaying header and replaces Back with Cancel only while it's open", async () => {
   const view = await render(<CropEditor photoPath="full.jpg" onSave={jest.fn()} onCancel={jest.fn()} />);
   await screen.findByRole("button", { name: "Save crop" });
-  expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({ headerBackVisible: false });
+  expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({ headerBackVisible: false, headerTransparent: true });
+  expect(screen.root).toHaveStyle({ paddingTop: 116 });
   await view.unmount();
-  expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({ headerBackVisible: undefined });
+  expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({
+    headerBackVisible: undefined,
+    headerTransparent: undefined,
+  });
 });
 
 it("cancels without saving", async () => {
@@ -163,4 +168,34 @@ it.each(["release", "cancel"] as const)("blocks saving until every crop drag end
   await waitFor(() =>
     expect(mockPrepare).toHaveBeenCalledWith("full.jpg", finish === "release" ? adjusted : wholePhoto),
   );
+});
+
+it("asks before Cancel drops moved corners, and cancels at once while they're unmoved", async () => {
+  const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  const onCancel = jest.fn();
+  await render(<CropEditor photoPath="full.jpg" onSave={jest.fn()} onCancel={onCancel} />);
+  await screen.findByRole("button", { name: "Save crop" });
+  await fireEvent(screen.getByTestId("crop-stage"), "layout", {
+    nativeEvent: { layout: { width: 390, height: 700 } },
+  });
+  await act(() =>
+    mockCropProps!.onChange([
+      [0.1, 0.2],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+    ]),
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+  expect(alert).toHaveBeenCalledWith("Discard your edits?", undefined, expect.any(Array));
+  expect(onCancel).not.toHaveBeenCalled();
+  const buttons = alert.mock.lastCall![2] as AlertButton[];
+  await act(() => buttons.find((button) => button.text === "Discard Edits")!.onPress?.());
+  expect(onCancel).toHaveBeenCalledTimes(1);
+
+  await act(() => mockCropProps!.onChange(wholePhoto));
+  await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+  expect(alert).toHaveBeenCalledTimes(1);
+  expect(onCancel).toHaveBeenCalledTimes(2);
+  alert.mockRestore();
 });

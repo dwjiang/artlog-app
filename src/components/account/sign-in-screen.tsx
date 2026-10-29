@@ -2,8 +2,8 @@ import { Stack, useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll";
+import { CloseButton } from "@/components/sheet-controls";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -74,7 +74,7 @@ export function SignInScreen({
         contentContainerStyle={styles.content}
       >
         <View style={styles.close}>
-          <GalleryIconButton label="Close sign-in" icon="xmark" disabled={busy} onPress={() => router.back()} />
+          <CloseButton label="Close sign-in" disabled={busy} onPress={() => router.back()} />
         </View>
         <SignInHeader title={signInTitles[context]} />
         <View style={styles.actions}>

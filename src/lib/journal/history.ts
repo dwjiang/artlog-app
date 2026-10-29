@@ -1,6 +1,6 @@
 import type { Visit } from "@/db/schema";
 import countryNames from "@/shared/journal/country-names.json";
-import { calendarDate } from "@/shared/journal/limits";
+import { calendarDate, isCalendarDate } from "@/shared/journal/limits";
 
 import { compareText, matchesSearch, searchTerm } from "./query";
 
@@ -34,9 +34,16 @@ export function knownCountryName(code: string): string | undefined {
   // Hermes does not implement Intl.DisplayNames; keep the English labels with the journal data.
   return (countryNames as Record<string, string | undefined>)[code];
 }
-export function formatVisitDate(date: string): string {
-  const [year, month, day] = date.split("-");
-  return `${Number(day)} ${MONTHS[Number(month) - 1].slice(0, 3)} ${year}`;
+/**
+ * The one format for a visit's day wherever it shows, on visits, artworks and widgets: "Oct 29, 2026", or "Oct 29"
+ * without the year; empty for anything but a calendar date. Spelled out rather than through Intl, so the day never
+ * shifts with the phone's time zone.
+ */
+export function formatVisitDate(date: string | null | undefined, { year = true }: { year?: boolean } = {}): string {
+  if (!date || !isCalendarDate(date)) return "";
+  const [yyyy, mm, dd] = date.split("-");
+  const day = `${MONTHS[Number(mm) - 1].slice(0, 3)} ${Number(dd)}`;
+  return year ? `${day}, ${yyyy}` : day;
 }
 /** "1h 23m", or "12m" within the first hour, for time spent on a visit. */
 export function formatElapsed(ms: number): string {
@@ -44,7 +51,7 @@ export function formatElapsed(ms: number): string {
   const hours = Math.floor(minutes / 60);
   return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
 }
-/** "2:10 PM" in the museum's time zone, or the day it began ("18 Sep 2026") for a visit still open from an earlier day. */
+/** "2:10 PM" in the museum's time zone, or the day it began ("Sep 18, 2026") for a visit still open from an earlier day. */
 export function formatVisitStart(startedAt: number, timeZone: string, now = Date.now()): string {
   const day = calendarDate(startedAt, timeZone);
   if (day !== calendarDate(now, timeZone)) return formatVisitDate(day);

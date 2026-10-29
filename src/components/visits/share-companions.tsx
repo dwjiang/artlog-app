@@ -103,7 +103,6 @@ export function CompanionPicker({
               value={search}
               label="Search friends"
               showLabel={false}
-              filled
               onChange={setSearch}
               onClear={() => setSearch("")}
             />

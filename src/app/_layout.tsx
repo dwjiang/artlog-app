@@ -116,26 +116,8 @@ function AppContent() {
                     title: TabTitles[getFocusedRouteNameFromRoute(route) ?? "(home)"],
                   })}
                 />
-                <Stack.Screen
-                  name="result/[scanId]"
-                  options={({ route }) => ({
-                    title: "",
-                    animation:
-                      reduced || (route.params as { entrance?: string } | undefined)?.entrance === "capture"
-                        ? "fade"
-                        : "default",
-                  })}
-                  listeners={({ navigation, route }) => ({
-                    transitionEnd: ({ data }) => {
-                      if (
-                        !data.closing
-                        && (route.params as { entrance?: string } | undefined)?.entrance === "capture"
-                      ) {
-                        navigation.setParams({ entrance: undefined });
-                      }
-                    },
-                  })}
-                />
+                {/* A capture's result pushes like any page; a cross-fade would show Scan's controls through it. */}
+                <Stack.Screen name="result/[scanId]" options={{ title: "" }} />
                 <Stack.Screen name="all-artworks" options={{ ...LargeTitleHeader, title: "All Artworks" }} />
                 <Stack.Screen name="label/[scanId]" options={{ title: "Label" }} />
                 <Stack.Screen name="enter-details/[scanId]" options={{ title: "Details" }} />
@@ -158,7 +140,7 @@ function AppContent() {
                 />
                 <Stack.Screen name="settings-detail" options={{ ...TransparentHeader, title: "Settings" }} />
                 <Stack.Screen name="settings" options={{ ...LargeTitleHeader, title: "Settings" }} />
-                <Stack.Screen name="widgets" options={{ ...LargeTitleHeader, title: "Widgets" }} />
+                <Stack.Screen name="widgets" options={{ ...TransparentHeader, title: "Widgets" }} />
                 <Stack.Screen name="saved/[savedId]" options={ScrollTitleHeader} />
                 <Stack.Screen name="wall-display" options={ScrollTitleHeader} />
                 <Stack.Screen

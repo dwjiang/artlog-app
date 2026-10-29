@@ -72,8 +72,8 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
         "Discard your edits?",
         "Save your entry first to keep these details, or discard them to view the result.",
         [
-          { text: "Keep editing", style: "cancel" },
-          { text: "Discard edits", style: "destructive", onPress: open },
+          { text: "Keep Editing", style: "cancel" },
+          { text: "Discard Edits", style: "destructive", onPress: open },
         ],
       );
     } else {
@@ -84,9 +84,9 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
   function adjustCrop() {
     if (hasDraft) {
       Alert.alert("Adjust this crop?", "Recognition will run again. Unsaved artwork details will be discarded.", [
-        { text: "Keep editing", style: "cancel" },
+        { text: "Keep Editing", style: "cancel" },
         {
-          text: "Adjust crop",
+          text: "Adjust Crop",
           onPress: () => {
             setHasDraft(false);
             setEditingCrop(true);

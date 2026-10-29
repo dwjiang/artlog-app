@@ -116,7 +116,6 @@ function PickerContent({
         label="Search artworks"
         placeholder="Search title or artist"
         showLabel={false}
-        filled
         onChange={setSearch}
         onClear={() => setSearch("")}
         editable={!disabled}

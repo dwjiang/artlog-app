@@ -1,11 +1,9 @@
 import { useMutation } from "convex/react";
 import Constants from "expo-constants";
 import { useState } from "react";
-import { Platform, TextInput } from "react-native";
+import { Platform } from "react-native";
 
-import { GalleryButton } from "@/components/collection/gallery-button";
-import { FormSheet, formSheetStyles } from "@/components/form-sheet";
-import { Gallery } from "@/constants/theme";
+import { FormSheet, FormSheetTextArea } from "@/components/form-sheet";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
@@ -29,6 +27,7 @@ export function SendFeedbackScreen() {
       showToast("Feedback sent. Thank you.");
     },
     {
+      edited: !!message.trim(),
       offlineMessage: "Couldn’t send feedback while offline.",
       onError: (cause, retry) => {
         reportError(cause, "feedback.send");
@@ -42,31 +41,27 @@ export function SendFeedbackScreen() {
   );
 
   return (
-    <FormSheet title="Send feedback" busy={busy}>
-      <TextInput
+    <FormSheet
+      title="Send Feedback"
+      busy={busy}
+      commit={{
+        label: "Send",
+        busyLabel: "Sending…",
+        disabled: !deviceReady || !message.trim(),
+        onPress: () => {
+          void submit(message.trim());
+        },
+      }}
+    >
+      <FormSheetTextArea
         accessibilityLabel="Feedback"
         value={message}
         onChangeText={setMessage}
         placeholder="Describe a problem or share an idea…"
         maxLength={LIMITS.feedbackMessage}
-        multiline
         autoFocus
         editable={!busy}
-        keyboardAppearance="light"
-        selectionColor={Gallery.accent}
-        placeholderTextColor={Gallery.muted}
-        style={[formSheetStyles.input, { minHeight: 160 }]}
-      />
-      <GalleryButton
-        label="Send"
-        busyLabel="Sending…"
-        variant="filled"
-        fullWidth
-        busy={busy}
-        disabled={!deviceReady || !message.trim()}
-        onPress={() => {
-          void submit(message.trim());
-        }}
+        minHeight={160}
       />
     </FormSheet>
   );

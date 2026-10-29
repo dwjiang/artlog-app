@@ -13,7 +13,7 @@ import { ArtBand } from "@/components/visits/art-band";
 import { VisitSymbol } from "@/components/visits/visit-ui";
 import { VISIT_VISIBILITY } from "@/components/visits/visit-visibility-picker";
 import { Gallery } from "@/constants/theme";
-import { visitDate } from "@/lib/social/presentation";
+import { formatVisitDate } from "@/lib/journal/history";
 import { reportHref } from "@/lib/social/report";
 import type { SharedVisit } from "@/lib/social/types";
 import { useCursorPages } from "@/lib/social/use-social-query";
@@ -118,9 +118,9 @@ export function VisitCard({
     );
   const companion = companions.some((person) => person.profileId === viewerProfileId);
   const actions = [
-    { label: `View ${author.name}’s profile`, run: openProfile },
-    ...(companion ? [{ label: "Remove me from this visit", run: () => void leave() }] : []),
-    ...(others ? [{ label: "Report visit", run: () => router.push(reportHref("sharedVisit", visit.postId)) }] : []),
+    { label: `View ${author.name}’s Profile`, run: openProfile },
+    ...(companion ? [{ label: "Remove Me from This Visit", run: () => void leave() }] : []),
+    ...(others ? [{ label: "Report Visit", run: () => router.push(reportHref("sharedVisit", visit.postId)) }] : []),
     ...(others && onBlock ? [{ label: `Block ${author.name}`, run: () => onBlock(author) }] : []),
   ];
   const openMenu = () =>
@@ -133,8 +133,8 @@ export function VisitCard({
       (index) => actions[index]?.run(),
     );
   const date = (
-    <Text accessibilityLabel={visitDate(visitedOn)} style={styles.feedDate}>
-      {visitDate(visitedOn, undefined, "short")}
+    <Text accessibilityLabel={formatVisitDate(visitedOn)} style={styles.feedDate}>
+      {formatVisitDate(visitedOn, { year: false })}
     </Text>
   );
   // Public is the default reach, so only a narrower audience is named.
@@ -160,7 +160,7 @@ export function VisitCard({
             <MotionPressable
               accessibilityRole="button"
               accessibilityLabel={`View ${author.name}’s profile`}
-              accessibilityHint={`Visit to ${venue.name} on ${visitDate(visitedOn)}`}
+              accessibilityHint={`Visit to ${venue.name} on ${formatVisitDate(visitedOn)}`}
               onPress={openProfile}
               hitSlop={{ top: 8 }}
               style={styles.nameRow}

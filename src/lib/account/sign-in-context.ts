@@ -1,8 +1,8 @@
 export const signInTitles = {
   account: "Sign in to Artlog",
-  friends: "Sign in to follow friends",
+  friends: "Sign in to add friends",
   wall: "Sign in to share your wall",
-  leaderboards: "Sign in to see friends’ rankings",
+  leaderboards: "Sign in to join leaderboards",
   visit: "Sign in to share this visit",
   reactions: "Sign in to join the conversation",
 } as const;

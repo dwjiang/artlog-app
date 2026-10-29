@@ -6,12 +6,12 @@ import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 
+/** The one in-page search field: white with a control border on white and grouped gray pages alike. */
 export function SearchField({
   value,
   label,
   placeholder = label,
   showLabel = true,
-  filled = false,
   onChange,
   onClear,
   inputRef,
@@ -24,7 +24,6 @@ export function SearchField({
   label: string;
   placeholder?: string;
   showLabel?: boolean;
-  filled?: boolean;
   onChange: (value: string) => void;
   onClear: () => void;
   editable?: boolean;
@@ -35,15 +34,7 @@ export function SearchField({
   return (
     <View style={[{ gap: Spacing.two }, style]}>
       {showLabel && <ThemedText variant="metadata">{label}</ThemedText>}
-      <View
-        style={[
-          styles.field,
-          {
-            borderColor: focused ? Gallery.accent : filled ? "transparent" : Gallery.controlBorder,
-            backgroundColor: filled ? Gallery.fill : Gallery.surface,
-          },
-        ]}
-      >
+      <View style={[styles.field, { borderColor: focused ? Gallery.accent : Gallery.controlBorder }]}>
         <Image
           source="sf:magnifyingglass"
           tintColor={Gallery.muted}

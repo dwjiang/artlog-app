@@ -259,13 +259,13 @@ it.each([0, 4])("retries a failed artwork page while keeping %i loaded artworks 
 
 it("offers the author’s profile and reporting from the card menu, without a visit link", async () => {
   const sheet = jest.spyOn(ActionSheetIOS, "showActionSheetWithOptions").mockImplementation((options, choose) => {
-    choose(options.options.indexOf("Report visit"));
+    choose(options.options.indexOf("Report Visit"));
   });
   await render(<VisitScreen postId="post-a" />);
   await fireEvent.press(screen.getByRole("button", { name: "More options" }));
   expect(sheet.mock.calls[0][0].options).toEqual([
-    "View Alex Chen’s profile",
-    "Report visit",
+    "View Alex Chen’s Profile",
+    "Report Visit",
     "Block Alex Chen",
     "Cancel",
   ]);
@@ -309,16 +309,16 @@ it("lets a companion remove themselves from the visit", async () => {
   mockVisit = { data: { ...visit, companions: [companion("viewer", "Sam Lee")] } };
   mockLeave.mockResolvedValue(null);
   const sheet = jest.spyOn(ActionSheetIOS, "showActionSheetWithOptions").mockImplementation((options, choose) => {
-    choose(options.options.indexOf("Remove me from this visit"));
+    choose(options.options.indexOf("Remove Me from This Visit"));
   });
   await render(<VisitScreen postId="post-a" />);
 
   await fireEvent.press(screen.getByRole("button", { name: "More options" }));
 
   expect(sheet.mock.calls[0][0].options).toEqual([
-    "View Alex Chen’s profile",
-    "Remove me from this visit",
-    "Report visit",
+    "View Alex Chen’s Profile",
+    "Remove Me from This Visit",
+    "Report Visit",
     "Block Alex Chen",
     "Cancel",
   ]);

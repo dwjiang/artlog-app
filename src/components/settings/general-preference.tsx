@@ -65,13 +65,19 @@ export function GeneralPreference() {
             onPress={() => {
               void change(option.value);
             }}
+            // A borderless button hugs its label, so both it and its row stretch to put the checkmark at the trailing edge.
             modifiers={[
               buttonStyle("borderless"),
               accessibilityLabel(option.label),
               accessibilityAddTraits(units === option.value ? ["isSelected"] : []),
+              frame({ maxWidth: Infinity }),
             ]}
           >
-            <Row spacing={12} alignment="center" modifiers={[contentShape(shapes.rectangle())]}>
+            <Row
+              spacing={12}
+              alignment="center"
+              modifiers={[frame({ maxWidth: Infinity }), contentShape(shapes.rectangle())]}
+            >
               <Column spacing={2} alignment="start" modifiers={[frame({ maxWidth: Infinity, alignment: "leading" })]}>
                 <Text textStyle={{ color: Gallery.ink }} modifiers={[font({ textStyle: "body" })]}>
                   {option.label}

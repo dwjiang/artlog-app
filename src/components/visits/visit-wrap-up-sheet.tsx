@@ -8,6 +8,7 @@ import { LoadingRing } from "@/components/loading-ring";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
+import { useDiscardEditsGuard } from "@/hooks/use-discard-edits-guard";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
 import { captureOwner } from "@/lib/account/owner-store";
 import { formatElapsed, formatVisitDate } from "@/lib/journal/history";
@@ -18,7 +19,7 @@ import { reportError } from "@/lib/observability";
 import { showToast } from "@/lib/ui/toast";
 import { calendarDate } from "@/shared/journal/limits";
 
-import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
+import { useNoteEdited, VisitNotes, type VisitNotesHandle } from "./visit-notes";
 import { ArtworkPreviews } from "./visit-ui";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -36,6 +37,9 @@ export function VisitWrapUpSheet() {
   const submitting = useRef(false);
   const mounted = useRef(false);
   const [busy, setBusy] = useState<"share" | "keep">();
+  // The note waits for Share or Keep private, so Skip or a swipe asks before throwing a typed one away.
+  const { noteEdited, onDraftChange } = useNoteEdited(visit?.reflection ?? null);
+  const leave = useDiscardEditsGuard({ edited: noteEdited, busy: !!busy });
   const [failure, setFailure] = useState<string>();
   const [openedAt] = useState(Date.now);
 
@@ -75,10 +79,15 @@ export function VisitWrapUpSheet() {
       await clearWrapUp(owner, visitId);
       if (!current()) return;
       if (share) {
-        router.replace({ pathname: "/visit-share/[visitId]", params: { visitId: visit.localId, audience: "friends" } });
+        leave(() =>
+          router.replace({
+            pathname: "/visit-share/[visitId]",
+            params: { visitId: visit.localId, audience: "friends" },
+          }),
+        );
       } else {
         showToast("Visit saved.");
-        router.back();
+        leave();
       }
     } catch (cause) {
       reportError(cause, "visit.wrap-up.save");
@@ -141,7 +150,7 @@ export function VisitWrapUpSheet() {
         </ThemedText>
       </View>
       {count > 0 && <ArtworkPreviews works={visit.works} size={56} overflow />}
-      <VisitNotes ref={notes} visit={visit} autoSave={false} editable={!busy} />
+      <VisitNotes ref={notes} visit={visit} autoSave={false} editable={!busy} onDraftChange={onDraftChange} />
       {failure && (
         <ThemedText themeColor="error" accessibilityRole="alert">
           {failure}

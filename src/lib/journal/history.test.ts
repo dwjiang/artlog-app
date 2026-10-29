@@ -1,5 +1,3 @@
-import { sortWorksByArtist } from "@/lib/collection/search";
-
 import {
   filterVisits,
   formatElapsed,
@@ -35,14 +33,20 @@ const visit = (localId: string, fields: Partial<JournalVisit> = {}): JournalVisi
 
 it("searches dates and geography and groups months without a phone timezone conversion", () => {
   const rows = [visit("a"), visit("b", { visitedOn: "2024-03-01" })];
-  for (const query of ["musee", "paris", "fr", "france", "2024-02-29", "29 feb 2024", "February"]) {
+  for (const query of ["musee", "paris", "fr", "france", "2024-02-29", "feb 29, 2024", "February"]) {
     expect(filterVisits(rows, query)).toContain(rows[0]);
   }
-  expect(formatVisitDate("2024-02-29")).toBe("29 Feb 2024");
   expect(groupHistoryByMonth(rows).map(({ title, data }) => [title, data.map((row) => row.localId)])).toEqual([
     ["March 2024", ["b"]],
     ["February 2024", ["a"]],
   ]);
+});
+
+it("writes every visit day as month, day and year, or without the year, and nothing for a non-date", () => {
+  expect(formatVisitDate("2024-02-29")).toBe("Feb 29, 2024");
+  expect(formatVisitDate("2026-10-09")).toBe("Oct 9, 2026");
+  expect(formatVisitDate("2026-10-09", { year: false })).toBe("Oct 9");
+  for (const value of [undefined, null, "", "2026-02-30", "invalid"]) expect(formatVisitDate(value)).toBe("");
 });
 
 it("counts repeat and empty visits, merges canonical cities and separates unresolved names", () => {
@@ -97,35 +101,10 @@ it("uses stable cursors and rejects cursors from a different owner or filter", (
   expect(() => pageRows(rows, key, "owner-b", { cursor: first.cursor })).toThrow("invalid_pagination");
 });
 
-it("sorts by artist display name, parsed year, title and save UUID, with undated works last", () => {
-  const row = (localId: string, artist: string, date: string | null, title = "Painting") => ({
-    localId,
-    artist,
-    date,
-    title,
-  });
-  const rows = [
-    row("undated", "Claude Monet", null),
-    row("late", "Claude Monet", "c. 1916"),
-    row("early-z", "Claude Monet", "1860–1865"),
-    row("early-a", "Claude Monet", "1860"),
-    row("alpha", "Álvaro Siza", null),
-    row("pablo", "Pablo Picasso", "1900"),
-  ];
-  expect(sortWorksByArtist(rows).map((row) => row.localId)).toEqual([
-    "alpha",
-    "early-a",
-    "early-z",
-    "late",
-    "undated",
-    "pablo",
-  ]);
-});
-
 it("shows a visit start as a time on its own museum day and as a date afterwards", () => {
   const startedAt = Date.UTC(2026, 8, 18, 21, 10);
   expect(formatVisitStart(startedAt, "America/New_York", Date.UTC(2026, 8, 18, 22))).toBe("5:10 PM");
-  expect(formatVisitStart(startedAt, "America/New_York", Date.UTC(2026, 8, 19, 15))).toBe("18 Sep 2026");
+  expect(formatVisitStart(startedAt, "America/New_York", Date.UTC(2026, 8, 19, 15))).toBe("Sep 18, 2026");
   expect(formatVisitStart(startedAt, "Asia/Tokyo", Date.UTC(2026, 8, 18, 22))).toBe("6:10 AM");
 });
 

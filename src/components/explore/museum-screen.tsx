@@ -1,14 +1,12 @@
-import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { EmptyState } from "@/components/empty-state";
-import { LoadingImage } from "@/components/loading-image";
 import { ImageSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll";
 import { StateScreen } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Spacing, Typography } from "@/constants/theme";
+import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { useMuseumImage, type MuseumImage } from "@/lib/explore/museum-image";
 import { museumExhibitions } from "@/lib/explore/museum-summary";
@@ -22,10 +20,10 @@ import { LOOK_AROUND_STILL_ASPECT } from "@/lib/venue/look-around-still";
 import { photoCredit } from "@/lib/venue/use-museum-photo";
 
 import { getLookAround, isExpectedLookAroundError } from "../../../modules/look-around/src";
-import { DetailActions, openSourcePage } from "./detail-parts";
+import { DetailActions, LocationPreview, openSourcePage } from "./detail-parts";
 import { ExhibitionRow } from "./exhibition-row";
+import { HeaderPhoto } from "./explore-image";
 import { ExploreState } from "./explore-state";
-import { LocationMap } from "./location-map";
 
 export function MuseumScreen({ museumId }: { museumId: string }) {
   const explore = useMuseum(museumId);
@@ -90,7 +88,7 @@ export function MuseumScreen({ museumId }: { museumId: string }) {
         <Text variant="section" accessibilityRole="header">
           Location
         </Text>
-        <LocationMap museum={museum} />
+        <LocationPreview museum={museum} />
       </View>
       <View style={styles.section}>
         <Text variant="section" accessibilityRole="header" style={styles.sectionTitle}>
@@ -125,9 +123,6 @@ function openLookAround(museum: ExploreMuseum) {
 /** The museum's picture and its credit, which links to the photo's page or opens Look Around there. */
 function HeaderImage({ museum, image }: { museum: ExploreMuseum; image: MuseumImage }) {
   const width = useSafeAreaWidth();
-  // Commons photos take their own shape once loaded.
-  const [aspect, setAspect] = useState(LOOK_AROUND_STILL_ASPECT);
-  const imageWidth = width - Spacing.content * 2;
   const { source } = image;
   const credit =
     source.kind === "commons"
@@ -145,12 +140,11 @@ function HeaderImage({ museum, image }: { museum: ExploreMuseum; image: MuseumIm
       onPress={credit.open}
       style={styles.image}
     >
-      <LoadingImage
+      <HeaderPhoto
         uri={image.uri}
         label={image.label}
-        contentFit="contain"
-        onLoad={({ source: loaded }) => setAspect(loaded.width / loaded.height)}
-        style={{ width: imageWidth, height: imageWidth / aspect }}
+        width={width - Spacing.content * 2}
+        fallbackAspect={LOOK_AROUND_STILL_ASPECT}
       />
       <Text variant="metadata" themeColor="textSecondary" numberOfLines={2}>
         {credit.text}
@@ -162,7 +156,12 @@ function HeaderImage({ museum, image }: { museum: ExploreMuseum; image: MuseumIm
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Gallery.paper },
   image: { marginHorizontal: Spacing.content, gap: Spacing.two },
-  pendingImage: { marginHorizontal: Spacing.content, aspectRatio: LOOK_AROUND_STILL_ASPECT },
+  pendingImage: {
+    marginHorizontal: Spacing.content,
+    aspectRatio: LOOK_AROUND_STILL_ASPECT,
+    borderRadius: Radius.card,
+    overflow: "hidden",
+  },
   content: { paddingTop: Spacing.two, paddingBottom: Spacing.five },
   details: { paddingHorizontal: Spacing.content, paddingTop: Spacing.three, gap: Spacing.three },
   facts: {

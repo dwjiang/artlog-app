@@ -12,7 +12,7 @@ const mockSettings = new Map<string, string>();
 let mockOffline = false;
 let mockSession: { status: string; key: string; profileId?: string; token?: string };
 let mockResults: Record<string, unknown>;
-let mockSaved = new Map<string, { localId: string }>();
+let mockSaved = new Map<string, { localId: string; cropPath?: string }>();
 const mockSearchVenues = jest.fn();
 jest.mock("convex/browser", () => ({
   ConvexHttpClient: function () {
@@ -46,6 +46,7 @@ jest.mock("@/lib/catalog/use-catalog-ready", () => ({
 jest.mock("@/lib/venue/search-venues", () => ({
   searchVenues: (query: string) => mockSearchVenues(query),
 }));
+jest.mock("@/lib/files/photos", () => ({ captureFileUri: (path: string) => `file:///documents/${path}` }));
 jest.mock("@/lib/catalog/use-saved-catalog-works", () => ({
   useSavedCatalogWorks: () => mockSaved,
 }));
@@ -246,6 +247,29 @@ it("opens your saved copy of an artwork you saved, and lists the rest under See 
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/saved/[savedId]", params: { savedId: "save-1" } });
   await fireEvent.press(screen.getByRole("button", { name: "See all: Artworks" }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/search-artworks", params: { query: "monet" } });
+});
+
+type Node = { props: { source?: unknown }; children: (Node | string)[] };
+const imageSources = (node: Node): unknown[] => [
+  ...(node.props.source ? [node.props.source] : []),
+  ...node.children.flatMap((child) => (typeof child === "string" ? [] : imageSources(child))),
+];
+
+it("shows your own photo for a work in your collection, in results and recent searches", async () => {
+  mockSaved = new Map([["wheat", { localId: "save-2", cropPath: "crops/wheat.preview.jpg" }]]);
+  mockSettings.set(
+    "search.recent",
+    JSON.stringify([{ kind: "artwork", artwork: { artworkId: "wheat", title: wheat.title } }]),
+  );
+  mockResults["catalog:search"] = { artists: [], artworks: { page: [lilies, wheat], cursor: null, isDone: true } };
+  await render(<SearchScreen />);
+  const recent = await screen.findByRole("button", { name: wheat.title });
+  expect(imageSources(recent as never)).toEqual([[{ uri: "file:///documents/crops/wheat.preview.jpg" }]]);
+  await type("monet");
+  const saved = screen.getByRole("button", { name: "Stacks of Wheat (End of Summer), Claude Monet · 1890–91, Saved" });
+  expect(imageSources(saved as never)).toContainEqual([{ uri: "file:///documents/crops/wheat.preview.jpg" }]);
+  const catalog = screen.getByRole("button", { name: "Water Lilies, Claude Monet · 1906" });
+  expect(imageSources(catalog as never)).toContainEqual([{ uri: "https://museum.example/lilies.jpg" }]);
 });
 
 it("keeps later artwork matches reachable when the first page contains only hidden works", async () => {

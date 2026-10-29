@@ -201,7 +201,7 @@ it("retains an edited visit after leaving the session and saves only new photos 
   const capture = await render(<AddPhotosScreen />);
   await fireEvent.press(
     await screen.findByRole("button", {
-      name: "The Met · 1 Sep 2026 · Change",
+      name: "The Met · Sep 1, 2026 · Change",
     }),
   );
   expect(mockPush).toHaveBeenCalledWith({
@@ -216,11 +216,11 @@ it("retains an edited visit after leaving the session and saves only new photos 
   const context = await render(<CaptureContextScreen />);
   expect(
     await screen.findByRole("button", {
-      name: "The Met · 1 Sep 2026",
+      name: "The Met · Sep 1, 2026",
       selected: true,
     }),
   ).toBeOnTheScreen();
-  await fireEvent.press(await screen.findByRole("button", { name: "Other museum · 2 Sep 2026" }));
+  await fireEvent.press(await screen.findByRole("button", { name: "Other museum · Sep 2, 2026" }));
   expect(readPhotoSession(owner, "saved-artwork").visit).toEqual({
     kind: "visit",
     localId: "eaebe816-f46f-5312-a657-f92d1af2cb76",
@@ -229,7 +229,7 @@ it("retains an edited visit after leaving the session and saves only new photos 
   await render(<AddPhotosScreen />);
   expect(
     await screen.findByRole("button", {
-      name: "Other museum · 2 Sep 2026 · Change",
+      name: "Other museum · Sep 2, 2026 · Change",
     }),
   ).toBeOnTheScreen();
   mockBack.mockClear();
@@ -400,7 +400,7 @@ it("saves a conflicting photo as its own artwork in the museum visit the context
   await render(<AddPhotosScreen />);
   expect(
     await screen.findByRole("button", {
-      name: "The Met · 31 Dec 1969 · Change",
+      name: "The Met · Dec 31, 1969 · Change",
     }),
   ).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Save as a separate artwork" }));
@@ -442,7 +442,7 @@ it("keeps the museum on a separate artwork saved outside a visit open elsewhere"
     new VisitInProgressError({ localId: "neue-visit", venueName: "Neue Galerie" } as never),
   );
   const alert = jest.spyOn(Alert, "alert").mockImplementation((_title, _message, buttons?: AlertButton[]) => {
-    buttons?.find((button) => button.text === "Save artwork only")?.onPress?.();
+    buttons?.find((button) => button.text === "Save Artwork Only")?.onPress?.();
   });
   await render(<AddPhotosScreen />);
   await fireEvent.press(await screen.findByRole("button", { name: "Save as a separate artwork" }));

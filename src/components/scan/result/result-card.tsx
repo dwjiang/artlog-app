@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
 import { useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
@@ -16,6 +16,7 @@ import { captureFileUri, scanDisplayPath } from "@/lib/files/photos";
 import type { SaveResultInput } from "@/lib/result/save";
 import { canSave, draftFromCandidate, draftFromConfirmed, type SnapshotDraft } from "@/lib/result/snapshot";
 import type { ResultCandidate, ResultViewState } from "@/lib/result/state";
+import { useSavedCopy } from "@/lib/result/use-saved-copy";
 import { useHorizontalSafeAreaPadding } from "@/lib/ui/safe-area";
 import { useLiftToasts } from "@/lib/ui/toast";
 import { useLandscape } from "@/lib/ui/use-landscape";
@@ -85,6 +86,8 @@ export function ResultCard({
   useLiftToasts(saveBarHeight, useIsFocused());
   const editable = !saving && !savedId;
   const named = view.kind === "confident" || view.kind === "confirmed";
+  // Saving a work already in the collection adds this photo to it.
+  const savedCopy = useSavedCopy(view, draft);
   const attributed = !editingDetails && view.kind !== "soft";
   const suggestions = editable && view.kind !== "confident" ? view.runnerUps : [];
   // A suggested work keeps its catalogue link while its details are corrected in place; a work the owner named
@@ -232,11 +235,24 @@ export function ResultCard({
           saving={saving}
           savedId={savedId}
           error={saveError}
-          saveLabel={savePhotoOnly ? "Save photo for later" : named ? "Save to collection" : "Save with these details"}
+          saveLabel={
+            savePhotoOnly
+              ? "Save photo for later"
+              : savedCopy
+                ? "Add this photo"
+                : named
+                  ? "Save to collection"
+                  : "Save with these details"
+          }
           onSave={() => (savePhotoOnly ? onSavePhoto() : onSave(draft))}
           onViewSaved={onViewSaved}
           visit={visit}
           notice={saveNotice}
+          onViewInCollection={
+            savedCopy
+              ? () => router.push({ pathname: "/saved/[savedId]", params: { savedId: savedCopy.localId } })
+              : undefined
+          }
         />
       </View>
     </>
@@ -246,7 +262,8 @@ export function ResultCard({
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.content,
-    paddingTop: Spacing.two,
+    // The result screen's loading view puts its photo here too, so the photo stays put when this card replaces it.
+    paddingTop: Spacing.one,
     paddingBottom: Spacing.four,
     gap: Spacing.three,
   },

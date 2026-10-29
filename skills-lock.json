@@ -205,6 +205,12 @@
       "skillPath": "skills/convex-verify/SKILL.md",
       "computedHash": "dbe65a37ca2e9a5afa55669b8928ce1dc3ac765151452008f9105bde049228f7"
     },
+    "dogfood": {
+      "source": "callstack/agent-device",
+      "sourceType": "github",
+      "skillPath": "skills/dogfood/SKILL.md",
+      "computedHash": "8e6dfbff0633e355210ce7ae109cb39a3e1347946b6e92aaa607271154526b6b"
+    },
     "eas-app-stores": {
       "source": "expo/skills",
       "sourceType": "github",

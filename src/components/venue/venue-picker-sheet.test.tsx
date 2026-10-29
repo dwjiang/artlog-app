@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { ConvexError } from "convex/values";
 import { Dimensions, Linking } from "react-native";
 
 import { removeSetting } from "@/db/repos/settings";
@@ -442,13 +443,37 @@ describe("choosing a museum", () => {
     expect(screen.getAllByText("landmark")).toHaveLength(2);
   });
 
-  it("keeps the sheet open with the reason when confirmation fails", async () => {
-    mockConfirm.mockRejectedValue(new Error("rate_limited"));
+  it("keeps the sheet open with a plain reason when confirmation fails, never the exception text", async () => {
+    mockConfirm
+      .mockRejectedValueOnce(new ConvexError({ code: "rate_limited" }))
+      .mockRejectedValueOnce(new Error("[CONVEX M(museums:confirmPoiVenue)] Server Error"));
     await render(<VenuePickerSheet />);
     await fireEvent.press(screen.getByRole("button", { name: seeded.name }));
-    expect(screen.getByText("rate_limited")).toBeOnTheScreen();
+    expect(screen.getByRole("alert")).toHaveTextContent("Please wait a moment and try again.");
+    await fireEvent.press(screen.getByRole("button", { name: seeded.name }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Could not confirm the venue. Try again.");
     expect(mockBack).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["location", "Couldn’t find your location."],
+    ["lookup", "Couldn’t check for nearby museums."],
+  ] as const)(
+    "names a failed %s fix in place of “No nearby museums found.” until a search answers",
+    async (failure, title) => {
+      const { searchVenues } = jest.requireMock("@/lib/venue/search-venues");
+      searchVenues.mockResolvedValue([]);
+      mockView = { ...mockView, status: "none", options: [], failure };
+      await render(<VenuePickerSheet />);
+      expect(screen.getByText(title)).toBeOnTheScreen();
+      expect(screen.queryByText("No nearby museums found.")).toBeNull();
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(screen.getByRole("button", { name: "Search museums" })).toBeOnTheScreen();
+      await fireEvent.changeText(screen.getByPlaceholderText("Museum or city"), "Art Institute");
+      expect(await screen.findByText("No museums found.")).toBeOnTheScreen();
+      expect(screen.queryByText(title)).toBeNull();
+    },
+  );
 
   it('dismisses with "Not here" without confirming anything', async () => {
     await render(<VenuePickerSheet />);

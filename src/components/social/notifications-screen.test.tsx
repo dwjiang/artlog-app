@@ -343,3 +343,12 @@ it.each(["resume", "focus", "minute"] as const)("refreshes notification ages on 
     jest.useRealTimers();
   }
 });
+
+it("invites a guest to sign in for notifications", async () => {
+  mockSession = { ...mockSession, status: "signed-out", token: null };
+  await render(<NotificationsScreen />);
+  expect(screen.getByRole("header", { name: "Sign in to see notifications." })).toBeOnTheScreen();
+  expect(screen.getByText("Friend requests, likes, comments, and mentions appear here.")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/sign-in", params: { context: "account" } });
+});

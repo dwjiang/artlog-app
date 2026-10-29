@@ -4,8 +4,8 @@ import { accessibilityLabel, buttonStyle, frame } from "@expo/ui/swift-ui/modifi
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useVerticalBarEdgeIOS } from "expo-status-bar";
-import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useRef, useState } from "react";
+import { ScrollView, type ScrollViewInstance, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -15,6 +15,7 @@ import { ToastLayer } from "@/components/toast";
 import { Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import type { ListeningWork } from "@/lib/audio/narration";
 import { useListening } from "@/lib/audio/use-listening";
+import { artistLine } from "@/lib/catalog/artist-line";
 
 import { AddSavedWorks } from "./add-saved-works";
 import { AudioIcon, AudioIconButton } from "./audio-icon";
@@ -32,6 +33,14 @@ export function NowPlayingScreen() {
   // The iPhone Duo's side bar holds only the camera and status items at its top, so below the header the player runs
   // into its column instead of leaving it blank. Landscape camera housings span the full height and keep their inset.
   const verticalBar = useVerticalBarEdgeIOS();
+  const column = useRef<ScrollViewInstance>(null);
+  const [columnHeight, setColumnHeight] = useState(0);
+  // A list cannot scroll the column, so it opens from the column's top rather than wherever the player was scrolled,
+  // which would hide the list's heading above the screen.
+  const show = (next: PlayerView) => {
+    if (next !== "player") column.current?.scrollTo({ y: 0, animated: false });
+    setView(next);
+  };
   if (!audio.current) {
     return (
       <View style={styles.empty}>
@@ -62,11 +71,11 @@ export function NowPlayingScreen() {
         label={<Icon name="ellipsis" size={22} color={Gallery.ink} modifiers={[frame({ width: 44, height: 44 })]} />}
       >
         {(work.savedId || work.scanId) && (
-          <Button label="View this artwork" systemImage="photo" onPress={openArtwork} />
+          <Button label="View This Artwork" systemImage="photo" onPress={openArtwork} />
         )}
-        <Button label="Restart narration" systemImage="arrow.counterclockwise" onPress={audio.controller.restart} />
+        <Button label="Restart Narration" systemImage="arrow.counterclockwise" onPress={audio.controller.restart} />
         <Button
-          label="Stop listening & close player"
+          label="Stop Listening & Close Player"
           systemImage="stop"
           role="destructive"
           onPress={() => {
@@ -83,7 +92,7 @@ export function NowPlayingScreen() {
         {work.title}
       </Text>
       <Text selectable variant="secondary" themeColor="textSecondary">
-        {[work.artist, work.date].filter(Boolean).join(" · ")}
+        {artistLine(work.artist, work.date)}
       </Text>
       <ReportableHeading
         report={audio.renderId ? { kind: "audio", artworkId: work.artworkId, renderId: audio.renderId } : undefined}
@@ -95,11 +104,11 @@ export function NowPlayingScreen() {
       </ReportableHeading>
     </View>
   );
-  const transport = <PlayerTransport view={view} onView={setView} />;
+  const transport = <PlayerTransport view={view} onView={show} />;
   const list = (
     <>
       {view === "transcript" && <GuideFollowAlong />}
-      {view === "queue" && <ListeningQueue onAdd={() => setView("saved")} />}
+      {view === "queue" && <ListeningQueue onAdd={() => show("saved")} />}
       {view === "saved" && <AddSavedWorks />}
     </>
   );
@@ -125,7 +134,7 @@ export function NowPlayingScreen() {
               <Text variant="secondary" style={styles.headerTitle}>
                 Add saved works
               </Text>
-              <GalleryButton label="Done" onPress={() => setView("queue")} />
+              <GalleryButton label="Done" onPress={() => show("queue")} />
             </>
           ) : (
             options
@@ -158,22 +167,38 @@ export function NowPlayingScreen() {
           </View>
         </View>
       ) : (
-        <>
-          {view === "player" && (
-            <ScrollView
-              style={styles.fill}
-              contentContainerStyle={styles.player}
-              contentInsetAdjustmentBehavior="never"
-              alwaysBounceVertical={false}
-            >
+        // The label and transport scroll as one column, so large text pushes the transport down instead of running
+        // under it. The lists scroll themselves: there the column's content is exactly its measured height, so a list
+        // takes what the transport leaves and the column stays put, leaving the list the status-bar tap. One column for
+        // every view keeps the transport mounted, and VoiceOver on its button, when the view changes.
+        // A reused Yoga node keeps its measured flex basis when its style changes to `flex: 1` (Fabric dirties clones
+        // without clearing it), so a list in the player's node kept the player's height and pushed the transport off
+        // the screen. Hence the fixed content height rather than a flexed one, and a keyed node for the list.
+        <ScrollView
+          ref={column}
+          style={styles.fill}
+          onLayout={({ nativeEvent: { layout } }) => setColumnHeight(layout.height)}
+          contentContainerStyle={
+            view === "player" ? styles.player : columnHeight ? { height: columnHeight } : styles.fill
+          }
+          contentInsetAdjustmentBehavior="never"
+          alwaysBounceVertical={false}
+          scrollEnabled={view === "player"}
+          scrollsToTop={view === "player"}
+        >
+          {view === "player" ? (
+            <View key="player" style={styles.player}>
               {/* Inset alike on both sides, the print stays centred over the transport and clear of the bar's top. */}
               <ArtworkPrint work={work} inset={Math.max(Spacing.four, barLeft + barRight)} />
               {label}
-            </ScrollView>
+            </View>
+          ) : (
+            <View key="list" style={[styles.fill, besideBar]}>
+              {list}
+            </View>
           )}
-          {view !== "player" && <View style={[styles.fill, besideBar]}>{list}</View>}
           <View style={view !== "player" && styles.footer}>{transport}</View>
-        </>
+        </ScrollView>
       )}
       <ToastLayer offset={0} />
     </View>

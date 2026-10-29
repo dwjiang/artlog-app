@@ -1,5 +1,6 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
+import { Alert, type AlertButton } from "react-native";
 
 import { addArtworkPhoto, selectArtworkEncounters, selectVisitArtworkPhotos } from "@/db/repos/artwork-album";
 import { insertSavedWork } from "@/db/repos/saved-works";
@@ -25,6 +26,7 @@ const mockMovingVisit = {
   timeZone: "Asia/Tokyo",
 };
 let mockSavedId: string | undefined;
+let mockVenueId: string | undefined;
 let mockSavedIds: string | undefined;
 let mockCapturedAt: string | undefined;
 let mockPhotoIds: string | undefined;
@@ -74,12 +76,22 @@ jest.mock("@/lib/venue/venue-db", () => ({
   venueMetadataForIds: async () => [mockVenue],
   onVenueMetadataChange: () => () => {},
 }));
+// Like Expo Router's removal prevention: a blocked removal goes to the screen's callback, whose `repeat` performs it.
+let mockGuard: { prevented: boolean; onPrevented?: (event: { repeat: () => void }) => void } = { prevented: false };
+const mockRemove = (remove: () => void) =>
+  mockGuard.prevented ? mockGuard.onPrevented?.({ repeat: remove }) : remove();
 jest.mock("expo-router", () => {
   const { Pressable, Text, View } = jest.requireActual("react-native");
   return {
     router: {
-      back: () => mockBack(),
-      dismissTo: (...args: unknown[]) => mockDismissTo(...args),
+      back: () => mockRemove(mockBack),
+      dismissTo: (...args: unknown[]) => mockRemove(() => mockDismissTo(...args)),
+    },
+    usePreventRemove: (prevented: boolean, onPrevented: (event: { repeat: () => void }) => void) => {
+      mockGuard = { prevented, onPrevented };
+      return () => {
+        mockGuard.prevented = false;
+      };
     },
     useFocusEffect: (effect: () => void) => jest.requireActual("react").useEffect(effect, []),
     useNavigation: () => {
@@ -94,6 +106,7 @@ jest.mock("expo-router", () => {
     useRouter: () => ({ back: () => mockBack(), push: jest.fn() }),
     useLocalSearchParams: () => ({
       savedId: mockSavedId,
+      venueId: mockVenueId,
       savedIds: mockSavedIds,
       visitId: mockMovingVisit.localId,
       capturedAt: mockCapturedAt,
@@ -113,7 +126,9 @@ jest.mock("expo-router", () => {
 });
 beforeEach(() => {
   dismissToast();
+  mockGuard = { prevented: false };
   mockSavedId = undefined;
+  mockVenueId = undefined;
   mockSavedIds = undefined;
   mockCapturedAt = undefined;
   mockPhotoIds = undefined;
@@ -128,6 +143,8 @@ beforeEach(() => {
 });
 afterEach(() => dismissToast());
 afterEach(() => jest.restoreAllMocks());
+const alertButton = (alert: jest.SpyInstance, text: string) =>
+  (alert.mock.lastCall as [string, undefined, AlertButton[]])[2].find((button) => button.text === text)!;
 async function fill() {
   await fireEvent.changeText(screen.getByLabelText("Search museums"), "museum");
   await fireEvent.press(
@@ -220,9 +237,12 @@ it("cancels a pending linked visit without creating a visit or encounter", async
     savedAt: 1,
   });
   const before = (await listVisits()).length;
+  const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   await render(<VisitCreateScreen />);
   await fill();
   await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+  expect(mockBack).not.toHaveBeenCalled();
+  await act(() => alertButton(alert, "Discard Edits").onPress?.());
   expect(mockBack).toHaveBeenCalledTimes(1);
   expect(await listVisits()).toHaveLength(before);
   expect(
@@ -230,6 +250,45 @@ it("cancels a pending linked visit without creating a visit or encounter", async
       .all()
       .some((entry) => entry.savedLocalId === mockSavedId),
   ).toBe(false);
+});
+
+describe("leaving Add visit", () => {
+  let alert: jest.SpyInstance;
+  beforeEach(() => {
+    alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  });
+
+  it("closes without asking before anything is picked or typed, even with the museum it opened on", async () => {
+    mockVenueId = "museum";
+    await render(<VisitCreateScreen />);
+    expect(await screen.findByRole("button", { name: "Change museum" })).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    expect(mockBack).toHaveBeenCalledTimes(1);
+    expect(alert).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a chosen museum", () => fill()],
+    ["a changed date", () => fireEvent.changeText(screen.getByLabelText("Visit date"), "2024-02-29T12:00:00")],
+    ["typed notes", () => fireEvent.changeText(screen.getByLabelText("Notes"), "Rainy afternoon")],
+  ])("asks before Cancel or a swipe throws away %s, and keeps the form to keep editing", async (_edit, edit) => {
+    await render(<VisitCreateScreen />);
+    await edit();
+    await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    expect(alert).toHaveBeenCalledWith("Discard your edits?", undefined, expect.any(Array));
+    await act(() => alertButton(alert, "Keep Editing").onPress?.());
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Add" })).toBeOnTheScreen();
+  });
+
+  it("closes after adding the visit without asking", async () => {
+    await render(<VisitCreateScreen />);
+    await fill();
+    await fireEvent.changeText(screen.getByLabelText("Notes"), "Rainy afternoon");
+    await fireEvent.press(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
+    expect(alert).not.toHaveBeenCalled();
+  });
 });
 
 describe("a museum our table does not know", () => {

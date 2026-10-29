@@ -1,9 +1,10 @@
 import { Stack } from "expo-router/stack";
 import { useState } from "react";
 
+import { HOME_TITLE } from "@/components/social/home-screen";
 import { NowCardScrolledAway } from "@/components/visits/now-card";
 import { VisitBand } from "@/components/visits/visit-band";
-import { LargeTitleHeader, NavigationTheme } from "@/constants/theme";
+import { NavigationTheme, ScrollTitleHeader } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 
 export default function HomeLayout() {
@@ -14,7 +15,8 @@ export default function HomeLayout() {
       <Stack
         screenOptions={{ ...NavigationTheme, animation: reduced ? "fade" : "default", animationMatchesGesture: true }}
       >
-        <Stack.Screen name="index" options={{ ...LargeTitleHeader, title: "Artlog" }} />
+        {/* The screen draws its own title; the bar keeps only the feed menu and its buttons. */}
+        <Stack.Screen name="index" options={{ ...ScrollTitleHeader, title: HOME_TITLE }} />
       </Stack>
       {/* Home carries the visit on its Now card until the card scrolls away. */}
       {nowCardAway && <VisitBand beforeVisit />}

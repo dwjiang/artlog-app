@@ -78,15 +78,23 @@ export function SocialState({
   );
 }
 
+export const FRIENDS_SIGN_IN = {
+  title: "Sign in to add friends.",
+  detail: "See the museum visits and artworks your friends share.",
+};
+
 export function SocialGate({
   session,
   onBrowseGlobal,
   context = "friends",
+  signedOut = FRIENDS_SIGN_IN,
   card = false,
 }: {
   session: SocialSession;
   onBrowseGlobal?: () => void;
   context?: SignInContext;
+  /** What signing in opens on this screen; pair it with the `context` whose sign-in title says the same. */
+  signedOut?: { title: string; detail: string };
   /** Sets each state as a gray card under other content. */
   card?: boolean;
 }) {
@@ -97,8 +105,7 @@ export function SocialGate({
     return (
       <SocialInvitation
         card={card}
-        title={"Sign in to add friends."}
-        detail="See the museum visits and artworks your friends share."
+        {...signedOut}
         action={{ label: "Sign in", onPress: () => router.push(signInRoute(context)) }}
         secondaryAction={browseGlobal}
       />

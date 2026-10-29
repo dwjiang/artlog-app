@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
-import { Platform, ScrollView } from "react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { Linking, Platform, ScrollView } from "react-native";
 
 import type { VenueRow } from "@/lib/venue/resolve";
+import type { Located } from "@/lib/venue/use-venue";
 
 import { ExploreMapScreen } from "./explore-map-screen";
 
@@ -10,7 +11,14 @@ jest.mock("expo-router", () => ({
   router: { push: jest.fn() },
 }));
 jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable: true }) }));
-jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({}) }));
+const mockResolve = jest.fn<Promise<Located>, []>();
+jest.mock("@/lib/venue/use-venue", () => ({ useVenue: () => ({ resolve: mockResolve }) }));
+const mockToast = jest.fn();
+const mockErrorToast = jest.fn();
+jest.mock("@/lib/ui/toast", () => ({
+  showToast: (...args: unknown[]) => mockToast(...args),
+  showErrorToast: (...args: unknown[]) => mockErrorToast(...args),
+}));
 jest.mock("@/lib/settings/use-measurement-units", () => ({
   useMeasurementUnits: () => ({ units: "imperial", failed: false }),
 }));
@@ -81,6 +89,9 @@ afterEach(() => {
   mockCityMuseums = [];
   mockLocationGranted = true;
   mockSetCameraPosition.mockClear();
+  mockResolve.mockReset();
+  mockToast.mockReset();
+  mockErrorToast.mockReset();
 });
 
 it("pins a region's nearest 200 museums, then 200 more as the list reaches its end", async () => {
@@ -125,6 +136,7 @@ it("reveals the selected museum at the top of the panel on every pin tap", async
 });
 
 it("centers the map on the phone from the header, once location is on", async () => {
+  mockResolve.mockResolvedValue({ fix: { lat: 37.7749, lng: -122.4194, at: 0 } });
   mockLocationGranted = false;
   const view = await render(<ExploreMapScreen />);
   expect(await screen.findByText(/museums nearby$/)).toBeOnTheScreen();
@@ -133,5 +145,42 @@ it("centers the map on the phone from the header, once location is on", async ()
   mockLocationGranted = true;
   await view.rerender(<ExploreMapScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "My Location" }));
-  expect(mockSetCameraPosition).toHaveBeenCalledWith();
+  await waitFor(() =>
+    expect(mockSetCameraPosition).toHaveBeenCalledWith(
+      expect.objectContaining({ coordinates: { latitude: 37.7749, longitude: -122.4194 } }),
+    ),
+  );
+  expect(mockErrorToast).not.toHaveBeenCalled();
+});
+
+it("says so when My location can’t find the phone, and tries again on Retry", async () => {
+  mockResolve.mockResolvedValueOnce({ failure: "unavailable" });
+  await render(<ExploreMapScreen />);
+  await fireEvent.press(await screen.findByRole("button", { name: "My Location" }));
+  await waitFor(() =>
+    expect(mockErrorToast).toHaveBeenCalledWith("Couldn’t find your location.", expect.any(Function)),
+  );
+  expect(mockSetCameraPosition).not.toHaveBeenCalled();
+
+  mockResolve.mockResolvedValueOnce({ fix: { lat: 37.7749, lng: -122.4194, at: 0 } });
+  const [, retry] = mockErrorToast.mock.calls[0] as [string, () => void];
+  retry();
+  await waitFor(() => expect(mockSetCameraPosition).toHaveBeenCalledTimes(1));
+});
+
+it("points to Settings when My location finds location access off", async () => {
+  const openSettings = jest.spyOn(Linking, "openSettings").mockResolvedValue(undefined);
+  mockResolve.mockResolvedValue({ failure: "denied" });
+  await render(<ExploreMapScreen />);
+  await fireEvent.press(await screen.findByRole("button", { name: "My Location" }));
+  await waitFor(() =>
+    expect(mockToast).toHaveBeenCalledWith("Allow location in Settings to show where you are.", {
+      label: "Settings",
+      onPress: expect.any(Function),
+    }),
+  );
+  const [, action] = mockToast.mock.calls[0] as [string, { onPress: () => void }];
+  action.onPress();
+  expect(openSettings).toHaveBeenCalledTimes(1);
+  expect(mockSetCameraPosition).not.toHaveBeenCalled();
 });

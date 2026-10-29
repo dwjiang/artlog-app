@@ -20,9 +20,9 @@ import {
 import Animated, { Easing, Keyframe, ReduceMotion } from "react-native-reanimated";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
-import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { LoadingRing } from "@/components/loading-ring";
 import { MotionPressable } from "@/components/motion-pressable";
+import { CloseButton } from "@/components/sheet-controls";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
 import { VisitSymbol } from "@/components/visits/visit-ui";
@@ -107,7 +107,7 @@ export function VisitReactionsSheet({
                 {summary ? (kind === "comments" ? summary.commentCount : summary.likeCount) : ""}
               </Text>
             </Text>
-            <GalleryIconButton label={`Close ${kind}`} icon="xmark" onPress={onDismiss} />
+            <CloseButton label={`Close ${kind}`} onPress={onDismiss} />
           </View>
           {kind === "comments" ? (
             <Comments visit={visit} session={session} height={listSpace} onJoin={onJoin} onDismiss={onDismiss} />
@@ -326,15 +326,15 @@ function Comments({
   const canReply = (item: Comment) => canWrite && session.profileId !== item.author.profileId;
   const actionsFor = (item: Comment): CommentAction[] => [
     ...(canReply(item) ? [{ name: "reply", label: "Reply", run: () => reply(item) }] : []),
-    { name: "copy", label: "Copy comment", run: () => void copy(item) },
+    { name: "copy", label: "Copy Comment", run: () => void copy(item) },
     ...(session.profileId === item.author.profileId
-      ? [{ name: "delete", label: "Delete comment", destructive: true, run: () => remove(item) }]
+      ? [{ name: "delete", label: "Delete Comment", destructive: true, run: () => remove(item) }]
       : session.status === "loading"
         ? []
         : [
             {
               name: "report",
-              label: "Report comment",
+              label: "Report Comment",
               run: () => {
                 // A route sheet can’t present over this native sheet, so this one closes first.
                 onDismiss();

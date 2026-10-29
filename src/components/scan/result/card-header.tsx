@@ -1,8 +1,10 @@
 import { Image } from "expo-image";
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { ArtworkFrame } from "@/components/artwork/artwork-frame";
 import { MotionPressable } from "@/components/motion-pressable";
+import { PhotoViewer } from "@/components/photo-viewer";
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
@@ -40,6 +42,9 @@ export function CardHeader({
     ? { label: "Edit details", onPress: onEditDetails }
     : onNotRight && { label: "Not right?", onPress: onNotRight };
   const { fontScale } = useWindowDimensions();
+  const [viewing, setViewing] = useState(false);
+  const [failedUri, setFailedUri] = useState<string>();
+  const viewable = !!cropUri && failedUri !== cropUri;
   return (
     <View style={styles.header}>
       <ArtworkFrame
@@ -48,10 +53,22 @@ export function CardHeader({
         cachePolicy="memory"
         accessibilityLabel="Your photo of this painting"
         unavailableTitle={artworkTitle}
-        onError={(message) =>
-          reportError(new Error(message ?? "Painting preview unavailable"), "result.load_preview", { level: "warning" })
-        }
+        onError={(message) => {
+          setFailedUri(cropUri);
+          reportError(new Error(message ?? "Painting preview unavailable"), "result.load_preview", {
+            level: "warning",
+          });
+        }}
       >
+        {/* Laid over the photo beside the crop button, so both stay separate VoiceOver controls. */}
+        {viewable && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View photo"
+            onPress={() => setViewing(true)}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
         {onAdjustCrop && (
           <MotionPressable
             accessibilityRole="button"
@@ -63,6 +80,14 @@ export function CardHeader({
           </MotionPressable>
         )}
       </ArtworkFrame>
+      {viewable && (
+        <PhotoViewer
+          visible={viewing}
+          uri={cropUri}
+          label="Your photo of this painting"
+          onClose={() => setViewing(false)}
+        />
+      )}
       {kind !== "loading" && (
         <View
           style={[

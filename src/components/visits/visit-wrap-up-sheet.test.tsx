@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { Alert, type AlertButton } from "react-native";
 
 import { db } from "@/db/client";
 import { getVisit } from "@/db/repos/visits";
@@ -19,8 +20,21 @@ let mockVisits: VisitSummary[] = [];
 let mockLoading = false;
 jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
 jest.mock("@/lib/account/collection-sync", () => ({ flushJournal: () => mockFlush() }));
+// Like Expo Router's removal prevention: a blocked removal goes to the screen's callback, whose `repeat` performs it.
+let mockGuard: { prevented: boolean; onPrevented?: (event: { repeat: () => void }) => void } = { prevented: false };
+const mockRemove = (remove: () => void) =>
+  mockGuard.prevented ? mockGuard.onPrevented?.({ repeat: remove }) : remove();
 jest.mock("expo-router", () => ({
-  router: { back: () => mockBack(), replace: (to: unknown) => mockReplace(to) },
+  router: {
+    back: () => mockRemove(mockBack),
+    replace: (to: unknown) => mockRemove(() => mockReplace(to)),
+  },
+  usePreventRemove: (prevented: boolean, onPrevented: (event: { repeat: () => void }) => void) => {
+    mockGuard = { prevented, onPrevented };
+    return () => {
+      mockGuard.prevented = false;
+    };
+  },
   useLocalSearchParams: () => ({ visitId: "550e8400-e29b-41d4-a716-446655440000" }),
 }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
@@ -47,11 +61,18 @@ jest.mock("./visit-ui", () => ({
 }));
 jest.mock("./visit-notes", () => {
   const { useImperativeHandle } = jest.requireActual<typeof import("react")>("react");
-  const { Text } = jest.requireActual<typeof import("react-native")>("react-native");
+  const { TextInput } = jest.requireActual<typeof import("react-native")>("react-native");
   return {
-    VisitNotes: ({ ref }: { ref: React.Ref<{ save: () => Promise<boolean> }> }) => {
+    useNoteEdited: jest.requireActual("./visit-notes").useNoteEdited,
+    VisitNotes: ({
+      ref,
+      onDraftChange,
+    }: {
+      ref: React.Ref<{ save: () => Promise<boolean> }>;
+      onDraftChange: (text: string) => void;
+    }) => {
       useImperativeHandle(ref, () => ({ save: () => mockSaveNotes() }));
-      return <Text>Note field</Text>;
+      return <TextInput accessibilityLabel="Notes" onChangeText={onDraftChange} />;
     },
   };
 });
@@ -59,6 +80,7 @@ jest.mock("./visit-notes", () => {
 const started = Date.UTC(2026, 8, 30, 17, 42);
 beforeEach(async () => {
   jest.clearAllMocks();
+  mockGuard = { prevented: false };
   jest.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 9, 1, 13, 0));
   mockClearWrapUp.mockResolvedValue(undefined);
   mockSaveNotes.mockResolvedValue(true);
@@ -258,4 +280,37 @@ it("clears the displayed wrap-up when the native sheet is swiped away", async ()
   await view.unmount();
   expect(mockClearWrapUp).toHaveBeenCalledWith("device:test", "550e8400-e29b-41d4-a716-446655440000");
   expect(mockSaveNotes).not.toHaveBeenCalled();
+});
+
+describe("a typed note", () => {
+  let alert: jest.SpyInstance;
+  const alertButton = (text: string) =>
+    (alert.mock.lastCall as [string, undefined, AlertButton[]])[2].find((button) => button.text === text)!;
+  beforeEach(() => {
+    alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  });
+
+  it("makes Skip or a swipe ask before throwing the note away", async () => {
+    await render(<VisitWrapUpSheet />);
+    await fireEvent.changeText(screen.getByLabelText("Notes"), "The blue room.");
+    await fireEvent.press(screen.getByRole("button", { name: "Skip" }));
+    expect(alert).toHaveBeenCalledWith("Discard your edits?", undefined, expect.any(Array));
+    await act(() => alertButton("Keep Editing").onPress?.());
+    expect(mockBack).not.toHaveBeenCalled();
+    expect(mockSaveNotes).not.toHaveBeenCalled();
+    await act(() => alertButton("Discard Edits").onPress?.());
+    expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["Keep it private", () => expect(mockBack).toHaveBeenCalledTimes(1)],
+    ["Share with friends", () => expect(mockReplace).toHaveBeenCalledTimes(1)],
+  ])("closes after %s saves it, without asking", async (label, closed) => {
+    await render(<VisitWrapUpSheet />);
+    await fireEvent.changeText(screen.getByLabelText("Notes"), "The blue room.");
+    await fireEvent.press(screen.getByRole("button", { name: label }));
+    await waitFor(closed);
+    expect(mockSaveNotes).toHaveBeenCalledTimes(1);
+    expect(alert).not.toHaveBeenCalled();
+  });
 });

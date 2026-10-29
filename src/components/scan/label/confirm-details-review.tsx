@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
@@ -7,7 +8,8 @@ import { RunnerUps } from "@/components/scan/result/runner-ups";
 import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import type { PendingScan } from "@/db/schema";
-import { toConfirmedFields } from "@/lib/label/fields";
+import { useDiscardEditsGuard } from "@/hooks/use-discard-edits-guard";
+import { LABEL_FIELD_NAMES, toConfirmedFields } from "@/lib/label/fields";
 import { canSave, draftFromConfirmed } from "@/lib/result/snapshot";
 import { useConfirmDetails } from "@/lib/result/use-confirm-details";
 import { useCorpusMatches } from "@/lib/result/use-corpus-matches";
@@ -34,6 +36,14 @@ export function ConfirmDetailsReview({ scanId, sourceKind, capture, ...formProps
   const fields = toConfirmedFields(formProps.form);
   const draft = fields && draftFromConfirmed(fields);
   const fallback = confirmation.offline || confirmation.unavailable;
+  // Edits count from the details as the screen showed them, or as a new reading replaced them.
+  const [shown, setShown] = useState({ key: formProps.formKey, form: formProps.form });
+  if (shown.key !== formProps.formKey) setShown({ key: formProps.formKey, form: formProps.form });
+  const edited = LABEL_FIELD_NAMES.some((name) => formProps.form[name].value.trim() !== shown.form[name].value.trim());
+  // Confirming, linking and saving leave through their own navigation, so the guard steps aside from their start.
+  useDiscardEditsGuard({
+    edited: edited && !confirmation.busy && !local.saving && !local.savedId,
+  });
 
   return (
     <ConfirmDetailsForm

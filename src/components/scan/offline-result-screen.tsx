@@ -52,9 +52,9 @@ export function OfflineResultScreen({
   const adjustCrop = () => {
     if (hasEdits) {
       Alert.alert("Adjust this crop?", "Recognition will run again. Unsaved artwork details will be discarded.", [
-        { text: "Keep editing", style: "cancel" },
+        { text: "Keep Editing", style: "cancel" },
         {
-          text: "Adjust crop",
+          text: "Adjust Crop",
           onPress: () => {
             setHasEdits(false);
             setEditingCrop(true);
@@ -74,9 +74,9 @@ export function OfflineResultScreen({
           "Discard your edits?",
           "Save your entry first to keep these details, or discard them to view the online result.",
           [
-            { text: "Keep editing", style: "cancel" },
+            { text: "Keep Editing", style: "cancel" },
             {
-              text: "Discard edits",
+              text: "Discard Edits",
               style: "destructive",
               onPress: onViewResult,
             },

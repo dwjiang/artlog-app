@@ -1,4 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, screen, waitFor } from "@testing-library/react-native";
+import { renderRouter } from "expo-router/testing-library";
+import type { ReactElement, ReactNode } from "react";
 
 import { confidentScan, failedScan, missScan, softScan } from "@/components/scan/result/__fixtures__/scan";
 import { db } from "@/db/client";
@@ -8,7 +10,7 @@ import type { PhotoSessionDraft } from "@/lib/capture/photo-draft";
 import type { ScanResult } from "@/lib/result/state";
 import { useScan } from "@/lib/result/use-scan";
 
-import { QueueRow, RETRY_ROW, queueStatusText } from "./queue-row";
+import { QueueRow, RETRY_ROW, queueStatusText, type QueueRowProps } from "./queue-row";
 
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
@@ -29,6 +31,41 @@ jest.mock("@/lib/files/photos", () => ({
 jest.mock("@/lib/capture/photo-draft", () => ({
   readPhotoSession: () => mockSession,
 }));
+
+// The long-press menu is native; its actions are drawn here as menu items, and its groups as plain views.
+jest.mock("expo-router/build/link/preview/native", () => {
+  const { Pressable, View } = jest.requireActual("react-native");
+  return {
+    ...jest.requireActual("expo-router/build/link/preview/native"),
+    NativeLinkPreview: ({ children }: { children: ReactNode }) => children,
+    NativeLinkPreviewAction: ({
+      title,
+      children,
+      disabled,
+      onSelected,
+    }: {
+      title: string;
+      children?: ReactNode;
+      disabled?: boolean;
+      onSelected: () => void;
+    }) =>
+      children ? (
+        <View>{children}</View>
+      ) : (
+        <Pressable
+          accessibilityRole="menuitem"
+          accessibilityLabel={title}
+          accessibilityState={{ disabled: !!disabled }}
+          disabled={disabled}
+          onPress={onSelected}
+        />
+      ),
+  };
+});
+
+/** The row's long-press menu comes from a link, which needs a router around it. */
+const render = (element: ReactElement<QueueRowProps>) => renderRouter({ index: () => element }, { initialUrl: "/" });
+const menuItems = () => screen.queryAllByRole("menuitem").map((item) => item.props.accessibilityLabel);
 
 const now = new Date(2026, 8, 11, 12, 0, 0).getTime();
 const row: PendingScan = {
@@ -214,4 +251,32 @@ it.each([
 ])("marks a row that carries %s", async (_what, label) => {
   await render(<QueueRow item={{ ...row, ...label }} now={now} {...handlers} />);
   expect(screen.getByLabelText("Label attached")).toBeOnTheScreen();
+});
+
+describe("long-press menu", () => {
+  it("resumes, retries and discards a failed scan, setting discarding apart", async () => {
+    const failed = { ...row, status: "failed" as const };
+    await render(<QueueRow item={failed} now={now} {...handlers} />);
+    expect(menuItems()).toEqual(["Resume", RETRY_ROW, "Discard Scan"]);
+
+    await fireEvent.press(screen.getByRole("menuitem", { name: RETRY_ROW }));
+    expect(handlers.onRetry).toHaveBeenCalledWith(failed);
+    await fireEvent.press(screen.getByRole("menuitem", { name: "Discard Scan" }));
+    expect(handlers.onDiscard).toHaveBeenCalledWith(failed);
+    await fireEvent.press(screen.getByRole("menuitem", { name: "Resume" }));
+    expect(handlers.onOpen).toHaveBeenCalledWith(failed);
+  });
+
+  it("offers retrying only for a failed scan", async () => {
+    await render(<QueueRow item={row} now={now} {...handlers} />);
+    expect(menuItems()).toEqual(["Resume", "Discard Scan"]);
+  });
+
+  it.each([
+    ["retrying", { retrying: true }],
+    ["discarding", { discarding: true }],
+  ])("disables its actions while %s, as the options menu is", async (_state, busy) => {
+    await render(<QueueRow item={{ ...row, status: "failed" }} now={now} {...handlers} {...busy} />);
+    for (const item of screen.getAllByRole("menuitem")) expect(item).toBeDisabled();
+  });
 });

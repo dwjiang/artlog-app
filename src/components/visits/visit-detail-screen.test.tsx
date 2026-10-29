@@ -411,6 +411,47 @@ it("saves Private for a guest directly without opening sharing", async () => {
   expect(navigation.getPathname()).toBe("/journal/visit");
 });
 
+it.each([
+  ["Friends", "friends"],
+  ["Public", undefined],
+] as const)("asks a guest to sign in to share instead of making a visit %s", async (label, audience) => {
+  mockVisit.visibility = "private";
+  const save = jest.spyOn(visits, "patchVisit").mockResolvedValue(undefined);
+  const navigation = await renderRouter(
+    {
+      _layout: () => <Stack />,
+      "journal/[visitId]": VisitDetailScreen,
+      "sign-in": () => <Text>Sign in to share this visit</Text>,
+    },
+    { initialUrl: "/journal/visit" },
+  );
+  await fireEvent.press(screen.getByRole("checkbox", { name: label }));
+  await waitFor(() => expect(navigation.getPathname()).toBe("/sign-in"));
+  expect(navigation.getSearchParams()).toMatchObject({ context: "visit", visitId: "visit" });
+  expect(navigation.getSearchParams().audience).toBe(audience);
+  expect(save).not.toHaveBeenCalled();
+  await act(() => router.back());
+  expect(chip("Private")).toBeOnTheScreen();
+});
+
+it("returns a guest to the end review from sign-in, keeping the held note and the visit private", async () => {
+  mockVisit.endedAt = null;
+  mockVisit.visibility = "private";
+  const save = jest.spyOn(visits, "patchVisit").mockResolvedValue(undefined);
+  const { navigation } = await openEndReview();
+  await fireEvent.changeText(screen.getByLabelText("Notes"), "Before signing in");
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Public" }));
+  await waitFor(() => expect(navigation.getPathname()).toBe("/sign-in"));
+  expect(navigation.getSearchParams()).toEqual({ context: "visit" });
+  // Signing in moves the journal to the account, so the note saves first; the visibility does not change.
+  expect(save).toHaveBeenCalledWith("visit", { reflection: "Before signing in" }, mockVisit.owner, { sync: true });
+  expect(save).not.toHaveBeenCalledWith("visit", { visibility: "public" }, mockVisit.owner);
+  await act(() => router.back());
+  expect(chip("Private")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Save & end visit" })).toBeOnTheScreen();
+  expect(mockEnd).not.toHaveBeenCalled();
+});
+
 it("keeps a private visit readable without saving anything", async () => {
   mockVisit.visibility = "private";
   mockVisit.syncedAt = 1;
@@ -726,7 +767,14 @@ it("hides the end-visit Save while the keyboard is up and restores it after the 
   expect(chip("Public")).toBeOnTheScreen();
 });
 
-it("discards end-visit edits on Back and keeps the visit open", async () => {
+/** The last alert's button named `text`. */
+const alertButton = (text: string) =>
+  jest
+    .mocked(Alert.alert)
+    .mock.calls.at(-1)?.[2]
+    ?.find((button) => button.text === text);
+
+it("asks before Back discards end-visit edits, then keeps the visit open", async () => {
   mockVisit.endedAt = null;
   const save = jest.spyOn(visits, "patchVisit").mockResolvedValue(undefined);
   const { navigation } = await openEndReview();
@@ -735,12 +783,50 @@ it("discards end-visit edits on Back and keeps the visit open", async () => {
   await chooseVisibility("Private");
   expect(chip("Private")).toBeOnTheScreen();
   await act(() => router.back());
+  expect(Alert.alert).toHaveBeenLastCalledWith("Discard your edits?", undefined, expect.any(Array));
+  await act(() => alertButton("Keep Editing")?.onPress?.());
+  expect(navigation.getPathname()).toBe("/journal/visit");
+  expect(screen.getByLabelText("Notes")).toHaveDisplayValue("Not ready to finish");
+  await act(() => router.back());
+  await act(() => alertButton("Discard Edits")?.onPress?.());
   expect(navigation.getPathname()).toBe("/");
   expect(mockEnd).not.toHaveBeenCalled();
   expect(save).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "End visit" }));
   expect(screen.getByLabelText("Notes")).toHaveTextContent("The afternoon light");
   expect(chip("Public")).toBeOnTheScreen();
+});
+
+it.each([
+  ["a typed note", () => fireEvent.changeText(screen.getByLabelText("Notes"), "Not ready to finish")],
+  ["a held visibility", () => chooseVisibility("Private")],
+])("asks before Back discards %s alone on the end review", async (_edit, edit) => {
+  mockVisit.endedAt = null;
+  const { navigation } = await openEndReview();
+  await edit();
+  jest.mocked(Alert.alert).mockClear();
+  await act(() => router.back());
+  expect(Alert.alert).toHaveBeenCalledWith("Discard your edits?", undefined, expect.any(Array));
+  expect(navigation.getPathname()).toBe("/journal/visit");
+});
+
+it("goes back after a confirmed Discard visit without asking about the edits again", async () => {
+  mockVisit.endedAt = null;
+  const { navigation } = await openEndReview();
+  await fireEvent.changeText(screen.getByLabelText("Notes"), "Not ready to finish");
+  await fireEvent.press(screen.getByRole("button", { name: "Discard visit" }));
+  await act(() => alertButton("Discard Visit")?.onPress?.());
+  expect(mockDiscard).toHaveBeenCalledWith("visit");
+  expect(navigation.getPathname()).toBe("/");
+  expect(Alert.alert).not.toHaveBeenCalledWith("Discard your edits?", undefined, expect.any(Array));
+});
+
+it("leaves the end review on Back without asking while nothing changed", async () => {
+  mockVisit.endedAt = null;
+  const { navigation } = await openEndReview();
+  await act(() => router.back());
+  expect(navigation.getPathname()).toBe("/");
+  expect(Alert.alert).not.toHaveBeenCalled();
 });
 
 it.each(["device:test-installation", "account:test-account"])(
@@ -846,7 +932,7 @@ it("asks before a published Friends visit becomes Public and keeps it on Cancel"
   const [title, , buttons] = jest.mocked(Alert.alert).mock.calls[0];
   expect(title).toBe("Make this visit public?");
   expect(save).not.toHaveBeenCalled();
-  await act(() => buttons?.find((button) => button.text === "Make public")?.onPress?.());
+  await act(() => buttons?.find((button) => button.text === "Make Public")?.onPress?.());
   expect(save).toHaveBeenCalledWith("visit", { visibility: "public" }, mockVisit.owner);
 });
 

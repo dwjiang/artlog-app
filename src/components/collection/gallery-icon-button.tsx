@@ -26,7 +26,9 @@ export function GalleryIconButton({
 }) {
   const color = Gallery[tone];
   return (
-    <Host colorScheme="light" style={{ width: 44, height: 44 }}>
+    // The enclosing screen handles insets: a native safe area overlapping the host, as at the top of a screen, would
+    // lay the button out off the 44 pt frame its icon draws in.
+    <Host colorScheme="light" ignoreSafeArea="all" style={{ width: 44, height: 44 }}>
       <Button
         variant="text"
         onPress={onPress}
@@ -34,7 +36,7 @@ export function GalleryIconButton({
         modifiers={[
           accessibilityLabel(label),
           accessibilityValue(busy ? "In progress" : ""),
-          frame({ minWidth: 44, minHeight: 44 }),
+          frame({ width: 44, height: 44 }),
           tint(color),
         ]}
       >

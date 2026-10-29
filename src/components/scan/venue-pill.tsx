@@ -1,23 +1,33 @@
 import { Image } from "expo-image";
+import * as Location from "expo-location";
 import { useRouter } from "expo-router";
+import { useEffect } from "react";
 import { Pressable, StyleSheet } from "react-native";
 
 import { GlassSurface } from "@/components/glass-surface";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
+import { reportError } from "@/lib/observability";
 import { useVenue, type VenueView } from "@/lib/venue/use-venue";
 import { activeVisit } from "@/lib/venue/venue-reducer";
 
-export function venuePillLabel({ status, venue }: Pick<VenueView, "status" | "venue">): string {
+export function venuePillLabel(
+  { status, venue, failure }: Pick<VenueView, "status" | "venue" | "failure">,
+  canAskLocation: boolean,
+): string {
   if (venue) return venue.name;
   switch (status) {
     case "choose":
       return "Which museum?";
     case "none":
+      // A failed fix doesn't know whether a museum is nearby.
+      if (failure === "location") return "Location unavailable";
+      if (failure === "lookup") return "Choose museum";
       return "No museum nearby";
     case "denied":
-      return "Location is off";
+      // Any access short of granted reads as denied, including a location prompt nobody has answered yet.
+      return canAskLocation ? "Find your museum" : "Location is off";
     default:
       return "Finding your museum…";
   }
@@ -30,9 +40,16 @@ export function venuePillLabel({ status, venue }: Pick<VenueView, "status" | "ve
 export function VenuePill() {
   const router = useRouter();
   const view = useVenue();
+  const [location, , readLocation] = Location.useForegroundPermissions({ get: false });
+  // Read on each landing in denied: the venue resolves again whenever Artlog becomes active, as after answering the iOS
+  // prompt or returning from Settings.
+  useEffect(() => {
+    if (view.status !== "denied") return;
+    readLocation().catch((cause: unknown) => reportError(cause, "venue.pill.permission", { level: "warning" }));
+  }, [view.status, readLocation]);
   if (view.ready || activeVisit(view)) return null;
   const { status, venue } = view;
-  const label = venuePillLabel({ status, venue });
+  const label = venuePillLabel(view, location?.canAskAgain !== false);
   const locating = !venue && (status === "idle" || status === "locating");
   return (
     <GlassSurface isInteractive style={styles.pill}>

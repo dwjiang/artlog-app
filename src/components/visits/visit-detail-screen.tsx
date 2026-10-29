@@ -12,6 +12,7 @@ import { ToastPill } from "@/components/toast-pill";
 import { Gallery, Spacing } from "@/constants/theme";
 import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
 import { patchVisit } from "@/db/repos/visits";
+import { useDiscardEditsGuard } from "@/hooks/use-discard-edits-guard";
 import { captureOwner, useOwnerGeneration } from "@/lib/account/owner-store";
 import { cropSyncing } from "@/lib/account/photo-sync";
 import { signInRoute } from "@/lib/account/sign-in-context";
@@ -31,7 +32,7 @@ import type { VisitVisibility } from "@/shared/journal/contracts";
 import { VisitActionBar } from "./visit-action-bar";
 import { VisitDetailsFields } from "./visit-details-fields";
 import { LocalVisitGalleryArtwork, matchesVisitSearch, VisitGallerySearch } from "./visit-gallery";
-import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
+import { useNoteEdited, VisitNotes, type VisitNotesHandle } from "./visit-notes";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 
 const REACH: Record<VisitVisibility, number> = { private: 0, friends: 1, public: 2 };
@@ -40,12 +41,12 @@ const CONFIRM_WIDER: Record<"friends" | "public", { title: string; message: stri
   friends: {
     title: "Share this visit with friends?",
     message: "Your friends will be able to see its shared version.",
-    action: "Share with friends",
+    action: "Share with Friends",
   },
   public: {
     title: "Make this visit public?",
     message: "Anyone will be able to see its shared version, including people without an account.",
-    action: "Make public",
+    action: "Make Public",
   },
 };
 
@@ -87,6 +88,12 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
   const notes = useRef<VisitNotesHandle>(null);
   const [draftVisibility, setDraftVisibility] = useState(visit.visibility);
   const [saving, setSaving] = useState(false);
+  const { noteEdited, onDraftChange } = useNoteEdited(visit.reflection);
+  // What the review holds for Save & end visit: a visibility, and on the end review the note too.
+  const leave = useDiscardEditsGuard({
+    edited: ending && (draftVisibility !== visit.visibility || (endingVisit && noteEdited)),
+    busy: saving,
+  });
   const submitting = useRef(false);
   const [saveError, setSaveError] = useState<string>();
   const { fontScale } = useWindowDimensions();
@@ -155,6 +162,13 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     });
   function chooseVisibility(next: VisitVisibility) {
     if (next === visibility) return;
+    // Only a post shows a visit to others and a guest can't post, so a wider choice asks them to sign in, as Share visit
+    // does, and the visit keeps its visibility. Sign-in returns to an open visit, which is shared only once it ends.
+    if (!signedIn && next !== "private") {
+      const sharedVisit = ending ? undefined : visit.localId;
+      void afterNotesSave(() => router.push(signInRoute("visit", sharedVisit, next === "friends" ? next : undefined)));
+      return;
+    }
     const confirmation =
       !ending && published && next !== "private" && REACH[next] > REACH[visibility] ? CONFIRM_WIDER[next] : undefined;
     if (!confirmation) {
@@ -201,14 +215,14 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
       if (session.isOwnerCurrent()) setChangingVisibility(false);
     }
   }
-  /** Opens the share form once any note still being edited has saved. */
-  async function share() {
+  /** Opens sharing or sign-in once any note still being edited has saved, so the owner change at sign-in can't drop it. */
+  async function afterNotesSave(open: () => void) {
     const session = captureOwner();
     if (session.owner !== visit.owner || submitting.current) return;
     submitting.current = true;
     try {
       if (!(await notes.current?.save()) || !session.isCurrent()) return;
-      openSharing();
+      open();
     } finally {
       submitting.current = false;
     }
@@ -260,7 +274,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
         openSharing();
       } else {
         showToast("Visit saved.");
-        if (router.canGoBack()) router.back();
+        if (router.canGoBack()) leave();
       }
     } catch (cause) {
       reportError(cause, "visit.save");
@@ -282,7 +296,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
     ]
       .filter(Boolean)
       .join(" ");
-    const action = ending ? "Discard visit" : "Delete visit";
+    const action = ending ? "Discard Visit" : "Delete Visit";
     Alert.alert(ending ? "Discard this visit?" : "Delete this visit?", message || undefined, [
       { text: "Cancel", style: "cancel" },
       {
@@ -302,7 +316,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
       await discard(visit.localId);
       if (!session.isCurrent()) return;
       showToast(ending ? "Visit discarded." : "Visit deleted.");
-      if (router.canGoBack()) router.back();
+      if (router.canGoBack()) leave();
     } catch (cause) {
       reportError(cause, "visit.discard");
       if (session.isOwnerCurrent()) {
@@ -360,7 +374,14 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
               )}
             </View>
             {/* A note jotted mid-visit keeps autosaving; only the end-visit review holds it for Save. */}
-            <VisitNotes ref={notes} visit={visit} autoSave={!endingVisit} editable={!saving} grouped />
+            <VisitNotes
+              ref={notes}
+              visit={visit}
+              autoSave={!endingVisit}
+              editable={!saving}
+              grouped
+              onDraftChange={onDraftChange}
+            />
             <View>
               <View style={detail.sectionLabel}>
                 <Text accessibilityRole="header" style={detail.sectionTitle}>
@@ -452,7 +473,7 @@ function VisitDetail({ visit, endingVisit }: { visit: VisitSummary; endingVisit:
               <Stack.Toolbar.MenuAction
                 icon="square.and.arrow.up"
                 onPress={() => {
-                  void share();
+                  void afterNotesSave(openSharing);
                 }}
               >
                 {published ? "Edit Post…" : "Share Visit…"}

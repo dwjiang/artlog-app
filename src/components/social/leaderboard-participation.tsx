@@ -10,7 +10,6 @@ import {
 import { useMutation } from "convex/react";
 import { useRef, useState } from "react";
 
-import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
@@ -71,7 +70,21 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
     }
   }
   return (
-    <LeaderboardSheet title="Participation" dismissLabel="Cancel" dismissDisabled={pending} onDismiss={onDismiss}>
+    <LeaderboardSheet
+      title="Participation"
+      cancelDisabled={pending}
+      edited={draft !== undefined && draft !== preference.data}
+      onDismiss={onDismiss}
+      commit={{
+        label: "Save",
+        busyLabel: "Saving participation…",
+        busy: pending,
+        disabled: session.status !== "ready" || preference.data === undefined,
+        onPress: () => {
+          void save();
+        },
+      }}
+    >
       <Text style={{ color: Gallery.muted, fontSize: 15, lineHeight: 22 }}>
         Choose who can see your activity totals.
       </Text>
@@ -142,18 +155,6 @@ export function LeaderboardParticipation({ onDismiss }: { onDismiss: () => void 
         Only your name, photo and activity totals are shared. Museum names, visit dates, private notes and the rest of
         your collection stay private.
       </Text>
-      {session.status === "ready" && (
-        <GalleryButton
-          label="Save participation"
-          fullWidth
-          variant="filled"
-          busy={pending}
-          disabled={preference.data === undefined}
-          onPress={() => {
-            void save();
-          }}
-        />
-      )}
     </LeaderboardSheet>
   );
 }

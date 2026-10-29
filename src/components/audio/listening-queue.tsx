@@ -7,9 +7,10 @@ import Sortable from "react-native-sortables";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { CompactBarMaxTextScale, Gallery, Radius, Spacing } from "@/constants/theme";
 import { trackKey, type ListeningTrack } from "@/lib/audio/narration";
 import { useListening } from "@/lib/audio/use-listening";
+import { artistLine } from "@/lib/catalog/artist-line";
 
 import { ArtworkThumbnail } from "./artwork-thumbnail";
 import { AudioIcon } from "./audio-icon";
@@ -72,7 +73,7 @@ function QueueList({ current, onAdd }: { current: ListeningTrack; onAdd: () => v
           <View style={styles.text}>
             <Text style={styles.currentTitle}>{current.work.title}</Text>
             <Text variant="secondary" themeColor="textSecondary">
-              {current.work.artist}
+              {artistLine(current.work.artist, current.work.date)}
             </Text>
           </View>
         </View>
@@ -90,7 +91,9 @@ function QueueList({ current, onAdd }: { current: ListeningTrack; onAdd: () => v
             <View style={styles.addTile}>
               <AudioIcon name="plus" size={20} color={Gallery.accent} />
             </View>
-            <Text variant="button" style={{ color: Gallery.accent }}>
+            {/* Wrapped, the label drew as one clipped line whenever Yoga rounded its frame a pixel short of two lines,
+                so like the transport's labels it stops growing while it still fits on one. */}
+            <Text variant="button" maxFontSizeMultiplier={CompactBarMaxTextScale} style={styles.addLabel}>
               Add saved works
             </Text>
           </Pressable>
@@ -230,7 +233,7 @@ function TrackRow({
             {track.work.title}
           </Text>
           <Text numberOfLines={1} style={styles.rowArtist}>
-            {track.work.artist}
+            {artistLine(track.work.artist, track.work.date)}
           </Text>
         </View>
         {reorderable && <AudioIcon name="line.3.horizontal" size={18} color={Gallery.muted} />}
@@ -278,6 +281,7 @@ const styles = StyleSheet.create({
   separator: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Gallery.separator },
   rowTitle: { fontSize: 15, lineHeight: 20, fontWeight: "500" },
   rowArtist: { fontSize: 13, lineHeight: 18, color: Gallery.muted },
+  addLabel: { flex: 1, paddingRight: Spacing.content, color: Gallery.accent },
   addTile: {
     width: 44,
     height: 44,

@@ -9,12 +9,15 @@ import { PhotoGallery } from "@/components/artwork/photo-gallery";
 import { EmptyState, EmptySymbol } from "@/components/empty-state";
 import { LoadingImage } from "@/components/loading-image";
 import { ImageSkeleton } from "@/components/loading-skeleton";
+import { PhotoViewer, PhotoViewerButton } from "@/components/photo-viewer";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
+import { artistLine } from "@/lib/catalog/artist-line";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
+import { knownImageSize, rememberImageSize } from "@/lib/ui/image-sizes";
 
 import { GalleryButton } from "./gallery-button";
 import { NativeSegmentedPicker } from "./native-segmented-picker";
@@ -43,6 +46,8 @@ export function ArtworkAlbum({
   const [page, setPage] = useState(0);
   const [failedPhotos, setFailedPhotos] = useState<Record<string, boolean>>({});
   const [photoSizes, setPhotoSizes] = useState<Record<string, { width: number; height: number }>>({});
+  // The viewer keeps its photo while it fades out after closing.
+  const [viewer, setViewer] = useState<{ photoId: string; open: boolean }>();
   const rows = photos.data.filter(
     (row) =>
       row.owner === work.owner
@@ -61,7 +66,14 @@ export function ArtworkAlbum({
   } else if (page > lastPage) {
     setPage(lastPage);
   }
+  const loading = rows.length === 0 && !photos.updatedAt && !photos.error;
+  const viewed = rows.find((row) => row.localId === viewer?.photoId);
   const museum = work.institution || work.venueName;
+  const openDetails = (photoId: string) =>
+    router.push({ pathname: "/photo-details", params: { savedId: work.localId, photoId } });
+  // The gallery takes a photo's shape from its size, so a size known before the photo loads keeps the title in place.
+  const sizeOf = (path: string | null, selected: boolean) =>
+    path ? (photoSizes[path] ?? (selected ? knownImageSize(captureFileUri(path)) : undefined)) : undefined;
   function addPhotos() {
     router.push({
       pathname: "/add-photos",
@@ -89,8 +101,18 @@ export function ArtworkAlbum({
           ]}
         />
       )}
-      {rows.length === 0 && !photos.updatedAt && !photos.error ? (
-        <ImageSkeleton label="Loading photos…" style={{ width: "100%", aspectRatio: 1 }} />
+      {loading ? (
+        // The album opens on the saved capture's photo, so the loading gallery takes that photo's place and shape.
+        <View style={{ marginHorizontal: -20 }}>
+          <PhotoGallery
+            photos={[{ id: "loading", label: "photo 1", ...sizeOf(work.photoPath, true) }]}
+            page={0}
+            onPageChange={() => {}}
+            onAddPhotos={addPhotos}
+            renderPhoto={(_photo, _index, size) => <ImageSkeleton label="Loading photos…" style={size} />}
+            renderThumbnail={() => <View style={styles.thumbnailPlaceholder} />}
+          />
+        </View>
       ) : (
         rows.length === 0
         && (photos.error ? (
@@ -116,7 +138,7 @@ export function ArtworkAlbum({
           <PhotoGallery
             photos={rows.map((photo, index) => ({
               ...photo,
-              ...photoSizes[photo.path ?? ""],
+              ...sizeOf(photo.path, index === page),
               id: photo.localId,
               label: `${photo.kind} photo ${index + 1}`,
             }))}
@@ -128,16 +150,17 @@ export function ArtworkAlbum({
                 photo.width && photo.height
                   ? Math.min(size.width, (size.height * photo.width) / photo.height)
                   : size.width;
+              // A photo that can't be shown still opens its details, where it can be moved or deleted.
+              const viewable = !!photo.path && !failedPhotos[photo.path];
               return (
                 <View style={size}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`Edit ${photo.kind} photo ${index + 1}`}
+                    accessibilityLabel={`${viewable ? "View" : "Edit"} ${photo.kind} photo ${index + 1}`}
+                    accessibilityActions={viewable ? [{ name: "details", label: "Photo details" }] : undefined}
+                    onAccessibilityAction={() => openDetails(photo.localId)}
                     onPress={() =>
-                      router.push({
-                        pathname: "/photo-details",
-                        params: { savedId: work.localId, photoId: photo.localId },
-                      })
+                      viewable ? setViewer({ photoId: photo.localId, open: true }) : openDetails(photo.localId)
                     }
                     style={size}
                   >
@@ -145,13 +168,14 @@ export function ArtworkAlbum({
                       <LoadingImage
                         uri={captureFileUri(photo.path)}
                         label={`${photo.kind} photo ${index + 1} of ${work.title}`}
-                        onLoad={({ source: { width, height } }) =>
+                        onLoad={({ source: { width, height } }) => {
+                          rememberImageSize(captureFileUri(photo.path!), { width, height });
                           setPhotoSizes((previous) =>
                             previous[photo.path!]?.width === width && previous[photo.path!]?.height === height
                               ? previous
                               : { ...previous, [photo.path!]: { width, height } },
-                          )
-                        }
+                          );
+                        }}
                         onError={() => setFailedPhotos((previous) => ({ ...previous, [photo.path!]: true }))}
                         style={size}
                         contentFit="contain"
@@ -204,13 +228,30 @@ export function ArtworkAlbum({
           />
         </View>
       )}
+      {viewed?.path && (
+        <PhotoViewer
+          visible={!!viewer?.open}
+          uri={captureFileUri(viewed.path)}
+          label={`${viewed.kind} photo of ${work.title}`}
+          onClose={() => setViewer((current) => current && { ...current, open: false })}
+          actions={
+            <PhotoViewerButton
+              icon="info.circle"
+              label="Photo details"
+              onPress={() => {
+                setViewer((current) => current && { ...current, open: false });
+                openDetails(viewed.localId);
+              }}
+            />
+          }
+        />
+      )}
       <View style={{ gap: 4 }}>
         <Text variant="display" accessibilityRole="header" selectable ref={headingRef} onLayout={onHeadingLayout}>
           {work.title}
         </Text>
         <Text selectable style={styles.title}>
-          {work.artist || "Artist unknown"}
-          {work.date ? `, ${work.date}` : ""}
+          {artistLine(work.artist || "Artist unknown", work.date)}
         </Text>
         {!!work.medium && (
           <Text selectable style={styles.medium}>
@@ -273,6 +314,7 @@ const styles = StyleSheet.create({
     borderColor: Gallery.separator,
   },
   unavailable: { backgroundColor: Gallery.fill, alignItems: "center", justifyContent: "center", padding: 8 },
+  thumbnailPlaceholder: { flex: 1, backgroundColor: Gallery.fill },
   secondary: { color: Gallery.muted, fontSize: 13, lineHeight: 18 },
   title: {
     fontSize: 18,

@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName as mockGetFunctionName } from "convex/server";
 
+import { dynamicTypeSizeCaps } from "@/components/dynamic-type-test-utils";
+import { CompactBarMaxTypeSize } from "@/constants/theme";
 import { removeSetting } from "@/db/repos/settings";
 import { setLocalProfileName } from "@/lib/account/local-profile";
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
@@ -61,6 +63,21 @@ it("shows the saved name in the shared profile header and opens settings", async
   expect(screen.queryByText("No bio")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Settings" }));
   expect(mockPush).toHaveBeenCalledWith("/settings");
+});
+
+it("lets a guest edit the name and picture they skipped in onboarding", async () => {
+  await render(<CollectionHeader artworkCount={3} visitCount={1} />);
+  await screen.findByRole("header", { name: "Guest" });
+  expect(screen.queryByRole("button", { name: "Share Profile" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "Edit Profile" }));
+  expect(mockPush).toHaveBeenCalledWith("/edit-profile");
+});
+
+it("stops the Edit Profile label growing at accessibility sizes, like a tab bar's", async () => {
+  await render(<CollectionHeader artworkCount={3} visitCount={1} />);
+  expect(dynamicTypeSizeCaps(await screen.findByText("Edit Profile"))).toEqual([
+    expect.objectContaining({ max: CompactBarMaxTypeSize }),
+  ]);
 });
 
 it("updates a mounted guest header when onboarding saves a name", async () => {

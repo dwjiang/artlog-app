@@ -54,6 +54,11 @@ export type VenuePick = { venueId: Id<"museums"> } & MuseumDay;
 
 export type Fix = Coordinate & { at: number };
 export type VenueStatus = "idle" | "locating" | "resolved" | "choose" | "none" | "denied";
+/**
+ * The last fix failed to locate the phone (`location`), or to look up the museums near it (`lookup`). A failed fix keeps
+ * only the step that failed: CoreLocation's error text is for developers, never for the person.
+ */
+export type VenueFailure = "location" | "lookup";
 
 export type VenueState = {
   hydrated: boolean;
@@ -72,7 +77,7 @@ export type VenueState = {
   notHere: Record<string, number>;
   /** The museum and day a visit was ended there; location alone starts no new visit at that museum until the next day. */
   ended?: { venueId: Id<"museums"> } & MuseumDay;
-  error?: string;
+  error?: VenueFailure;
 };
 
 export type VenueEvent =
@@ -86,7 +91,7 @@ export type VenueEvent =
     }
   | { type: "locating" }
   | { type: "denied"; at: number }
-  | { type: "failed"; error: string }
+  | { type: "failed"; error: VenueFailure }
   | { type: "resolved"; fix: Fix; resolution: VenueResolution }
   | { type: "poiOptions"; options: PoiOption[] }
   | {

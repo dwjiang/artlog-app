@@ -60,7 +60,7 @@ it("names the country of museums that only carry a country region and pluralises
   } as VisitSummary["works"][number];
   await render(<VisitTimeline visits={[visit("fr", { country: "FR", works: [work] }), visit("none", {})]} />);
   expect(screen.getByText(/France · 1 artwork/)).toBeOnTheScreen();
-  expect(screen.getByRole("button", { name: "Museum, 29 Feb 2024, 1 artwork" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Museum, Feb 29, 2024, 1 artwork" })).toBeOnTheScreen();
   expect(screen.getByText(/Location unavailable · 0 artworks/)).toBeOnTheScreen();
 });
 
@@ -89,26 +89,26 @@ it("badges a closed visit as new until it has been opened, and marks the open on
   );
   expect(
     screen.getByRole("button", {
-      name: "Museum, 29 Feb 2024, 0 artworks, new",
+      name: "Museum, Feb 29, 2024, 0 artworks, new",
     }),
   ).toBeOnTheScreen();
   expect(screen.getAllByRole("button", { name: /, new$/ })).toHaveLength(1);
   expect(
     screen.getByRole("button", {
-      name: "Seen Museum, 29 Feb 2024, 0 artworks",
+      name: "Seen Museum, Feb 29, 2024, 0 artworks",
     }),
   ).toBeOnTheScreen();
   expect(
     screen.getByRole("button", {
-      name: "Open Museum, 29 Feb 2024, 0 artworks, visiting now",
+      name: "Open Museum, Feb 29, 2024, 0 artworks, visiting now",
     }),
   ).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: /, visiting now$/ })).toBeOnTheScreen();
-  expect(screen.getByText("Since 29 Feb 2024 · Location unavailable · 0 artworks")).toBeOnTheScreen();
-  expect(screen.getAllByText(/^29 Feb 2024 · /)).toHaveLength(3);
+  expect(screen.getByText("Since Feb 29, 2024 · Location unavailable · 0 artworks")).toBeOnTheScreen();
+  expect(screen.getAllByText(/^Feb 29, 2024 · /)).toHaveLength(3);
   expect(
     screen.getByRole("button", {
-      name: "Manual Museum, 29 Feb 2024, 0 artworks",
+      name: "Manual Museum, Feb 29, 2024, 0 artworks",
     }),
   ).toBeOnTheScreen();
 });

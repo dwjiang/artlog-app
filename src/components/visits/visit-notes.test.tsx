@@ -6,7 +6,7 @@ import * as visits from "@/db/repos/visits";
 import { anonymousOwner, switchOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { onCollectionChange } from "@/lib/account/sync-events";
 
-import { VisitNotes } from "./visit-notes";
+import { useNoteEdited, VisitNotes } from "./visit-notes";
 
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
@@ -76,6 +76,28 @@ it("opens notes for editing explicitly and keeps saved notes readable after retu
   await view.unmount();
   await render(<Notes />);
   expect(await screen.findByText("Remember the light")).toBeOnTheScreen();
+});
+
+it("opens the editor from the empty notes card as well as from Add", async () => {
+  await render(<Notes />);
+  await fireEvent.press(await screen.findByRole("button", { name: "No notes yet." }));
+  const input = await screen.findByLabelText("Notes");
+  expect(input).toHaveProp("autoFocus", true);
+  expect(screen.getByRole("button", { name: "Save note" })).toBeOnTheScreen();
+  expect(screen.queryByText("No notes yet.")).toBeNull();
+});
+
+it("keeps the empty notes card closed while notes can't be edited", async () => {
+  await render(
+    <VisitNotes
+      visit={{ ...draft, owner: anonymousOwner(), reflection: null, visibility: "private" }}
+      editable={false}
+    />,
+  );
+  const card = screen.getByRole("button", { name: "No notes yet." });
+  expect(card).toBeDisabled();
+  await fireEvent.press(card);
+  expect(screen.queryByLabelText("Notes")).toBeNull();
 });
 
 it("links the tags in saved notes to their pages", async () => {
@@ -252,4 +274,26 @@ it("keeps end-visit notes unsaved through pauses, blur, backgrounding and dismis
   await view.unmount();
   expect(save).not.toHaveBeenCalled();
   expect((await visits.getVisit(localId))?.reflection).toBeNull();
+});
+
+it("tells a parent holding the note whether it differs from the saved reflection", async () => {
+  const edited: boolean[] = [];
+  function HeldNotes() {
+    const { noteEdited, onDraftChange } = useNoteEdited("Saw the lilies");
+    edited.push(noteEdited);
+    return (
+      <VisitNotes
+        visit={{ ...draft, owner: anonymousOwner(), reflection: "Saw the lilies", visibility: "private" }}
+        autoSave={false}
+        onDraftChange={onDraftChange}
+      />
+    );
+  }
+  await render(<HeldNotes />);
+  expect(edited.at(-1)).toBe(false);
+  await fireEvent.changeText(screen.getByLabelText("Notes"), "Saw the lilies twice");
+  expect(edited.at(-1)).toBe(true);
+  // Only spacing the save trims away is no change.
+  await fireEvent.changeText(screen.getByLabelText("Notes"), "Saw the lilies ");
+  expect(edited.at(-1)).toBe(false);
 });

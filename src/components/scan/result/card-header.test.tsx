@@ -30,3 +30,21 @@ it("offers crop adjustment on the photo only when a handler is given", async () 
   await fireEvent.press(screen.getByRole("button", { name: "Adjust crop" }));
   expect(onAdjustCrop).toHaveBeenCalledTimes(1);
 });
+
+it("opens the photo full screen from the card and closes it again", async () => {
+  await render(<CardHeader cropUri="file:///crop.jpg" kind="confident" onAdjustCrop={jest.fn()} />);
+  expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "View photo" }));
+  expect(screen.getByRole("image", { name: "Your photo of this painting" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Close" }));
+  expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Adjust crop" })).toBeOnTheScreen();
+});
+
+it("offers no viewer for a photo that couldn't load", async () => {
+  await render(<CardHeader cropUri="file:///missing.jpg" kind="confident" />);
+  await fireEvent(screen.getByLabelText("Your photo of this painting"), "error", {
+    nativeEvent: { error: "Missing file" },
+  });
+  expect(screen.queryByRole("button", { name: "View photo" })).toBeNull();
+});

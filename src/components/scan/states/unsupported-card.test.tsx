@@ -25,7 +25,7 @@ it("asks for the update, opens Artlog's store listing, and saves anyway with a t
       name: /^Save (to collection|photo for later)$/,
     }),
   ).toBeEnabled();
-  await fireEvent.press(screen.getByRole("button", { name: "Add details (optional)" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Add Details (Optional)" }));
   await fireEvent.changeText(screen.getByLabelText("Title"), "Blue room");
   await fireEvent.press(
     screen.getByRole("button", {

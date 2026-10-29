@@ -35,7 +35,7 @@ it("leads the save-bar row with the day so a long museum name truncates first", 
   await render(<CaptureContextButton capture={atMuseum} variant="row" />);
   await fireEvent.press(
     await screen.findByRole("button", {
-      name: "Visit: 1 Sep 2026 · Metropolitan Museum of Art · Change",
+      name: "Visit: Sep 1, 2026 · Metropolitan Museum of Art · Change",
     }),
   );
   expect(mockPush).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/capture-context" }));

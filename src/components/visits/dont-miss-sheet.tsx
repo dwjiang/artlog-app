@@ -7,6 +7,7 @@ import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
 import { useFittedFormSheetStyle } from "@/hooks/use-fitted-sheet";
+import { artistLine } from "@/lib/catalog/artist-line";
 import { useMuseumPick } from "@/lib/venue/use-museum-picks";
 
 /** A larger look at one "Don't miss" work, so it is easier to spot in the galleries. */
@@ -28,7 +29,7 @@ export function DontMissSheet() {
             {pick.title}
           </Text>
           <Text variant="secondary" themeColor="textSecondary">
-            {[pick.artist, pick.date].filter(Boolean).join(", ")}
+            {artistLine(pick.artist, pick.date)}
           </Text>
           {pick.medium && (
             <Text type="small" themeColor="textSecondary">

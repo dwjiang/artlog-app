@@ -170,6 +170,8 @@ it("lets a guest delete their data from the account page behind their collection
   expect(mockDelete).not.toHaveBeenCalled();
   await confirmDestructive();
   expect(mockDelete).toHaveBeenCalledTimes(1);
+  await fireEvent.press(screen.getByRole("button", { name: "Edit Profile" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/edit-profile");
 });
 
 it("holds sign-in in place with progress only while the account can still load", async () => {

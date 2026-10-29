@@ -5,7 +5,7 @@ import { StyleSheet } from "react-native";
 import { Gallery, Radius } from "@/constants/theme";
 import type { ExploreMuseum } from "@/lib/explore/types";
 
-/** A map around `museum`'s pin that a person can pan and zoom; it opens on the streets around the museum. */
+/** A map of the streets around `museum`'s pin. */
 export function LocationMap({ museum }: { museum: ExploreMuseum }) {
   const coordinates = { latitude: museum.lat, longitude: museum.lng };
   return (

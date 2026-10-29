@@ -5,13 +5,14 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { GlassSurface } from "@/components/glass-surface";
 import { LoadingRing } from "@/components/loading-ring";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Radius, Spacing, Typography } from "@/constants/theme";
+import { CompactBarMaxTextScale, Gallery, Radius, Spacing, Typography } from "@/constants/theme";
 import type { SavedWork } from "@/db/schema";
 import { captureFileUri } from "@/lib/files/photos";
 
 const PREVIEW_COUNT = 3;
+const SPINNER_SIZE = 20;
 
-/** Edit wall and All artworks on the wall's top edge; All artworks previews the newest saves (`works` newest first). */
+/** Edit Wall and All Artworks on the wall's top edge; All Artworks previews the newest saves (`works` newest first). */
 export function WallToolbar({
   works,
   onEdit,
@@ -20,7 +21,7 @@ export function WallToolbar({
   refreshing,
 }: {
   works: SavedWork[];
-  /** Leaving this out hides Edit wall, for a wall that has not loaded. */
+  /** Leaving this out hides Edit Wall, for a wall that has not loaded. */
   onEdit?: () => void;
   onAllArtworks: () => void;
   disabled: boolean;
@@ -33,15 +34,20 @@ export function WallToolbar({
   return (
     <View style={styles.row}>
       {onEdit && (
-        <GlassButton label="Edit wall" disabled={disabled} onPress={onEdit}>
+        <GlassButton label="Edit Wall" disabled={disabled} onPress={onEdit}>
           <Image source="sf:slider.horizontal.3" style={styles.icon} tintColor={Gallery.accent} accessible={false} />
-          <Text style={styles.label}>Edit wall</Text>
+          <Text maxFontSizeMultiplier={CompactBarMaxTextScale} style={styles.label}>
+            Edit Wall
+          </Text>
         </GlassButton>
       )}
       <View style={styles.trailing}>
-        {refreshing && <LoadingRing accessibilityLabel="Refreshing wall" />}
+        {/* Reserved while idle, so the ring appears without moving All Artworks or wrapping the row. */}
+        <View style={styles.spinner}>
+          {refreshing && <LoadingRing size={SPINNER_SIZE} accessibilityLabel="Refreshing wall" />}
+        </View>
         <GlassButton
-          label={`All artworks, ${count} ${count === 1 ? "artwork" : "artworks"}`}
+          label={`All Artworks, ${count} ${count === 1 ? "artwork" : "artworks"}`}
           disabled={disabled}
           onPress={onAllArtworks}
         >
@@ -59,8 +65,13 @@ export function WallToolbar({
               ))}
             </View>
           )}
-          <Text style={styles.label}>All artworks</Text>
-          <Text style={styles.count}>{count}</Text>
+          {/* Like a toolbar's, the labels stop growing at accessibility sizes, so no word breaks across lines. */}
+          <Text maxFontSizeMultiplier={CompactBarMaxTextScale} style={styles.label}>
+            All Artworks
+          </Text>
+          <Text maxFontSizeMultiplier={CompactBarMaxTextScale} style={styles.count}>
+            {count}
+          </Text>
           <Image source="sf:chevron.right" style={styles.chevron} tintColor={Gallery.accent} accessible={false} />
         </GlassButton>
       </View>
@@ -113,6 +124,7 @@ const styles = StyleSheet.create({
     marginLeft: "auto",
     maxWidth: "100%",
   },
+  spinner: { width: SPINNER_SIZE, height: SPINNER_SIZE, flexShrink: 0 },
   glass: { borderRadius: Radius.button, overflow: "hidden", maxWidth: "100%", flexShrink: 1 },
   button: {
     minHeight: 44,

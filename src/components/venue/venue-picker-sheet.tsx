@@ -25,6 +25,7 @@ import { useVenue, type VenueView } from "@/lib/venue/use-venue";
 import { useVenueSearch, type VenueSearch } from "@/lib/venue/use-venue-search";
 import { venueOptionKey, type VenueOption } from "@/lib/venue/venue-reducer";
 import { LIMITS } from "@/shared/journal/limits";
+import { socialErrorMessage } from "@/shared/social/errors";
 
 import { MuseumMap, useOptionCoordinates } from "./museum-map";
 import { MuseumSearchResults, museumSearchEmptyDetail, museumSearchFailure } from "./museum-search-results";
@@ -35,6 +36,19 @@ function optionDistance(option: VenueOption, units: MeasurementUnits | undefined
 
 function optionCategory(option: VenueOption): string | undefined {
   return option.kind === "poi" && option.category !== "unknown" ? option.category : undefined;
+}
+
+/** Why the sheet lists no museum nearby; a failed fix never claims that none are near. */
+function nearbyEmptyTitle({ status, failure }: Pick<VenueView, "status" | "failure">): string {
+  if (status === "denied") return "Location access is off.";
+  switch (failure) {
+    case "location":
+      return "Couldn’t find your location.";
+    case "lookup":
+      return "Couldn’t check for nearby museums.";
+    default:
+      return "No nearby museums found.";
+  }
 }
 
 /**
@@ -72,7 +86,7 @@ function ChooserSheet({
   const router = useRouter();
   const { fontScale } = useWindowDimensions();
   const sheetStyle = [styles.groupedContainer, useFittedFormSheetStyle()];
-  const { status, options, error, confirm, dismiss, declinePrompt, resolve, fix, visit, startVisit } = view;
+  const { status, options, confirm, dismiss, declinePrompt, resolve, fix, visit, startVisit } = view;
   // Starting a visit asks on a map with the nearest museum selected; the mode is fixed when the sheet opens.
   const [picking] = useState(() => starts && view.options.length > 0);
   const [selectedKey, setSelectedKey] = useState<string | undefined>(
@@ -141,9 +155,7 @@ function ChooserSheet({
         setFailure(
           starting
             ? "Couldn’t start the visit. Try again."
-            : cause instanceof Error
-              ? cause.message
-              : "Could not confirm the venue. Try again.",
+            : (socialErrorMessage(cause) ?? "Could not confirm the venue. Try again."),
         );
       }
     } finally {
@@ -206,9 +218,9 @@ function ChooserSheet({
     const pinned = fontScale <= 1.4;
     const actions = (
       <>
-        {(failure ?? error) && (
+        {failure && (
           <ThemedText selectable themeColor="error" accessibilityRole="alert">
-            {failure ?? error}
+            {failure}
           </ThemedText>
         )}
         <ActionStack
@@ -308,7 +320,7 @@ function ChooserSheet({
       ) : options.length === 0 ? (
         <EmptyState
           inset={false}
-          title={status === "denied" ? "Location access is off." : "No nearby museums found."}
+          title={nearbyEmptyTitle(view)}
           detail={
             status !== "denied" ? emptyDetail : `Allow location in Settings to find nearby museums. ${emptyDetail}`
           }
@@ -364,9 +376,9 @@ function ChooserSheet({
           ))}
         </ListSection>
       )}
-      {(failure ?? error) && (
+      {failure && (
         <ThemedText selectable themeColor="error" accessibilityRole="alert">
-          {failure ?? error}
+          {failure}
         </ThemedText>
       )}
       {!nearbyEmpty && leaveButton}

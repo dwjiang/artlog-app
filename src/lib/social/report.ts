@@ -33,6 +33,12 @@ export const REPORT_NOUNS: Record<ReportKind, string> = {
   audio: "audio",
 };
 
+/** "Report Profile" and the like, as the report menu action and its sheet title name it. */
+export function reportTitle(kind: ReportKind) {
+  const noun = REPORT_NOUNS[kind];
+  return `Report ${noun[0].toUpperCase()}${noun.slice(1)}`;
+}
+
 export function reportHref(kind: ReportKind, id: string, renderId?: string): Href {
   return { pathname: "/report", params: { kind, id, ...(renderId ? { renderId } : {}) } };
 }

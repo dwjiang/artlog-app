@@ -1,19 +1,5 @@
-import {
-  friendshipActions,
-  initials,
-  notificationAge,
-  peopleSearch,
-  suggestionReasonText,
-  visitDate,
-} from "./presentation";
+import { friendshipActions, initials, notificationAge, peopleSearch, suggestionReasonText } from "./presentation";
 import type { Relationship } from "./types";
-
-it("formats calendar dates without shifting the visit into another day", () => {
-  expect(visitDate("2026-01-01", "en-US")).toBe("January 1, 2026");
-  expect(visitDate("2026-01-01", "en-US", "short")).toBe("Jan 1");
-  expect(visitDate("2026-02-30", "en-US")).toBe("Date unavailable");
-  expect(visitDate("invalid")).toBe("Date unavailable");
-});
 
 it("ages notifications in the largest whole unit and switches to the date after a week", () => {
   const now = Date.UTC(2026, 9, 1, 12);

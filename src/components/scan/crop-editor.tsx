@@ -1,6 +1,6 @@
 import { ImageManipulator } from "expo-image-manipulator";
 import { Stack, useNavigation } from "expo-router";
-import { useIsFocused } from "expo-router/react-navigation";
+import { useHeaderHeight, useIsFocused } from "expo-router/react-navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery } from "@/constants/theme";
+import { confirmDiscardEdits } from "@/hooks/use-discard-edits-guard";
 import { fitPhoto, validCrop, wholePhoto } from "@/lib/capture/crop-geometry";
 import { discardEditedCrop, prepareEditedCrop, type EditedCrop } from "@/lib/capture/edit-crop";
 import type { Quad } from "@/lib/capture/stages";
@@ -36,9 +37,9 @@ export function CropEditor({
   onCancel: () => void;
 }) {
   const [size, setSize] = useState<{ width: number; height: number }>();
-  const [corners, setCorners] = useState<Quad>(() =>
-    initialCorners && validCrop(initialCorners) ? initialCorners : wholePhoto,
-  );
+  const [start] = useState<Quad>(() => (initialCorners && validCrop(initialCorners) ? initialCorners : wholePhoto));
+  const [corners, setCorners] = useState(start);
+  const moved = corners.some(([x, y], index) => x !== start[index][0] || y !== start[index][1]);
   const [busy, setBusy] = useState<"loading" | "saving" | undefined>("loading");
   const [attempt, setAttempt] = useState(0);
   const active = useRef(false);
@@ -54,6 +55,7 @@ export function CropEditor({
     setDragging(activeDrags.current > 0);
   }, []);
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
   const bottomPadding = Math.max(insets.bottom, 16);
   const [stage, setStage] = useState<{ width: number; height: number }>();
   const [controls, setControls] = useState<{ y: number; height: number }>();
@@ -102,23 +104,29 @@ export function CropEditor({
   }, [uri, attempt]);
 
   const navigation = useNavigation();
-  // Cancel takes the back button's place. Navigation options outlive the component that set them, and the scan result
-  // opens this editor in place, so closing it brings the back button back.
+  // The editor pads for the header, so the header overlays it on every iOS version. Cancel takes the back button's
+  // place, and both screens that open the editor turn off the back swipe, so only Cancel asks before dropping moved
+  // corners. Navigation options outlive the component that set them, and the scan result opens this editor in place,
+  // so closing it restores the result's header.
   useLayoutEffect(() => {
-    navigation.setOptions({ headerBackVisible: false });
-    return () => navigation.setOptions({ headerBackVisible: undefined });
+    navigation.setOptions({ headerBackVisible: false, headerTransparent: true });
+    return () => navigation.setOptions({ headerBackVisible: undefined, headerTransparent: undefined });
   }, [navigation]);
   const saving = busy === "saving";
   // Keep native toolbar options stable as photo loading and crop commits update the editor.
   const header = useMemo(
     () => (
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button disabled={saving} tintColor={Gallery.ink} onPress={onCancel}>
+        <Stack.Toolbar.Button
+          disabled={saving}
+          tintColor={Gallery.ink}
+          onPress={() => (moved ? confirmDiscardEdits(onCancel) : onCancel())}
+        >
           Cancel
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
     ),
-    [saving, onCancel],
+    [saving, moved, onCancel],
   );
   function reopen() {
     setBusy("loading");
@@ -147,7 +155,15 @@ export function CropEditor({
   }
   return (
     <View
-      style={[styles.screen, { paddingLeft: insets.left, paddingRight: insets.right, paddingBottom: bottomPadding }]}
+      style={[
+        styles.screen,
+        {
+          paddingTop: headerHeight,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+          paddingBottom: bottomPadding,
+        },
+      ]}
     >
       {header}
       <Text style={styles.instructions}>Drag each corner onto the painting’s corners.</Text>

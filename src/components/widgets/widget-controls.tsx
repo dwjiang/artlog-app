@@ -84,12 +84,12 @@ export function WidgetSettingRow({
               </RNHostView>
             )}
             {!!detail && (
-              <NativeText textStyle={{ color: Gallery.accent }} modifiers={[font({ textStyle: "subheadline" })]}>
+              <NativeText textStyle={{ color: Gallery.muted }} modifiers={[font({ textStyle: "subheadline" })]}>
                 {detail}
               </NativeText>
             )}
             {selected === undefined ? (
-              <Icon name="chevron.right" size={13} color={Gallery.accent} />
+              <Icon name="chevron.right" size={13} color={Gallery.muted} />
             ) : (
               <RNHostView matchContents>
                 <View
