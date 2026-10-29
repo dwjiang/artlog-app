@@ -4,6 +4,8 @@ import { AppState } from "react-native";
 import { switchOwner } from "@/lib/account/owner-store";
 import type { CapturePayload, IdentifyResponse } from "@/lib/capture/stages";
 import { LabelFlowError } from "@/lib/label/flow";
+import { reportError } from "@/lib/observability";
+import { TimeoutError } from "@/lib/with-timeout";
 import model from "@/shared/model/model-version.json";
 
 import { api } from "../../../convex/_generated/api";
@@ -37,6 +39,7 @@ const mockFlush = jest.fn();
 const mockRunLabelFlow = jest.fn();
 const mockStart = jest.fn();
 const mockStop = jest.fn();
+const mockSnap = jest.fn();
 let mockDocumentsUri = "file:///documents";
 let flushDeps: FlushDependencies;
 let stopWorker: (() => void) | undefined;
@@ -48,6 +51,8 @@ async function startWorker() {
 }
 
 jest.mock("@/db/repos/pending-scans", () => mockRepo);
+jest.mock("@/lib/capture/edit-crop", () => ({ snapScanCrop: (...args: unknown[]) => mockSnap(...args) }));
+jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 jest.mock("@/lib/venue/visit-sync", () => ({
   resolveScanVisit: (...args: unknown[]) => mockResolveVisit(...args),
 }));
@@ -125,6 +130,7 @@ beforeEach(() => {
     cropPath: "crops/cap-1.jpg",
   });
   mockFlush.mockResolvedValue(undefined);
+  mockSnap.mockReset().mockResolvedValue(undefined);
   mockNetworkListener.mockReturnValue({ remove: jest.fn() });
   jest.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -149,6 +155,7 @@ it("persists both files before inserting the row with its crop corners and the r
       photoPath: "photos/cap-1.jpg",
       cropPath: "crops/cap-1.jpg",
       cropCorners: payload.cropCorners,
+      modelCropGeometry: { corners: payload.cropCorners, contentBounds: payload.contentBounds },
       vector: [0.5],
       descriptors: payload.descriptors,
       keypoints: payload.keypoints,
@@ -191,6 +198,43 @@ it("records identified scans, keeps unsupported versions as failed, and requeues
     { countAttempt: false },
     payload.owner,
   );
+});
+
+describe("snapping recognized crops", () => {
+  const response = {
+    scanId,
+    status: "identified",
+    outcome: "confident",
+    best: { thumbnailCorners: [[0, 0]] },
+  } as IdentifyResponse;
+
+  it.each(["inline", "queued"])("snaps %s recognition before exposing the identified result", async (path) => {
+    await startWorker();
+    const record = path === "inline" ? captureStore.recordResult : flushDeps.recordResult;
+    await record("cap-1", response);
+    expect(mockSnap).toHaveBeenCalledWith("cap-1", response.best, payload.owner);
+    expect(mockRepo.markIdentified).toHaveBeenCalledWith("cap-1", scanId, payload.owner);
+    expect(mockSnap.mock.invocationCallOrder[0]).toBeLessThan(mockRepo.markIdentified.mock.invocationCallOrder[0]);
+  });
+
+  it("keeps misses and unsupported versions without snapping", async () => {
+    await captureStore.recordResult("cap-1", { ...response, outcome: "miss" });
+    await captureStore.recordResult("cap-1", { ...response, status: "unsupported_version" });
+    expect(mockSnap).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    new TimeoutError("Thumbnail load timed out"),
+    new Error("Network request failed"),
+    new Error("Cannot warp"),
+  ])("keeps recognition when snapping fails: %s", async (error) => {
+    mockSnap.mockRejectedValueOnce(error);
+    await captureStore.recordResult("cap-1", response);
+    expect(mockRepo.markIdentified).toHaveBeenCalledWith("cap-1", scanId, payload.owner);
+    expect(mockRepo.recordAttemptFailure).not.toHaveBeenCalled();
+    const expectedReports = error.message === "Cannot warp" ? [[error, "capture.snap_crop", { level: "warning" }]] : [];
+    expect(jest.mocked(reportError).mock.calls).toEqual(expectedReports);
+  });
 });
 
 it.each(["device_not_registered", "rate_limited"])(

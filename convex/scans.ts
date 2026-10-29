@@ -19,6 +19,7 @@ import { readObjectDetails } from "./lib/objectDetails";
 import { withErrorReporting } from "./lib/observability";
 import { ownerForDevice, requireJournalOwner } from "./lib/ownership";
 import { eligibleObject } from "./lib/recognitionEligibility";
+import { thumbnailShowsReference } from "./lib/thumbnailSource";
 import {
   confirmedDisplay,
   confirmedFields,
@@ -50,6 +51,9 @@ export const displayCandidate = snapshotFields.extend({
   identityStatus: schema.tables.objects.validator.fields.identityStatus,
   rightsStatus,
   thumbnailUrl: v.optional(v.string()),
+  // Where the thumbnail's letterboxed square lands in the scan's crop, in crop pixels: the verifier's corners, sent only
+  // when its reference features came from the image the thumbnail shows, so the thumbnail's aspect places the painting.
+  thumbnailCorners: v.optional(v.array(v.array(v.number()))),
   gallery: v.optional(v.string()),
 });
 
@@ -300,12 +304,18 @@ export async function joinCandidate(
     : artwork.rightsStatus === "public_domain"
       ? details?.thumbnailUrl
       : undefined;
-  // The verifier's projected corners stay on the scan as evidence and are omitted from the card.
   const { corners, ...fields } = match;
+  // A deduplicated object may borrow another image's thumbnail. Contributor references are already letterboxed.
+  const fromThumbnail =
+    !details?.thumbnailStorageId
+    && typeof thumbnailUrl === "string"
+    && details?.orb !== undefined
+    && thumbnailShowsReference(thumbnailUrl, details.orb.extractedFrom);
   return {
     artwork,
     candidate: {
       ...fields,
+      ...(corners && fromThumbnail ? { thumbnailCorners: corners } : {}),
       title: artwork.title,
       artist: artwork.artist,
       date: artwork.date,

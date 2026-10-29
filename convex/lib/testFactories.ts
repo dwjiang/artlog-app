@@ -170,7 +170,7 @@ export async function seedArtworkWithObject(
         orb: {
           ...(await storeOrb(ctx, encoded.descriptors, encoded.keypoints)),
           inputSize: model.inputSize,
-          extractedFrom: "synthetic fixture",
+          extractedFrom: options.objectDetails?.imageRef ?? "synthetic fixture",
         },
       },
     );

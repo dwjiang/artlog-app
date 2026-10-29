@@ -19,6 +19,7 @@ function pendingScan(localId: string, overrides: Partial<PendingScan> = {}): Pen
     photoPath: `photos/${localId}.jpg`,
     cropPath: `crops/${localId}.jpg`,
     cropCorners: null,
+    modelCropGeometry: null,
     savedPhotoLocalId: null,
     vector: [0.1],
     descriptors: new ArrayBuffer(4),
@@ -186,6 +187,28 @@ it("does nothing while offline", async () => {
   expect(deps.identify).not.toHaveBeenCalled();
   expect(deps.markIdentifying).not.toHaveBeenCalled();
   expect(reportError).not.toHaveBeenCalled();
+});
+
+it("retries recognition with the model geometry when the displayed crop has snapped", async () => {
+  const modelCorners: Quad = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+  ];
+  const { deps } = fakeDependencies([
+    pendingScan("snapped", {
+      cropCorners: [
+        [0.2, 0.2],
+        [0.8, 0.2],
+        [0.8, 0.8],
+        [0.2, 0.8],
+      ],
+      modelCropGeometry: { corners: modelCorners, contentBounds: { x: 0, y: 0, width: 512, height: 512 } },
+    }),
+  ]);
+  await createFlusher(deps).start();
+  expect(deps.identify).toHaveBeenCalledWith(expect.objectContaining({ cropCorners: modelCorners }));
 });
 
 it("reports a failed queued task while retaining its retry state", async () => {

@@ -1,6 +1,6 @@
 import { customType, foreignKey, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import type { Quad } from "@/lib/capture/stages";
+import type { PreparedPainting, Quad } from "@/lib/capture/stages";
 import type { OfflineResult } from "@/shared/offline/types";
 
 import type { Id } from "../../convex/_generated/dataModel";
@@ -156,8 +156,10 @@ export const pendingScans = sqliteTable(
     savedPhotoLocalId: text(),
     photoPath: text().notNull(),
     cropPath: text().notNull(),
-    /** Where the crop sits in `photoPath`, normalized. */
+    /** Where the displayed crop sits in `photoPath`, normalized. Snapping to a match moves it but not the model crop. */
     cropCorners: text({ mode: "json" }).$type<Quad>(),
+    /** Geometry of the unchanged model image; absent for legacy captures and user-adjusted crops. */
+    modelCropGeometry: text({ mode: "json" }).$type<Pick<PreparedPainting, "corners" | "contentBounds">>(),
     vector: text({ mode: "json" }).$type<number[]>().notNull(),
     descriptors: bytes().notNull(),
     keypoints: bytes().notNull(),
