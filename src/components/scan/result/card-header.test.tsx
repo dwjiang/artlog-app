@@ -21,3 +21,21 @@ it("recovers the image when a different capture replaces a missing image", async
   expect(screen.queryByText("Photo unavailable")).toBeNull();
   expect(screen.getByLabelText("Your photo of this painting")).toBeOnTheScreen();
 });
+
+it("opens the photo full screen from the card and closes it again", async () => {
+  await render(<CardHeader cropUri="file:///crop.jpg" kind="confident" />);
+  expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "View photo" }));
+  expect(screen.getByRole("image", { name: "Your photo of this painting" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Close" }));
+  expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+  expect(screen.getByRole("button", { name: "View photo" })).toBeOnTheScreen();
+});
+
+it("offers no viewer for a photo that couldn't load", async () => {
+  await render(<CardHeader cropUri="file:///missing.jpg" kind="confident" />);
+  await fireEvent(screen.getByLabelText("Your photo of this painting"), "error", {
+    nativeEvent: { error: "Missing file" },
+  });
+  expect(screen.queryByRole("button", { name: "View photo" })).toBeNull();
+});

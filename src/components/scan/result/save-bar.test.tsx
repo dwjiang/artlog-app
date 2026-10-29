@@ -70,3 +70,19 @@ it("keeps the visit and every action when the bar lays out side by side in lands
     Dimensions.set({ window: portrait });
   }
 });
+
+it("marks a work already in the collection, opens that copy, and clears the mark once saved", async () => {
+  const onViewInCollection = jest.fn();
+  const view = await render(
+    <SaveBar canSave saving={false} saveLabel="Add this photo" onViewInCollection={onViewInCollection} {...handlers} />,
+  );
+  expect(screen.getByText("In your collection")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "View in your collection" }));
+  expect(onViewInCollection).toHaveBeenCalledTimes(1);
+  await fireEvent.press(screen.getByRole("button", { name: "Add this photo" }));
+  expect(handlers.onSave).toHaveBeenCalledTimes(1);
+  await view.rerender(
+    <SaveBar canSave saving={false} savedId="saved-1" onViewInCollection={onViewInCollection} {...handlers} />,
+  );
+  expect(screen.queryByText("In your collection")).toBeNull();
+});

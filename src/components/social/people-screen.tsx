@@ -65,6 +65,7 @@ export function PeopleScreen() {
     && !friends.error
     && friends.data?.length === 0
     && !text.trim();
+  const searchable = filter === "all" || session.status === "ready";
   const explore = () => {
     setText("");
     setFilter("all");
@@ -167,7 +168,9 @@ export function PeopleScreen() {
                 onChange={setText}
                 onClear={() => setText("")}
                 showLabel={false}
-                editable={filter === "all" || session.status === "ready"}
+                editable={searchable}
+                // The field keeps its place across filters, dimmed where Friends can't be searched yet.
+                style={!searchable && styles.unavailable}
               />
               <View onLayout={room.onHeaderLayout}>
                 <NativeSegmentedPicker
@@ -314,4 +317,6 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: Spacing.content, paddingTop: Spacing.two, gap: Spacing.compact },
   section: { paddingHorizontal: Spacing.content, paddingTop: Spacing.four },
   inset: { paddingHorizontal: Spacing.content },
+  // A disabled GalleryButton's dimming.
+  unavailable: { opacity: 0.5 },
 });

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { getFunctionName } from "convex/server";
+import { StyleSheet } from "react-native";
 
 import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
 import { Gallery } from "@/constants/theme";
@@ -175,7 +176,7 @@ it("opens visits, authors, and people from Home", async () => {
     pathname: "/artwork",
     params: { kind: "visit", postId: "post-a", itemId: "art-a" },
   });
-  expect(screen.getByLabelText("September 12, 2026")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Sep 12, 2026")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "View Alex Chen’s profile" }));
   expect(mockPush).toHaveBeenLastCalledWith({
     pathname: "/profile/[profileId]",
@@ -355,9 +356,9 @@ it("loads public visits for guests and opens their details without signing in", 
     pathname: "/artwork",
     params: { kind: "visit", postId: "post-a", itemId: "art-a" },
   });
-  expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
-  expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Sign In" })).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
+  expect(screen.queryByRole("button", { name: "Sign In" })).toBeNull();
 });
 
 it("switches a signed-in Home between friends’ visits and Global public visits", async () => {
@@ -379,9 +380,9 @@ it("switches a signed-in Home between friends’ visits and Global public visits
 });
 
 it.each([
-  ["signed-out", "Sign in to add friends."],
-  ["profile-required", "Create a public profile."],
-] as const)("opens Global while %s and gates the Friends tab", async (status, gate) => {
+  ["signed-out", "Add your friends.", "Global"],
+  ["profile-required", "Create a public profile.", "Browse Global"],
+] as const)("opens Global while %s and gates the Friends tab", async (status, gate, back) => {
   mockSession = { ...mockSession, status, token: null };
   mockPages.mockReturnValue(pages({ items: [visit] }));
   await render(<HomeScreen />);
@@ -389,23 +390,34 @@ it.each([
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByRole("header", { name: gate })).toBeOnTheScreen();
   expect(screen.queryByText(visit.reflection)).toBeNull();
-  expect(screen.queryByRole("button", { name: "Not now" }) !== null).toBe(status === "signed-out");
+  expect(screen.queryByRole("button", { name: "Not Now" }) !== null).toBe(status === "signed-out");
   expect(
     mockPages.mock.calls
       .filter(([query]) => getFunctionName(query) === "sharedVisits:listFeed")
       .map(([, args]) => args),
   ).toEqual(["skip", "skip"]);
-  await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
+  await fireEvent.press(screen.getByRole("button", { name: back }));
   expect(screen.getByText(visit.reflection)).toBeOnTheScreen();
 });
 
-it("offers public walls while the public visit feed is empty", async () => {
+it("offers the Friends screen by its name while the public visit feed is empty", async () => {
   mockSession = { ...mockSession, status: "signed-out" };
   await render(<HomeScreen />);
   expect(screen.getByText("No public visits yet.")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "View public walls" }));
+  // The empty feed's own Find friends follows the toolbar's.
+  await fireEvent.press(screen.getAllByRole("button", { name: "Find friends" }).at(-1)!);
   expect(mockPush).toHaveBeenCalledWith("/people");
 });
+
+type HostElement = ReturnType<typeof screen.getByRole>;
+/** The combined opacity a field draws with, so an unavailable one is seen to be dimmed. */
+function opacityOf(element: HostElement) {
+  let opacity = 1;
+  for (let node: HostElement | null = element; node; node = node.parent) {
+    opacity *= StyleSheet.flatten(node.props.style)?.opacity ?? 1;
+  }
+  return opacity;
+}
 
 it("shows a direct invitation for guest Friends and keeps public discovery one tap away", async () => {
   mockSession = { ...mockSession, status: "signed-out", token: null };
@@ -415,7 +427,8 @@ it("shows a direct invitation for guest Friends and keeps public discovery one t
   expect(screen.queryByText("EXAMPLE")).toBeNull();
   expect(screen.getByRole("header", { name: "Sign in to add friends." })).toBeOnTheScreen();
   expect(screen.getByLabelText("Name or username")).toBe(search);
-  expect(search).toHaveProp("editable", false);
+  expect(search).toBeDisabled();
+  expect(opacityOf(search)).toBeLessThan(1);
   expect(screen.queryByText("An afternoon of art")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Continue with Apple" }));
   expect(mockSignIn).toHaveBeenCalledTimes(1);
@@ -423,7 +436,8 @@ it("shows a direct invitation for guest Friends and keeps public discovery one t
   await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
   expect(screen.getByRole("button", { name: "Explore" })).toBeSelected();
   expect(screen.getByLabelText("Name or username")).toBe(search);
-  expect(search).toHaveProp("editable", true);
+  expect(search).toBeEnabled();
+  expect(opacityOf(search)).toBe(1);
   expect(screen.queryByText("EXAMPLE")).toBeNull();
 });
 
@@ -432,7 +446,7 @@ it("keeps the date and reflection without count metadata, including reflection-o
   const view = await render(<HomeScreen />);
   expect(screen.queryByText("+5 more")).toBeNull();
   expect(screen.queryByText("6 artworks")).toBeNull();
-  expect(screen.getByLabelText("September 12, 2026")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Sep 12, 2026")).toBeOnTheScreen();
   expect(screen.getByTestId("art-band")).toBeOnTheScreen();
   mockPages.mockReturnValue(
     pages({

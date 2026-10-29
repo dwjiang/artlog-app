@@ -76,13 +76,3 @@ export function widgetCollection(
 export function widgetArtworkUrl(artwork: Pick<WidgetArtwork, "id" | "visitId">): string {
   return `artlog://saved/${encodeURIComponent(artwork.id)}${artwork.visitId ? `?visitId=${encodeURIComponent(artwork.visitId)}` : ""}`;
 }
-
-export function widgetVisitDate(value?: string): string {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${value}T12:00:00Z`));
-}

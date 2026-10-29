@@ -1,11 +1,12 @@
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState, type ReactElement } from "react";
-import { View, useWindowDimensions } from "react-native";
+import { Link, router, useFocusEffect } from "expo-router";
+import { useCallback, useState, type ReactElement, type ReactNode } from "react";
+import { View, useWindowDimensions, type ViewStyle } from "react-native";
 
 import { ChoiceMenu } from "@/components/choice-menu";
 import { SearchEmptyState } from "@/components/empty-state";
 import { CollectionEmptyState } from "@/components/guest/collection-empty-state";
 import { VisitSkeleton } from "@/components/loading-skeleton";
+import { MotionPressable } from "@/components/motion-pressable";
 import { SafeAreaFlatList } from "@/components/safe-area-scroll";
 import { SocialState } from "@/components/social/social-state";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -13,14 +14,15 @@ import { Gallery } from "@/constants/theme";
 import type { SavedWork } from "@/db/schema";
 import { cropSyncing } from "@/lib/account/photo-sync";
 import { signInRoute } from "@/lib/account/sign-in-context";
-import { artistSections } from "@/lib/collection/artist-sections";
 import { filterWorks } from "@/lib/collection/search";
 import type { useCollectionData } from "@/lib/collection/use-collection-data";
 import { gridColumns } from "@/lib/ui/grid-columns";
 import { useSafeAreaWidth } from "@/lib/ui/safe-area";
+import { sectionWorksByArtist } from "@/lib/wall/artwork-library";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
 
 import { GalleryButton } from "./gallery-button";
+import { savedWorkActions } from "./saved-work-actions";
 import { SavedWorkImage } from "./saved-work-image";
 import { WorkLink } from "./work-link";
 
@@ -90,12 +92,8 @@ export function CollectionArtworks({
     });
   }
   if (sort === "artist") {
-    for (const section of artistSections(filtered)) {
-      rows.push({
-        key: `artist:${section.key}`,
-        kind: "artist",
-        title: section.title,
-      });
+    for (const section of sectionWorksByArtist(filtered, columns)) {
+      if (section.title) rows.push({ key: `artist:${section.key}`, kind: "artist", title: section.title });
       addWorks(section.data);
     }
   } else {
@@ -182,6 +180,7 @@ export function CollectionArtworks({
                 key={work.localId}
                 work={work}
                 width={tileWidth}
+                menu
                 hung={!!wall.draft?.items.some((piece) => piece.saveLocalId === work.localId)}
               />
             ))}
@@ -200,16 +199,20 @@ export function ArtworkTile({
   work,
   width,
   hung = false,
+  menu = false,
 }: {
-  work: Pick<SavedWork, "localId" | "title" | "artist" | "cropPath" | "cropStorageId">;
+  work: Pick<SavedWork, "localId" | "owner" | "title" | "artist" | "cropPath" | "cropStorageId">;
   width: number;
   hung?: boolean;
+  /** A long press previews the photo with the saved page's actions. */
+  menu?: boolean;
 }) {
   const [photo, setPhoto] = useState<{ path: string; aspect: number }>();
   const aspect = photo && photo.path === work.cropPath ? photo.aspect : 1;
   const height = Math.min(width / aspect, width * MAX_TILE_RATIO);
-  return (
-    <WorkLink work={work} style={{ width, gap: 8 }}>
+  const style = { width, gap: 8 };
+  const content = (
+    <>
       <SavedWorkImage
         contain
         path={work.cropPath}
@@ -233,6 +236,73 @@ export function ArtworkTile({
           </Text>
         )}
       </View>
+    </>
+  );
+  return menu ? (
+    // Link lays out its native menu beside its trigger; keep both inside one grid cell.
+    <View style={{ width }}>
+      <WorkMenuLink work={work} aspect={aspect} style={style}>
+        {content}
+      </WorkMenuLink>
+    </View>
+  ) : (
+    <WorkLink work={work} style={style}>
+      {content}
     </WorkLink>
+  );
+}
+
+// The preview shows the whole photo, as Photos does, leaving the menu room below it.
+const PREVIEW_MAX_HEIGHT = 0.55;
+
+function WorkMenuLink({
+  work,
+  aspect,
+  style,
+  children,
+}: {
+  work: Pick<SavedWork, "localId" | "owner" | "title" | "artist" | "cropPath">;
+  aspect: number;
+  style: ViewStyle;
+  children: ReactNode;
+}) {
+  const window = useWindowDimensions();
+  const { share, edits, remove } = savedWorkActions(work);
+  const actions = [share, ...edits, remove].filter((action) => !action.disabled);
+  const previewWidth = Math.min(window.width, window.height * PREVIEW_MAX_HEIGHT * aspect);
+  const preview = { width: previewWidth, height: previewWidth / aspect };
+  return (
+    <Link href={{ pathname: "/saved/[savedId]", params: { savedId: work.localId } }} asChild>
+      <Link.Trigger>
+        <MotionPressable
+          accessibilityRole="button"
+          accessibilityLabel={`${work.title}, ${work.artist}`}
+          accessibilityActions={actions.map(({ name, label }) => ({ name, label }))}
+          onAccessibilityAction={({ nativeEvent }) =>
+            actions.find((action) => action.name === nativeEvent.actionName)?.run()
+          }
+          style={style}
+        >
+          {children}
+        </MotionPressable>
+      </Link.Trigger>
+      {work.cropPath ? (
+        <Link.Preview style={preview}>
+          <SavedWorkImage contain path={work.cropPath} title={work.title} style={preview} />
+        </Link.Preview>
+      ) : null}
+      <Link.Menu>
+        {[share, ...edits].map((action) => (
+          <Link.MenuAction key={action.name} icon={action.icon} disabled={action.disabled} onPress={action.run}>
+            {action.label}
+          </Link.MenuAction>
+        ))}
+        <Link.Menu inline>
+          <Link.MenuAction icon={remove.icon} destructive onPress={remove.run}>
+            {remove.label}
+          </Link.MenuAction>
+        </Link.Menu>
+      </Link.Menu>
+    </Link>
   );
 }

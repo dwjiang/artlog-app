@@ -30,7 +30,7 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 it("asks before ending the open visit, then saves again so the save starts a new one", async () => {
-  answer("End visit");
+  answer("End Visit");
   const save = jest.fn().mockRejectedValueOnce(new VisitInProgressError(open)).mockResolvedValueOnce("saved");
   await expect(withEndVisitPrompt(save, controller)).resolves.toBe("saved");
   expect(Alert.alert).toHaveBeenCalledWith(
@@ -43,7 +43,7 @@ it("asks before ending the open visit, then saves again so the save starts a new
 });
 
 it("saves again without a visit and leaves the open visit alone", async () => {
-  answer("Save artwork only");
+  answer("Save Artwork Only");
   const save = jest.fn().mockRejectedValueOnce(new VisitInProgressError(open)).mockResolvedValueOnce("saved");
   await expect(withEndVisitPrompt(save, controller)).resolves.toBe("saved");
   expect(save.mock.calls).toEqual([[false], [true]]);
@@ -59,7 +59,7 @@ it("saves nothing when the person cancels", async () => {
 });
 
 it("passes any other failure through without asking", async () => {
-  answer("End visit");
+  answer("End Visit");
   const save = jest.fn().mockRejectedValue(new Error("SQLITE_BUSY"));
   await expect(withEndVisitPrompt(save, controller)).rejects.toThrow("SQLITE_BUSY");
   expect(Alert.alert).not.toHaveBeenCalled();

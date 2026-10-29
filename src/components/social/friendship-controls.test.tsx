@@ -93,7 +93,7 @@ it("requires confirmation before removing an existing friend", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "Remove Friend…" }));
   expect(mockAct).not.toHaveBeenCalled();
   const confirm = alert.mock.calls.at(-1)?.[2]?.find((button) => button.style === "destructive");
-  expect(confirm?.text).toBe("Remove friend");
+  expect(confirm?.text).toBe("Remove Friend");
   await act(() => confirm?.onPress?.());
   expect(mockAct).toHaveBeenCalledWith("remove");
   alert.mockRestore();

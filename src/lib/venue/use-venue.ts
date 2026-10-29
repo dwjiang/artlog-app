@@ -26,11 +26,10 @@ import { convex } from "@/lib/convex-client";
 import { prepareCaptureVisit } from "@/lib/journal/capture-visit";
 import { museumDay } from "@/lib/journal/visit-date";
 import { clearWrapUp, markWrapUp } from "@/lib/journal/wrap-up";
-import { errorMessage, SyncUnavailableError } from "@/lib/network-error";
+import { SyncUnavailableError } from "@/lib/network-error";
 import { isOffline } from "@/lib/network-state";
 import { addBreadcrumb, reportError } from "@/lib/observability";
 import { calendarDate } from "@/shared/journal/limits";
-import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -61,6 +60,7 @@ import {
   type SeededOption,
   type VenueContext,
   type VenueEvent,
+  type VenueFailure,
   type VenueOption,
   type VenuePick,
   type VenueState,
@@ -71,6 +71,14 @@ import {
 export const POI_RADIUS_M = 300;
 /** A scan never waits longer than this for a fresh fix; it then goes out with the last known context. */
 export const SCAN_FIX_TIMEOUT_MS = 3000;
+
+/**
+ * Where a resolve left the phone: a fix younger than three minutes, why there is none, or undefined when a museum chosen
+ * meanwhile superseded the fix.
+ */
+export type Located = { fix: Fix } | { failure: LocationFailure } | undefined;
+/** Location access is off, or on but the phone could not be located. */
+export type LocationFailure = "denied" | "unavailable";
 
 type StartVisitOptions = {
   signal?: AbortSignal;
@@ -90,9 +98,10 @@ export type VenueController = {
   hydrate: () => Promise<void>;
   /**
    * One-shot fix and table lookup; reuses a fix younger than three minutes. Resolves the museum only, never a visit,
-   * and never opens the sheet: an undecided spot waits for the camera, the Now card or the venue pill to ask.
+   * and never opens the sheet: an undecided spot waits for the camera, the Now card or the venue pill to ask. Answers
+   * where the phone is for a tap on My location.
    */
-  resolve: () => Promise<VenueContext>;
+  resolve: () => Promise<Located>;
   /** The context a scan carries: a fresh resolution when it is quick, else the last known one, with the open visit when the phone is at its museum. */
   resolveForScan: (capturedAt: number) => Promise<VenueContext>;
   /**
@@ -249,7 +258,7 @@ export async function confirmPlace(
 export function createVenueController(): VenueController {
   let state: VenueState = initialVenueState;
   const listeners = new Set<() => void>();
-  let inFlight: Promise<VenueContext> | undefined;
+  let inFlight: Promise<Located> | undefined;
   let localUpdate = Promise.resolve();
   let confirmationId = 0;
   let selectionRevision = 0;
@@ -508,41 +517,43 @@ export function createVenueController(): VenueController {
 
   // A scan is the only resolve that may raise the system location prompt: launch and foreground resolves keep whatever
   // the person chose on the welcome's Access page or in the museum sheet.
-  async function runResolve(forScan: boolean): Promise<VenueContext> {
+  async function runResolve(forScan: boolean): Promise<Located> {
     void syncRemoteVisit();
     // Coming back to the app on a later day closes yesterday's visit before the fix decides where the phone is now.
     await updateLocally(() => endExpiredVisit(captureOwner())).catch((error: unknown) => {
       reportError(error, "venue.visit.expire");
       console.warn("Could not close the visit from an earlier day", error);
     });
+    const recentFix = (): Located => (state.fix && !needsFix(state, Date.now()) ? { fix: state.fix } : undefined);
     // Scans keep a manual museum without waiting for GPS; other resolves can refresh Explore's location too.
     if (forScan && state.venue?.manual && isVisitToday(state.venue.manual, Date.now())) {
-      return venueContext(state);
+      return recentFix();
     }
-    if (!needsFix(state, Date.now())) return venueContext(state);
+    if (!needsFix(state, Date.now())) return recentFix();
     const revision = selectionRevision;
     const wanted = () => revision === selectionRevision;
     dispatch({ type: "locating" });
+    let fix: Fix | undefined;
     try {
       const permission = await (forScan
         ? Location.requestForegroundPermissionsAsync()
         : Location.getForegroundPermissionsAsync());
-      if (!wanted()) return venueContext(state);
+      if (!wanted()) return recentFix();
       if (!permission.granted) {
         dispatch({ type: "denied", at: Date.now() });
-        return venueContext(state);
+        return { failure: "denied" };
       }
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      if (!wanted()) return venueContext(state);
-      const fix = {
+      if (!wanted()) return recentFix();
+      fix = {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
         at: Date.now(),
       };
       const resolution = pickVenue(await nearest(await openVenueDb(), fix, CHOOSE_RADIUS_M));
-      if (!wanted()) return venueContext(state);
+      if (!wanted()) return recentFix();
       if (__DEV__) {
         console.debug(
           "Venue resolved",
@@ -557,35 +568,32 @@ export function createVenueController(): VenueController {
       if (state.status === "none" && resolution.kind === "none") {
         await searchNearbyPlaces(fix);
       }
-      return venueContext(state);
+      return { fix };
     } catch (error) {
-      if (!wanted()) return venueContext(state);
+      if (!wanted()) return recentFix();
       reportError(error, "venue.resolve", { level: "warning" });
       console.warn("Venue resolution failed", error);
-      dispatch({
-        type: "failed",
-        error: socialErrorMessage(error) ?? errorMessage(error),
-      });
-      return venueContext(state);
+      dispatch({ type: "failed", error: fix ? "lookup" : "location" });
+      return fix ? { fix } : { failure: "unavailable" };
     }
   }
 
-  function startResolve(forScan: boolean): Promise<VenueContext> {
+  function startResolve(forScan: boolean): Promise<Located> {
     inFlight ??= runResolve(forScan).finally(() => {
       inFlight = undefined;
     });
     return inFlight;
   }
 
-  function resolve(): Promise<VenueContext> {
+  function resolve(): Promise<Located> {
     return startResolve(false);
   }
 
   async function resolveForScan(capturedAt: number): Promise<VenueContext> {
     const ownership = captureOwner();
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<VenueContext>((settle) => {
-      timer = setTimeout(() => settle(venueContext(state)), SCAN_FIX_TIMEOUT_MS);
+    const timeout = new Promise<void>((settle) => {
+      timer = setTimeout(settle, SCAN_FIX_TIMEOUT_MS);
     });
     await Promise.race([startResolve(true), timeout]).finally(() => clearTimeout(timer));
     await updateLocally(() => refreshOpenVisit(ownership));
@@ -743,7 +751,7 @@ export type VenueView = {
   options: VenueOption[];
   /** The last location fix, for searches that should look near the phone. */
   fix?: Fix;
-  error?: string;
+  failure?: VenueFailure;
   resolve: VenueController["resolve"];
   confirm: VenueController["confirm"];
   dismiss: VenueController["dismiss"];
@@ -766,7 +774,7 @@ export function useVenue(controller: VenueController = venueController): VenueVi
     visitId: venueContext(snapshot).visitId,
     options: snapshot.options,
     fix: snapshot.fix,
-    error: snapshot.error,
+    failure: snapshot.error,
     resolve: controller.resolve,
     confirm: controller.confirm,
     dismiss: controller.dismiss,

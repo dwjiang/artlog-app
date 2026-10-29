@@ -3,7 +3,7 @@ import { randomUUID } from "expo-crypto";
 import { findCapturePhoto, saveArtworkSession, selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { getSavedWork, listSavedWorks, markSynced } from "@/db/repos/saved-works";
 import { getVisit } from "@/db/repos/visits";
-import type { PendingScan, Visit } from "@/db/schema";
+import type { PendingScan, SavedWork, Visit } from "@/db/schema";
 import { flushJournal } from "@/lib/account/collection-sync";
 import { captureOwner } from "@/lib/account/owner-store";
 import { requestCollectionSync } from "@/lib/account/sync-events";
@@ -21,6 +21,7 @@ import { venueNameById } from "@/lib/venue/venue-db";
 
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
+import type { SnapshotFields } from "../../../convex/lib/validators";
 import { buildSnapshot, type SnapshotDraft } from "./snapshot";
 import type { ResultViewState } from "./state";
 
@@ -57,6 +58,26 @@ const ACTIONABLE = new Set(["Review your added photos before saving.", "Choose a
 /** Failures the person can resolve keep their message; anything else is a retry prompt. */
 export function saveErrorMessage(cause: unknown): string {
   return cause instanceof Error && ACTIONABLE.has(cause.message) ? cause.message : "Couldn’t save. Try again.";
+}
+
+/**
+ * The saved work a confident match's save adds its photo to, rather than saving the same work twice: the one from the
+ * same catalogue object under the same title and artist.
+ */
+export function savedCopyOf(
+  works: readonly SavedWork[],
+  view: ResultViewState | undefined,
+  snapshot: Pick<SnapshotFields, "title" | "artist">,
+): SavedWork | undefined {
+  const primary = view?.primary;
+  if (view?.kind !== "confident" || !primary?.objectId) return undefined;
+  return works.find(
+    (work) =>
+      work.deletedAt === null
+      && work.objectId === primary.objectId
+      && work.title === snapshot.title
+      && work.artist === snapshot.artist,
+  );
 }
 
 type LinkedVisit = Pick<
@@ -140,11 +161,8 @@ export async function saveResult(
   const existing =
     saved?.deletedAt === null
       ? saved
-      : view?.kind === "confident" && primary?.objectId
-        ? (await listSavedWorks(current.owner)).find(
-            (work) =>
-              work.objectId === primary.objectId && work.title === snapshot.title && work.artist === snapshot.artist,
-          )
+      : view?.kind === "confident"
+        ? savedCopyOf(await listSavedWorks(current.owner), view, snapshot)
         : undefined;
   const localId = existing?.localId ?? randomUUID();
   const savedAt = capture.capturedAt;

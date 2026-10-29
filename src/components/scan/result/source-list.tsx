@@ -3,10 +3,10 @@ import { Image } from "expo-image";
 import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 
-import { GalleryButton } from "@/components/collection/gallery-button";
 import { MotionPressable } from "@/components/motion-pressable";
+import { CloseButton } from "@/components/sheet-controls";
 import { ThemedText } from "@/components/themed-text";
-import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { CompactBarMaxTextScale, Gallery, Radius, Spacing } from "@/constants/theme";
 import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
 import { sourceLicence } from "@/lib/result/source-licence";
 
@@ -32,7 +32,9 @@ export function SourceList({ sources }: { sources: NumberedSource[] }) {
         <View style={styles.initials}>
           {initials.map((initial, index) => (
             <View key={initial} style={[styles.initial, index > 0 && styles.overlap]}>
-              <ThemedText style={styles.initialText}>{initial}</ThemedText>
+              <ThemedText maxFontSizeMultiplier={CompactBarMaxTextScale} style={styles.initialText}>
+                {initial}
+              </ThemedText>
             </View>
           ))}
         </View>
@@ -70,7 +72,7 @@ function SourcesSheet({
             <ThemedText type="subtitle" accessibilityRole="header" style={styles.title}>
               Sources
             </ThemedText>
-            <GalleryButton label="Done" fullWidth={false} onPress={onDismiss} />
+            <CloseButton onPress={onDismiss} />
           </View>
           <ScrollView alwaysBounceVertical={false} onContentSizeChange={fitted.onContentSizeChange}>
             <View style={styles.card}>

@@ -36,19 +36,22 @@ export function ListenActions({
   const data = enrichment instanceof Error ? undefined : enrichment;
   const audio = useListening();
   const cachedDuration = useCachedNarrationDuration(data?.narrationRenderId);
-  if (!data?.narrationAvailable) return null;
+  // Nearly every catalogue work has a guide, so the row holds its place, disabled, while that is checked instead of
+  // arriving later and pushing the page down.
+  const pending = enrichment === undefined;
+  if (!pending && !data?.narrationAvailable) return null;
   const work: ListeningWork = {
     artworkId,
     title,
     artist,
     date: date || undefined,
-    imageUri: imageUri ?? data.thumbnailUrl,
+    imageUri: imageUri ?? data?.thumbnailUrl,
     savedId,
     scanId,
-    facts: data.narrationFacts ?? [],
-    researchUpdatedAt: data.narrationResearchUpdatedAt,
-    opening: data.narrationOpening,
-    renderId: data.narrationRenderId,
+    facts: data?.narrationFacts ?? [],
+    researchUpdatedAt: data?.narrationResearchUpdatedAt,
+    opening: data?.narrationOpening ?? "",
+    renderId: data?.narrationRenderId,
   };
   const track = { work };
   // A play pressed before the work had research is still this guide once that research lands.
@@ -96,14 +99,14 @@ export function ListenActions({
         accessibilityLabel={label}
         accessibilityHint={another ? "Keeps the current audio guide playing." : "Opens the audio guide player."}
         accessibilityState={{
-          busy: preparing,
-          disabled: another && queued,
+          busy: preparing || pending,
+          disabled: pending || (another && queued),
         }}
-        disabled={another && queued}
+        disabled={pending || (another && queued)}
         onPress={another ? enqueue : listen}
         style={styles.listen}
       >
-        <View style={[styles.play, another && queued && styles.queued]}>
+        <View style={[styles.play, another && queued && styles.queued, pending && styles.pending]}>
           {preparing ? (
             <LoadingRing color={Gallery.surface} size={24} accessible={false} />
           ) : (
@@ -143,7 +146,7 @@ export function ListenActions({
           color={Gallery.accent}
           size={20}
           popOn={!another && queuedHere}
-          disabled={!another && queuedHere}
+          disabled={pending || (!another && queuedHere)}
           onPress={another ? listen : enqueue}
           style={styles.queue}
         />
@@ -179,6 +182,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   queued: { backgroundColor: Gallery.highlight },
+  pending: { opacity: 0.5 },
   copy: { flex: 1, gap: Spacing.one },
   queue: {
     borderWidth: StyleSheet.hairlineWidth,

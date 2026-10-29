@@ -9,6 +9,7 @@ import { FeedSkeleton } from "@/components/loading-skeleton";
 import { usePaneRoom, usePaneSwitch } from "@/components/pane-scroll";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { SafeAreaFlatList } from "@/components/safe-area-scroll";
+import { TabPageTitle } from "@/components/tab-page-title";
 import { ThemedText as Text } from "@/components/themed-text";
 import { NowCard, useNowCardScroll } from "@/components/visits/now-card";
 import { VisitlessSavesCard } from "@/components/visits/visitless-saves-card";
@@ -39,6 +40,8 @@ const STRIP_FRIEND_LIMIT = 5;
 const feedPage = (result: { page: SharedVisit[]; cursor: string | null; isDone: boolean }) => result;
 const visitId = (visit: SharedVisit) => visit.postId;
 const INVITATION_FACES = (["vermeer", "sunflowers", "klee"] as const).map((avatar) => ({ profileId: avatar, avatar }));
+
+export const HOME_TITLE = "Artlog";
 
 export function HomeScreen() {
   const [dismissedPrompt, setDismissedPrompt] = useState(false);
@@ -107,13 +110,15 @@ export function HomeScreen() {
   const opening = canBrowse ? loadingFirstPage(feed, items.length) : session.status === "loading";
   const list = useRef<FlatList<SharedVisit>>(null);
   const room = usePaneRoom(list, { empty: items.length === 0 });
-  // Header cards load independently of the feed; padding alone does not count as content.
-  const hasHeaderContent = room.pinned > Spacing.two;
+  const [titleEnd, setTitleEnd] = useState(0);
+  // Header cards load independently of the feed; the title alone does not count as content.
+  const hasHeaderContent = room.pinned > titleEnd;
   usePaneSwitch(tab ?? "", () => room);
   const { onCardLayout, onScroll: onNowCardScroll } = useNowCardScroll();
   // During a visit the Now card leads Home, so an empty feed sits beneath it as a card instead of filling the page.
   const card = !!useVenue().visit;
   const shareProfile = () => router.push("/share-profile");
+  const invitation = guest && !dismissedPrompt && !isJudgesDemo();
   const pull = usePullToRefresh({
     enabled: canBrowse,
     refreshing: feed.refreshing,
@@ -156,17 +161,19 @@ export function HomeScreen() {
           />
         )}
         refreshControl={pull.refreshControl}
-        ListHeaderComponentStyle={styles.header}
         ListHeaderComponent={
           <>
-            {guest && !dismissedPrompt && !isJudgesDemo() && (
+            <TabPageTitle onLayout={({ nativeEvent: { layout } }) => setTitleEnd(layout.y + layout.height)}>
+              {HOME_TITLE}
+            </TabPageTitle>
+            {invitation && (
               <View style={styles.invitation}>
                 <EmptyCard
                   title="Add your friends."
                   detail="Sign in to see the museum visits and artworks they share."
                   visual={<AvatarStack people={INVITATION_FACES} size={40} />}
-                  action={{ label: "Sign in", onPress: () => router.push(signInRoute("friends")) }}
-                  secondaryAction={{ label: "Not now", onPress: () => setDismissedPrompt(true) }}
+                  action={{ label: "Sign In", onPress: () => router.push(signInRoute("friends")) }}
+                  secondaryAction={{ label: "Not Now", onPress: () => setDismissedPrompt(true) }}
                 />
               </View>
             )}
@@ -181,7 +188,8 @@ export function HomeScreen() {
           !canBrowse ? (
             session.status === "loading" ? (
               <FeedSkeleton label="Loading your account…" />
-            ) : (
+            ) : invitation ? undefined : (
+              // A guest's invitation above already asks them to sign in for friends; dismissed, the gate takes over.
               <SocialGate session={session} onBrowseGlobal={() => setChosenTab("global")} card={card} />
             )
           ) : feed.done && !feed.loading && !feed.error ? (
@@ -189,8 +197,8 @@ export function HomeScreen() {
               <SocialInvitation
                 card={card}
                 title="No public visits yet."
-                detail="View public walls to see other people’s collections."
-                action={{ label: "View public walls", onPress: () => router.push("/people") }}
+                detail="Find friends to see their collections."
+                action={{ label: "Find friends", onPress: () => router.push("/people") }}
                 secondaryAction={{ label: "Scan an artwork", onPress: () => router.navigate("/scan") }}
               />
             ) : suggestions.people.length > 0 ? (
@@ -247,8 +255,6 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Padding inside the header, not the content container, keeps measured offsets in content coordinates.
-  header: { paddingTop: Spacing.two },
   invitation: { paddingBottom: Spacing.three },
   emptyFeed: { paddingHorizontal: 20, paddingTop: 16, gap: 4 },
   emptyFeedAction: { paddingHorizontal: 20, paddingTop: 16 },

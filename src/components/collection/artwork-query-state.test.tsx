@@ -22,6 +22,8 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ back: mockBack }),
   router: { back: mockBack },
   useLocalSearchParams: () => ({ savedId: "artwork", photoId: "photo" }),
+  usePreventRemove: () => () => {},
+  Stack: jest.requireActual("@/components/stack-toolbar-mock").mockStack,
 }));
 jest.mock("drizzle-orm/expo-sqlite", () => ({ useLiveQuery: () => mockQuery }));
 jest.mock("@/lib/account/owner-store", () => ({
@@ -99,7 +101,7 @@ it("does not show a photo from a stale account or a different artwork", async ()
   mockOwner = "account:current";
   await render(<PhotoEditorScreen />);
   expect(screen.getByText("Photo unavailable.")).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Save photo details" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
 });
 
 it("keeps manual identification edits when saving fails", async () => {
@@ -122,7 +124,7 @@ it("keeps manual identification edits when saving fails", async () => {
   });
   await render(<IdentifyArtworkScreen />);
   await fireEvent.changeText(screen.getByLabelText("Title"), "Water Lilies");
-  await fireEvent.press(screen.getByRole("button", { name: "Save details" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
   expect(screen.getByDisplayValue("Water Lilies")).toBeOnTheScreen();
   expect(
     screen.getByText("Your artwork details could not be saved. Your edits are still here. Try again."),

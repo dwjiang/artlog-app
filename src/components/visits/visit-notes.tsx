@@ -3,6 +3,7 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref
 import { AppState, StyleSheet, TextInput, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { MotionPressable } from "@/components/motion-pressable";
 import { useRichTextInput } from "@/components/social/rich-text-input";
 import { TaggedText } from "@/components/social/tagged-text";
 import { ThemedText as Text } from "@/components/themed-text";
@@ -27,6 +28,8 @@ type VisitNotesProps = {
   grouped?: boolean;
   /** The friends picked for Went with, who lead the people offered for an @mention. */
   companionIds?: readonly Id<"profiles">[];
+  /** Hears each edit to the note, as `useNoteEdited` does for a parent that holds the note for its own Save. */
+  onDraftChange?: (text: string) => void;
   ref?: Ref<VisitNotesHandle>;
 };
 type NoteDraft = {
@@ -74,6 +77,12 @@ function persist(note: NoteDraft, sync = true) {
   return note.writes;
 }
 
+/** Whether a held note's draft differs from the reflection saved on the visit; spread `onDraftChange` on `VisitNotes`. */
+export function useNoteEdited(reflection: string | null) {
+  const [draft, setDraft] = useState<string>();
+  return { noteEdited: draft !== undefined && draft.trim() !== (reflection ?? "").trim(), onDraftChange: setDraft };
+}
+
 export function VisitNotes({ visit, ...props }: VisitNotesProps) {
   return <NoteField key={`${visit.owner}:${visit.localId}`} visit={visit} {...props} />;
 }
@@ -84,6 +93,7 @@ function NoteField({
   editable = true,
   grouped = false,
   companionIds = [],
+  onDraftChange,
   ref,
 }: VisitNotesProps) {
   const [draft, setDraft] = useState(visit.reflection ?? "");
@@ -137,6 +147,7 @@ function NoteField({
     const note = latest.current;
     note.text = text;
     setDraft(text);
+    onDraftChange?.(text);
     clearTimeout(note.timer);
     if (autoSave) {
       note.timer = setTimeout(() => {
@@ -198,7 +209,15 @@ function NoteField({
           {draft}
         </TaggedText>
       ) : (
-        <Text style={[styles.caption, grouped && notes.card]}>No notes yet.</Text>
+        // The empty card reads as a text box, so it opens the editor like Add does.
+        <MotionPressable
+          accessibilityRole="button"
+          accessibilityHint="Adds a note"
+          disabled={!editable}
+          onPress={() => setEditing(true)}
+        >
+          <Text style={[styles.caption, grouped && notes.card]}>No notes yet.</Text>
+        </MotionPressable>
       )}
       {error && (
         <View>

@@ -6,7 +6,6 @@ import type { PropsWithChildren } from "react";
 import { Platform } from "react-native";
 
 import { scrollViewHolding } from "@/components/scroll-view.testing";
-import { Spacing } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
 import type { SharedVisit } from "@/lib/social/types";
 import { UnseenNotificationCount } from "@/lib/social/unseen-notifications";
@@ -93,6 +92,17 @@ function page(name: string, cursor: string | null = null) {
     cursor,
     isDone: cursor === null,
   };
+}
+
+/** Lays out the scroll content's header: the page title, then `cards` points of header cards above the feed. */
+async function layOutHeader(cards: number) {
+  const titleHeight = 69;
+  await fireEvent(screen.getByRole("header", { name: "Artlog" }), "layout", {
+    nativeEvent: { layout: { x: 0, y: 0, width: 390, height: titleHeight } },
+  });
+  await fireEvent(screen.getByTestId("home-feed-start"), "layout", {
+    nativeEvent: { layout: { x: 0, y: titleHeight + cards, width: 390, height: 0 } },
+  });
 }
 
 async function deliver(pages: Record<string, unknown>) {
@@ -216,11 +226,22 @@ it("shows loading for a pending feed without displaying the other feed or an emp
   expect(screen.getByText("Friends museum")).toBeOnTheScreen();
 });
 
+// Re-tapping the Home tab scrolls to the content's top edge, which never re-expands a collapsed native large title.
+it.each([
+  ["ready", () => screen.getByText("Friends museum")],
+  ["signed-out", () => screen.getByRole("header", { name: "Add your friends." })],
+  ["loading", () => screen.getByRole("progressbar", { name: "Loading your account…" })],
+] as const)("titles the page first in its scroll content while the account is %s", async (status, content) => {
+  mockSession.status = status;
+  await renderHome();
+  await deliver({ "sharedVisits:listFeed:first": page("Friends museum") });
+  const list = scrollViewHolding(content());
+  expect(within(list).getAllByRole("header")[0]).toHaveAccessibleName("Artlog");
+});
+
 it("holds the page still while the feed shows only its skeleton", async () => {
   await renderHome();
-  await fireEvent(screen.getByTestId("home-feed-start"), "layout", {
-    nativeEvent: { layout: { x: 0, y: Spacing.two, width: 390, height: 0 } },
-  });
+  await layOutHeader(0);
   const list = scrollViewHolding(screen.getByRole("progressbar", { name: "Loading visits…" }));
   expect(list.props.scrollEnabled).toBe(false);
   await deliver({ "sharedVisits:listFeed:first": page("Friends museum") });
@@ -235,16 +256,12 @@ it.each(["ready", "loading"] as const)(
     mockSaves = [{ localId: "save-one", title: "Water Lilies", cropPath: null }];
     await renderHome();
     const list = scrollViewHolding(screen.getByRole("button", { name: "Make it a visit" }));
-    await fireEvent(screen.getByTestId("home-feed-start"), "layout", {
-      nativeEvent: { layout: { x: 0, y: 680, width: 390, height: 0 } },
-    });
+    await layOutHeader(612);
     expect(list.props.scrollEnabled).toBe(true);
     mockSaves = [];
     await screen.rerender(<HomeScreen />);
     expect(screen.queryByRole("button", { name: "Make it a visit" })).toBeNull();
-    await fireEvent(screen.getByTestId("home-feed-start"), "layout", {
-      nativeEvent: { layout: { x: 0, y: Spacing.two, width: 390, height: 0 } },
-    });
+    await layOutHeader(0);
     expect(list.props.scrollEnabled).toBe(false);
   },
 );
@@ -264,28 +281,41 @@ it("clears both feeds when the account changes and gates Friends for guests", as
   await screen.rerender(<HomeScreen />);
   await deliver({ "sharedVisits:listPublic:first": page("Guest museum") });
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
-  expect(screen.getByText("Sign in to add friends.")).toBeOnTheScreen();
+  expect(screen.getByText("Add your friends.")).toBeOnTheScreen();
+  expect(screen.queryByText("Guest museum")).toBeNull();
   expect([...mockSubscriptions.values()].flatMap(Object.values).map(({ query }) => getFunctionName(query))).toEqual([
     "sharedVisits:listPublic",
   ]);
-  await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Global" }));
   expect(screen.getByText("Guest museum")).toBeOnTheScreen();
+});
+
+it("asks a guest to sign in once on the Friends feed, with the gate taking over after Not Now", async () => {
+  mockSession = { ...mockSession, key: "guest", status: "signed-out", token: null, profileId: undefined };
+  await renderHome();
+  await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
+  expect(screen.getByRole("header", { name: "Add your friends." })).toBeOnTheScreen();
+  expect(screen.queryByRole("header", { name: "Sign in to add friends." })).toBeNull();
+  expect(screen.getAllByRole("button", { name: "Sign In" })).toHaveLength(1);
+  await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
+  expect(screen.getByRole("header", { name: "Sign in to add friends." })).toBeOnTheScreen();
+  expect(screen.getAllByRole("button", { name: "Sign in" })).toHaveLength(1);
+  await fireEvent.press(screen.getByRole("button", { name: "Browse Global" }));
+  expect(screen.getByRole("button", { name: "Global", selected: true })).toBeOnTheScreen();
 });
 
 it("keeps the guest header consistent across feeds, including after dismissing the invitation", async () => {
   mockSession = { ...mockSession, key: "guest", status: "signed-out", token: null, profileId: undefined };
   await renderHome();
   expect(screen.getByText("Add your friends.")).toBeOnTheScreen();
-  await fireEvent(screen.getByTestId("home-feed-start"), "layout", {
-    nativeEvent: { layout: { x: 0, y: 300, width: 390, height: 0 } },
-  });
-  expect(scrollViewHolding(screen.getByRole("button", { name: "Sign in" })).props.scrollEnabled).toBe(true);
+  await layOutHeader(232);
+  expect(scrollViewHolding(screen.getByRole("button", { name: "Sign In" })).props.scrollEnabled).toBe(true);
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByText("Add your friends.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Leaderboards" })).toBeOnTheScreen();
   expect(within(screen.getByRole("button", { name: "Find Friends" })).queryByText(/\d/)).toBeNull();
   expect(within(screen.getByRole("button", { name: "Notifications" })).queryByText(/\d/)).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Not now" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
   expect(screen.queryByText("Add your friends.")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Global" }));
   expect(screen.queryByText("Add your friends.")).toBeNull();
@@ -306,7 +336,7 @@ it("keeps the judges' demo on Global without friend sign-in prompts", async () =
 it("sends guests from the invitation to sign in for friends", async () => {
   mockSession = { ...mockSession, key: "guest", status: "signed-out", token: null, profileId: undefined };
   await renderHome();
-  await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Sign In" }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/sign-in", params: { context: "friends" } });
 });
 
@@ -361,7 +391,8 @@ it.each([
     "sharedVisits:listPublic:first": { page: [], cursor: null, isDone: true },
   });
   expect(screen.getByRole("header", { name: "No public visits yet." })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "View public walls" }));
+  // The empty feed's own Find friends follows the toolbar's.
+  await fireEvent.press(screen.getAllByRole("button", { name: "Find friends" }).at(-1)!);
   expect(mockPush).toHaveBeenLastCalledWith("/people");
   await fireEvent.press(screen.getByRole("button", { name: "Scan an artwork" }));
   expect(mockNavigate).toHaveBeenLastCalledWith("/scan");

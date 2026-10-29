@@ -19,6 +19,7 @@ import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { captureFileUri } from "@/lib/files/photos";
 import { convexErrorCode } from "@/lib/network-error";
@@ -48,6 +49,10 @@ import { WallTopEdge, useWallScrollEdge } from "./wall-scroll-edge";
 import { WallArtworkSheet } from "./wall-sheets";
 import { WallToolbar } from "./wall-toolbar";
 import { WallpaperEditor } from "./wallpaper-editor";
+
+// Each return to the tab re-reads the wall; a re-read that settles within this delay shows no spinner, so the toolbar
+// holds still.
+const REFRESH_INDICATOR_DELAY_MS = 500;
 
 type CollectionWallProps = {
   works: SavedWork[];
@@ -129,6 +134,8 @@ export function CollectionWallContent({
   const available = works.filter((item) => item.owner === owner && !hiddenIds.includes(item.localId));
   const failedSave = !!wall.layoutDraft && !!wall.error;
   const blocked = wall.pending || failedSave || adding;
+  const refreshing = wall.loading && !!wall.draft && !wall.error && !pull.refreshing;
+  const slowRefresh = useDebouncedValue(refreshing, REFRESH_INDICATOR_DELAY_MS, false);
   useEffect(() => {
     const piece = pieces.find((item) => item.localId === revealId.current);
     if (!piece || !width) return;
@@ -324,7 +331,7 @@ export function CollectionWallContent({
         onEdit={wall.draft ? edit : undefined}
         onAllArtworks={() => router.push("/all-artworks")}
         disabled={blocked}
-        refreshing={wall.loading && !!wall.draft && !wall.error && !pull.refreshing}
+        refreshing={refreshing && slowRefresh}
       />
     </View>
   );
@@ -335,7 +342,7 @@ export function CollectionWallContent({
       {editing && (
         <View style={[styles.toolbar, editBarPadding, { backgroundColor: Gallery.paper }]}>
           <Text variant="section" accessibilityRole="header">
-            Edit wall
+            Edit Wall
           </Text>
           <GalleryButton
             label="Done"

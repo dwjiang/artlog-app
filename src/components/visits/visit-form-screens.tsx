@@ -5,11 +5,13 @@ import { Keyboard, TextInput, View } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { ListSkeleton } from "@/components/loading-skeleton";
+import { CancelToolbar, CommitToolbar } from "@/components/sheet-controls";
 import { useRichTextInput } from "@/components/social/rich-text-input";
 import { ThemedText as Text } from "@/components/themed-text";
 import { ToastLayer } from "@/components/toast";
 import { Gallery } from "@/constants/theme";
 import { upsertVisit } from "@/db/repos/visits";
+import { useDiscardEditsGuard } from "@/hooks/use-discard-edits-guard";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { useVisits } from "@/lib/journal/use-visits";
 import { dateFromPicker, museumDayAtMost, validVisitDate, venueTimeZone } from "@/lib/journal/visit-date";
@@ -25,7 +27,6 @@ import { socialErrorMessage } from "@/shared/social/errors";
 
 import { MuseumSearch } from "./museum-search";
 import { VisitDatePicker } from "./visit-date-picker";
-import { CancelToolbar, CommitToolbar } from "./visit-sheet-toolbar";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 
 function VisitFormPage({ children, scrollEnabled }: { children: ReactNode; scrollEnabled?: boolean }) {
@@ -69,7 +70,10 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
     };
   }, [initialVenueId, now]);
   const [reflection, setReflection] = useState("");
+  // A museum or date the person picked; the museum a visit opens on and the days that follow it don't count.
+  const [picked, setPicked] = useState(false);
   const [busy, setBusy] = useState(false);
+  const leave = useDiscardEditsGuard({ edited: picked || !!reflection.trim(), busy });
   const tagging = useRichTextInput({
     text: reflection,
     onChangeText: setReflection,
@@ -85,6 +89,7 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
   const today = calendarDate(now, timeZone);
   const validDate = validVisitDate(date, timeZone, now);
   function chooseVenue(row: VenueRow) {
+    setPicked(true);
     setVenue(row);
     // The device may already be on a later calendar day than the museum.
     setDate((current) => museumDayAtMost(current, venueTimeZone(row), now));
@@ -113,12 +118,14 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
       if (session.isOwnerCurrent()) {
         showToast(savedId ? "New visit linked. Other photos are unchanged." : "Visit saved.");
         if (savedId) {
-          router.dismissTo({
-            pathname: "/saved/[savedId]",
-            params: { savedId, visitId: localId },
-          });
+          leave(() =>
+            router.dismissTo({
+              pathname: "/saved/[savedId]",
+              params: { savedId, visitId: localId },
+            }),
+          );
         } else {
-          router.back();
+          leave();
         }
       }
     } catch (cause) {
@@ -173,7 +180,14 @@ function CreateForm({ savedId, initialVenueId }: { savedId?: string; initialVenu
             backgroundColor: Gallery.surface,
           }}
         >
-          <VisitDatePicker value={date} latest={today} onChange={setDate} />
+          <VisitDatePicker
+            value={date}
+            latest={today}
+            onChange={(value) => {
+              setPicked(true);
+              setDate(value);
+            }}
+          />
         </View>
         {!validDate && (
           <Text accessibilityRole="alert" style={styles.error}>

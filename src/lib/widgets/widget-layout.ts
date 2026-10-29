@@ -1,8 +1,9 @@
 import { Fonts, Gallery } from "@/constants/theme";
+import { formatVisitDate } from "@/lib/journal/history";
 
 import sfPro from "./metrics/sf-pro.json";
 import spaceGrotesk from "./metrics/space-grotesk-semibold.json";
-import { widgetArtworkUrl, widgetVisitDate, type PreparedWidgetArtwork } from "./widget-collection";
+import { widgetArtworkUrl, type PreparedWidgetArtwork } from "./widget-collection";
 import { widgetColors, widgetFrames, type WidgetSettings, type WidgetSize } from "./widget-settings";
 
 type Bounds = { x: number; y: number; width: number; height: number };
@@ -66,7 +67,7 @@ function wrap(value: string, size: number, family: string | undefined, width: nu
 
 function caption(art: PreparedWidgetArtwork, settings: WidgetSettings, panoramic: boolean) {
   const width = panoramic ? 294 : 157;
-  const date = widgetVisitDate(art.visitedOn);
+  const date = formatVisitDate(art.visitedOn);
   function compose(size: number, limit: number) {
     let height = 0;
     const rows: WidgetText[] = [];
@@ -231,7 +232,7 @@ export function widgetPresentation(
         art.title,
         art.artist,
         settings.caption === "visit" && art.museum,
-        settings.caption === "visit" && widgetVisitDate(art.visitedOn),
+        settings.caption === "visit" && formatVisitDate(art.visitedOn),
       ]
         .filter(Boolean)
         .join(". "),

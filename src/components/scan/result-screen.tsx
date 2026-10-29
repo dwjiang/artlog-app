@@ -135,9 +135,9 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
   function adjustCrop() {
     if (hasEdits) {
       Alert.alert("Adjust this crop?", "Recognition will run again. Unsaved artwork details will be discarded.", [
-        { text: "Keep editing", style: "cancel" },
+        { text: "Keep Editing", style: "cancel" },
         {
-          text: "Adjust crop",
+          text: "Adjust Crop",
           onPress: () => {
             setHasEdits(false);
             setEditingCrop(true);

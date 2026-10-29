@@ -282,11 +282,11 @@ describe("resolving a fix", () => {
         },
       },
     ]);
-    const failed = reduce([{ type: "locating" }, { type: "failed", error: "Location unavailable" }], resolved);
+    const failed = reduce([{ type: "locating" }, { type: "failed", error: "lookup" }], resolved);
     expect(failed.status).toBe("resolved");
     expect(failed.venue?.name).toBe("Met");
-    expect(failed.error).toBe("Location unavailable");
-    expect(reduce([{ type: "failed", error: "x" }]).status).toBe("none");
+    expect(failed.error).toBe("lookup");
+    expect(reduce([{ type: "failed", error: "location" }]).status).toBe("none");
   });
 
   it("drops the venue and fix when location access is denied, pausing the visit rather than ending it", () => {

@@ -8,7 +8,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { GlassSurface } from "@/components/glass-surface";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Colors, Gallery, OnPhoto, Radius, Spacing } from "@/constants/theme";
+import { Colors, CompactBarMaxTextScale, Gallery, OnPhoto, Radius, Spacing } from "@/constants/theme";
 import { useReduceTransparency } from "@/hooks/use-reduce-transparency";
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitStart } from "@/lib/journal/history";
@@ -103,7 +103,7 @@ export function VisitBand({ onCamera = false, beforeVisit = false }: { onCamera?
                 style={({ pressed }) => [styles.action, pressed && styles.pressed]}
               >
                 <View style={[styles.pill, styles.startPill]}>
-                  <Text type="smallBold" maxFontSizeMultiplier={MAX_TEXT_SCALE} style={styles.start}>
+                  <Text type="smallBold" maxFontSizeMultiplier={CompactBarMaxTextScale} style={styles.start}>
                     Start visit
                   </Text>
                 </View>
@@ -164,7 +164,7 @@ function OpenVisitRow({
         style={({ pressed }) => [styles.action, pressed && styles.pressed]}
       >
         <GlassSurface isInteractive style={[styles.glass, styles.pill]}>
-          <Text type="smallBold" maxFontSizeMultiplier={MAX_TEXT_SCALE} style={styles.end}>
+          <Text type="smallBold" maxFontSizeMultiplier={CompactBarMaxTextScale} style={styles.end}>
             End
           </Text>
         </GlassSurface>
@@ -199,7 +199,7 @@ function BandButton({
       style={({ pressed }) => [styles.visit, pressed && styles.pressed]}
     >
       <Image source="sf:building.columns.fill" tintColor={ON_PHOTO} style={styles.icon} />
-      <Text numberOfLines={1} maxFontSizeMultiplier={MAX_TEXT_SCALE} style={styles.name}>
+      <Text numberOfLines={1} maxFontSizeMultiplier={CompactBarMaxTextScale} style={styles.name}>
         {label}
       </Text>
       <Image
@@ -214,8 +214,6 @@ function BandButton({
 const ON_PHOTO = Colors.light.overlayText;
 const BLUR_RADIUS = 6;
 const CAMERA_BLUR = 60;
-// Like the navigation and tab bars, the band stops growing at accessibility text sizes so the museum name keeps room.
-const MAX_TEXT_SCALE = 1.4;
 const BUTTON_SIZE = 34;
 
 const styles = StyleSheet.create({

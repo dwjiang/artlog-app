@@ -74,6 +74,7 @@ jest.mock("expo-router", () => ({
     dismissTo: mockDismissTo,
     back: mockBack,
   }),
+  usePreventRemove: () => () => {},
 }));
 jest.mock("@/lib/convex-client", () => ({
   convex: { mutation: (...args: unknown[]) => mockMutation(...args) },

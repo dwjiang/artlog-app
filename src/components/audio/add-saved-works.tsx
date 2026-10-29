@@ -10,6 +10,7 @@ import { listSavedWorks } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
 import { useListening } from "@/lib/audio/use-listening";
+import { artistLine } from "@/lib/catalog/artist-line";
 import { captureFileUri } from "@/lib/files/photos";
 import { playLightHaptic } from "@/lib/ui/haptics";
 
@@ -96,7 +97,7 @@ export function AddSavedWorks() {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: "600" }}>{work.title}</Text>
               <Text variant="metadata" themeColor="textSecondary">
-                {work.artist}
+                {artistLine(work.artist, work.date)}
               </Text>
               {!work.artworkId && (
                 <Text variant="metadata" themeColor="textSecondary">

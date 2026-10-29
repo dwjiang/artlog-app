@@ -31,7 +31,7 @@ export function MuseumPhoto({
   height: number;
 }) {
   const card = width > 80;
-  const style = { width, height, borderRadius: card ? Radius.card : 8 };
+  const style = { width, height, borderRadius: card ? Radius.card : Radius.thumbnail };
   const { image, loading } = useMuseumImage(data, museum, card ? "card" : "row");
   if (loading) {
     return (
@@ -44,7 +44,7 @@ export function MuseumPhoto({
   return <ExploreImage image={image} icon="building.columns" credit={credit} style={style} />;
 }
 
-const MUSEUM_TILE_WIDTH = 264;
+export const MUSEUM_TILE_WIDTH = 264;
 const MUSEUM_PHOTO_HEIGHT = 160;
 
 export function MuseumTile({ data, museum }: { data: ExploreCatalog; museum: ExploreMuseum }) {

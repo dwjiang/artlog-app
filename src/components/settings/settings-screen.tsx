@@ -78,7 +78,7 @@ export function SettingsScreen() {
         <View style={{ gap: 10 }}>
           <MotionPressable
             accessibilityRole="button"
-            accessibilityLabel="Your collection"
+            accessibilityLabel="Your Collection"
             accessibilityHint="Manage your data"
             onPress={detail("account")}
             style={{
@@ -94,7 +94,7 @@ export function SettingsScreen() {
           >
             <ProfileAvatar size={44} />
             <View style={{ flex: 1 }}>
-              <ThemedText variant="button">Your collection</ThemedText>
+              <ThemedText variant="button">Your Collection</ThemedText>
               <ThemedText variant="metadata" themeColor="textSecondary">
                 Automatic backup for this iPhone
               </ThemedText>
@@ -129,7 +129,7 @@ export function SettingsScreen() {
         <SettingsRow label="Terms of Service" icon="doc.text" external onPress={() => void openLegalPage("terms")} />
       </SettingsGroup>
       <SettingsGroup title="Support">
-        <SettingsRow label="Send feedback" icon="envelope" onPress={() => router.push("/send-feedback")} />
+        <SettingsRow label="Send Feedback" icon="envelope" onPress={() => router.push("/send-feedback")} />
       </SettingsGroup>
       <ThemedText variant="metadata" themeColor="textSecondary">
         Artlog · Version {Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "Unknown"}

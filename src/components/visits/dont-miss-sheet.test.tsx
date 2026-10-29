@@ -37,7 +37,7 @@ it("shows the work larger with its artist, date and medium", async () => {
   mockPicks = [wheat];
   await render(<DontMissSheet />);
   expect(screen.getByRole("header", { name: "Wheat Field with Cypresses" })).toBeOnTheScreen();
-  expect(screen.getByText("Vincent van Gogh, 1889")).toBeOnTheScreen();
+  expect(screen.getByText("Vincent van Gogh · 1889")).toBeOnTheScreen();
   expect(screen.getByText("Oil on canvas")).toBeOnTheScreen();
   expect(screen.queryByText(/Saved here by/)).toBeNull();
 });

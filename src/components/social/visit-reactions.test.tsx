@@ -371,11 +371,11 @@ function chooseAction(label: string) {
 
 it("reports someone else’s comment from its touch-and-hold menu after closing the sheet", async () => {
   mockComments = [comment("theirs", "Rude words.", theirs)];
-  const sheet = chooseAction("Report comment");
+  const sheet = chooseAction("Report Comment");
   await render(<VisitReactions visit={visit} openComments />);
   await fireEvent(screen.getByLabelText(/Rude words\.$/), "longPress");
   expect(sheet.mock.calls[0][0]).toMatchObject({
-    options: ["Reply", "Copy comment", "Report comment", "Block Jules Morgan", "Cancel"],
+    options: ["Reply", "Copy Comment", "Report Comment", "Block Jules Morgan", "Cancel"],
     destructiveButtonIndex: [3],
   });
   expect(screen.queryByText("Rude words.")).toBeNull();
@@ -389,7 +389,7 @@ it("offers Delete instead of Report and Block on your own comment", async () => 
   await render(<VisitReactions visit={visit} openComments />);
   await fireEvent(screen.getByLabelText(/My note\.$/), "longPress");
   expect(sheet.mock.calls[0][0]).toMatchObject({
-    options: ["Copy comment", "Delete comment", "Cancel"],
+    options: ["Copy Comment", "Delete Comment", "Cancel"],
     destructiveButtonIndex: [1],
   });
   sheet.mockRestore();
@@ -399,10 +399,10 @@ it("copies a comment and gives guests Report without Block", async () => {
   mockSession = { ...mockSession, status: "signed-out", profileId: undefined };
   mockCopy.mockResolvedValue(true);
   mockComments = [comment("theirs", "Beautiful light.", theirs)];
-  const sheet = chooseAction("Copy comment");
+  const sheet = chooseAction("Copy Comment");
   await render(<VisitReactions visit={visit} openComments />);
   await fireEvent(screen.getByLabelText(/Beautiful light\.$/), "longPress");
-  expect(sheet.mock.calls[0][0].options).toEqual(["Copy comment", "Report comment", "Cancel"]);
+  expect(sheet.mock.calls[0][0].options).toEqual(["Copy Comment", "Report Comment", "Cancel"]);
   expect(mockCopy).toHaveBeenCalledWith("Beautiful light.");
   expect(await screen.findByText("Comment copied.")).toBeOnTheScreen();
   sheet.mockRestore();
@@ -416,8 +416,8 @@ it("gives VoiceOver the same comment actions and shows a failed block inside the
   const row = screen.getByLabelText(/A comment\.$/);
   expect(row.props.accessibilityActions).toEqual([
     { name: "reply", label: "Reply" },
-    { name: "copy", label: "Copy comment" },
-    { name: "report", label: "Report comment" },
+    { name: "copy", label: "Copy Comment" },
+    { name: "report", label: "Report Comment" },
     { name: "block", label: "Block Jules Morgan" },
     { name: "profile", label: "View Jules Morgan’s profile" },
   ]);

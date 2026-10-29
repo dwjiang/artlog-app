@@ -7,6 +7,7 @@ import {
   ArtistRow,
   type ArtistSummary,
   type CatalogArtwork,
+  catalogArtworkImage,
   CatalogArtworkRow,
   useOpenCatalogArtwork,
 } from "@/components/catalog/catalog-rows";
@@ -210,13 +211,19 @@ export function SearchScreen() {
                     );
                   case "artwork": {
                     const { artwork } = entry;
+                    const image = catalogArtworkImage(artwork.thumbnailUrl, saved.get(artwork.artworkId));
                     return (
                       <SearchChip
                         key={`artwork:${artwork.artworkId}`}
                         label={artwork.title}
                         leading={
-                          artwork.thumbnailUrl ? (
-                            <Image source={artwork.thumbnailUrl} accessible={false} style={styles.chipThumbnail} />
+                          image ? (
+                            <Image
+                              source={image}
+                              cachePolicy={image.startsWith("file:") ? "memory" : "disk"}
+                              accessible={false}
+                              style={styles.chipThumbnail}
+                            />
                           ) : undefined
                         }
                         accessibilityLabel={artwork.title}

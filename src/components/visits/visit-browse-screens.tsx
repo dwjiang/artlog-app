@@ -148,7 +148,12 @@ function ExpandedGlobe() {
   return (
     <>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button onPress={() => router.back()}>Done</Stack.Toolbar.Button>
+        <Stack.Toolbar.Button
+          icon="xmark"
+          accessibilityLabel="Close"
+          tintColor={Gallery.ink}
+          onPress={() => router.back()}
+        />
       </Stack.Toolbar>
       <SafeAreaScrollView
         ref={scroll}

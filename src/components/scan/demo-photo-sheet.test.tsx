@@ -45,9 +45,9 @@ it("shows a photo uploaded while the sheet is open and imports a copy of it", as
   expect(screen.queryByText("Choose a photo")).toBeNull();
 });
 
-it("picks nothing when cancelled", async () => {
+it("picks nothing when closed", async () => {
   const { picked } = await open();
-  await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Close" }));
   await expect(picked).resolves.toBeNull();
   expect(mockCopyForImport).not.toHaveBeenCalled();
 });

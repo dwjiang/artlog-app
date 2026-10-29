@@ -104,7 +104,14 @@ export function NotificationsScreen() {
       ItemSeparatorComponent={Separator}
       ListEmptyComponent={
         !ready ? (
-          <SocialGate session={session} />
+          <SocialGate
+            session={session}
+            context="account"
+            signedOut={{
+              title: "Sign in to see notifications.",
+              detail: "Friend requests, likes, comments, and mentions appear here.",
+            }}
+          />
         ) : list.done ? (
           <SocialInvitation
             title="No notifications yet."

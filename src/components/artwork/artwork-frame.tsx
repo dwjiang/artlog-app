@@ -6,6 +6,16 @@ import { ImageSkeleton } from "@/components/loading-skeleton";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, Spacing } from "@/constants/theme";
 
+// A picture drawn before opens at its shape when a page mounts it again (the scan result replacing its loading view);
+// otherwise the new frame starts at full height and jumps when the picture reports its size.
+const knownShapes = new Map<string, number>();
+
+function rememberShape(uri: string, aspectRatio: number) {
+  knownShapes.delete(uri);
+  knownShapes.set(uri, aspectRatio);
+  if (knownShapes.size > 100) knownShapes.delete(knownShapes.keys().next().value!);
+}
+
 /**
  * An artwork's picture at the top of its page, as tall as the picture up to about a third of the screen, so the
  * title follows right under it. `children` are laid over the frame (the match preview's picture labels).
@@ -39,7 +49,7 @@ export function ArtworkFrame({
   const [shape, setShape] = useState<{ uri: string; aspectRatio: number }>();
   const available = !!uri && failedUri !== uri;
   // Until the picture reports its size the frame keeps its full height, so a slow load doesn't push the page down.
-  const aspectRatio = available && shape?.uri === uri ? shape.aspectRatio : undefined;
+  const aspectRatio = available ? (shape?.uri === uri ? shape.aspectRatio : knownShapes.get(uri)) : undefined;
   return (
     <View
       style={[
@@ -56,7 +66,10 @@ export function ArtworkFrame({
           accessibilityLabel={accessibilityLabel}
           style={styles.photo}
           onLoad={({ source }) => {
-            if (source.width > 0 && source.height > 0) setShape({ uri, aspectRatio: source.width / source.height });
+            if (source.width <= 0 || source.height <= 0) return;
+            const loaded = source.width / source.height;
+            rememberShape(uri, loaded);
+            setShape({ uri, aspectRatio: loaded });
           }}
           onError={(event) => {
             onError?.(event?.error);

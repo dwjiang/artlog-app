@@ -69,10 +69,19 @@ jest.mock("expo-router", () => {
     },
     useLocalSearchParams: () => mockParams,
     useFocusEffect: (callback: () => void) => jest.requireActual("react").useEffect(callback, [callback]),
-    Link: ({ href, asChild, children }: { href: unknown; asChild?: boolean; children: ReactNode }) => {
-      mockHrefs.push(href);
-      return asChild ? children : <Pressable accessibilityRole="link">{children}</Pressable>;
-    },
+    // Context menus and previews are native; the trigger renders in place.
+    Link: Object.assign(
+      ({ href, asChild, children }: { href: unknown; asChild?: boolean; children: ReactNode }) => {
+        mockHrefs.push(href);
+        return asChild ? children : <Pressable accessibilityRole="link">{children}</Pressable>;
+      },
+      {
+        Trigger: ({ children }: { children: ReactNode }) => children,
+        Preview: () => null,
+        Menu: () => null,
+        MenuAction: () => null,
+      },
+    ),
     Stack: {
       Toolbar: Object.assign(View, {
         Button: ({ children, onPress }: { children: ReactNode; onPress: () => void }) => (
@@ -357,7 +366,7 @@ describe("with saved works", () => {
     expect(screen.getAllByRole("button", { name: /, / })).toHaveLength(3);
   });
 
-  it("opens a visit timeline with whole visits and keeps imports in All artworks", async () => {
+  it("opens a visit timeline with whole visits and keeps imports in All Artworks", async () => {
     await render(<CollectionScreen />);
     await fireEvent.press(screen.getByRole("button", { name: "Visits" }));
     await fireEvent.press(screen.getByRole("button", { name: "List" }));

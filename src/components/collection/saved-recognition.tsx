@@ -4,6 +4,7 @@ import { View } from "react-native";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
 import type { SavedWork } from "@/db/schema";
+import { artistLine } from "@/lib/catalog/artist-line";
 import {
   acceptSavedRecognition,
   identifySavedArtwork,
@@ -96,10 +97,7 @@ export function SavedRecognition({
               }}
             >
               <Text>{candidate.title}</Text>
-              <Text themeColor="textSecondary">
-                {candidate.artist}
-                {candidate.date ? ` · ${candidate.date}` : ""}
-              </Text>
+              <Text themeColor="textSecondary">{artistLine(candidate.artist, candidate.date)}</Text>
               <GalleryButton
                 label="Use this match"
                 accessibilityLabel={`Use this match: ${candidate.title}, ${candidate.artist}`}

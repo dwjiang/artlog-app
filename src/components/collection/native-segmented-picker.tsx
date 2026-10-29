@@ -8,6 +8,7 @@ import {
   animation,
   buttonStyle,
   contentShape,
+  dynamicTypeSize,
   font,
   foregroundStyle,
   frame,
@@ -18,9 +19,11 @@ import {
 import { useId, type ComponentProps } from "react";
 import { useWindowDimensions } from "react-native";
 
-import { Gallery, Motion, Radius, Spacing } from "@/constants/theme";
+import { CompactBarMaxTypeSize, Gallery, Motion, Radius, Spacing } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { playSelectionHaptic } from "@/lib/ui/haptics";
+
+const SEGMENT_MIN_HEIGHT = 44;
 
 export function NativeSegmentedPicker<T extends string>({
   label,
@@ -30,6 +33,7 @@ export function NativeSegmentedPicker<T extends string>({
   disabled = false,
   compact = false,
   grouped = false,
+  singleRow = false,
 }: {
   label: string;
   value?: T;
@@ -43,21 +47,29 @@ export function NativeSegmentedPicker<T extends string>({
   compact?: boolean;
   /** Darkens the track, which otherwise matches a grouped (gray) page. */
   grouped?: boolean;
+  /**
+   * Keeps short labels side by side at the largest text sizes, as iOS segmented controls do: like a tab bar's, they
+   * stop growing at the largest standard size.
+   */
+  singleRow?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
   const reduced = useReducedMotion();
   const namespace = useId();
-  const stacked = fontScale >= 1.5;
+  const stacked = !singleRow && fontScale >= 1.5;
   const Layout = stacked ? Column : Row;
   const fillWidth = !compact || stacked;
   const selectedIndex = options.findIndex((option) => option.value === value);
   const track = grouped ? Gallery.separator : Gallery.segmentTrack;
+  // Segments and the track's padding at their minimum, so Yoga reserves the control before SwiftUI first sizes it.
+  const rows = stacked ? options.length : 1;
+  const minHeight = rows * SEGMENT_MIN_HEIGHT + (rows - 1) * Spacing.one + 2 * Spacing.one;
   return (
     <Host
       key={fontScale}
       matchContents={fillWidth ? { vertical: true } : true}
       colorScheme="light"
-      style={fillWidth ? { width: "100%" } : undefined}
+      style={{ minHeight, ...(fillWidth ? { width: "100%" } : {}) }}
     >
       <Namespace id={namespace}>
         <Layout
@@ -71,6 +83,7 @@ export function NativeSegmentedPicker<T extends string>({
           modifiers={[
             accessibilityElement("contain"),
             accessibilityLabel(label),
+            ...(singleRow ? [dynamicTypeSize({ max: CompactBarMaxTypeSize })] : []),
             ...(fillWidth ? [frame({ maxWidth: Infinity })] : []),
             opacity(disabled ? 0.55 : 1),
             // The selection slides to the chosen segment: its shape carries one geometry id across them.
@@ -106,7 +119,7 @@ export function NativeSegmentedPicker<T extends string>({
                     modifiers={[
                       frame({
                         ...(fillWidth ? { maxWidth: Infinity } : {}),
-                        minHeight: 44,
+                        minHeight: SEGMENT_MIN_HEIGHT,
                       }),
                       contentShape(shapes.rectangle()),
                     ]}

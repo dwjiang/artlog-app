@@ -93,16 +93,19 @@ function Enter({
   motion,
   delay,
   style,
+  onEntered,
   children,
 }: {
   motion: EnterMotion;
   delay: number;
   style?: ViewStyle;
+  onEntered?: () => void;
   children: ReactNode;
 }) {
   const reduced = useReducedMotion();
   return (
     <Animated.View
+      onCSSAnimationEnd={onEntered}
       style={[
         style,
         {
@@ -332,8 +335,9 @@ function StoryTranscript({ said }: { said: number }) {
 /** The welcome scan's result, risen out of the sheet: the painting it found and its story, read aloud in captions. */
 export function ScanResult({ active }: { active: boolean }) {
   const { said, control } = useStoryReveal(active);
+  const [risen, setRisen] = useState(false);
   return (
-    <Enter motion="rise" delay={RESULT_DELAY} style={styles.resultSlot}>
+    <Enter motion="rise" delay={RESULT_DELAY} style={styles.resultSlot} onEntered={() => setRisen(true)}>
       <View style={[styles.card, styles.result]}>
         <View style={styles.resultRow}>
           <Image source={gallery.crop} contentFit="cover" accessible={false} style={styles.thumbnail} />
@@ -343,6 +347,9 @@ export function ScanResult({ active }: { active: boolean }) {
           </View>
           <View style={styles.storyControl}>
             <GalleryIconButton
+              // SwiftUI keeps the accessibility frame it measured as the card started rising, 24 pt low, so VoiceOver's
+              // focus and touch exploration miss the button until it is mounted again where the card came to rest.
+              key={risen ? "risen" : "rising"}
               label={control.label}
               icon={control.icon}
               tone="surface"

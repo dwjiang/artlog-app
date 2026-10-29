@@ -1,16 +1,14 @@
 import { useMutation } from "convex/react";
 import { useState } from "react";
-import { TextInput, View } from "react-native";
+import { View } from "react-native";
 
-import { GalleryButton } from "@/components/collection/gallery-button";
-import { FormSheet, formSheetStyles } from "@/components/form-sheet";
+import { FormSheet, FormSheetTextArea } from "@/components/form-sheet";
 import { ListRow } from "@/components/list-row";
-import { ThemedText as Text } from "@/components/themed-text";
+import { TextScaleLimit, ThemedText as Text } from "@/components/themed-text";
 import { visitStyles } from "@/components/visits/visit-ui";
-import { Gallery } from "@/constants/theme";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
-import { REPORT_NOUNS, REPORT_REASON_LABELS, reportTarget } from "@/lib/social/report";
+import { REPORT_NOUNS, REPORT_REASON_LABELS, reportTarget, reportTitle } from "@/lib/social/report";
 import type { ReportInput, ReportReason } from "@/lib/social/types";
 import { showErrorToast, showToast } from "@/lib/ui/toast";
 import { useSheetSubmit } from "@/lib/ui/use-sheet-submit";
@@ -19,6 +17,11 @@ import { LIMITS } from "@/shared/journal/limits";
 import { REASONS_BY_KIND } from "@/shared/social/contracts";
 
 import { api } from "../../../convex/_generated/api";
+
+// A reason shares its row with the checkmark column, leaving 274 points on a 375-point-wide iPhone. At the largest text
+// size "Mispronounced" (about 6.6 em) needs 375, more than the whole row, and breaks mid-word; at 2.5× (40 points) it
+// fits and the reason wraps between words.
+const REASON_MAX_TEXT_SCALE = 2.5;
 
 export function ReportScreen({ kind, id, renderId }: { kind?: string; id?: string; renderId?: string }) {
   const target = reportTarget(kind, id, renderId);
@@ -33,6 +36,7 @@ export function ReportScreen({ kind, id, renderId }: { kind?: string; id?: strin
       showToast("Report sent. Thank you.");
     },
     {
+      edited: !!reason || !!details.trim(),
       offlineMessage: "Couldn’t send the report while offline.",
       onError: (cause, retry) => {
         const code = convexErrorCode(cause);
@@ -57,46 +61,45 @@ export function ReportScreen({ kind, id, renderId }: { kind?: string; id?: strin
   const needsDetails = reason === "other";
   const reasons = REASONS_BY_KIND[target.kind];
   return (
-    <FormSheet title={`Report ${noun}`} busy={busy} grouped>
+    <FormSheet
+      title={reportTitle(target.kind)}
+      busy={busy}
+      grouped
+      commit={{
+        label: "Report",
+        busyLabel: "Sending…",
+        disabled: !deviceReady || !reason || (needsDetails && !details.trim()),
+        onPress: () => {
+          if (!reason) return;
+          void submit({ target, reason, details: details.trim() || undefined });
+        },
+      }}
+    >
       <View accessibilityRole="radiogroup" accessibilityLabel="Reason">
-        {reasons.map((value, index) => (
-          <ListRow
-            key={value}
-            title={REPORT_REASON_LABELS[value]}
-            accessibilityRole="radio"
-            accessory="check"
-            selected={value === reason}
-            disabled={busy}
-            first={index === 0}
-            last={index === reasons.length - 1}
-            onPress={() => setReason(value)}
-          />
-        ))}
+        <TextScaleLimit max={REASON_MAX_TEXT_SCALE}>
+          {reasons.map((value, index) => (
+            <ListRow
+              key={value}
+              title={REPORT_REASON_LABELS[value]}
+              accessibilityRole="radio"
+              accessory="check"
+              selected={value === reason}
+              disabled={busy}
+              first={index === 0}
+              last={index === reasons.length - 1}
+              onPress={() => setReason(value)}
+            />
+          ))}
+        </TextScaleLimit>
       </View>
-      <TextInput
+      <FormSheetTextArea
         accessibilityLabel={needsDetails ? "Details" : "Details (optional)"}
         value={details}
         onChangeText={setDetails}
         placeholder={needsDetails ? "Describe the problem…" : "Add details (optional)…"}
         maxLength={LIMITS.reportDetails}
-        multiline
         editable={!busy}
-        keyboardAppearance="light"
-        selectionColor={Gallery.accent}
-        placeholderTextColor={Gallery.muted}
-        style={[formSheetStyles.input, { minHeight: 96 }]}
-      />
-      <GalleryButton
-        label="Report"
-        busyLabel="Sending…"
-        variant="filled"
-        fullWidth
-        busy={busy}
-        disabled={!deviceReady || !reason || (needsDetails && !details.trim())}
-        onPress={() => {
-          if (!reason) return;
-          void submit({ target, reason, details: details.trim() || undefined });
-        }}
+        minHeight={96}
       />
     </FormSheet>
   );

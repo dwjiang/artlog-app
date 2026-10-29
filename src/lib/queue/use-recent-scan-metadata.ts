@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { offlineResultQuery } from "@/db/repos/offline-scan-results";
 import type { PendingScan } from "@/db/schema";
 import type { PhotoSessionDraft } from "@/lib/capture/photo-draft";
+import { artistLine } from "@/lib/catalog/artist-line";
 import { reportError } from "@/lib/observability";
 import { selectResultCandidates } from "@/lib/result/state";
 import { useScan } from "@/lib/result/use-scan";
@@ -34,7 +35,7 @@ export function useRecentScanMetadata(item: PendingScan, session: PhotoSessionDr
 
   return {
     title: details?.title.trim() || "Artwork scan",
-    attribution: [details?.artist?.trim(), details?.date?.trim()].filter(Boolean).join(" · "),
+    attribution: artistLine(details?.artist, details?.date),
     uncertain,
   };
 }

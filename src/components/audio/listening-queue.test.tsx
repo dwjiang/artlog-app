@@ -1,16 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
+import { CompactBarMaxTextScale } from "@/constants/theme";
 import type { ListeningTrack } from "@/lib/audio/narration";
 
 import { ListeningQueue } from "./listening-queue";
 
-const track = (artworkId: string, title: string, artist: string): ListeningTrack => ({
-  work: { artworkId: artworkId as never, title, artist, facts: [], opening: "" },
+const track = (artworkId: string, title: string, artist: string, date?: string): ListeningTrack => ({
+  work: { artworkId: artworkId as never, title, artist, date, facts: [], opening: "" },
 });
 const nightWatch = track("a", "The Night Watch", "Rembrandt van Rijn");
 const venus = track("b", "The Birth of Venus", "Sandro Botticelli");
-const lilies = track("c", "Water Lilies", "Claude Monet");
-const starryNight = track("d", "The Starry Night", "Vincent van Gogh");
+const lilies = track("c", "Water Lilies", "Claude Monet", "1906");
+const starryNight = track("d", "The Starry Night", "Vincent van Gogh", "1889");
 const wave = track("e", "The Great Wave off Kanagawa", "Katsushika Hokusai");
 const mockController = {
   play: jest.fn(),
@@ -132,4 +133,17 @@ it("offers saved works from the Up next heading, or as the only row when nothing
   expect(screen.getAllByRole("button", { name: "Add saved works" })).toHaveLength(1);
   await fireEvent.press(screen.getByRole("button", { name: "Add saved works" }));
   expect(onAdd).toHaveBeenCalledTimes(2);
+});
+
+it("names each work's artist and date the way the transcript heading does", async () => {
+  await render(<ListeningQueue onAdd={jest.fn()} />);
+  expect(screen.getByText("Claude Monet · 1906")).toBeOnTheScreen();
+  expect(screen.getByText("Vincent van Gogh · 1889")).toBeOnTheScreen();
+  expect(screen.getByText("Rembrandt van Rijn")).toBeOnTheScreen();
+});
+
+it("keeps the empty queue's add label on one line at accessibility sizes", async () => {
+  mockAudio.queue = [];
+  await render(<ListeningQueue onAdd={jest.fn()} />);
+  expect(screen.getByText("Add saved works").props.maxFontSizeMultiplier).toBe(CompactBarMaxTextScale);
 });

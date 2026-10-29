@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
+import { Alert, type AlertButton } from "react-native";
 
 import { lastRefreshControl } from "@/components/pull-to-refresh.testing";
 import type { SocialSession } from "@/lib/social/use-social-session";
@@ -38,6 +39,7 @@ let mockRows = [
 ];
 const mockSettings = new Map<string, string>();
 let mockSheetDismiss: (() => void) | undefined;
+let mockSheetModifiers: { $type: string; isDisabled?: boolean }[] = [];
 
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -49,6 +51,10 @@ jest.mock("@expo/ui/swift-ui", () => {
     Host: ({ children }: { children: ReactNode }) => <View>{children}</View>,
     VStack: View,
     ScrollView: View,
+    Group: ({ modifiers, children }: { modifiers: typeof mockSheetModifiers; children: ReactNode }) => {
+      mockSheetModifiers = modifiers;
+      return <View>{children}</View>;
+    },
     BottomSheet: ({
       isPresented,
       onDismiss,
@@ -244,18 +250,49 @@ it("keeps Manage available with a ranking and only changes participation after S
   mockSession.profileId = "global-person" as Id<"profiles">;
   mockVisibility = "global";
   await render(<LeaderboardScreen />);
+  const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   await fireEvent.press(screen.getByRole("button", { name: "Manage participation" }));
   await fireEvent.press(screen.getByRole("button", { name: "Friends only" }));
   expect(mockChange).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+  const [, , buttons] = alert.mock.lastCall as [string, undefined, AlertButton[]];
+  await act(() => buttons.find((button) => button.text === "Discard Edits")?.onPress?.());
   await act(() => mockSheetDismiss?.());
   expect(mockChange).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "Manage participation" }));
   expect(screen.getByRole("button", { name: "Friends & Global" })).toBeSelected();
   await fireEvent.press(screen.getByRole("button", { name: "Off" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
   expect(mockChange).toHaveBeenCalledWith({ visibility: "off" });
   await waitFor(() => expect(screen.queryByRole("header", { name: "Participation" })).toBeNull());
+});
+
+it("asks before Cancel drops a changed participation choice, and holds the sheet against a swipe", async () => {
+  mockSession.status = "ready";
+  mockVisibility = "global";
+  const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  const swipeLocked = () =>
+    mockSheetModifiers.some((modifier) => modifier.$type === "interactiveDismissDisabled" && modifier.isDisabled);
+  await render(<LeaderboardScreen />);
+  await fireEvent.press(screen.getByRole("button", { name: "Manage participation" }));
+  expect(swipeLocked()).toBe(false);
+  await fireEvent.press(screen.getByRole("button", { name: "Off" }));
+  expect(swipeLocked()).toBe(true);
+  await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+  expect(alert).toHaveBeenCalledWith("Discard your edits?", undefined, expect.any(Array));
+  const [, , buttons] = alert.mock.lastCall as [string, undefined, AlertButton[]];
+  await act(() => buttons.find((button) => button.text === "Keep Editing")?.onPress?.());
+  expect(screen.getByRole("button", { name: "Off" })).toBeSelected();
+
+  // Choosing the saved audience again leaves nothing to discard.
+  alert.mockClear();
+  await fireEvent.press(screen.getByRole("button", { name: "Friends & Global" }));
+  expect(swipeLocked()).toBe(false);
+  await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+  expect(alert).not.toHaveBeenCalled();
+  await act(() => mockSheetDismiss?.());
+  expect(screen.queryByRole("header", { name: "Participation" })).toBeNull();
+  alert.mockRestore();
 });
 
 it("holds Cancel while a participation save is pending so a dismissed sheet never outlives its screen state", async () => {
@@ -269,7 +306,7 @@ it("holds Cancel while a participation save is pending so a dismissed sheet neve
   await render(<LeaderboardScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Join the leaderboard" }));
   await fireEvent.press(screen.getByRole("button", { name: "Friends only" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
   expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   await act(async () => {
     finish();
@@ -285,7 +322,7 @@ it("keeps a failed participation change available for retry", async () => {
   await render(<LeaderboardScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Join the leaderboard" }));
   await fireEvent.press(screen.getByRole("button", { name: "Friends & Global" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
   expect(screen.getByRole("alert")).toHaveTextContent("Couldn’t save participation.");
   await fireEvent.press(screen.getByRole("button", { name: "Retry" }));
   expect(mockChange).toHaveBeenLastCalledWith({ visibility: "global" });
@@ -297,7 +334,7 @@ it("clears an outdated retry when the participation audience changes", async () 
   await render(<LeaderboardScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Join the leaderboard" }));
   await fireEvent.press(screen.getByRole("button", { name: "Friends & Global" }));
-  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
   expect(screen.getByRole("button", { name: "Retry" })).toBeOnTheScreen();
 
   await fireEvent.press(screen.getByRole("button", { name: "Friends only" }));
@@ -305,7 +342,7 @@ it("clears an outdated retry when the participation audience changes", async () 
   expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
   expect(mockChange).toHaveBeenCalledTimes(1);
 
-  await fireEvent.press(screen.getByRole("button", { name: "Save participation" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save" }));
   expect(mockChange).toHaveBeenLastCalledWith({ visibility: "friends" });
 });
 

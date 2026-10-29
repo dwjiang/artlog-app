@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
+import { dynamicTypeSizeCaps } from "@/components/dynamic-type-test-utils";
+
 import { GalleryButton } from "./gallery-button";
 
 it("hides private labels from replay while preserving the accessible action", async () => {
@@ -39,4 +41,20 @@ it("keeps its label and prevents duplicate activation while announcing progress"
   await screen.rerender(<GalleryButton label="Save artwork" onPress={onPress} />);
   expect(screen.getByRole("button", { name: "Save artwork", disabled: false })).toBeOnTheScreen();
   announce.mockRestore();
+});
+
+it("reserves its native minimum size before SwiftUI first sizes the host", async () => {
+  await render(<GalleryButton label="Edit profile" variant="outlined" fullWidth onPress={jest.fn()} />);
+  expect(screen.getByRole("button", { name: "Edit profile" }).parent).toHaveStyle({ minHeight: 44, width: "100%" });
+  await screen.rerender(<GalleryButton label="Save" variant="filled" fullWidth onPress={jest.fn()} />);
+  expect(screen.getByRole("button", { name: "Save" }).parent).toHaveStyle({ minHeight: 52 });
+  await screen.rerender(<GalleryButton label="Edit Wall" icon="pencil" iconOnly onPress={jest.fn()} />);
+  expect(screen.getByRole("button", { name: "Edit Wall" }).parent).toHaveStyle({ minHeight: 44, minWidth: 44 });
+});
+
+it("follows Dynamic Type without limit unless the caller sets a ceiling", async () => {
+  await render(<GalleryButton label="Save" onPress={jest.fn()} />);
+  expect(dynamicTypeSizeCaps(screen.getByText("Save"))).toEqual([]);
+  await screen.rerender(<GalleryButton label="Edit profile" maxTypeSize="xxxLarge" onPress={jest.fn()} />);
+  expect(dynamicTypeSizeCaps(screen.getByText("Edit profile"))).toEqual([expect.objectContaining({ max: "xxxLarge" })]);
 });

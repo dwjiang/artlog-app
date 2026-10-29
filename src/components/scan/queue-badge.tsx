@@ -8,7 +8,7 @@ import { Colors, Spacing } from "@/constants/theme";
 import { useQueue } from "@/lib/queue/use-queue";
 
 export function queueBadgeLabel(total: number): string {
-  return `Recent scans, ${total} ${total === 1 ? "scan" : "scans"}`;
+  return `Recent Scans, ${total} ${total === 1 ? "scan" : "scans"}`;
 }
 
 /** Includes viewed results until they are saved or discarded. */

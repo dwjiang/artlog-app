@@ -144,6 +144,10 @@ jest.mock("@/components/collection/saved-work-image", () => ({
     );
   },
 }));
+// Like Expo Router's removal prevention: a blocked removal goes to the screen's callback, whose `repeat` performs it.
+let mockGuard: { prevented: boolean; onPrevented?: (event: { repeat: () => void }) => void } = { prevented: false };
+const mockRemove = (remove: () => void) =>
+  mockGuard.prevented ? mockGuard.onPrevented?.({ repeat: remove }) : remove();
 jest.mock("expo-router", () => {
   const React = jest.requireActual("react");
   const { Pressable, Text, View } = jest.requireActual("react-native");
@@ -171,9 +175,15 @@ jest.mock("expo-router", () => {
       push: (...args: unknown[]) => mockPush(...args),
       replace: (...args: unknown[]) => mockReplace(...args),
       navigate: (...args: unknown[]) => mockNavigate(...args),
-      back: () => mockBack(),
-      dismiss: () => mockDismiss(),
-      dismissAll: () => mockDismissAll(),
+      back: () => mockRemove(mockBack),
+      dismiss: () => mockRemove(mockDismiss),
+      dismissAll: () => mockRemove(mockDismissAll),
+    },
+    usePreventRemove: (prevented: boolean, onPrevented: (event: { repeat: () => void }) => void) => {
+      mockGuard = { prevented, onPrevented };
+      return () => {
+        mockGuard.prevented = false;
+      };
     },
     useLocalSearchParams: () => ({ visitId: "visit", saveId: "save", audience: mockAudience }),
     useFocusEffect: (effect: () => void) => React.useEffect(effect, [effect]),
@@ -200,6 +210,7 @@ jest.mock("expo-router", () => {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.restoreAllMocks();
+  mockGuard = { prevented: false };
   mockSafetyChecks = true;
   mockPage = "index";
   mockAudience = undefined;
@@ -699,4 +710,57 @@ it("offers Find friends when there is no one to pick", async () => {
 
   await fireEvent.press(screen.getByRole("button", { name: "Find friends" }));
   expect(mockPush).toHaveBeenCalledWith("/people");
+});
+
+describe("leaving Share visit before posting", () => {
+  let alert: jest.SpyInstance;
+  const discardButton = (text: string) =>
+    (alert.mock.lastCall as [string, undefined, AlertButton[]])[2].find((button) => button.text === text)!;
+  beforeEach(() => {
+    alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  });
+
+  it("closes without asking while the draft is as it opened", async () => {
+    await render(<VisitShareLayout />);
+    await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    expect(mockDismiss).toHaveBeenCalledTimes(1);
+    expect(alert).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a changed audience", () => fireEvent.press(screen.getByRole("button", { name: "Friends" }))],
+    ["a typed note", () => fireEvent.changeText(screen.getByLabelText("Notes"), "Stayed for the blue.")],
+    ["a left-out artwork", () => fireEvent.press(screen.getByRole("checkbox", { name: "Share Water Lilies" }))],
+  ])("asks before Cancel or a swipe throws away %s", async (_edit, edit) => {
+    await render(<VisitShareLayout />);
+    await edit();
+    await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    expect(alert).toHaveBeenCalledWith("Discard your edits?", undefined, expect.any(Array));
+    await act(() => discardButton("Keep Editing").onPress?.());
+    expect(mockDismiss).not.toHaveBeenCalled();
+    await act(() => discardButton("Discard Edits").onPress?.());
+    expect(mockDismiss).toHaveBeenCalledTimes(1);
+    expect(mockController.publish).not.toHaveBeenCalled();
+  });
+
+  it("asks after friends were picked on Went with", async () => {
+    mockPage = "companions";
+    const view = await render(<VisitShareLayout />);
+    await fireEvent.press(screen.getByRole("checkbox", { name: "Maya Chen" }));
+    mockPage = "index";
+    await view.rerender(<VisitShareLayout />);
+    await fireEvent.press(screen.getByRole("button", { name: "Cancel" }));
+    expect(alert).toHaveBeenCalledWith("Discard your edits?", undefined, expect.any(Array));
+    expect(mockDismiss).not.toHaveBeenCalled();
+  });
+
+  it("returns Home after posting the changes without asking", async () => {
+    mockController.publish.mockResolvedValueOnce(true);
+    await render(<VisitShareLayout />);
+    await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
+    await fireEvent.press(screen.getByRole("button", { name: "Post" }));
+    await waitFor(() => expect(mockDismissAll).toHaveBeenCalledTimes(1));
+    expect(mockNavigate).toHaveBeenCalledWith({ pathname: "/", params: expect.any(Object) });
+    expect(alert).not.toHaveBeenCalled();
+  });
 });

@@ -2,7 +2,7 @@ import { StyleSheet, View } from "react-native";
 
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery, Spacing } from "@/constants/theme";
+import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { exhibitionStatus, friendNames } from "@/lib/explore/exhibition-timing";
 import type { Exhibition, ExploreMuseum } from "@/lib/explore/types";
 
@@ -13,7 +13,7 @@ import { openExhibition } from "./explore-routes";
 import { FriendStack } from "./friend-stack";
 import { WantToSeeButton } from "./want-to-see-button";
 
-const CARD_WIDTH = 216;
+export const EXHIBITION_CARD_WIDTH = 216;
 
 /** A show in a sideways row: its artwork, title, museum, timing and the friends who want to see it. */
 export function ExhibitionCard({
@@ -49,7 +49,7 @@ export function ExhibitionCard({
         </View>
         <FriendStack friends={exhibition.friends} size={20} avatars={2} />
       </MotionPressable>
-      <CardBookmark imageHeight={CARD_WIDTH}>
+      <CardBookmark imageHeight={EXHIBITION_CARD_WIDTH}>
         <WantToSeeButton exhibition={exhibition} />
       </CardBookmark>
     </View>
@@ -57,9 +57,9 @@ export function ExhibitionCard({
 }
 
 const styles = StyleSheet.create({
-  card: { width: CARD_WIDTH },
+  card: { width: EXHIBITION_CARD_WIDTH },
   content: { gap: Spacing.two },
-  image: { width: CARD_WIDTH, height: CARD_WIDTH },
+  image: { width: EXHIBITION_CARD_WIDTH, height: EXHIBITION_CARD_WIDTH, borderRadius: Radius.card },
   text: { gap: 2 },
   museum: { fontSize: 14, lineHeight: 21, color: Gallery.muted },
 });

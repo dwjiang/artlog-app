@@ -7,8 +7,11 @@ import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { SAFETY_CHECKS_LIMIT, SAFETY_CHECKS_USE } from "@/lib/social/safety-checks";
 
 export type PermissionKind = "camera" | "photos" | "location" | "notifications";
-/** Safety checks ask for consent in-app; no iPhone prompt follows them. */
-type AskKind = PermissionKind | "safetyChecks";
+/**
+ * Safety checks ask for consent in-app; no iPhone prompt follows them. Exhibition reminders is the notification ask
+ * that Want to see raises, since a saved show's only notifications are its reminders.
+ */
+export type AskKind = PermissionKind | "safetyChecks" | "exhibitionReminders";
 
 type AskReason = { symbol: string; text: string };
 
@@ -52,6 +55,13 @@ const PERMISSION_COPY: Record<AskKind, PermissionCopy> = {
       symbol: "bell",
       text: "Tells you about friend requests, likes, comments, open visits, and shows you want to see.",
     },
+    limit: "Choose which in Settings.",
+  },
+  exhibitionReminders: {
+    name: "Notification",
+    symbol: "bell.fill",
+    headline: "Get show reminders.",
+    use: { symbol: "calendar", text: "Reminds you when a saved show opens and a week before it closes." },
     limit: "Choose which in Settings.",
   },
   safetyChecks: {

@@ -7,13 +7,14 @@ import { ReportableHeading } from "@/components/reportable-heading";
 import { citeDocent, citedLabel, SourceMarkers } from "@/components/scan/result/docent-section";
 import { SourceList } from "@/components/scan/result/source-list";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Fonts, Gallery, Radius, Spacing } from "@/constants/theme";
+import { CompactBarMaxTextScale, Fonts, Gallery, Radius, Spacing } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { GUIDE_SECTION_TITLES, guideTimeline, sentenceAt } from "@/lib/audio/guide-timeline";
 import { canSeekTo } from "@/lib/audio/listening-controller";
 import { trackKey, type ListeningTrack } from "@/lib/audio/narration";
 import { preparationLabel } from "@/lib/audio/narration-preparation";
 import { useListening } from "@/lib/audio/use-listening";
+import { artistLine } from "@/lib/catalog/artist-line";
 
 import type { GuideSentence } from "../../../convex/lib/validators";
 import { ArtworkThumbnail } from "./artwork-thumbnail";
@@ -22,6 +23,9 @@ import { AudioIcon } from "./audio-icon";
 export const TRANSCRIPT_PENDING = "The transcript will appear when your audio guide is ready.";
 // The spoken sentence settles a quarter of the way down, leaving what was just said in view above it.
 const READING_LINE = 0.25;
+// Between the pinned heading and transport, the script has a few lines of room at accessibility sizes. At twice its
+// size (40 points, a native body line at the middle accessibility size) a line still holds a phrase.
+const SCRIPT_MAX_FONT_SCALE = 2;
 
 /** The spoken script, following the voice: the sentence being spoken is highlighted and kept in view. */
 export function GuideFollowAlong() {
@@ -30,16 +34,26 @@ export function GuideFollowAlong() {
   const { work } = audio.current;
   return (
     <View style={styles.root}>
+      {/* Pinned over the script like a bar, the heading stops growing at accessibility sizes. */}
       <View style={styles.header}>
-        <ReportableHeading report={{ kind: "transcript", artworkId: work.artworkId }} disabled={!audio.sentences}>
+        <ReportableHeading
+          report={{ kind: "transcript", artworkId: work.artworkId }}
+          disabled={!audio.sentences}
+          maxFontSizeMultiplier={CompactBarMaxTextScale}
+        >
           <View style={styles.heading}>
             <ArtworkThumbnail uri={work.imageUri} size={52} />
             <View style={styles.headingText}>
-              <Text style={styles.title} numberOfLines={2}>
+              <Text style={styles.title} numberOfLines={2} maxFontSizeMultiplier={CompactBarMaxTextScale}>
                 {work.title}
               </Text>
-              <Text variant="secondary" themeColor="textSecondary" numberOfLines={1}>
-                {[work.artist, work.date].filter(Boolean).join(" · ")}
+              <Text
+                variant="secondary"
+                themeColor="textSecondary"
+                numberOfLines={2}
+                maxFontSizeMultiplier={CompactBarMaxTextScale}
+              >
+                {artistLine(work.artist, work.date)}
               </Text>
             </View>
           </View>
@@ -130,6 +144,7 @@ function Script({ track, sentences }: { track: ListeningTrack; sentences: GuideS
                   variant="eyebrow"
                   themeColor="textSecondary"
                   accessibilityRole="header"
+                  maxFontSizeMultiplier={SCRIPT_MAX_FONT_SCALE}
                   style={[styles.section, index === 0 && styles.firstSection]}
                 >
                   {GUIDE_SECTION_TITLES[section]}
@@ -144,7 +159,10 @@ function Script({ track, sentences }: { track: ListeningTrack; sentences: GuideS
                 onPress={() => playFrom(index)}
                 style={({ pressed }) => [styles.line, spoken ? styles.spoken : pressed && styles.pressed]}
               >
-                <Text style={[styles.sentence, spoken && styles.spokenText]}>
+                <Text
+                  maxFontSizeMultiplier={SCRIPT_MAX_FONT_SCALE}
+                  style={[styles.sentence, spoken && styles.spokenText]}
+                >
                   <Text style={[styles.sentence, spoken && styles.spokenText]}>{sentence}</Text>
                   <SourceMarkers markers={markers} />
                 </Text>
@@ -164,7 +182,7 @@ function Script({ track, sentences }: { track: ListeningTrack; sentences: GuideS
           style={styles.backToNow}
         >
           <AudioIcon name={currentAbove ? "arrow.up" : "arrow.down"} size={14} color={Gallery.accent} />
-          <Text variant="button" style={styles.backToNowLabel}>
+          <Text variant="button" maxFontSizeMultiplier={CompactBarMaxTextScale} style={styles.backToNowLabel}>
             Back to current line
           </Text>
         </MotionPressable>

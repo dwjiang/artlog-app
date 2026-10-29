@@ -14,6 +14,7 @@ import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { WallpaperEditor } from "@/components/collection/wallpaper-editor";
 import { MotionPressable } from "@/components/motion-pressable";
 import { useKeyboardOffsetProps } from "@/components/safe-area-scroll";
+import { CancelToolbar, CommitToolbar } from "@/components/sheet-controls";
 import { ProfileForm } from "@/components/social/profile-form";
 import { ThemedText as Text } from "@/components/themed-text";
 import {
@@ -26,6 +27,7 @@ import {
 } from "@/constants/theme";
 import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
 import { patchVisit } from "@/db/repos/visits";
+import { useDiscardEditsGuard } from "@/hooks/use-discard-edits-guard";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useOwnerGeneration } from "@/lib/account/owner-store";
 import { signInRoute } from "@/lib/account/sign-in-context";
@@ -49,13 +51,19 @@ import { ArtBand, type BandArtwork } from "./art-band";
 import { ShareArtworkTile } from "./share-artwork-tile";
 import { CompanionPicker, ShareCompanionsRow, usePickedCompanions } from "./share-companions";
 import { SharePhotoPicker } from "./share-photo-picker";
-import { VisitNotes, type VisitNotesHandle } from "./visit-notes";
-import { CancelToolbar, CommitToolbar } from "./visit-sheet-toolbar";
+import { useNoteEdited, VisitNotes, type VisitNotesHandle } from "./visit-notes";
 import { VisitMessage, VisitPage, visitStyles as styles } from "./visit-ui";
 import { VisitVisibilityPicker } from "./visit-visibility-picker";
 
 type Sharing = ReturnType<typeof useVisitSharing>;
-const ShareContext = createContext<{ sharing: Sharing; visit: VisitSummary } | null>(null);
+const ShareContext = createContext<{
+  sharing: Sharing;
+  visit: VisitSummary;
+  /** Changes the draft, which lives only in this flow until it posts. */
+  edit: Sharing["controller"]["edit"];
+  /** Whether the person changed the draft, so closing the flow asks before discarding it. */
+  edited: boolean;
+} | null>(null);
 function useShareFlow() {
   const value = use(ShareContext);
   if (!value) throw new Error("Visit sharing requires a visit");
@@ -99,8 +107,13 @@ function ShareProvider({ visit }: { visit: VisitSummary }) {
   useEffect(() => {
     if (visit.owner.startsWith("account:") && token) void controller.load();
   }, [controller, token, generation, visit.owner]);
+  const [edited, setEdited] = useState(false);
+  const edit: Sharing["controller"]["edit"] = (patch) => {
+    setEdited(true);
+    controller.edit(patch);
+  };
   return (
-    <ShareContext value={{ sharing, visit }}>
+    <ShareContext value={{ sharing, visit, edit, edited }}>
       <Stack screenOptions={{ ...NavigationTheme, ...TransparentHeader, animation: reduced ? "fade" : "default" }}>
         <Stack.Screen name="index" options={{ title: "Share Visit" }} />
         <Stack.Screen name="photos" options={{ title: "Choose Photos" }} />
@@ -147,7 +160,7 @@ async function publishAs(
   return false;
 }
 export function VisitShareScreen() {
-  const { sharing, visit } = useShareFlow();
+  const { sharing, visit, edit, edited } = useShareFlow();
   const [creatingProfile, setCreatingProfile] = useState(false);
   const [layout, setLayout] = useState<string[]>([]);
   const [posting, setPosting] = useState(false);
@@ -173,6 +186,8 @@ export function VisitShareScreen() {
   }, [photos.error]);
   const { controller, draft, acknowledged } = sharing;
   const companions = usePickedCompanions(draft?.companionIds ?? [], acknowledged?.companions ?? []);
+  const { noteEdited, onDraftChange } = useNoteEdited(visit.reflection);
+  const leave = useDiscardEditsGuard({ edited: edited || noteEdited, busy: posting });
   if (!visit.owner.startsWith("account:")) {
     return <GuestVisitSignIn visitId={visit.localId} />;
   }
@@ -240,7 +255,7 @@ export function VisitShareScreen() {
   }
   function arrange(next: string[], included: ReadonlySet<string>) {
     setLayout(next);
-    controller.edit({ saveLocalIds: sharedOrder(next, included).slice(0, LIMITS.selectedSaves) });
+    edit({ saveLocalIds: sharedOrder(next, included).slice(0, LIMITS.selectedSaves) });
   }
   function toggleSelection(id: string) {
     const next = new Set(selected);
@@ -292,10 +307,12 @@ export function VisitShareScreen() {
       playSuccessHaptic();
       // Home opens on the feed the post belongs to; feeds order posts by visit date, not by when they were posted.
       showToast(POSTED[audience]);
-      router.dismissAll();
-      router.navigate({
-        pathname: "/",
-        params: { feed: audience === "public" ? "global" : "friends", posted: String(Date.now()) },
+      leave(() => {
+        router.dismissAll();
+        router.navigate({
+          pathname: "/",
+          params: { feed: audience === "public" ? "global" : "friends", posted: String(Date.now()) },
+        });
       });
       if (audience !== "private") offerNotifications();
     } else {
@@ -413,7 +430,7 @@ export function VisitShareScreen() {
           <VisitVisibilityPicker
             value={draft.audience}
             disabled={sharing.busy}
-            onChange={(audience) => controller.edit({ audience })}
+            onChange={(audience) => edit({ audience })}
           />
           <ShareCompanionsRow
             people={companions}
@@ -428,6 +445,7 @@ export function VisitShareScreen() {
             autoSave={false}
             editable={!posting && !sharing.busy}
             companionIds={draft?.companionIds}
+            onDraftChange={onDraftChange}
           />
           {acknowledged?.removed ? (
             <Text style={styles.error}>This share is no longer available.</Text>
@@ -493,7 +511,7 @@ export function VisitShareScreen() {
         <View style={[share.tray, { paddingBottom: insets.bottom }]}>
           <WallpaperEditor
             value={{ color: draft.color, pattern: draft.pattern }}
-            onChange={({ color, pattern }) => controller.edit({ color, pattern })}
+            onChange={({ color, pattern }) => edit({ color, pattern })}
           />
         </View>
       )}
@@ -505,9 +523,9 @@ const GUTTER = 20;
 const TILE_GAP = 12;
 const ROW_GAP = 22;
 export function VisitSharePhotosScreen() {
-  const { sharing, visit } = useShareFlow();
+  const { sharing, visit, edit } = useShareFlow();
   const { saveId } = useLocalSearchParams<{ saveId: string }>();
-  const { controller, draft } = sharing;
+  const { draft } = sharing;
   const work = visit.works.find((row) => row.localId === saveId);
   if (!work || !draft) {
     return (
@@ -524,7 +542,7 @@ export function VisitSharePhotosScreen() {
       visitId={visit.localId}
       selected={draft.photoSelections?.find((row) => row.saveLocalId === work.localId)?.photoLocalIds ?? []}
       onChange={(ids) => {
-        controller.edit({
+        edit({
           photoSelections: [
             ...(draft.photoSelections ?? []).filter((row) => row.saveLocalId !== work.localId),
             ...(ids.length > 0 ? [{ saveLocalId: work.localId, photoLocalIds: ids }] : []),
@@ -536,8 +554,8 @@ export function VisitSharePhotosScreen() {
 }
 
 export function VisitShareCompanionsScreen() {
-  const { sharing } = useShareFlow();
-  const { controller, draft } = sharing;
+  const { sharing, edit } = useShareFlow();
+  const { draft } = sharing;
   if (!draft) {
     return (
       <VisitPage>
@@ -551,7 +569,7 @@ export function VisitShareCompanionsScreen() {
     <CompanionPicker
       selected={draft.companionIds}
       disabled={sharing.busy}
-      onChange={(companionIds) => controller.edit({ companionIds })}
+      onChange={(companionIds) => edit({ companionIds })}
     />
   );
 }

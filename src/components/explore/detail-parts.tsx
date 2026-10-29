@@ -11,9 +11,37 @@ import type { ExhibitionStatus } from "@/lib/explore/exhibition-timing";
 import type { ExploreMuseum } from "@/lib/explore/types";
 import { reportError } from "@/lib/observability";
 
+import { LocationMap } from "./location-map";
+
+function openMaps(query: string, context: string) {
+  Linking.openURL(`https://maps.apple.com/?${query}`).catch((error: unknown) =>
+    reportError(error, context, { level: "warning" }),
+  );
+}
+
 export function openDirections(museum: ExploreMuseum) {
-  const url = `https://maps.apple.com/?daddr=${museum.lat},${museum.lng}&q=${encodeURIComponent(museum.name)}`;
-  Linking.openURL(url).catch((error: unknown) => reportError(error, "explore.directions", { level: "warning" }));
+  openMaps(`daddr=${museum.lat},${museum.lng}&q=${encodeURIComponent(museum.name)}`, "explore.directions");
+}
+
+/**
+ * A detail page's map of `museum`. It takes no gestures, so a drag that starts on it scrolls the page; a tap opens the
+ * museum in Maps.
+ */
+export function LocationPreview({ museum }: { museum: ExploreMuseum }) {
+  return (
+    <MotionPressable
+      accessibilityRole="button"
+      accessibilityLabel={`Map of ${museum.name}`}
+      accessibilityHint="Opens in Maps"
+      onPress={() =>
+        openMaps(`ll=${museum.lat},${museum.lng}&q=${encodeURIComponent(museum.name)}`, "explore.open_map")
+      }
+    >
+      <View pointerEvents="none">
+        <LocationMap museum={museum} />
+      </View>
+    </MotionPressable>
+  );
 }
 
 /** Opens a page credited for a show or a photo; `context` names it in error reports. */
@@ -41,9 +69,10 @@ export function DetailActions({
     <View style={styles.actions}>
       <View style={styles.action}>
         <GalleryButton
-          label={saved ? "Saved" : "Want to see"}
+          // The list's own name in both states, so it never reads as a collection save; the checkmark and outline show it's on.
+          label="Want to see"
           accessibilityLabel={saved ? "Remove from Want to see" : "Want to see"}
-          icon={saved ? "bookmark.fill" : "bookmark"}
+          icon={saved ? "checkmark" : "bookmark"}
           iconModifiers={bounce}
           variant={saved ? "outlined" : "filled"}
           fullWidth

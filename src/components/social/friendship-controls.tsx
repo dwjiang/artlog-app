@@ -300,7 +300,7 @@ export function FriendshipControls({
                         [
                           { text: "Cancel", style: "cancel" },
                           {
-                            text: "Remove friend",
+                            text: "Remove Friend",
                             style: "destructive",
                             onPress: () => {
                               void act("remove");

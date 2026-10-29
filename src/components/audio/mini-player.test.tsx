@@ -1,12 +1,12 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { Color, Stack } from "expo-router";
 import { renderRouter } from "expo-router/testing-library";
-import { Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
 
 import type { NarrationPreparationStage } from "@/lib/audio/narration-preparation";
 
 import type { GuideSection, GuideSentence } from "../../../convex/lib/validators";
-import { MiniPlayer } from "./mini-player";
+import { MINI_PLAYER_HEIGHT, MiniPlayer } from "./mini-player";
 
 // Four equally long sentences, one per section, so each section takes a quarter of the guide.
 const guide: GuideSentence[] = (["hook", "look", "story", "takeaway"] as GuideSection[]).map((section) => ({
@@ -74,6 +74,25 @@ it("lets native glass adapt the title and byline to the content behind it", asyn
 
   expect(screen.getByText("Water Lilies")).toHaveStyle({ color: Color.ios.label });
   expect(screen.getByText("Claude Monet")).toHaveStyle({ color: Color.ios.secondaryLabel });
+});
+
+// The tallest a line can draw: its font at the largest scale it allows, with San Francisco's line spacing.
+function tallestLine(line: ReturnType<typeof screen.getByText>) {
+  const { fontSize } = StyleSheet.flatten(line.props.style);
+  return fontSize * line.props.maxFontSizeMultiplier * 1.2;
+}
+
+it.each([
+  { state: "playing", phase: "ready", byline: ["Claude Monet", " · The story"] },
+  { state: "failed", phase: "error", byline: ["Couldn’t play · Tap to retry"] },
+])("keeps its $state lines inside the bar at the largest text size", async ({ phase, byline }) => {
+  mockAudio.phase = phase;
+  await renderMiniPlayer();
+
+  const title = tallestLine(screen.getByText("Water Lilies"));
+  for (const text of byline) {
+    expect(title + 2 + tallestLine(screen.getByText(text))).toBeLessThanOrEqual(MINI_PLAYER_HEIGHT);
+  }
 });
 
 it("goes back 15 seconds from the bar", async () => {

@@ -1,3 +1,4 @@
+import type { DynamicTypeSizeValue } from "@expo/ui/swift-ui/modifiers";
 import type { NativeStackNavigationOptions } from "expo-router";
 import { Platform, StyleSheet, type TextStyle, type ViewStyle } from "react-native";
 
@@ -167,6 +168,19 @@ export const LargeTitleHeader = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+/**
+ * `maxFontSizeMultiplier` for compact bars such as the mini player and the visit band. Like the navigation and tab bars,
+ * they follow every standard text size, then stop growing at accessibility sizes so their lines still fit.
+ */
+export const CompactBarMaxTextScale = 1.4;
+/** The SwiftUI `dynamicTypeSize` ceiling matching `CompactBarMaxTextScale`: the largest standard size. */
+export const CompactBarMaxTypeSize = "xxxLarge" satisfies DynamicTypeSizeValue;
+/**
+ * The largest point size display-face text reaches with Dynamic Type. React Native breaks a word wider than its line
+ * mid-word, without a hyphen; at 52 points a 12-letter word (about 6.4 em of Space Grotesk) still fits the 335-point
+ * column of a 375-point-wide iPhone. Headings stop growing there, as iOS large titles do at 34, while body text grows on.
+ */
+export const DisplayMaxFontSize = 52;
 
 export const Motion = {
   press: 120,

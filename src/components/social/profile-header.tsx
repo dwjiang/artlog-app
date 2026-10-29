@@ -6,7 +6,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { ButtonGhost, Ghost, LoadingSkeleton } from "@/components/loading-skeleton";
 import { MotionPressable } from "@/components/motion-pressable";
 import { ThemedText as Text } from "@/components/themed-text";
-import { Gallery } from "@/constants/theme";
+import { CompactBarMaxTypeSize, Gallery } from "@/constants/theme";
 import { suggestionReasonText } from "@/lib/social/presentation";
 import type { Mention, PublicProfile } from "@/lib/social/types";
 import type { AvatarId } from "@/shared/social/avatars";
@@ -187,7 +187,8 @@ export function MutualFriends({ friends, onPress }: { friends: PublicProfile[]; 
   );
 }
 
-export function OwnProfileActions({ profileId }: { profileId: PublicProfile["profileId"] }) {
+/** A guest has no `profileId`, so nothing to share. */
+export function OwnProfileActions({ profileId }: { profileId?: PublicProfile["profileId"] }) {
   return (
     <ProfileActionRow
       actions={[
@@ -196,10 +197,11 @@ export function OwnProfileActions({ profileId }: { profileId: PublicProfile["pro
           label="Edit Profile"
           variant="outlined"
           fullWidth
+          maxTypeSize={CompactBarMaxTypeSize}
           onPress={() => router.push("/edit-profile")}
         />,
       ]}
-      trailing={<ShareProfileButton profileId={profileId} />}
+      trailing={profileId ? <ShareProfileButton profileId={profileId} /> : undefined}
     />
   );
 }

@@ -25,8 +25,11 @@ type Saved =
 type Section = { key: string; title?: string; data: Saved[] };
 
 const EMPTY = {
-  exhibitions: { title: "No saved exhibitions yet.", detail: "Tap the bookmark on an exhibition to save it here." },
-  museums: { title: "No saved museums yet.", detail: "Tap the bookmark on a museum to save it here." },
+  exhibitions: {
+    title: "No exhibitions in Want to see yet.",
+    detail: "Tap the bookmark on an exhibition to add it here.",
+  },
+  museums: { title: "No museums in Want to see yet.", detail: "Tap the bookmark on a museum to add it here." },
 };
 
 /**
@@ -60,7 +63,7 @@ export function WantToSeeScreen() {
       ListHeaderComponent={
         <View style={styles.picker}>
           <NativeSegmentedPicker
-            label="Saved"
+            label="Want to see"
             value={tab}
             onChange={setTab}
             options={[

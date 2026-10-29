@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 
+import { dynamicTypeSizeCaps } from "@/components/dynamic-type-test-utils";
+import { CompactBarMaxTextScale, CompactBarMaxTypeSize } from "@/constants/theme";
 import { guideTimeline } from "@/lib/audio/guide-timeline";
 import { audioTime } from "@/lib/audio/narration";
 import type { NarrationPreparationStage } from "@/lib/audio/narration-preparation";
@@ -176,6 +178,27 @@ it("labels the speed, transcript, and queue buttons with visible text", async ()
   expect(screen.getByRole("button", { name: "Playback speed, 1 times" })).toHaveTextContent("1×Speed");
   expect(screen.getByRole("button", { name: "Transcript and sources" })).toHaveTextContent("Transcript");
   expect(screen.getByRole("button", { name: "Up next" })).toHaveTextContent("Up next");
+});
+
+it("stops the whole panel's text growing at accessibility sizes, like a tab bar's, so a list keeps room above it", async () => {
+  mockAudio.sentences = guide;
+  mockAudio.waiting = true;
+  await render(<PlayerTransport view="transcript" onView={jest.fn()} />);
+  for (const text of ["Ready to play", "0:12", "−1:48", "1×", "Speed", "Transcript", "Up next"]) {
+    expect(screen.getByText(text).props.maxFontSizeMultiplier).toBe(CompactBarMaxTextScale);
+  }
+  // The section name is native text, capped at the largest standard size through its SwiftUI environment.
+  expect(dynamicTypeSizeCaps(screen.getByRole("checkbox", { name: "Opening" }))).toEqual([
+    expect.objectContaining({ max: CompactBarMaxTypeSize }),
+  ]);
+});
+
+it("keeps the preparing stage at the panel's text cap", async () => {
+  mockAudio.phase = "loading";
+  mockAudio.preparationStage = "generating";
+  await render(<PlayerTransport view="queue" onView={jest.fn()} />);
+  expect(screen.getByText("Generating narration…").props.maxFontSizeMultiplier).toBe(CompactBarMaxTextScale);
+  expect(screen.getByText("—:—").props.maxFontSizeMultiplier).toBe(CompactBarMaxTextScale);
 });
 
 it("shows the live guide's actual speed until the selected speed can take effect", async () => {

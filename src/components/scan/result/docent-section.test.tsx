@@ -92,7 +92,7 @@ it.each([
   expect(mockOpenBrowser).toHaveBeenLastCalledWith(source.sourceUrl);
   await fireEvent.press(screen.getByRole("link", { name: `${sourceLabel}, licensed ${licence}` }));
   expect(mockOpenBrowser).toHaveBeenLastCalledWith(licenceUrl);
-  await fireEvent.press(screen.getByRole("button", { name: "Done" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Close" }));
   expect(screen.queryByText("Source text summarized")).toBeNull();
 });
 

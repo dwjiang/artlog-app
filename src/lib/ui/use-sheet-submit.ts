@@ -1,21 +1,27 @@
 import { getNetworkStateAsync } from "expo-network";
-import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
+import { useDiscardEditsGuard } from "@/hooks/use-discard-edits-guard";
 import { isOffline } from "@/lib/network-state";
 
 import { playSuccessHaptic } from "./haptics";
 import { showErrorToast } from "./toast";
 
 /**
- * Sends a form sheet's input once at a time and closes the sheet when `run` succeeds. A failure's Retry resends the
- * same input and can outlive the sheet, since the toast moves to the root layer when the sheet closes.
+ * Sends a form sheet's input once at a time and closes the sheet when `run` succeeds. While `edited`, closing it any
+ * other way asks before discarding the input. A failure's Retry resends the same input and can outlive the sheet,
+ * since the toast moves to the root layer when the sheet closes.
  */
 export function useSheetSubmit<T>(
   run: (input: T) => Promise<void>,
-  { offlineMessage, onError }: { offlineMessage: string; onError: (cause: unknown, retry: () => void) => void },
+  {
+    edited,
+    offlineMessage,
+    onError,
+  }: { edited: boolean; offlineMessage: string; onError: (cause: unknown, retry: () => void) => void },
 ) {
   const [busy, setBusy] = useState(false);
+  const leave = useDiscardEditsGuard({ edited, busy });
   const inFlight = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -39,7 +45,7 @@ export function useSheetSubmit<T>(
       }
       await run(input);
       playSuccessHaptic();
-      if (mounted.current) router.back();
+      if (mounted.current) leave();
     } catch (cause) {
       onError(cause, retry);
     } finally {

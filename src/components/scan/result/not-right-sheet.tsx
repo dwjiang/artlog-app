@@ -2,6 +2,7 @@ import { BottomSheet, RNHostView } from "@expo/ui";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { CloseButton } from "@/components/sheet-controls";
 import { ThemedText } from "@/components/themed-text";
 import { Colors, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
@@ -40,7 +41,7 @@ export function NotRightSheet({
       <ThemedText type="subtitle" accessibilityRole="header" style={styles.title}>
         {hasRunnerUps ? "Other possible matches" : "No other matches found"}
       </ThemedText>
-      <GalleryButton label="Close matches" icon="xmark" iconOnly tone="ink" fullWidth={false} onPress={onDismiss} />
+      <CloseButton label="Close matches" onPress={onDismiss} />
     </View>
   );
   const footer = (

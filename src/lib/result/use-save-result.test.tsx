@@ -207,7 +207,7 @@ describe("a save that would start a visit while another is open", () => {
   afterEach(() => jest.restoreAllMocks());
 
   it("saves the artwork alone when the person keeps that visit open", async () => {
-    answer("Save artwork only");
+    answer("Save Artwork Only");
     jest
       .mocked(saveResult)
       .mockRejectedValueOnce(new VisitInProgressError(open))

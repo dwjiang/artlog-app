@@ -1,15 +1,18 @@
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
 import { Modal } from "@/components/modal";
 import { MotionPressable } from "@/components/motion-pressable";
 import { PopInBadge } from "@/components/pop-on-turn-on";
+import { EditBar } from "@/components/sheet-controls";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Spacing, Typography } from "@/constants/theme";
+import { confirmDiscardEdits } from "@/hooks/use-discard-edits-guard";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { artistLine } from "@/lib/catalog/artist-line";
 import { reportError } from "@/lib/observability";
 import { AVATAR_IMAGES } from "@/lib/social/avatar-images";
 import { chooseProfilePhoto, removeProfilePhotoDraft } from "@/lib/social/profile-photo";
@@ -63,12 +66,9 @@ function PickerSheet({
   onCancel: () => void;
   onSave: (picture: ProfilePicture) => void;
 }) {
-  const { fontScale } = useWindowDimensions();
   const width = useSafeAreaWidth();
-  const largeText = fontScale > 1.4;
   const { bottom } = useSafeAreaInsets();
   const barPadding = useHorizontalSafeAreaPadding(styles.bar);
-  const largeTitlePadding = useHorizontalSafeAreaPadding(styles.largeTitle);
   const contentPadding = useHorizontalSafeAreaPadding(styles.content);
   // Undefined keeps the photo already shown.
   const [selection, setSelection] = useState<ProfilePicture | undefined>(() =>
@@ -106,9 +106,8 @@ function PickerSheet({
       if (mounted.current) setChoosing(false);
     }
   }
+  const unchanged = !selection || (selection.kind === "avatar" && !shown.photoUrl && selection.avatar === shown.avatar);
   function save() {
-    const unchanged =
-      !selection || (selection.kind === "avatar" && !shown.photoUrl && selection.avatar === shown.avatar);
     if (unchanged) {
       onCancel();
       return;
@@ -124,19 +123,15 @@ function PickerSheet({
         : { avatar: selection.avatar };
   const work = selection?.kind === "avatar" ? findAvatar(selection.avatar) : undefined;
   const tile = Math.min(84, Math.floor((width - Spacing.content * 2 - GAP * (COLUMNS - 1)) / COLUMNS));
-  const heading = (
-    <Text accessibilityRole="header" style={styles.barTitle}>
-      Profile picture
-    </Text>
-  );
   return (
     <View style={styles.sheet}>
-      {largeText && <View style={[styles.largeTitle, largeTitlePadding]}>{heading}</View>}
-      <View style={[styles.bar, barPadding]}>
-        <GalleryButton label="Cancel" fullWidth={false} disabled={choosing} onPress={onCancel} />
-        {!largeText && heading}
-        <GalleryButton label="Save" fullWidth={false} disabled={choosing} onPress={save} />
-      </View>
+      <EditBar
+        title="Profile Picture"
+        cancelDisabled={choosing}
+        onCancel={() => (unchanged ? onCancel() : confirmDiscardEdits(onCancel))}
+        commit={{ label: "Save", disabled: choosing, onPress: save }}
+        style={[styles.bar, barPadding]}
+      />
       <ScrollView contentContainerStyle={[styles.content, contentPadding, { paddingBottom: bottom + Spacing.four }]}>
         <View style={styles.preview}>
           <ProfileAvatar name={name} photoUrl={preview.photoUrl} avatar={preview.avatar} size={128} />
@@ -144,9 +139,7 @@ function PickerSheet({
             {work ? (
               <>
                 <Text style={styles.creditTitle}>{work.title}</Text>
-                <Text style={styles.creditByline}>
-                  {work.artist}, {work.date}
-                </Text>
+                <Text style={styles.creditByline}>{artistLine(work.artist, work.date)}</Text>
               </>
             ) : (
               preview.photoUrl && <Text style={styles.creditByline}>Your photo</Text>
@@ -209,16 +202,7 @@ function PickerSheet({
 
 const styles = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: Gallery.paper },
-  bar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.content,
-    paddingTop: Spacing.two,
-  },
-  barTitle: { ...Typography.button, flexShrink: 1, textAlign: "center" },
-  largeTitle: { paddingHorizontal: Spacing.content, paddingTop: Spacing.two },
+  bar: { paddingHorizontal: Spacing.content, paddingTop: Spacing.compact },
   content: { paddingHorizontal: Spacing.content, gap: Spacing.four },
   preview: { alignItems: "center", gap: Spacing.two, paddingTop: Spacing.two },
   credit: { alignItems: "center", gap: Spacing.half },

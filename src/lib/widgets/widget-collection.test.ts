@@ -1,6 +1,6 @@
 import type { ArtworkEncounter, ArtworkPhoto, SavedWork, Visit } from "@/db/schema";
 
-import { widgetArtworkUrl, widgetCollection, widgetVisitDate } from "./widget-collection";
+import { widgetArtworkUrl, widgetCollection } from "./widget-collection";
 import { defaultWidgetSettings, readWidgetSettings, widgetSettingsKey } from "./widget-settings";
 
 const works = [
@@ -104,9 +104,7 @@ it("does not replace an unavailable selected visit or painting with unrelated ar
   ).toEqual([]);
 });
 
-it("keeps visit calendar dates independent of the device time zone", () => {
-  expect(widgetVisitDate("2026-09-08")).toBe("Sep 8, 2026");
-  expect(widgetVisitDate()).toBe("");
+it("links a widget artwork to its saved page and visit", () => {
   expect(widgetArtworkUrl({ id: "art/1", visitId: "visit 1" })).toBe("artlog://saved/art%2F1?visitId=visit%201");
 });
 

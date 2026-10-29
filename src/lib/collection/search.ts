@@ -1,6 +1,5 @@
 import type { ArtworkEncounter, SavedWork, Visit } from "@/db/schema";
-import { compareText, matchesSearch, searchTerm } from "@/lib/journal/query";
-import { normalizeSearch } from "@/shared/journal/limits";
+import { matchesSearch, searchTerm } from "@/lib/journal/query";
 
 type Searchable = Pick<SavedWork, "title" | "artist" | "institution">
   & Partial<Pick<SavedWork, "date" | "venueName">> & {
@@ -56,15 +55,4 @@ export function artworkYear(date?: string | null): number | undefined {
   const match = date?.match(/\b(\d{1,4})(?:\s*(?:BCE?|CE|AD)\b|(?=\b))/i);
   if (!match) return undefined;
   return /\bBCE?\b/i.test(date!) ? -Number(match[1]) : Number(match[1]);
-}
-
-export function sortWorksByArtist<T extends Pick<SavedWork, "localId" | "artist" | "title" | "date">>(works: T[]): T[] {
-  return [...works].sort(
-    (a, b) =>
-      compareText(normalizeSearch(a.artist), normalizeSearch(b.artist))
-      || (artworkYear(a.date) ?? Infinity) - (artworkYear(b.date) ?? Infinity)
-      || 0
-      || compareText(normalizeSearch(a.title), normalizeSearch(b.title))
-      || compareText(a.localId, b.localId),
-  );
 }

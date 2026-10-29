@@ -2,9 +2,9 @@ import { Image } from "expo-image";
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 
-import { GalleryButton } from "@/components/collection/gallery-button";
 import { Modal } from "@/components/modal";
 import { MotionPressable } from "@/components/motion-pressable";
+import { CloseButton } from "@/components/sheet-controls";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Spacing } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -95,7 +95,7 @@ export function DemoPhotoSheet({ ref }: { ref: Ref<DemoPhotoSheetHandle> }) {
           <Text variant="section" accessibilityRole="header" style={styles.title}>
             Choose a photo
           </Text>
-          <GalleryButton label="Cancel" onPress={() => finish(null)} />
+          <CloseButton onPress={() => finish(null)} />
         </View>
         <View style={styles.section}>
           <Text variant="eyebrow" themeColor="textSecondary" accessibilityRole="header">

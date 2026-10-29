@@ -98,6 +98,7 @@ function OwnedCollection({
     >
       <NativeSegmentedPicker
         label="Collection view"
+        singleRow
         value={mode}
         onChange={(next) => {
           preparePane(next);

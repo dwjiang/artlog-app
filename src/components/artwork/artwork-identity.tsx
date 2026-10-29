@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { Gallery, Spacing } from "@/constants/theme";
+import { ARTIST_LINE_SEPARATOR } from "@/lib/catalog/artist-line";
 
 /** An artwork page's title, artist and date, then its medium and museum, as the scan card and catalog page show them. */
 export function ArtworkIdentity({
@@ -48,7 +49,7 @@ export function ArtworkIdentity({
           ) : (
             artist
           )}
-          {!!artist && !!date && " · "}
+          {!!artist && !!date && ARTIST_LINE_SEPARATOR}
           {date}
         </ThemedText>
       )}

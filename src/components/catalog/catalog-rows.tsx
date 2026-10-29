@@ -8,6 +8,8 @@ import { ProfileAvatar } from "@/components/social/profile-avatar";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, Radius, Typography } from "@/constants/theme";
 import type { SavedWork } from "@/db/schema";
+import { artistLine } from "@/lib/catalog/artist-line";
+import { captureFileUri } from "@/lib/files/photos";
 
 import type { api } from "../../../convex/_generated/api";
 
@@ -27,9 +29,20 @@ export function useOpenCatalogArtwork() {
       : router.push({ pathname: "/catalog/[artworkId]", params: { artworkId } });
 }
 
+/** A catalog work's picture in a list: your own photo once it's in your collection, as the collection shows it. */
+export function catalogArtworkImage(thumbnailUrl: string | undefined, saved: SavedWork | undefined) {
+  return saved?.cropPath ? captureFileUri(saved.cropPath) : thumbnailUrl;
+}
+
 export function CatalogThumbnail({ uri }: { uri?: string }) {
   return uri ? (
-    <Image source={uri} contentFit="cover" accessible={false} style={styles.thumbnail} />
+    <Image
+      source={uri}
+      cachePolicy={uri.startsWith("file:") ? "memory" : "disk"}
+      contentFit="cover"
+      accessible={false}
+      style={styles.thumbnail}
+    />
   ) : (
     <View style={[styles.thumbnail, styles.empty]} />
   );
@@ -52,7 +65,7 @@ export function CatalogArtworkRow({
   onOpen?: () => void;
 }) {
   const open = useOpenCatalogArtwork();
-  const details = [artwork.artist, artwork.date].filter(Boolean).join(" · ");
+  const details = artistLine(artwork.artist, artwork.date);
   return (
     <ListRow
       title={artwork.title}
@@ -63,7 +76,7 @@ export function CatalogArtworkRow({
           {saved ? artwork.date || artwork.artist : details}
         </Text>
       }
-      leading={<CatalogThumbnail uri={artwork.thumbnailUrl} />}
+      leading={<CatalogThumbnail uri={catalogArtworkImage(artwork.thumbnailUrl, saved)} />}
       accessory="chevron"
       accessibilityLabel={[artwork.title, details, saved && "Saved"].filter(Boolean).join(", ")}
       first={first}

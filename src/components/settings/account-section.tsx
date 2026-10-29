@@ -45,6 +45,9 @@ export function AccountSection() {
   if (!account?.linked) {
     return (
       <>
+        <GroupedSection>
+          <NavigationRow label="Edit Profile" onPress={() => router.push("/edit-profile")} />
+        </GroupedSection>
         <GroupedButtons
           footer={status}
           textActions={
@@ -118,7 +121,7 @@ export function AccountSection() {
               confirmDelete(
                 "Delete account?",
                 `Your profile, posts and collection will be erased from Artlog and this iPhone, and your other devices will be signed out.${appleConfirmation} This can’t be undone.`,
-                "Delete account",
+                "Delete Account",
               )
             }
           />
@@ -135,7 +138,7 @@ export function AccountSection() {
               [
                 { text: "Cancel", style: "cancel" },
                 {
-                  text: "Sign out",
+                  text: "Sign Out",
                   style: "destructive",
                   onPress: () => {
                     void disconnect(false);

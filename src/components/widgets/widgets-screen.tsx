@@ -4,16 +4,17 @@ import { useState } from "react";
 import { FlatList, ScrollView, View, useWindowDimensions } from "react-native";
 
 import { GalleryButton } from "@/components/collection/gallery-button";
+import { GalleryIconButton } from "@/components/collection/gallery-icon-button";
 import { NativeSegmentedPicker } from "@/components/collection/native-segmented-picker";
 import { SavedWorkImage } from "@/components/collection/saved-work-image";
 import { LoadingRing } from "@/components/loading-ring";
-import { MotionPressable } from "@/components/motion-pressable";
 import { SafeAreaScrollView } from "@/components/safe-area-scroll";
+import { CloseButton } from "@/components/sheet-controls";
 import { ThemedText as Text } from "@/components/themed-text";
 import { Gallery, PinnedFooterBorder, Spacing } from "@/constants/theme";
 import { useFittedSheetHeight } from "@/hooks/use-fitted-sheet";
+import { formatVisitDate } from "@/lib/journal/history";
 import { useSafeAreaWidth } from "@/lib/ui/safe-area";
-import { widgetVisitDate } from "@/lib/widgets/widget-collection";
 import { useWidgetCollection } from "@/lib/widgets/widget-provider";
 import { currentWidgetIndex } from "@/lib/widgets/widget-publisher";
 import { widgetCaptions, widgetColors, widgetFrames, type WidgetSize } from "@/lib/widgets/widget-settings";
@@ -24,12 +25,12 @@ import { WidgetSetupGuide } from "./widget-setup-guide";
 
 type Sheet = "source" | "visit" | "artwork" | "caption" | "frame" | "color" | "help";
 const sheetTitles: Record<Sheet, string> = {
-  source: "Artwork source",
-  visit: "Choose a visit",
-  artwork: "Choose one artwork",
+  source: "Artwork Source",
+  visit: "Choose a Visit",
+  artwork: "Choose One Artwork",
   caption: "Caption",
-  frame: "Painting frame",
-  color: "Widget color",
+  frame: "Painting Frame",
+  color: "Widget Color",
   help: "Add to Home Screen",
 };
 
@@ -205,24 +206,16 @@ export function WidgetsScreen() {
                 <Text variant="display" accessibilityRole="header" style={{ flex: 1, fontSize: 29, lineHeight: 36 }}>
                   {sheetTitles[sheet]}
                 </Text>
-                <MotionPressable
-                  accessibilityRole="button"
-                  accessibilityLabel={hasParent ? "Back to artwork source" : "Close instructions and settings"}
-                  onPress={hasParent ? () => setSheet("source") : close}
-                  style={{
-                    minWidth: 44,
-                    minHeight: 44,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Image
-                    source={hasParent ? "sf:chevron.left" : "sf:xmark"}
-                    tintColor={hasParent ? Gallery.accent : Gallery.muted}
-                    accessible={false}
-                    style={{ width: 18, height: 18 }}
+                {hasParent ? (
+                  <GalleryIconButton
+                    label="Back to artwork source"
+                    icon="chevron.left"
+                    tone="accent"
+                    onPress={() => setSheet("source")}
                   />
-                </MotionPressable>
+                ) : (
+                  <CloseButton onPress={close} />
+                )}
               </View>
             </View>
             {sheet === "visit" ? (
@@ -243,7 +236,7 @@ export function WidgetsScreen() {
                 renderItem={({ item: { visit, works } }) => (
                   <WidgetSettingRow
                     title={visit.venueName}
-                    subtitle={`${widgetVisitDate(visit.visitedOn)} · ${works.length} ${works.length === 1 ? "artwork" : "artworks"}`}
+                    subtitle={`${formatVisitDate(visit.visitedOn)} · ${works.length} ${works.length === 1 ? "artwork" : "artworks"}`}
                     selected={preferences.source.kind === "visit" && preferences.source.id === visit.localId}
                     onPress={() => {
                       update({ source: { kind: "visit", id: visit.localId } });

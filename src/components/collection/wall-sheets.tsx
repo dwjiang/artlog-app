@@ -49,7 +49,7 @@ export function WallArtworkSheet({
   disabled?: boolean;
 }) {
   return (
-    <WallSheet title={editing ? "Edit frame" : "On your wall"} onDismiss={onDismiss}>
+    <WallSheet title={editing ? "Edit Frame" : "On Your Wall"} onDismiss={onDismiss}>
       <View style={{ paddingBottom: Spacing.five }}>
         {editing ? (
           <>

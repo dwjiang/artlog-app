@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { ScrollView, StyleSheet } from "react-native";
 
@@ -11,10 +11,11 @@ import { requestNotificationPermission } from "@/lib/notifications/permission";
 import { reportError } from "@/lib/observability";
 
 export function NotificationsOfferSheet() {
+  const { ask } = useLocalSearchParams<{ ask?: string }>();
   const sheetStyle = [styles.container, useFittedFormSheetStyle()];
   const [asking, setAsking] = useState(false);
 
-  async function ask() {
+  const requestPermission = async () => {
     if (asking) return;
     setAsking(true);
     try {
@@ -23,11 +24,11 @@ export function NotificationsOfferSheet() {
       reportError(cause, "notifications.permission.request");
     }
     router.back();
-  }
+  };
 
   return (
     <ScrollView style={sheetStyle} contentContainerStyle={styles.content} bounces={false}>
-      <PermissionAsk kind="notifications" />
+      <PermissionAsk kind={ask === "exhibitionReminders" ? ask : "notifications"} />
       <ActionStack>
         <GalleryButton
           label="Continue"
@@ -35,7 +36,7 @@ export function NotificationsOfferSheet() {
           fullWidth
           busy={asking}
           busyLabel="Asking…"
-          onPress={() => void ask()}
+          onPress={() => void requestPermission()}
         />
       </ActionStack>
     </ScrollView>

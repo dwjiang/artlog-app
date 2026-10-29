@@ -108,7 +108,7 @@ it("marks the capture’s own visit until the draft overrides it", async () => {
   const view = await render(<CaptureContextScreen />);
   expect(
     screen.getByRole("button", {
-      name: "Museum · 29 Feb 2024",
+      name: "Museum · Feb 29, 2024",
       selected: true,
     }),
   ).toBeOnTheScreen();
@@ -126,7 +126,7 @@ it("writes the choice to the draft only and closes", async () => {
   };
   await render(<CaptureContextScreen />);
   expect(screen.getByRole("button", { name: "Artwork only", selected: true })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Other museum · 1 Mar 2024" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Other museum · Mar 1, 2024" }));
   expect(mockUpdateSession).toHaveBeenCalledWith("owner", "capture.jpg", {
     visit: { kind: "visit", localId: "other-visit" },
   });
@@ -194,7 +194,7 @@ describe("a capture scanned at a museum with no visit yet", () => {
     await render(<CaptureContextScreen />);
     expect(
       await screen.findByRole("button", {
-        name: "Museum · Since 29 Feb 2024",
+        name: "Museum · Since Feb 29, 2024",
         selected: true,
       }),
     ).toBeOnTheScreen();
@@ -211,7 +211,7 @@ describe("a capture scanned at a museum with no visit yet", () => {
     await render(<CaptureContextScreen />);
     expect(
       await screen.findByRole("button", {
-        name: "Museum · 29 Feb 2024",
+        name: "Museum · Feb 29, 2024",
         selected: true,
       }),
     ).toBeOnTheScreen();
@@ -277,7 +277,7 @@ describe("a capture scanned at a museum with no visit yet", () => {
     await render(<CaptureContextScreen />);
     expect(
       await screen.findByRole("button", {
-        name: "The Met · 29 Feb 2024 · Starts with this artwork",
+        name: "The Met · Feb 29, 2024 · Starts with this artwork",
         selected: true,
       }),
     ).toBeOnTheScreen();
@@ -299,12 +299,12 @@ describe("a capture scanned at a museum with no visit yet", () => {
     };
     await render(<CaptureContextScreen />);
     const option = await screen.findByRole("button", {
-      name: "The Met · 29 Feb 2024 · Starts with this artwork",
+      name: "The Met · Feb 29, 2024 · Starts with this artwork",
       selected: true,
     });
     expect(
       screen.getByRole("button", {
-        name: "Museum · Since 1 Mar 2024",
+        name: "Museum · Since Mar 1, 2024",
         selected: false,
       }),
     ).toBeOnTheScreen();
@@ -334,7 +334,7 @@ it("places artwork only before museum visits and creation after them", async () 
   };
   await render(<CaptureContextScreen />);
   const choices = screen.getAllByRole("button").map((button) => button.props.accessibilityLabel);
-  expect(choices.indexOf("Artwork only")).toBeLessThan(choices.indexOf("Museum · 29 Feb 2024"));
+  expect(choices.indexOf("Artwork only")).toBeLessThan(choices.indexOf("Museum · Feb 29, 2024"));
   expect(screen.getByRole("button", { name: "Create a visit" })).toBeOnTheScreen();
 });
 
@@ -348,7 +348,7 @@ it("names the open visit by when it began", async () => {
   };
   mockQuery = { data: [museum], updatedAt: new Date(), error: undefined };
   await render(<CaptureContextScreen />);
-  expect(screen.getByRole("button", { name: "Museum · Since 29 Feb 2024" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Museum · Since Feb 29, 2024" })).toBeOnTheScreen();
 });
 
 it("distinguishes loading visits from an empty collection", async () => {
@@ -367,7 +367,7 @@ it("preserves the current choice when saving the new choice fails", async () => 
     throw new Error("Write failed");
   });
   await render(<CaptureContextScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Museum · 29 Feb 2024" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Museum · Feb 29, 2024" }));
   expect(toast.result.current).toMatchObject({
     message: "Couldn’t save this visit choice. Your previous selection is unchanged.",
     action: { label: "Retry" },

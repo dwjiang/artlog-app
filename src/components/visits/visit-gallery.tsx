@@ -22,7 +22,6 @@ export function VisitGallerySearch({ value, onChangeText }: { value: string; onC
       placeholder="Search this visit"
       value={value}
       showLabel={false}
-      filled
       onChange={onChangeText}
       onClear={() => onChangeText("")}
       style={styles.search}

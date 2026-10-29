@@ -10,8 +10,8 @@ function askToEndVisit(venueName: string): Promise<Answer> {
       `End your visit to ${venueName}?`,
       "Only one visit can be open at a time. End it to start a new visit with this artwork.",
       [
-        { text: "End visit", onPress: () => resolve("end") },
-        { text: "Save artwork only", onPress: () => resolve("withoutVisit") },
+        { text: "End Visit", onPress: () => resolve("end") },
+        { text: "Save Artwork Only", onPress: () => resolve("withoutVisit") },
         { text: "Cancel", style: "cancel", onPress: () => resolve("cancel") },
       ],
     );

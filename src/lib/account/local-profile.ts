@@ -7,6 +7,7 @@ import { PHOTO_FOLDERS } from "@/lib/files/photo-folders";
 import { captureFileUri } from "@/lib/files/photos";
 import { removeFileIfExists } from "@/lib/files/remove-file";
 import { reportError } from "@/lib/observability";
+import type { ProfilePicture } from "@/lib/social/profile-picture";
 import { LIMITS } from "@/shared/journal/limits";
 import { AVATARS, type AvatarId, isAvatarId } from "@/shared/social/avatars";
 
@@ -78,6 +79,12 @@ export async function setLocalProfileAvatar(avatar: AvatarId): Promise<void> {
   if (photo) await removeSetting(PHOTO_KEY);
   for (const listener of listeners) listener();
   if (photo) removeProfileFile(captureFileUri(photo));
+}
+
+/** Keeps a newly chosen photo or painting; without one the saved picture stays. */
+export async function setLocalProfilePicture(picture: ProfilePicture | undefined): Promise<void> {
+  if (picture?.kind === "photo") await setLocalProfilePhoto(picture.uri);
+  if (picture?.kind === "avatar") await setLocalProfileAvatar(picture.avatar);
 }
 
 function removeProfileFile(uri: string): void {

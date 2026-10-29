@@ -10,11 +10,14 @@ import * as toast from "@/lib/ui/toast";
 import type { VenueRow } from "@/lib/venue/resolve";
 
 import { bayArea, centralCalifornia, regions, SAN_JOSE, SF_MOMA } from "./__fixtures__/catalog";
+import { EXHIBITION_CARD_WIDTH } from "./exhibition-card";
 import { ExhibitionListScreen } from "./exhibition-list-screen";
 import { ExhibitionScreen } from "./exhibition-screen";
 import { ExploreScreen } from "./explore-screen";
+import { shelfSnapProps } from "./explore-section";
 import { MuseumListScreen } from "./museum-list-screen";
 import { MuseumScreen } from "./museum-screen";
+import { MUSEUM_TILE_WIDTH } from "./museum-tile";
 import { WantToSeeScreen } from "./want-to-see-screen";
 
 const mockPush = jest.fn();
@@ -438,6 +441,32 @@ describe("Explore", () => {
     ]);
   });
 
+  // The bar has no room for an inline title beside the city chip, and a tab re-tap scrolls to the content's top.
+  it("titles the page in its content, before and after the catalog loads", async () => {
+    mockOffline = true;
+    await render(<ExploreScreen />);
+    expect(screen.getByRole("header", { name: "Explore" })).toBeOnTheScreen();
+    expect(screen.getByText("You’re offline.")).toBeOnTheScreen();
+
+    mockOffline = false;
+    await render(<ExploreScreen />);
+    expect(screen.getByRole("header", { name: "Explore" })).toBeOnTheScreen();
+    expect(card("Tides of Memory")).toBeOnTheScreen();
+  });
+
+  it("snaps each shelf to the width of its own cards", async () => {
+    await render(<ExploreScreen />);
+
+    expect(screen.getByTestId("exhibition-shelf")).toHaveProp(
+      "snapToInterval",
+      shelfSnapProps(EXHIBITION_CARD_WIDTH).snapToInterval,
+    );
+    expect(await screen.findByTestId("museum-row")).toHaveProp(
+      "snapToInterval",
+      shelfSnapProps(MUSEUM_TILE_WIDTH).snapToInterval,
+    );
+  });
+
   it("explains an offline phone, a failed load and a catalog with no shows", async () => {
     mockOffline = true;
     await render(<ExploreScreen />);
@@ -839,12 +868,19 @@ describe("museum pictures", () => {
 });
 
 describe("location map", () => {
-  it("maps the museum under Location on its page", async () => {
+  it("maps the museum under Location on its page, opening it in Maps on a tap", async () => {
+    const open = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
     await render(<MuseumScreen museumId="sfmoma" />);
 
     expect(screen.getByRole("header", { name: "Location" })).toBeOnTheScreen();
     expect(screen.getByLabelText("Map around 37.785718, -122.401051")).toBeOnTheScreen();
     expect(screen.getByLabelText("San Francisco Museum of Modern Art pin at 37.785718, -122.401051")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole("button", { name: "Map of San Francisco Museum of Modern Art" }));
+
+    expect(open).toHaveBeenCalledWith(
+      "https://maps.apple.com/?ll=37.785718,-122.401051&q=San%20Francisco%20Museum%20of%20Modern%20Art",
+    );
+    open.mockRestore();
   });
 
   it("maps a show's museum under its details, with the museum's distance once the phone has a fix", async () => {
@@ -886,7 +922,7 @@ describe("Want to see", () => {
     expect(screen.getByRole("button", { name: "Want to see" })).toBeDisabled();
     await view.rerender(<WantToSeeScreen />);
     expect(screen.getByRole("progressbar", { name: "Loading exhibitions…" })).toBeOnTheScreen();
-    expect(screen.queryByText("No saved exhibitions yet.")).toBeNull();
+    expect(screen.queryByText("No exhibitions in Want to see yet.")).toBeNull();
 
     mockOwner = "account:test";
     mockServerScope = "account:test:1";
@@ -908,7 +944,7 @@ describe("Want to see", () => {
     mockSaved = undefined;
     const view = await render(<WantToSeeScreen />);
     expect(screen.getByRole("progressbar", { name: "Loading exhibitions…" })).toBeOnTheScreen();
-    expect(screen.queryByText("No saved exhibitions yet.")).toBeNull();
+    expect(screen.queryByText("No exhibitions in Want to see yet.")).toBeNull();
 
     mockSaved = ["collection"];
     await view.rerender(<WantToSeeScreen />);
@@ -919,21 +955,21 @@ describe("Want to see", () => {
     mockSaved = new Error("Saved list failed");
     const view = await render(<WantToSeeScreen />);
     expect(screen.getByText("Couldn’t load exhibitions.")).toBeOnTheScreen();
-    expect(screen.queryByText("No saved exhibitions yet.")).toBeNull();
+    expect(screen.queryByText("No exhibitions in Want to see yet.")).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: "Try again" }));
     expect(mockSavedRefresh).toHaveBeenCalledTimes(1);
     expect(mockRefresh).not.toHaveBeenCalled();
 
     mockSaved = [];
     await view.rerender(<WantToSeeScreen />);
-    expect(screen.getByText("No saved exhibitions yet.")).toBeOnTheScreen();
+    expect(screen.getByText("No exhibitions in Want to see yet.")).toBeOnTheScreen();
   });
 
   it("shows the offline state when saved IDs cannot load", async () => {
     mockOffline = true;
     await render(<WantToSeeScreen />);
     expect(screen.getByText("You’re offline.")).toBeOnTheScreen();
-    expect(screen.queryByText("No saved exhibitions yet.")).toBeNull();
+    expect(screen.queryByText("No exhibitions in Want to see yet.")).toBeNull();
   });
 
   it("shows saved exhibitions beyond the backend's per-query limit", async () => {
@@ -964,7 +1000,7 @@ describe("Want to see", () => {
 
   it("lists saved shows until they are removed", async () => {
     const view = await render(<WantToSeeScreen />);
-    expect(screen.getByText("No saved exhibitions yet.")).toBeOnTheScreen();
+    expect(screen.getByText("No exhibitions in Want to see yet.")).toBeOnTheScreen();
 
     mockSaved = ["collection"];
     await view.rerender(<WantToSeeScreen />);
@@ -973,7 +1009,7 @@ describe("Want to see", () => {
 
     mockSaved = [];
     await view.rerender(<WantToSeeScreen />);
-    expect(screen.getByText("No saved exhibitions yet.")).toBeOnTheScreen();
+    expect(screen.getByText("No exhibitions in Want to see yet.")).toBeOnTheScreen();
   });
 
   it("says when a saved show's first reminder comes", async () => {
@@ -983,7 +1019,7 @@ describe("Want to see", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Want to see Tides of Memory" }));
     await waitFor(() =>
       expect(showToast).toHaveBeenLastCalledWith(
-        `Saved. You’ll get a reminder ${reminderDay(tides.endDate, 7)}, a week before it closes.`,
+        `Added to Want to see. You’ll get a reminder ${reminderDay(tides.endDate, 7)}, a week before it closes.`,
       ),
     );
 
@@ -991,7 +1027,7 @@ describe("Want to see", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Want to see Orchard Light" }));
     await waitFor(() =>
       expect(showToast).toHaveBeenLastCalledWith(
-        `Saved. You’ll get a reminder ${reminderDay(orchard.startDate!)}, when it opens.`,
+        `Added to Want to see. You’ll get a reminder ${reminderDay(orchard.startDate!)}, when it opens.`,
       ),
     );
     expect(offerNotifications).not.toHaveBeenCalled();
@@ -1008,7 +1044,7 @@ describe("Want to see", () => {
     expect(showToast).not.toHaveBeenCalled();
 
     await act(() => finish(null));
-    await waitFor(() => expect(showToast).toHaveBeenCalledWith(expect.stringMatching(/^Saved\./)));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith(expect.stringMatching(/^Added to Want to see\./)));
   });
 
   it.each([0, 2])("keeps a failed save's retry instead of confirming it with permission %s", async (status) => {
@@ -1046,7 +1082,10 @@ describe("Want to see", () => {
     await render(<ExploreScreen />);
     await fireEvent.press(screen.getByRole("button", { name: "Want to see Tides of Memory" }));
     await waitFor(() =>
-      expect(showToast).toHaveBeenLastCalledWith("Saved. Turn on notifications to get reminders.", expect.anything()),
+      expect(showToast).toHaveBeenLastCalledWith(
+        "Added to Want to see. Turn on notifications to get reminders.",
+        expect.anything(),
+      ),
     );
     showToast.mock.lastCall![1]!.onPress();
     expect(openSettings).toHaveBeenCalled();
@@ -1058,6 +1097,7 @@ describe("Want to see", () => {
     await fireEvent.press(screen.getByRole("button", { name: "Want to see Orchard Light" }));
     expect(mockSetWantToSee).toHaveBeenLastCalledWith({ exhibitionId: "orchard", saved: true });
     expect(offerNotifications).toHaveBeenCalledTimes(1);
+    expect(offerNotifications).toHaveBeenCalledWith("exhibitionReminders");
     expect(screen.queryByRole("button", { name: /^Remind me/ })).toBeNull();
   });
 
@@ -1081,6 +1121,9 @@ describe("Want to see", () => {
 
     mockSavedMuseums = ["bampfa"];
     await view.rerender(<MuseumScreen museumId="bampfa" />);
+    // "Saved" means a collected artwork elsewhere, so the list keeps its own name once the museum is on it.
+    expect(screen.getByText("Want to see")).toBeOnTheScreen();
+    expect(screen.queryByText("Saved")).toBeNull();
     await fireEvent.press(screen.getByRole("button", { name: "Remove from Want to see" }));
     expect(mockSetMuseum).toHaveBeenLastCalledWith({ museumId: "bampfa", saved: false });
     expect(mockSetWantToSee).not.toHaveBeenCalled();
@@ -1134,15 +1177,15 @@ describe("Want to see", () => {
 
     mockSavedMuseums = [];
     await view.rerender(<WantToSeeScreen />);
-    expect(screen.getByText("No saved museums yet.")).toBeOnTheScreen();
-    expect(screen.getByText("Tap the bookmark on a museum to save it here.")).toBeOnTheScreen();
+    expect(screen.getByText("No museums in Want to see yet.")).toBeOnTheScreen();
+    expect(screen.getByText("Tap the bookmark on a museum to add it here.")).toBeOnTheScreen();
     expect(screen.getByRole("button", { name: "Exhibitions" })).toBeOnTheScreen();
   });
 
   it("keeps the tabs while one tab's saved list is loading or failed", async () => {
     mockSavedMuseums = new Error("Saved museums failed");
     await render(<WantToSeeScreen />);
-    expect(screen.getByText("No saved exhibitions yet.")).toBeOnTheScreen();
+    expect(screen.getByText("No exhibitions in Want to see yet.")).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByRole("button", { name: "Museums" }));
 
