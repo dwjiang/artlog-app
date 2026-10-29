@@ -11,19 +11,21 @@ import { TentativeOriginNotice } from "./tentative-origin-notice";
 
 export type RunnerUpsProps = {
   candidates: ResultCandidate[];
-  onPick: (candidate: ResultCandidate) => void;
+  /** Opens the candidate's preview; choosing it happens there. */
+  onOpen: (candidate: ResultCandidate) => void;
   /** The row whose pick is still being saved; every row is disabled meanwhile. */
   busyObjectId?: ResultCandidate["objectId"];
   disabled?: boolean;
 };
 
 /** Similar works as rows; a museum thumbnail appears only where the server hotlinked a public-domain one. */
-export function RunnerUps({ candidates, onPick, busyObjectId, disabled = false }: RunnerUpsProps) {
+export function RunnerUps({ candidates, onOpen, busyObjectId, disabled = false }: RunnerUpsProps) {
   return (
     <ListSection outlined>
       {candidates.map((candidate, index) => {
         const confidence = formatConfidence(candidate.probability);
-        const byline = [candidate.artist, candidate.institution].filter(Boolean).join(" · ");
+        // The year tells apart works that share a title and artist, like a series.
+        const byline = [candidate.artist, candidate.date, candidate.institution].filter(Boolean).join(" · ");
         return (
           <ListRow
             key={candidate.objectId}
@@ -47,13 +49,16 @@ export function RunnerUps({ candidates, onPick, busyObjectId, disabled = false }
                 <View style={[styles.thumbnail, styles.placeholder]} />
               )
             }
-            accessibilityLabel={[candidate.title, candidate.artist, confidence].filter(Boolean).join(", ")}
+            accessibilityLabel={[candidate.title, candidate.artist, candidate.date, confidence]
+              .filter(Boolean)
+              .join(", ")}
+            accessibilityHint="Opens a preview without choosing it."
             accessory="chevron"
             busy={candidate.objectId === busyObjectId}
             disabled={disabled || !!busyObjectId}
             first={index === 0}
             last={index === candidates.length - 1}
-            onPress={() => onPick(candidate)}
+            onPress={() => onOpen(candidate)}
           />
         );
       })}

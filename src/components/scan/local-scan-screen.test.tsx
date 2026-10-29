@@ -8,6 +8,7 @@ import { getSavedWork } from "@/db/repos/saved-works";
 import { upsertVisit } from "@/db/repos/visits";
 import type { NewPendingScan } from "@/db/schema";
 import { FAILED_TITLE } from "@/lib/result/failure-copy";
+import { getMatchPreview } from "@/lib/result/match-preview";
 import * as resultSave from "@/lib/result/save";
 import { playSuccessHaptic } from "@/lib/ui/haptics";
 
@@ -253,25 +254,24 @@ it("keeps every other painting available when switching cached matches", async (
   await enqueuePendingScan(row("offline-pick", { status: "queued" }));
   await cacheOfflineResult("offline-pick", confidentScan);
   await render(<LocalScanScreen localId="offline-pick" />);
+  // Choosing happens on the match's preview, which its row only opens.
+  const choose = async (title: string) => {
+    await fireEvent.press(screen.getByRole("button", { name: new RegExp(`^${title}, Claude Monet`) }));
+    const [{ pathname, params }] = mockPush.mock.lastCall as [{ pathname: string; params: { id: string } }];
+    expect(pathname).toBe("/match-preview");
+    const preview = getMatchPreview(params.id)!;
+    await act(async () => preview.onChoose(preview.candidate));
+    expect(screen.getByRole("header", { name: title })).toBeOnTheScreen();
+    expect(screen.getByLabelText("Your pick")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: new RegExp(`^${title}, Claude Monet`) })).toBeNull();
+  };
   await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
-  await fireEvent.press(
-    screen.getByRole("button", {
-      name: /^The Japanese Footbridge, Claude Monet/,
-    }),
-  );
-  expect(screen.getByText("Could this be The Japanese Footbridge?")).toBeOnTheScreen();
+  await choose("The Japanese Footbridge");
   expect(screen.getByRole("button", { name: /^Water Lilies, Claude Monet/ })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
-  expect(
-    screen.queryByRole("button", {
-      name: /^The Japanese Footbridge, Claude Monet/,
-    }),
-  ).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ }));
-  expect(screen.getByText("Could this be Haystacks?")).toBeOnTheScreen();
+  await choose("Haystacks");
   expect(screen.getByRole("button", { name: /^The Japanese Footbridge, Claude Monet/ })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: /^Water Lilies, Claude Monet/ }));
-  expect(screen.getByText("Could this be Water Lilies?")).toBeOnTheScreen();
+  await choose("Water Lilies");
   expect(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
 });
 

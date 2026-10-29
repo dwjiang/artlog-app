@@ -17,6 +17,7 @@ export function ArtworkFrame({
   unavailableText = "Photo unavailable",
   unavailableTitle,
   cachePolicy,
+  maxHeight: heightCap,
   onError,
   children,
 }: {
@@ -27,10 +28,13 @@ export function ArtworkFrame({
   /** Named under `unavailableText` when the picture is missing. */
   unavailableTitle?: string;
   cachePolicy?: ImageProps["cachePolicy"];
+  /** A lower cap where two frames share the screen. */
+  maxHeight?: number;
   onError?: (message?: string) => void;
   children?: ReactNode;
 }) {
-  const maxHeight = useArtworkFrameHeight();
+  const frameHeight = useArtworkFrameHeight();
+  const maxHeight = Math.min(frameHeight, heightCap ?? frameHeight);
   const [failedUri, setFailedUri] = useState<string>();
   const [shape, setShape] = useState<{ uri: string; aspectRatio: number }>();
   const available = !!uri && failedUri !== uri;

@@ -6,6 +6,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { ThemedView } from "@/components/themed-view";
 import type { PendingScan } from "@/db/schema";
 import { captureFileUri, scanDisplayPath } from "@/lib/files/photos";
+import { useSheetMatchPreview } from "@/lib/result/match-preview";
 import { draftFromCandidate } from "@/lib/result/snapshot";
 import { selectResultCandidates, type ResultCandidate, type ResultViewState } from "@/lib/result/state";
 import { useSaveResult } from "@/lib/result/use-save-result";
@@ -33,11 +34,21 @@ export function OfflineResultScreen({
   const [chosen, setChosen] = useState<ResultCandidate>();
   const [notRight, setNotRight] = useState(false);
   const saved = useSaveResult();
+  const cropUri = captureFileUri(scanDisplayPath(capture.cropPath));
+  const openMatch = useSheetMatchPreview({
+    photo: () => cropUri,
+    onChoose: (candidate) => {
+      setChosen(candidate);
+      setNotRight(false);
+    },
+    reopenSheet: () => setNotRight(true),
+  });
   const view: ResultViewState = manual
     ? { kind: "unidentified", editable: true, runnerUps: [] }
     : {
         kind: chosen ? "soft" : "confident",
         ...selectResultCandidates(result, chosen?.objectId),
+        ...(chosen ? { picked: true } : {}),
         docent: chosen ? undefined : result.docent,
         factSheet: chosen ? undefined : result.factSheet,
         editable: true,
@@ -101,10 +112,11 @@ export function OfflineResultScreen({
         captureInput={{ capture, view }}
         header={
           <CardHeader
-            cropUri={captureFileUri(scanDisplayPath(capture.cropPath))}
+            cropUri={cropUri}
             artworkTitle={view.primary?.title}
             kind={view.kind}
             probability={view.primary?.probability}
+            picked={view.picked}
             onNotRight={!saved.saving && !saved.savedId && view.primary ? () => setNotRight(true) : undefined}
             onAdjustCrop={!saved.saving && !saved.savedId ? adjustCrop : undefined}
           />
@@ -121,7 +133,7 @@ export function OfflineResultScreen({
         }
         visit={!saved.savedId && <CaptureContextButton capture={capture} disabled={saved.saving} variant="row" />}
         onLabel={onLabel}
-        onPick={setChosen}
+        onOpenMatch={openMatch}
         onEdit={() => setHasEdits(true)}
         savePhotoOnly={manual && !hasEdits}
         onSave={(draft) => {
@@ -141,9 +153,9 @@ export function OfflineResultScreen({
         open={notRight}
         onDismiss={() => setNotRight(false)}
         runnerUps={view.runnerUps}
-        onPick={(candidate) => {
-          setChosen(candidate);
+        onOpen={(candidate) => {
           setNotRight(false);
+          openMatch(candidate, { inSheet: true });
         }}
         onLabel={onLabel}
         onManual={() => {

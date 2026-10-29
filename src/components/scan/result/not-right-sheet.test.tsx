@@ -6,7 +6,7 @@ import { NotRightSheet } from "./not-right-sheet";
 
 const handlers = {
   onDismiss: jest.fn(),
-  onPick: jest.fn(),
+  onOpen: jest.fn(),
   onLabel: jest.fn(),
   onManual: jest.fn(),
   onSavePhoto: jest.fn(),
@@ -16,15 +16,15 @@ beforeEach(() => jest.clearAllMocks());
 const originalWindow = Dimensions.get("window");
 afterEach(() => Dimensions.set({ window: originalWindow }));
 
-it("keeps all recovery actions directly available alongside the painting choices", async () => {
+it("keeps all recovery actions directly available alongside the paintings to open", async () => {
   await render(<NotRightSheet open runnerUps={[bridge, haystacks]} {...handlers} />);
   expect(screen.getByText("Other possible matches")).toBeOnTheScreen();
   await fireEvent.press(
     screen.getByRole("button", {
-      name: "The Japanese Footbridge, Claude Monet, 31% confidence",
+      name: "The Japanese Footbridge, Claude Monet, 1899, 31% confidence",
     }),
   );
-  expect(handlers.onPick).toHaveBeenCalledWith(bridge);
+  expect(handlers.onOpen).toHaveBeenCalledWith(bridge);
   await fireEvent.press(screen.getByRole("button", { name: "Scan the museum label" }));
   expect(handlers.onLabel).toHaveBeenCalledTimes(1);
   await fireEvent.press(screen.getByRole("button", { name: "Enter details manually" }));
@@ -47,7 +47,7 @@ it("only offers recovery actions that are available", async () => {
     <NotRightSheet
       open
       runnerUps={[bridge]}
-      onPick={handlers.onPick}
+      onOpen={handlers.onOpen}
       onLabel={handlers.onLabel}
       onDismiss={handlers.onDismiss}
     />,
@@ -73,7 +73,7 @@ it("scrolls the heading and recovery actions with the matches at accessibility t
     expect(choices().getByRole("button", { name })).toBeOnTheScreen();
   }
   await fireEvent.press(choices().getByRole("button", { name: /^The Japanese Footbridge,/ }));
-  expect(handlers.onPick).toHaveBeenCalledWith(bridge);
+  expect(handlers.onOpen).toHaveBeenCalledWith(bridge);
   await act(() => Dimensions.set({ window: standardWindow }));
   expect(choices().queryByRole("button", { name: "Save photo only" })).toBeNull();
 });

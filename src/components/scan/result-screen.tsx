@@ -26,6 +26,7 @@ import {
   resolveWithRunnerUp,
   type Rejection,
 } from "@/lib/result/feedback";
+import { useSheetMatchPreview } from "@/lib/result/match-preview";
 import { draftFromCandidate, type SnapshotDraft } from "@/lib/result/snapshot";
 import {
   toResultViewState,
@@ -214,6 +215,13 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
       });
   }
 
+  const cropUri = capture ? captureFileUri(scanDisplayPath(capture.cropPath)) : undefined;
+  const openMatch = useSheetMatchPreview({
+    photo: () => cropUri,
+    onChoose: pickRunnerUp,
+    reopenSheet: () => setSheet((current) => ({ ...current, open: true })),
+  });
+
   const saveProps = {
     saving,
     savedId,
@@ -241,12 +249,13 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
   }
   const header = (
     <CardHeader
-      cropUri={capture ? captureFileUri(scanDisplayPath(capture.cropPath)) : undefined}
+      cropUri={cropUri}
       artworkTitle={view.primary?.title}
       loading={!captureUpdatedAt && !captureError}
       kind={view.kind}
       probability={view.primary?.probability}
       source={namedBy}
+      picked={view.picked}
       onNotRight={view.editable && view.primary && !saving && !savedId ? notRight : undefined}
       onEditDetails={namedBy && !saving && !savedId ? editConfirmed : undefined}
       onAdjustCrop={capture && !saving && !savedId ? adjustCrop : undefined}
@@ -268,7 +277,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
           context={photoError}
           visit={capture && !savedId && <CaptureContextButton capture={capture} disabled={saving} variant="row" />}
           onRetryDocent={() => client.mutation(api.docent.retry, { scanId })}
-          onPick={pickRunnerUp}
+          onOpenMatch={openMatch}
           onEdit={() => setHasEdits(true)}
           onLabel={openLabel}
           onEnterDetails={namedBy ? editConfirmed : enterDetails}
@@ -348,7 +357,10 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
         notice={sheet.notice}
         onDismiss={() => setSheet({ open: false })}
         runnerUps={view.runnerUps}
-        onPick={pickRunnerUp}
+        onOpen={(candidate) => {
+          setSheet((current) => ({ ...current, open: false }));
+          openMatch(candidate, { inSheet: true });
+        }}
         onLabel={openLabel}
         onManual={() => {
           setSheet({ open: false });
