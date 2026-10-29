@@ -18,6 +18,7 @@ it("only exports recognized booleans and app states", async () => {
       applicationState: "active",
       guidedAccess: true,
       hasPresenter: false,
+      hasApplePresentationWindow: false,
       presenterHasWindow: "private",
       hierarchy: "private",
       email: "person@example.com",
@@ -28,6 +29,7 @@ it("only exports recognized booleans and app states", async () => {
     applicationState: "active",
     guidedAccess: true,
     hasPresenter: false,
+    hasApplePresentationWindow: false,
   });
   expect(jest.getTimerCount()).toBe(0);
 });

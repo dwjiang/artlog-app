@@ -21,6 +21,8 @@ public final class SignInDiagnosticsModule: Module {
           "applicationState": state,
           "guidedAccess": UIAccessibility.isGuidedAccessEnabled,
           "hasPresenter": presenter != nil,
+          // Expo AppleAuthentication uses this same lookup for its presentation anchor.
+          "hasApplePresentationWindow": Utilities.keyWindow() != nil,
           "presenterHasWindow": presenter?.viewIfLoaded?.window != nil,
           "presenterBeingPresented": presenter?.isBeingPresented ?? false,
           "presenterBeingDismissed": presenter?.isBeingDismissed ?? false,
