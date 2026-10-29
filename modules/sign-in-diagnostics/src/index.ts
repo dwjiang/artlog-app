@@ -4,6 +4,7 @@ type DiagnosticData = Record<string, string | number | boolean>;
 const flags = [
   "guidedAccess",
   "hasPresenter",
+  "hasApplePresentationWindow",
   "presenterHasWindow",
   "presenterBeingPresented",
   "presenterBeingDismissed",

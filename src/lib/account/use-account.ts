@@ -16,6 +16,7 @@ import { useDeviceReady } from "@/lib/use-device-ready";
 import { socialErrorMessage } from "@/shared/social/errors";
 
 import { api } from "../../../convex/_generated/api";
+import { appleSignIn } from "./apple-sign-in";
 import { completeJournalClaim, pauseCollectionSync, resumeCollectionSync } from "./collection-sync";
 import { eraseLocalData } from "./erase-local-data";
 import { googleSignIn, googleSignInAvailable } from "./google-sign-in";
@@ -35,7 +36,7 @@ function requireAttestation() {
 // failure still deletes it and leaves Artlog in the person's Sign in with Apple apps.
 async function appleRevocationCode(): Promise<string | undefined> {
   try {
-    return (await AppleAuthentication.signInAsync()).authorizationCode ?? undefined;
+    return (await appleSignIn("revocation")).authorizationCode ?? undefined;
   } catch (cause) {
     if (isCancellation(cause)) throw cause;
     reportError(cause, "auth.apple_revocation_code", { level: "warning" });
@@ -111,7 +112,7 @@ export function useAccount() {
       const { nonce } = await convex.mutation(api.devices.createChallenge, {
         purpose: "apple",
       });
-      const credential = await AppleAuthentication.signInAsync({
+      const credential = await appleSignIn("sign_in", {
         nonce,
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,

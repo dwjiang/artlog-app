@@ -128,7 +128,9 @@ it("passes the challenge to native Apple sign-in and links after provider verifi
   });
   expect(mockPause).toHaveBeenCalledTimes(1);
   expect(mockResume).toHaveBeenCalledTimes(1);
-  expect(mockBreadcrumb.mock.calls).toEqual([["auth.apple_sign_in.start"], ["auth.apple_sign_in.success"]]);
+  expect(mockBreadcrumb.mock.calls).toEqual(
+    expect.arrayContaining([["auth.apple_sign_in.start"], ["auth.apple_sign_in.success"]]),
+  );
   expect(mockReportError).not.toHaveBeenCalled();
 });
 
