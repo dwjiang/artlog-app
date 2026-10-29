@@ -21,12 +21,3 @@ it("recovers the image when a different capture replaces a missing image", async
   expect(screen.queryByText("Photo unavailable")).toBeNull();
   expect(screen.getByLabelText("Your photo of this painting")).toBeOnTheScreen();
 });
-
-it("offers crop adjustment on the photo only when a handler is given", async () => {
-  const onAdjustCrop = jest.fn();
-  const view = await render(<CardHeader cropUri="file:///crop.jpg" kind="confident" />);
-  expect(screen.queryByRole("button", { name: "Adjust crop" })).toBeNull();
-  await view.rerender(<CardHeader cropUri="file:///crop.jpg" kind="confident" onAdjustCrop={onAdjustCrop} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Adjust crop" }));
-  expect(onAdjustCrop).toHaveBeenCalledTimes(1);
-});

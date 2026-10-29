@@ -24,6 +24,7 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import { FieldsForm } from "./fields-form";
 import { RunnerUps } from "./runner-ups";
 import { LABEL_BUTTON, SaveBar } from "./save-bar";
+import { ScanOptionsToolbar } from "./scan-options-toolbar";
 import { TentativeOriginNotice } from "./tentative-origin-notice";
 
 type ResultCardProps = {
@@ -44,6 +45,7 @@ type ResultCardProps = {
   /** Opens another match's preview; choosing it happens there. */
   onOpenMatch: (candidate: ResultCandidate) => void;
   onEdit: () => void;
+  onAdjustCrop?: () => void;
   onSave: (draft: SnapshotDraft) => void;
   onSavePhoto: () => void;
   savePhotoOnly: boolean;
@@ -68,6 +70,7 @@ export function ResultCard({
   onRetryDocent,
   onOpenMatch,
   onEdit,
+  onAdjustCrop,
   onSave,
   onSavePhoto,
   savePhotoOnly,
@@ -179,42 +182,44 @@ export function ResultCard({
   );
   return (
     <>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Scan options" tintColor={Gallery.ink}>
-          {!editingDetails && (
-            <Stack.Toolbar.MenuAction
-              icon="pencil"
+      <ScanOptionsToolbar
+        onAdjustCrop={onAdjustCrop}
+        trailing={
+          editingDetails && (
+            <Stack.Toolbar.Button
+              variant="done"
+              tintColor={Gallery.accent}
               disabled={!editable}
-              onPress={enterDetails ?? (() => setEditingDetails(true))}
+              onPress={() => setEditingDetails(false)}
             >
-              Edit Details
-            </Stack.Toolbar.MenuAction>
-          )}
-          {(view.kind === "confident" || view.picked) && (
-            <Stack.Toolbar.MenuAction icon="text.viewfinder" disabled={!editable} onPress={onLabel}>
-              Scan the Label
-            </Stack.Toolbar.MenuAction>
-          )}
+              Done
+            </Stack.Toolbar.Button>
+          )
+        }
+      >
+        {!editingDetails && (
           <Stack.Toolbar.MenuAction
-            icon="photo.badge.plus"
-            subtitle={photos.photoCount > 1 ? `${photos.photoCount} photos` : undefined}
-            disabled={photos.unavailable}
-            onPress={photos.open}
-          >
-            Add Photos
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-        {editingDetails && (
-          <Stack.Toolbar.Button
-            variant="done"
-            tintColor={Gallery.accent}
+            icon="pencil"
             disabled={!editable}
-            onPress={() => setEditingDetails(false)}
+            onPress={enterDetails ?? (() => setEditingDetails(true))}
           >
-            Done
-          </Stack.Toolbar.Button>
+            Edit Details
+          </Stack.Toolbar.MenuAction>
         )}
-      </Stack.Toolbar>
+        {(view.kind === "confident" || view.picked) && (
+          <Stack.Toolbar.MenuAction icon="text.viewfinder" disabled={!editable} onPress={onLabel}>
+            Scan the Label
+          </Stack.Toolbar.MenuAction>
+        )}
+        <Stack.Toolbar.MenuAction
+          icon="photo.badge.plus"
+          subtitle={photos.photoCount > 1 ? `${photos.photoCount} photos` : undefined}
+          disabled={photos.unavailable}
+          onPress={photos.open}
+        >
+          Add Photos
+        </Stack.Toolbar.MenuAction>
+      </ScanOptionsToolbar>
       <SafeAreaScrollView
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustKeyboardInsets

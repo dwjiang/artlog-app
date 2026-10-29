@@ -118,7 +118,6 @@ export function OfflineResultScreen({
             probability={view.primary?.probability}
             picked={view.picked}
             onNotRight={!saved.saving && !saved.savedId && view.primary ? () => setNotRight(true) : undefined}
-            onAdjustCrop={!saved.saving && !saved.savedId ? adjustCrop : undefined}
           />
         }
         context={
@@ -135,6 +134,7 @@ export function OfflineResultScreen({
         onLabel={onLabel}
         onOpenMatch={openMatch}
         onEdit={() => setHasEdits(true)}
+        onAdjustCrop={!saved.saving && !saved.savedId ? adjustCrop : undefined}
         savePhotoOnly={manual && !hasEdits}
         onSave={(draft) => {
           void saved.save({ capture, view, draft });

@@ -8,7 +8,7 @@ import { Colors, Spacing } from "@/constants/theme";
 
 /**
  * An artwork's picture at the top of its page, as tall as the picture up to about a third of the screen, so the
- * title follows right under it. `children` are laid over the frame's bottom corner (the scan card's crop button).
+ * title follows right under it. `children` are laid over the frame (the match preview's picture labels).
  */
 export function ArtworkFrame({
   uri,
