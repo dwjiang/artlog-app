@@ -92,6 +92,13 @@
       "when": 1793212625337,
       "tag": "0012_visit-discard",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1793268844398,
+      "tag": "0013_model-crop-geometry",
+      "breakpoints": true
     }
   ]
 }

@@ -3,7 +3,14 @@ import { ConvexError } from "convex/values";
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
 
 import { runCapture } from "./pipeline";
-import type { CaptureDependencies, CaptureInput, CapturePayload, IdentifyResponse, PreparedPainting } from "./stages";
+import type {
+  CaptureDependencies,
+  CaptureInput,
+  CapturePayload,
+  IdentifyResponse,
+  PreparedPainting,
+  VenueContext,
+} from "./stages";
 
 jest.mock("expo-crypto", () => ({ randomUUID: jest.fn(() => "capture-uuid") }));
 const mockRemove = jest.fn();
@@ -55,7 +62,7 @@ function dependencies() {
       })),
     },
     identify: jest.fn(async (_payload: CapturePayload) => response),
-    rankCrops: jest.fn(async (_vectors: number[][], _venueId: CaptureInput["venueId"]) => 0),
+    rankCrops: jest.fn(async (_vectors: number[][], _venueId: VenueContext["venueId"]) => 0),
     isOnline: jest.fn(() => true),
     store: {
       enqueue: jest.fn(async (_payload: CapturePayload, _status: "queued" | "identifying") => {}),
@@ -66,6 +73,7 @@ function dependencies() {
 }
 
 beforeEach(() => {
+  mockRemove.mockClear();
   jest.spyOn(console, "debug").mockImplementation(() => {});
 });
 afterEach(() => {
@@ -153,11 +161,88 @@ it("queues the crop and binary features when offline", async () => {
   expect(deps.store.recordResult).not.toHaveBeenCalled();
 });
 
-const atVisit = {
-  ...input,
+const visitContext: VenueContext = {
   visitLocalId: "local-visit",
-  venueId: "museum-1" as CaptureInput["venueId"],
+  venueId: "museum-1" as VenueContext["venueId"],
 };
+const atVisit = { ...input, context: Promise.resolve(visitContext) };
+
+describe("while the venue lookup is running", () => {
+  const lookup = () => {
+    let settle!: (context: VenueContext) => void;
+    let fail!: (error: Error) => void;
+    const context = new Promise<VenueContext>((resolve, reject) => {
+      settle = resolve;
+      fail = reject;
+    });
+    return { context, settle, fail };
+  };
+  const inner: PreparedPainting = { ...painting, cropUri: "file:///inner.jpg" };
+
+  it("crops and embeds the photo, then ranks and identifies at the venue it finds", async () => {
+    const deps = dependencies();
+    deps.warper.warpCandidates.mockResolvedValue([painting, inner]);
+    const { context, settle } = lookup();
+    const pending = runCapture({ ...input, context }, deps, options);
+    await new Promise(setImmediate);
+    expect(deps.embedder.embed).toHaveBeenCalledTimes(2);
+    expect(deps.rankCrops).not.toHaveBeenCalled();
+    expect(deps.store.enqueue).not.toHaveBeenCalled();
+    settle({ venueId: visitContext.venueId });
+    expect(await pending).toMatchObject({ kind: "sent" });
+    expect(deps.rankCrops).toHaveBeenCalledWith(expect.any(Array), "museum-1");
+    expect(deps.identify).toHaveBeenCalledWith(expect.objectContaining({ venueId: "museum-1" }));
+  });
+
+  it("asks for a retake without waiting for it", async () => {
+    const deps = dependencies();
+    deps.warper.warpCandidates.mockResolvedValue([]);
+    const { context, fail } = lookup();
+    expect(await runCapture({ ...input, context }, deps, options)).toMatchObject({ kind: "retake" });
+    fail(new Error("Journal owner changed"));
+  });
+
+  it("fails the capture with the lookup's error before storing it", async () => {
+    const deps = dependencies();
+    const { context, fail } = lookup();
+    const pending = runCapture({ ...input, context }, deps, options);
+    fail(new Error("Journal owner changed"));
+    await expect(pending).rejects.toThrow("Journal owner changed");
+    expect(deps.store.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("does not save or identify a capture canceled during the lookup", async () => {
+    const deps = dependencies();
+    let active = true;
+    const { context, settle } = lookup();
+    const pending = runCapture({ ...input, context }, { ...deps, isCurrent: () => active }, options);
+    await new Promise(setImmediate);
+    expect(deps.embedder.embed).toHaveBeenCalled();
+    active = false;
+    settle(visitContext);
+    await expect(pending).rejects.toThrow("Capture cancelled");
+    expect(deps.store.enqueue).not.toHaveBeenCalled();
+    expect(deps.identify).not.toHaveBeenCalled();
+    expect(mockRemove).toHaveBeenCalledWith(painting.cropUri);
+  });
+});
+
+it("checks cancellation again after waiting for presentation before persistence", async () => {
+  const deps = dependencies();
+  let active = true;
+  let finish!: () => void;
+  const onPrepared = () =>
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+  const pending = runCapture(input, { ...deps, onPrepared, isCurrent: () => active }, options);
+  await new Promise(setImmediate);
+  active = false;
+  finish();
+  await expect(pending).rejects.toThrow("Capture cancelled");
+  expect(deps.store.enqueue).not.toHaveBeenCalled();
+  expect(deps.identify).not.toHaveBeenCalled();
+});
 
 it.each([true, false])(
   "queues a capture with an unsynced visit when nothing can sync it (online: %s)",
@@ -184,7 +269,11 @@ it.each([undefined, "remote-visit"])(
       ...dependencies(),
       resolveVisitId: jest.fn(async () => "remote-visit" as NonNullable<CapturePayload["visitId"]>),
     };
-    const result = await runCapture({ ...atVisit, visitId: visitId as CaptureInput["visitId"] }, deps, options);
+    const result = await runCapture(
+      { ...input, context: Promise.resolve({ ...visitContext, visitId: visitId as VenueContext["visitId"] }) },
+      deps,
+      options,
+    );
     expect(deps.resolveVisitId).toHaveBeenCalledWith("local-visit");
     expect(result).toMatchObject({ kind: "sent", scanId: "scan-id" });
     expect(deps.store.enqueue).toHaveBeenCalledWith(
@@ -203,7 +292,10 @@ it.each([undefined, "remote-visit"])(
 it.each([undefined, "remote-visit"])(
   "queues when visit sync fails or times out, including an existing id: %s",
   async (visitId) => {
-    const capture = { ...atVisit, visitId: visitId as CaptureInput["visitId"] };
+    const capture = {
+      ...input,
+      context: Promise.resolve({ ...visitContext, visitId: visitId as VenueContext["visitId"] }),
+    };
     jest.spyOn(console, "warn").mockImplementation(() => {});
     const failing = {
       ...dependencies(),
@@ -410,8 +502,12 @@ describe("a painting inside a larger boundary, such as a phone screen", () => {
     deps.warper.warpCandidates.mockResolvedValue([painting, inner]);
     deps.rankCrops.mockResolvedValue(1);
     const onPrepared = jest.fn(async () => {});
-    const venueId = "museum-1" as CaptureInput["venueId"];
-    const result = await runCapture({ ...input, venueId }, { ...deps, onPrepared }, options);
+    const venueId = "museum-1" as VenueContext["venueId"];
+    const result = await runCapture(
+      { ...input, context: Promise.resolve({ venueId }) },
+      { ...deps, onPrepared },
+      options,
+    );
     expect(result).toMatchObject({ kind: "sent", timings: { rank: expect.any(Number) } });
     expect(deps.rankCrops).toHaveBeenCalledWith(
       [

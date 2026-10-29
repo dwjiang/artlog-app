@@ -11,12 +11,15 @@ export const RANK_TIMEOUT_MS = 3000;
 
 type Timed = <T>(stage: "embed" | "rank", task: () => Promise<T>) => Promise<T>;
 
-/** Embeds every candidate crop and keeps the one `rank` picks, else the first; deletes the other crops' files. */
+/**
+ * Embeds every candidate crop and keeps the one `rank` picks, else the first; deletes the other crops' files.
+ * Ranking waits for `ready`, such as the lookup of the venue it ranks at, outside its timeout.
+ */
 export async function chooseCrop(
   candidates: PreparedPainting[],
   embedder: Embedder,
   rank: CropRanker | undefined,
-  timed: Timed = (_stage, task) => task(),
+  { timed = (_stage, task) => task(), ready }: { timed?: Timed; ready?: Promise<unknown> } = {},
 ): Promise<{ painting: PreparedPainting; vector: number[] }> {
   let chosen = 0;
   try {
@@ -26,6 +29,7 @@ export async function chooseCrop(
       return embedded;
     });
     if (rank && vectors.length > 1) {
+      await ready;
       chosen = await timed("rank", () => rankOrFirst(rank, vectors));
       if (__DEV__) console.debug("Crop choice", { candidates: vectors.length, chosen });
     }

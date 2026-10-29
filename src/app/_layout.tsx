@@ -121,6 +121,7 @@ function AppContent() {
                 <Stack.Screen name="all-artworks" options={{ ...LargeTitleHeader, title: "All Artworks" }} />
                 <Stack.Screen name="label/[scanId]" options={{ title: "Label" }} />
                 <Stack.Screen name="enter-details/[scanId]" options={{ title: "Details" }} />
+                <Stack.Screen name="match-preview" options={{ title: "" }} />
                 <Stack.Screen
                   name="sign-in"
                   dangerouslySingular

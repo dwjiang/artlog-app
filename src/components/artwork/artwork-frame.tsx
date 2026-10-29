@@ -18,7 +18,7 @@ function rememberShape(uri: string, aspectRatio: number) {
 
 /**
  * An artwork's picture at the top of its page, as tall as the picture up to about a third of the screen, so the
- * title follows right under it. `children` are laid over the frame's bottom corner (the scan card's crop button).
+ * title follows right under it. `children` are laid over the frame (the match preview's picture labels).
  */
 export function ArtworkFrame({
   uri,
@@ -27,6 +27,7 @@ export function ArtworkFrame({
   unavailableText = "Photo unavailable",
   unavailableTitle,
   cachePolicy,
+  maxHeight: heightCap,
   onError,
   children,
 }: {
@@ -37,10 +38,13 @@ export function ArtworkFrame({
   /** Named under `unavailableText` when the picture is missing. */
   unavailableTitle?: string;
   cachePolicy?: ImageProps["cachePolicy"];
+  /** A lower cap where two frames share the screen. */
+  maxHeight?: number;
   onError?: (message?: string) => void;
   children?: ReactNode;
 }) {
-  const maxHeight = useArtworkFrameHeight();
+  const frameHeight = useArtworkFrameHeight();
+  const maxHeight = Math.min(frameHeight, heightCap ?? frameHeight);
   const [failedUri, setFailedUri] = useState<string>();
   const [shape, setShape] = useState<{ uri: string; aspectRatio: number }>();
   const available = !!uri && failedUri !== uri;

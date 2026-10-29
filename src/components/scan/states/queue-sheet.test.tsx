@@ -64,6 +64,7 @@ function row(localId: string, status: PendingScan["status"], minutesAgo: number)
     photoPath: `photos/${localId}.jpg`,
     cropPath: `crops/${localId}.jpg`,
     cropCorners: null,
+    modelCropGeometry: null,
     savedPhotoLocalId: null,
     vector: [0.1],
     descriptors: new ArrayBuffer(0),

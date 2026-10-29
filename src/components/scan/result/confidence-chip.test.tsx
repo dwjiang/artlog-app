@@ -36,3 +36,10 @@ it.each([
   expect(screen.getByLabelText(label)).toBeOnTheScreen();
   expect(screen.queryByText("90% confidence")).toBeNull();
 });
+
+it("names a match the owner picked instead of scoring it", async () => {
+  await render(<ConfidenceChip kind="soft" probability={0.12} picked />);
+  expect(screen.getByLabelText("Your pick")).toBeOnTheScreen();
+  expect(screen.queryByText("Maybe")).toBeNull();
+  expect(screen.queryByText("12% confidence")).toBeNull();
+});

@@ -9,7 +9,10 @@ import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import type { PendingScan } from "@/db/schema";
 import { useDiscardEditsGuard } from "@/hooks/use-discard-edits-guard";
+import { isLabelCapture } from "@/lib/capture/photo-draft";
+import { captureFileUri, scanDisplayPath } from "@/lib/files/photos";
 import { LABEL_FIELD_NAMES, toConfirmedFields } from "@/lib/label/fields";
+import { useMatchPreview } from "@/lib/result/match-preview";
 import { canSave, draftFromConfirmed } from "@/lib/result/snapshot";
 import { useConfirmDetails } from "@/lib/result/use-confirm-details";
 import { useCorpusMatches } from "@/lib/result/use-corpus-matches";
@@ -44,6 +47,13 @@ export function ConfirmDetailsReview({ scanId, sourceKind, capture, ...formProps
   useDiscardEditsGuard({
     edited: edited && !confirmation.busy && !local.saving && !local.savedId,
   });
+  const openMatch = useMatchPreview({
+    // A label-only capture has no painting photo to compare.
+    photo: () => (capture && !isLabelCapture(capture) ? captureFileUri(scanDisplayPath(capture.cropPath)) : undefined),
+    onChoose: (candidate) => {
+      if (corpus.fields) void confirmation.link(candidate.objectId, corpus.fields);
+    },
+  });
 
   return (
     <ConfirmDetailsForm
@@ -62,9 +72,7 @@ export function ConfirmDetailsReview({ scanId, sourceKind, capture, ...formProps
               candidates={corpus.matches}
               busyObjectId={confirmation.linking}
               disabled={confirmation.busy || confirmation.offline || local.saving}
-              onPick={(candidate) => {
-                if (corpus.fields) void confirmation.link(candidate.objectId, corpus.fields);
-              }}
+              onOpen={openMatch}
             />
           </View>
         )

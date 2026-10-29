@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { useState } from "react";
 import { Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 
@@ -6,7 +5,7 @@ import { ArtworkFrame } from "@/components/artwork/artwork-frame";
 import { MotionPressable } from "@/components/motion-pressable";
 import { PhotoViewer } from "@/components/photo-viewer";
 import { ThemedText } from "@/components/themed-text";
-import { Gallery, Radius, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { reportError } from "@/lib/observability";
 import type { ResultKind } from "@/lib/result/state";
 
@@ -21,10 +20,11 @@ export type CardHeaderProps = {
   kind: ResultKind;
   probability?: number;
   source?: ConfirmedSource;
+  /** The owner chose the named work from the other matches. */
+  picked?: boolean;
   onNotRight?: () => void;
   /** Reopens the owner's confirmed details; replaces "Not right?" on a confirmed card. */
   onEditDetails?: () => void;
-  onAdjustCrop?: () => void;
 };
 
 export function CardHeader({
@@ -34,9 +34,9 @@ export function CardHeader({
   kind,
   probability,
   source,
+  picked = false,
   onNotRight,
   onEditDetails,
-  onAdjustCrop,
 }: CardHeaderProps) {
   const correction = onEditDetails
     ? { label: "Edit details", onPress: onEditDetails }
@@ -60,7 +60,6 @@ export function CardHeader({
           });
         }}
       >
-        {/* Laid over the photo beside the crop button, so both stay separate VoiceOver controls. */}
         {viewable && (
           <Pressable
             accessibilityRole="button"
@@ -68,16 +67,6 @@ export function CardHeader({
             onPress={() => setViewing(true)}
             style={StyleSheet.absoluteFill}
           />
-        )}
-        {onAdjustCrop && (
-          <MotionPressable
-            accessibilityRole="button"
-            accessibilityLabel="Adjust crop"
-            onPress={onAdjustCrop}
-            style={styles.crop}
-          >
-            <Image source="sf:crop" tintColor={Gallery.ink} style={styles.cropIcon} />
-          </MotionPressable>
         )}
       </ArtworkFrame>
       {viewable && (
@@ -89,22 +78,12 @@ export function CardHeader({
         />
       )}
       {kind !== "loading" && (
-        <View
-          style={[
-            styles.status,
-            // Cards that can offer a correction keep its height, so hiding the link during a save doesn't shift them.
-            (kind === "confident" || kind === "soft" || kind === "confirmed") && styles.correctionRow,
-            fontScale > 1.4 && styles.stackedStatus,
-          ]}
-        >
-          <ConfidenceChip kind={kind} probability={probability} source={source} />
+        <View style={[styles.status, fontScale > 1.4 && styles.stackedStatus]}>
+          <ConfidenceChip kind={kind} probability={probability} source={source} picked={picked} />
           {correction && (
-            <MotionPressable
-              accessibilityRole="button"
-              onPress={correction.onPress}
-              hitSlop={8}
-              style={styles.correction}
-            >
+            // The row is as tall as the chip, which outgrows the link, so hiding the link during a save doesn't
+            // shift the card; the slop restores a 44-pt target.
+            <MotionPressable accessibilityRole="button" onPress={correction.onPress} hitSlop={CORRECTION_SLOP}>
               <ThemedText variant="secondary" themeColor="accent">
                 {correction.label}
               </ThemedText>
@@ -116,28 +95,14 @@ export function CardHeader({
   );
 }
 
+const CORRECTION_SLOP = { top: 12, bottom: 12, left: 8, right: 8 };
+
 const styles = StyleSheet.create({
-  header: { gap: Spacing.two },
-  crop: {
-    position: "absolute",
-    right: Spacing.compact,
-    bottom: Spacing.compact,
-    width: 44,
-    height: 44,
-    borderRadius: Radius.button,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Gallery.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Gallery.separator,
-  },
-  cropIcon: { width: 20, height: 20 },
+  header: { gap: Spacing.compact },
   status: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  correctionRow: { minHeight: 44 },
-  correction: { minHeight: 44, justifyContent: "center" },
   stackedStatus: { flexDirection: "column", alignItems: "flex-start" },
 });

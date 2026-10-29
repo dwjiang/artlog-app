@@ -25,6 +25,7 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import { FieldsForm } from "./fields-form";
 import { RunnerUps } from "./runner-ups";
 import { LABEL_BUTTON, SaveBar } from "./save-bar";
+import { ScanOptionsToolbar } from "./scan-options-toolbar";
 import { TentativeOriginNotice } from "./tentative-origin-notice";
 
 type ResultCardProps = {
@@ -42,8 +43,10 @@ type ResultCardProps = {
   /** Opens the details screen for an unidentified, confirmed or linked card; without it, details are edited in place. */
   onEnterDetails?: () => void;
   onRetryDocent?: () => Promise<unknown>;
-  onPick: (candidate: ResultCandidate) => void;
+  /** Opens another match's preview; choosing it happens there. */
+  onOpenMatch: (candidate: ResultCandidate) => void;
   onEdit: () => void;
+  onAdjustCrop?: () => void;
   onSave: (draft: SnapshotDraft) => void;
   onSavePhoto: () => void;
   savePhotoOnly: boolean;
@@ -66,8 +69,9 @@ export function ResultCard({
   onLabel,
   onEnterDetails,
   onRetryDocent,
-  onPick,
+  onOpenMatch,
   onEdit,
+  onAdjustCrop,
   onSave,
   onSavePhoto,
   savePhotoOnly,
@@ -88,7 +92,9 @@ export function ResultCard({
   const named = view.kind === "confident" || view.kind === "confirmed";
   // Saving a work already in the collection adds this photo to it.
   const savedCopy = useSavedCopy(view, draft);
-  const attributed = !editingDetails && view.kind !== "soft";
+  // A work the owner picked from the other matches reads as named, without the story recognition would bring.
+  const settled = named || !!view.picked;
+  const attributed = !editingDetails && (view.kind !== "soft" || !!view.picked);
   const suggestions = editable && view.kind !== "confident" ? view.runnerUps : [];
   // A suggested work keeps its catalogue link while its details are corrected in place; a work the owner named
   // from a label or their details goes back to where they named it.
@@ -107,13 +113,15 @@ export function ResultCard({
   const details = (
     <>
       <ArtworkIdentity
-        title={view.kind === "soft" ? `Could this be ${draft.title}?` : draft.title || "Unidentified artwork"}
+        title={
+          view.kind === "soft" && !view.picked ? `Could this be ${draft.title}?` : draft.title || "Unidentified artwork"
+        }
         artist={attributed ? draft.artist : undefined}
         date={attributed ? draft.date : undefined}
-        medium={!editingDetails && named ? draft.medium : undefined}
-        institution={!editingDetails && named ? draft.institution : undefined}
+        medium={!editingDetails && settled ? draft.medium : undefined}
+        institution={!editingDetails && settled ? draft.institution : undefined}
       />
-      {!named && !manual && (
+      {!settled && !manual && (
         <View style={styles.recovery}>
           <ThemedText themeColor="textSecondary">
             {view.primary
@@ -169,7 +177,7 @@ export function ResultCard({
       {suggestions.length > 0 && (
         <View style={styles.section}>
           <HighlightHeading>Other possibilities</HighlightHeading>
-          <RunnerUps candidates={suggestions} onPick={onPick} />
+          <RunnerUps candidates={suggestions} onOpen={onOpenMatch} />
         </View>
       )}
       {context}
@@ -177,42 +185,44 @@ export function ResultCard({
   );
   return (
     <>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Scan options" tintColor={Gallery.ink}>
-          {!editingDetails && (
-            <Stack.Toolbar.MenuAction
-              icon="pencil"
+      <ScanOptionsToolbar
+        onAdjustCrop={onAdjustCrop}
+        trailing={
+          editingDetails && (
+            <Stack.Toolbar.Button
+              variant="done"
+              tintColor={Gallery.accent}
               disabled={!editable}
-              onPress={enterDetails ?? (() => setEditingDetails(true))}
+              onPress={() => setEditingDetails(false)}
             >
-              Edit Details
-            </Stack.Toolbar.MenuAction>
-          )}
-          {view.kind === "confident" && (
-            <Stack.Toolbar.MenuAction icon="text.viewfinder" disabled={!editable} onPress={onLabel}>
-              Scan the Label
-            </Stack.Toolbar.MenuAction>
-          )}
+              Done
+            </Stack.Toolbar.Button>
+          )
+        }
+      >
+        {!editingDetails && (
           <Stack.Toolbar.MenuAction
-            icon="photo.badge.plus"
-            subtitle={photos.photoCount > 1 ? `${photos.photoCount} photos` : undefined}
-            disabled={photos.unavailable}
-            onPress={photos.open}
-          >
-            Add Photos
-          </Stack.Toolbar.MenuAction>
-        </Stack.Toolbar.Menu>
-        {editingDetails && (
-          <Stack.Toolbar.Button
-            variant="done"
-            tintColor={Gallery.accent}
+            icon="pencil"
             disabled={!editable}
-            onPress={() => setEditingDetails(false)}
+            onPress={enterDetails ?? (() => setEditingDetails(true))}
           >
-            Done
-          </Stack.Toolbar.Button>
+            Edit Details
+          </Stack.Toolbar.MenuAction>
         )}
-      </Stack.Toolbar>
+        {(view.kind === "confident" || view.picked) && (
+          <Stack.Toolbar.MenuAction icon="text.viewfinder" disabled={!editable} onPress={onLabel}>
+            Scan the Label
+          </Stack.Toolbar.MenuAction>
+        )}
+        <Stack.Toolbar.MenuAction
+          icon="photo.badge.plus"
+          subtitle={photos.photoCount > 1 ? `${photos.photoCount} photos` : undefined}
+          disabled={photos.unavailable}
+          onPress={photos.open}
+        >
+          Add Photos
+        </Stack.Toolbar.MenuAction>
+      </ScanOptionsToolbar>
       <SafeAreaScrollView
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustKeyboardInsets
@@ -240,7 +250,7 @@ export function ResultCard({
               ? "Save photo for later"
               : savedCopy
                 ? "Add this photo"
-                : named
+                : settled
                   ? "Save to collection"
                   : "Save with these details"
           }
@@ -265,7 +275,8 @@ const styles = StyleSheet.create({
     // The result screen's loading view puts its photo here too, so the photo stays put when this card replaces it.
     paddingTop: Spacing.one,
     paddingBottom: Spacing.four,
-    gap: Spacing.three,
+    // Keeps the status row under the photo close to the title it qualifies.
+    gap: Spacing.two,
   },
   columns: { flexDirection: "row", alignItems: "flex-start", gap: Spacing.content },
   aside: { width: "40%" },

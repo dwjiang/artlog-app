@@ -14,6 +14,7 @@ import { updatePhotoSession } from "@/lib/capture/photo-draft";
 import { SHARING_NOTICE } from "@/lib/label/contribute";
 import { clearLabelDraft } from "@/lib/label/draft";
 import { resolveWithLabel } from "@/lib/result/feedback";
+import { getMatchPreview } from "@/lib/result/match-preview";
 import { playSuccessHaptic } from "@/lib/ui/haptics";
 
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -258,6 +259,15 @@ function publish(scan: unknown) {
   });
 }
 
+/** Opens a match's preview from its row, then chooses it there, as its Choose this artwork button does. */
+async function chooseMatch(row: Parameters<typeof fireEvent.press>[0]) {
+  await fireEvent.press(row);
+  const [{ pathname, params }] = mockPush.mock.lastCall as [{ pathname: string; params: { id: string } }];
+  expect(pathname).toBe("/match-preview");
+  const preview = getMatchPreview(params.id)!;
+  await act(async () => preview.onChoose(preview.candidate));
+}
+
 async function openDetails() {
   const edit = within(screen.getByLabelText("Scan options")).queryByRole("button", { name: "Edit Details" });
   if (edit) await fireEvent.press(edit);
@@ -400,7 +410,7 @@ it("shows a confident match with its fields, chip, prose and sources", async () 
       { uri: "file:///documents/crops/c1.preview.jpg" },
     ]),
   );
-  expect(screen.getByRole("button", { name: "Adjust crop" })).toBeEnabled();
+  expect(within(screen.getByLabelText("Scan options")).getByRole("button", { name: "Adjust Crop" })).toBeEnabled();
   expect(client.watchQuery).toHaveBeenCalledWith(expect.anything(), { scanId: SCAN_ID }, {});
 });
 
@@ -500,12 +510,25 @@ it.each([softScan, missScan, failedScan])(
   },
 );
 
-it("saves a runner-up picked on a soft card with its object instead of a bare photo", async () => {
+it("opens another match's preview from its row without choosing it or sending feedback", async () => {
   results.set("scans:get", softScan);
   await render(result());
   await fireEvent.press(await screen.findByRole("button", { name: /^Haystacks, Claude Monet/ }));
+  const [{ pathname, params }] = mockPush.mock.lastCall as [{ pathname: string; params: { id: string } }];
+  expect(pathname).toBe("/match-preview");
+  expect(getMatchPreview(params.id)?.candidate).toEqual(haystacks);
+  expect(screen.getByText("Could this be The Japanese Footbridge?")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Maybe, 62% confidence")).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Save photo for later" })).toBeOnTheScreen();
+  expect(client.mutation).not.toHaveBeenCalled();
+});
+
+it("saves a runner-up picked on a soft card with its object instead of a bare photo", async () => {
+  results.set("scans:get", softScan);
+  await render(result());
+  await chooseMatch(await screen.findByRole("button", { name: /^Haystacks, Claude Monet/ }));
   expect(screen.queryByRole("button", { name: "Save photo for later" })).toBeNull();
-  await fireEvent.press(screen.getByRole("button", { name: "Save with these details" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Save to collection" }));
   await screen.findByText(/^(View artwork|Saved · View in collection)$/);
   expect(await getSavedWork(`saved-${mockUuid}`)).toMatchObject({
     title: "Haystacks",
@@ -518,16 +541,19 @@ it("saves a runner-up picked on a soft card with its object instead of a bare ph
   );
 });
 
-it("fills the fields from a suggestion picked on a soft card without sending feedback", async () => {
+it("names a suggestion picked on a soft card as the owner's pick without sending feedback", async () => {
   results.set("scans:get", softScan);
   await render(result());
-  await fireEvent.press(await screen.findByRole("button", { name: /^Haystacks, Claude Monet/ }));
+  await chooseMatch(await screen.findByRole("button", { name: /^Haystacks, Claude Monet/ }));
+  expect(screen.getByRole("header", { name: "Haystacks" })).toBeOnTheScreen();
+  expect(screen.getByLabelText("Your pick")).toBeOnTheScreen();
+  expect(screen.queryByText(LABEL_BUTTON)).toBeNull();
+  expect(screen.getByRole("button", { name: "Scan the Label" })).toBeOnTheScreen();
   await openDetails();
   expect(screen.getByLabelText("Title").props.defaultValue).toBe("Haystacks");
-  expect(screen.getByLabelText("Maybe, 12% confidence")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: /^Haystacks, Claude Monet/ })).toBeNull();
   expect(
-    screen.getByRole("button", { name: /^The Japanese Footbridge, Claude Monet, 62% confidence$/ }),
+    screen.getByRole("button", { name: /^The Japanese Footbridge, Claude Monet, 1899, 62% confidence$/ }),
   ).toBeOnTheScreen();
   expect(client.mutation).not.toHaveBeenCalled();
 });
@@ -660,7 +686,7 @@ it("unlocks the draft and match choices after a local save fails so the user can
   expect(screen.getByLabelText("Title").props.editable).toBe(true);
   expect(screen.getByRole("button", { name: "Not right?" })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: LABEL_BUTTON })).toBeEnabled();
-  await fireEvent.press(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ }));
+  await chooseMatch(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ }));
   await openDetails();
   await fireEvent.changeText(screen.getByLabelText("Title"), "My haystacks");
   await fireEvent.press(
@@ -675,7 +701,7 @@ it("unlocks the draft and match choices after a local save fails so the user can
   });
 });
 
-it('records a rejection when "Not right?" opens, resolves it with the picked runner-up and re-renders as a maybe', async () => {
+it('records a rejection when "Not right?" opens, resolves it with the chosen runner-up and names the pick', async () => {
   await render(result());
   await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
   expect(await screen.findByText("Other possible matches")).toBeOnTheScreen();
@@ -694,7 +720,7 @@ it('records a rejection when "Not right?" opens, resolves it with the picked run
     assertionBase64: "",
   });
 
-  await fireEvent.press(
+  await chooseMatch(
     screen.getByRole("button", {
       name: /^The Japanese Footbridge, Claude Monet/,
     }),
@@ -705,14 +731,30 @@ it('records a rejection when "Not right?" opens, resolves it with the picked run
     feedbackId: "fb-1",
     resolution: { kind: "runner_up", objectId: bridge.objectId },
   });
-  expect(screen.queryByText("Let’s get it right.")).toBeNull();
-  expect(screen.getByText("Maybe")).toBeOnTheScreen();
+  expect(screen.queryByText("Other possible matches")).toBeNull();
+  expect(screen.getByText("Your pick")).toBeOnTheScreen();
+  expect(screen.getByRole("header", { name: "The Japanese Footbridge" })).toBeOnTheScreen();
   await openDetails();
   expect(screen.getByLabelText("Title").props.defaultValue).toBe("The Japanese Footbridge");
   expect(screen.queryByText("About this work")).toBeNull();
   expect(screen.getByRole("button", { name: /^Haystacks, Claude Monet/ })).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: /^Water Lilies, Claude Monet/ })).toBeOnTheScreen();
-  expect(screen.getByText(LABEL_BUTTON)).toBeOnTheScreen();
+});
+
+it("reopens Not right? when Back returns from a match opened there, without resolving the rejection", async () => {
+  const view = await render(result());
+  await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
+  await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(1));
+  await fireEvent.press(screen.getByRole("button", { name: /^The Japanese Footbridge, Claude Monet/ }));
+  expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/match-preview", params: { id: expect.any(String) } });
+  expect(screen.queryByText("Other possible matches")).toBeNull();
+  mockFocused = false;
+  await view.rerender(result());
+  mockFocused = true;
+  await view.rerender(result());
+  expect(screen.getByText("Other possible matches")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Match, 97% confidence")).toBeOnTheScreen();
+  expect(client.mutation).toHaveBeenCalledTimes(1);
 });
 
 it("restores previous matches after repeated picks through Not right", async () => {
@@ -720,8 +762,8 @@ it("restores previous matches after repeated picks through Not right", async () 
   for (const candidate of [bridge, haystacks, lilies]) {
     await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
     const matches = screen.getAllByRole("button", { name: new RegExp(`^${candidate.title},`) });
-    await fireEvent.press(matches[matches.length - 1]);
-    expect(screen.getByText(`Could this be ${candidate.title}?`)).toBeOnTheScreen();
+    await chooseMatch(matches[matches.length - 1]);
+    expect(screen.getByRole("header", { name: candidate.title })).toBeOnTheScreen();
     for (const other of [lilies, bridge, haystacks].filter((work) => work !== candidate)) {
       expect(screen.getByRole("button", { name: new RegExp(`^${other.title},`) })).toBeOnTheScreen();
     }
@@ -751,8 +793,8 @@ it.each([false, true])("keeps the first correction when revisiting a rejected ma
   for (const candidate of [bridge, lilies, haystacks]) {
     await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
     const matches = screen.getAllByRole("button", { name: new RegExp(`^${candidate.title},`) });
-    await fireEvent.press(matches[matches.length - 1]);
-    expect(screen.getByText(`Could this be ${candidate.title}?`)).toBeOnTheScreen();
+    await chooseMatch(matches[matches.length - 1]);
+    expect(screen.getByRole("header", { name: candidate.title })).toBeOnTheScreen();
   }
   expect(mockSign).toHaveBeenCalledTimes(2);
   await act(async () => finishSigning());
@@ -775,7 +817,7 @@ it.each(["pick", "label"])(
     await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
     await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(1));
     if (action === "pick") {
-      await fireEvent.press(screen.getByRole("button", { name: /^The Japanese Footbridge,/ }));
+      await chooseMatch(screen.getByRole("button", { name: /^The Japanese Footbridge,/ }));
     } else {
       await fireEvent.press(screen.getByRole("button", { name: "Scan the museum label" }));
       await act(async () => resolveWithLabel(client, SCAN_ID, "contrib-1" as Id<"contributions">));
@@ -823,7 +865,7 @@ it("can still resolve a rejection after returning from label capture without a c
   await fireEvent.press(await screen.findByRole("button", { name: "Not right?" }));
   await fireEvent.press(screen.getByRole("button", { name: "Scan the museum label" }));
   await fireEvent.press(screen.getByRole("button", { name: "Not right?" }));
-  await fireEvent.press(screen.getByRole("button", { name: /^The Japanese Footbridge,/ }));
+  await chooseMatch(screen.getByRole("button", { name: /^The Japanese Footbridge,/ }));
   await waitFor(() => expect(client.mutation).toHaveBeenCalledTimes(2));
   expect(jest.mocked(client.mutation).mock.calls[1][1]).toEqual({
     feedbackId: "fb-1",
@@ -926,6 +968,13 @@ it("shows a failed card when the server refuses the scan", async () => {
   await render(result());
   expect(await screen.findByText("Identification failed.")).toBeOnTheScreen();
   expect(screen.queryByText(haystacks.title)).toBeNull();
+});
+
+it("offers Adjust Crop in Scan options when identification failed", async () => {
+  results.set("scans:get", failedScan);
+  await render(result());
+  expect(await screen.findByText("Identification failed.")).toBeOnTheScreen();
+  expect(within(screen.getByLabelText("Scan options")).getByRole("button", { name: "Adjust Crop" })).toBeEnabled();
 });
 
 it("explains an invalid scan link without exposing server details and offers a way out", async () => {

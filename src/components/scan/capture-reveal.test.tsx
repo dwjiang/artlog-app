@@ -35,7 +35,7 @@ jest.mock("expo-image", () => {
   return { Image: (props: object) => <View accessible {...props} /> };
 });
 const presentation: CapturePresentation = {
-  attempt: { id: 1, source: "camera", quad: null, valid: true },
+  attempt: { id: 1, source: "camera", quad: null, valid: true, steady: false },
   photoUri: "file:///photo.jpg",
   source: "camera",
   photo: {} as ImageRef,

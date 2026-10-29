@@ -1,7 +1,16 @@
 import * as Sentry from "@sentry/react-native";
 import { useLocalSearchParams, useNavigation, type NativeStackNavigationProp } from "expo-router";
 import { useIsFocused, type ParamListBase } from "expo-router/react-navigation";
-import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import { AppState, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,6 +21,7 @@ import { GalleryButton } from "@/components/collection/gallery-button";
 import { Gallery, Spacing } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
 import { findDemoVideo } from "@/lib/capture/demo-viewfinder";
+import { MotionSampler, type MotionReader } from "@/lib/capture/device-motion";
 import { useCapture } from "@/lib/capture/use-capture";
 import { useRectDetector } from "@/lib/capture/use-rect-detector";
 import { useUprightPhoto } from "@/lib/capture/use-upright-photo";
@@ -116,14 +126,19 @@ export function ScanScreen() {
     if (!detecting) resetDetection();
   }, [detecting, resetDetection]);
   const [detectionLog] = useState(() => new DetectionLog());
-  const onDetection = (detection: RectDetection) => {
-    const attempt = capture.controller.observe(detection, preview, performance.now());
+  const readMotion = useRef<MotionReader | undefined>(undefined);
+  const setMotionReader = useCallback((read: MotionReader | undefined) => {
+    readMotion.current = read;
+  }, []);
+  // The demo viewfinder's video frames carry no camera time, so they are timed on arrival.
+  const onDetection = (detection: RectDetection, at = performance.now()) => {
+    const attempt = capture.controller.observe(detection, preview, at, readMotion.current?.());
     detectionLog.record(detection, capture.controller.getFeedback());
     if (attempt) {
       void capture.captureAutomatically(attempt, takePhoto);
     }
   };
-  const frameOutput = useRectDetector(detecting, orientation, onDetection);
+  const frameOutput = useRectDetector(detecting, orientation, onDetection, resetDetection);
   const outputs = useMemo(() => [photoOutput, frameOutput], [photoOutput, frameOutput]);
   const busy = occupied || !["searching", "retry"].includes(phase);
   const cameraActive = active && (searching || (phase === "capturing" && source === "camera"));
@@ -223,6 +238,7 @@ export function ScanScreen() {
       style={styles.container}
       onLayout={({ nativeEvent: { layout } }) => setPreview({ width: layout.width, height: layout.height })}
     >
+      {active && cameraReady && <MotionSampler onReader={setMotionReader} />}
       {demoVideo !== undefined ? (
         <>
           {demoVideo && (

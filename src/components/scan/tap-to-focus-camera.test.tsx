@@ -1,18 +1,31 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import type { Ref } from "react";
 
-import { reportError } from "@/lib/observability";
+import { addBreadcrumb, reportError } from "@/lib/observability";
 
 import { TapToFocusCamera } from "./tap-to-focus-camera";
 
 const mockFocusTo = jest.fn(async () => {});
 const mockResetFocus = jest.fn(async () => {});
+let mockCameraError: ((error: Error) => void) | undefined;
+const mockDevices = jest.fn(() => [{ position: "back", id: "private-camera-id", localizedName: "private-name" }]);
 let mockSubjectAreaChanged: (() => void) | undefined;
 
-jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
+jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 
 jest.mock("react-native-vision-camera", () => ({
-  Camera: ({ ref, onSubjectAreaChanged }: { ref: Ref<unknown>; onSubjectAreaChanged?: () => void }) => {
+  getAllCameraDevices: () => mockDevices(),
+  VisionCamera: { cameraPermissionStatus: "authorized" },
+  Camera: ({
+    ref,
+    onSubjectAreaChanged,
+    onError,
+  }: {
+    ref: Ref<unknown>;
+    onSubjectAreaChanged?: () => void;
+    onError?: (error: Error) => void;
+  }) => {
+    mockCameraError = onError;
     mockSubjectAreaChanged = onSubjectAreaChanged;
     jest
       .requireActual<typeof import("react")>("react")
@@ -166,4 +179,64 @@ it("reports a failed automatic-focus reset without rejecting the interaction", a
   await tap(120, 340);
 
   expect(reportError).toHaveBeenCalledWith(error, "camera.reset_focus");
+});
+
+it("records bounded camera discovery evidence before forwarding the original failure", async () => {
+  const error = new Error("native failure");
+  const onError = jest.fn(() => expect(addBreadcrumb).toHaveBeenCalled());
+  await render(<TapToFocusCamera device="back" isActive onError={onError} />);
+  await act(() => mockCameraError?.(error));
+  expect(onError).toHaveBeenCalledWith(error);
+  expect(addBreadcrumb).toHaveBeenCalledWith(
+    "camera.failure_snapshot",
+    expect.objectContaining({
+      requested_position: "back",
+      requested_active: true,
+      permission: "authorized",
+      discovery_source: "cached_non_atomic",
+      cached_device_count: 1,
+      cached_back_count: 1,
+    }),
+  );
+  expect(JSON.stringify(jest.mocked(addBreadcrumb).mock.calls)).not.toMatch(
+    /private-camera-id|private-name|native failure/,
+  );
+});
+
+it("distinguishes an empty cached device list without preventing error handling", async () => {
+  mockDevices.mockReturnValueOnce([]);
+  const onError = jest.fn();
+  await render(<TapToFocusCamera device="back" isActive={false} onError={onError} />);
+  await act(() => mockCameraError?.(new Error("missing camera")));
+  expect(addBreadcrumb).toHaveBeenCalledWith(
+    "camera.failure_snapshot",
+    expect.objectContaining({
+      requested_active: false,
+      cached_device_count: 0,
+      discovery_source: "cached_non_atomic",
+    }),
+  );
+  expect(onError).toHaveBeenCalledTimes(1);
+});
+
+it("preserves camera failure handling when native discovery fails", async () => {
+  mockDevices.mockImplementationOnce(() => {
+    throw new Error("discovery failed");
+  });
+  const onError = jest.fn();
+  const error = new Error("original");
+  await render(<TapToFocusCamera device="back" isActive onError={onError} />);
+  await act(() => mockCameraError?.(error));
+  expect(onError).toHaveBeenCalledWith(error);
+});
+
+it("preserves the original error when telemetry fails", async () => {
+  jest.mocked(addBreadcrumb).mockImplementationOnce(() => {
+    throw new Error("telemetry");
+  });
+  const onError = jest.fn();
+  const error = new Error("original");
+  await render(<TapToFocusCamera device="back" isActive onError={onError} />);
+  await act(() => mockCameraError?.(error));
+  expect(onError).toHaveBeenCalledWith(error);
 });

@@ -22,6 +22,7 @@ import { useSaveResult } from "@/lib/result/use-save-result";
 import { CaptureContextButton } from "./capture-context-button";
 import { OfflineResultScreen } from "./offline-result-screen";
 import { CardHeader } from "./result/card-header";
+import { ScanOptionsToolbar } from "./result/scan-options-toolbar";
 import { ScanCropEditor } from "./scan-crop-editor";
 import { FailedCard } from "./states/failed-card";
 import { SaveAnywayForm } from "./states/save-anyway-form";
@@ -160,6 +161,7 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
 
   return (
     <ThemedView style={styles.container}>
+      {row && !saving && !savedId && <ScanOptionsToolbar onAdjustCrop={adjustCrop} />}
       <SafeAreaScrollView
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustKeyboardInsets
@@ -170,7 +172,6 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
           <CardHeader
             cropUri={captureFileUri(scanDisplayPath(row.cropPath))}
             kind={row.status === "failed" ? "failed" : "loading"}
-            onAdjustCrop={!saving && !savedId ? adjustCrop : undefined}
           />
         )}
         {row && !savedId && <CaptureContextButton capture={row} disabled={saving} />}

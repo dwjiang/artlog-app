@@ -90,6 +90,11 @@ const input: CaptureInput = {
   source: "camera",
   capturedAt: 123,
 };
+/** What the pipeline was given, with the venue lookup it runs alongside settled into it. */
+async function pipelineInput(call = 0) {
+  const { context, ...given } = mockPipeline.mock.calls[call][0] as CaptureInput;
+  return { ...given, ...(await context) };
+}
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -208,7 +213,7 @@ it("imports a kept-size copy despite denied library access, without requesting p
     quality: 1,
   });
   expect(mockShrinkLibraryPhoto).toHaveBeenCalledWith("file:///library.jpg");
-  expect(mockPipeline.mock.calls[0][0]).toEqual({
+  expect(await pipelineInput()).toEqual({
     photoUri: "file:///library-kept.jpg",
     quad: null,
     source: "library",
@@ -249,7 +254,7 @@ it.each([undefined, null, {}])(
       await act(async () => {
         await hook.result.current.importPhoto();
       });
-      expect(mockPipeline.mock.calls[0][0]).toEqual({
+      expect(await pipelineInput()).toEqual({
         photoUri: "file:///library.jpg",
         quad: null,
         source: "library",
@@ -286,11 +291,11 @@ it("names the venue of an imported photo from its EXIF position without starting
     await hook.result.current.importPhoto();
   });
   expect(mockVenueIdAt).toHaveBeenCalledWith({ lat: 40.7794, lng: -73.9633 });
-  expect(mockPipeline.mock.calls[0][0]).toMatchObject({
+  expect(await pipelineInput()).toMatchObject({
     source: "library",
     venueId: "museum-met",
   });
-  expect(mockPipeline.mock.calls[0][0]).not.toHaveProperty("visitId");
+  expect(await pipelineInput()).not.toHaveProperty("visitId");
 });
 
 it("imports without a venue when the local table cannot be read", async () => {
@@ -304,7 +309,7 @@ it("imports without a venue when the local table cannot be read", async () => {
   await act(async () => {
     await hook.result.current.importPhoto();
   });
-  expect(mockPipeline.mock.calls[0][0]).toMatchObject({
+  expect(await pipelineInput()).toMatchObject({
     source: "library",
     venueId: undefined,
   });
@@ -444,7 +449,7 @@ it("does not navigate after the screen unmounts during processing", async () => 
   expect(mockPush).not.toHaveBeenCalled();
 });
 
-it("publishes the captured photo before venue lookup finishes", async () => {
+it("publishes the captured photo and starts processing it before the venue lookup finishes", async () => {
   let resolve!: (context: object) => void;
   mockResolveVenue.mockReturnValue(
     new Promise((done) => {
@@ -460,12 +465,45 @@ it("publishes the captured photo before venue lookup finishes", async () => {
     }));
   });
   expect(hook.result.current.presentation?.photoUri).toBe("file:///photo.jpg");
-  expect(mockPipeline).not.toHaveBeenCalled();
+  expect(mockPipeline).toHaveBeenCalledTimes(1);
   expect(playLightHaptic).toHaveBeenCalledTimes(1);
   await act(async () => {
     resolve({});
     await pending;
   });
+});
+
+it("invalidates pipeline persistence when focus is lost during venue lookup", async () => {
+  let resolve!: (context: object) => void;
+  mockResolveVenue.mockReturnValue(
+    new Promise((done) => {
+      resolve = done;
+    }),
+  );
+  mockPipeline.mockImplementation(async (given: CaptureInput, deps: CaptureDependencies) => {
+    await given.context;
+    if (!deps.isCurrent?.()) throw new Error("Capture cancelled");
+    return { kind: "queued", localId: "capture-uuid", timings: { total: 1 } };
+  });
+  const hook = await renderHook((props: { active: boolean; focused: boolean }) => useCapture(props), {
+    initialProps: { active: true, focused: true },
+  });
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = hook.result.current.captureManually(async () => ({ filePath: "/photo.jpg", turns: 0 }));
+  });
+  const deps = mockPipeline.mock.calls[0][1] as CaptureDependencies;
+  expect(deps.isCurrent?.()).toBe(true);
+  await hook.rerender({ active: false, focused: false });
+  expect(deps.isCurrent?.()).toBe(false);
+  await act(async () => {
+    resolve({});
+    await pending;
+  });
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(reportError).not.toHaveBeenCalled();
+  expect(playErrorHaptic).not.toHaveBeenCalled();
+  expect(mockRemoveCameraTempFile).toHaveBeenCalledWith("file:///photo.jpg");
 });
 
 it("holds the revealed artwork during slow recognition and navigates exactly once when ready", async () => {
@@ -588,7 +626,7 @@ it("releases images and refuses old results after an owner change", async () => 
   await act(() => switchOwner(anonymousOwner(), "test-scope"));
 });
 
-it("publishes an imported photo before looking up its EXIF venue", async () => {
+it("publishes and starts processing an imported photo before its EXIF venue lookup finishes", async () => {
   let resolve!: (venueId: string) => void;
   mockPicker.mockResolvedValue({
     canceled: false,
@@ -610,7 +648,7 @@ it("publishes an imported photo before looking up its EXIF venue", async () => {
     pending = hook.result.current.importPhoto();
   });
   expect(hook.result.current.presentation?.photoUri).toBe("file:///selected.jpg");
-  expect(mockPipeline).not.toHaveBeenCalled();
+  expect(mockPipeline).toHaveBeenCalledTimes(1);
   await act(async () => {
     resolve("museum");
     await pending;
@@ -658,6 +696,25 @@ it("captures automatically with the detected corners and announces it", async ()
   });
   expect(announce).toHaveBeenCalledWith("Artwork captured automatically.");
   expect(playLightHaptic).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  [
+    "a retake",
+    async () => ({ kind: "retake", reason: "blur", message: "Hold steady and try again", timings: { total: 1 } }),
+  ],
+  ["an error", async () => Promise.reject(new Error("Unable to correct the painting perspective"))],
+])("returns a capture taken by holding the phone still to searching without a buzz after %s", async (_case, run) => {
+  mockPipeline.mockImplementation(run);
+  const hook = await renderHook(useCapture);
+  await act(async () => {
+    const attempt = hook.result.current.controller.begin("camera", null, true)!;
+    await hook.result.current.captureAutomatically(attempt, async () => ({ filePath: "/photo.jpg", turns: 0 }));
+  });
+  expect(mockPipeline.mock.calls[0][0]).toMatchObject({ quad: null, source: "camera" });
+  expect(hook.result.current.state).toMatchObject({ phase: "searching", occupied: false, message: undefined });
+  expect(hook.result.current.presentation).toBeUndefined();
+  expect(playErrorHaptic).not.toHaveBeenCalled();
 });
 
 it("hands the turn of a photo taken with the phone turned to the crop and the reveal", async () => {
@@ -721,7 +778,7 @@ it.each(["camera", "library"] as const)(
         }));
       }
     });
-    expect(mockPipeline.mock.calls[0][0]).toMatchObject({
+    expect(await pipelineInput()).toMatchObject({
       visitLocalId: "chosen-visit",
       venueId: "chosen-museum",
       visitId: "remote-visit",

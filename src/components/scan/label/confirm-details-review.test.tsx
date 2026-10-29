@@ -4,6 +4,7 @@ import { Alert, type AlertButton } from "react-native";
 import type { PendingScan } from "@/db/schema";
 import { formStateFromValues, setFieldValue } from "@/lib/label/fields";
 import { reportError } from "@/lib/observability";
+import { getMatchPreview } from "@/lib/result/match-preview";
 import { saveResult } from "@/lib/result/save";
 import type { ResultCandidate } from "@/lib/result/state";
 import { CONFIRM_WAIT_MS } from "@/lib/result/use-confirm-details";
@@ -20,12 +21,13 @@ const mockDismissTo = jest.fn();
 jest.mock("expo-network", () => ({ useNetworkState: () => ({ isInternetReachable: !mockOffline }) }));
 const mockDismissAll = jest.fn();
 const mockNavigate = jest.fn();
+const mockPush = jest.fn();
 const mockBack = jest.fn();
 // Like Expo Router's removal prevention: a blocked back goes to the screen's callback, whose `repeat` goes back.
 let mockGuard: { prevented: boolean; onPrevented?: (event: { repeat: () => void }) => void } = { prevented: false };
 const back = () => (mockGuard.prevented ? mockGuard.onPrevented?.({ repeat: mockBack }) : mockBack());
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ dismissTo: mockDismissTo, dismissAll: mockDismissAll, navigate: mockNavigate }),
+  useRouter: () => ({ dismissTo: mockDismissTo, dismissAll: mockDismissAll, navigate: mockNavigate, push: mockPush }),
   usePreventRemove: (prevented: boolean, onPrevented: (event: { repeat: () => void }) => void) => {
     mockGuard = { prevented, onPrevented };
     return () => {
@@ -74,6 +76,20 @@ const pond: ResultCandidate = {
 const named = { title: "Pond at dusk", artist: "Monet", date: "1900" };
 
 let alert: jest.SpyInstance;
+
+async function openMatch(name: string) {
+  await fireEvent.press(screen.getByRole("button", { name }));
+  expect(mockMutation).not.toHaveBeenCalled();
+  const [{ pathname, params }] = mockPush.mock.lastCall as [{ pathname: string; params: { id: string } }];
+  expect(pathname).toBe("/match-preview");
+  return getMatchPreview(params.id)!;
+}
+
+async function chooseMatch(name: string) {
+  const preview = await openMatch(name);
+  await act(async () => preview.onChoose(preview.candidate));
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
@@ -163,11 +179,58 @@ it("offers the catalogue work the details name and links it as the scan's match"
   await render(review("label"));
   expect(mockLookups.at(-1)).toEqual({ scanId, fields: named });
   expect(screen.getByRole("header", { name: "Is it this?" })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "The Water Lily Pond, Claude Monet" }));
+  await chooseMatch("The Water Lily Pond, Claude Monet");
+  expect(getMatchPreview(mockPush.mock.lastCall[0].params.id)?.photoUri).toMatch(/\/crop\.jpg$/);
   expect(mockMutation).toHaveBeenCalledWith(expect.anything(), {
     scanId,
     objectId: pond.objectId,
     source: "label",
+    fields: named,
+  });
+  expect(mockDismissTo).toHaveBeenCalledWith({ pathname: "/result/[scanId]", params: { scanId } });
+});
+
+it.each(["manual", "label"] as const)(
+  "keeps %s details editable without submitting when connectivity drops during a match preview",
+  async (source) => {
+    jest.useFakeTimers();
+    mockMatches = [pond];
+    mockMutation.mockReturnValue(new Promise(() => {}));
+    const view = await render(review(source));
+    const preview = await openMatch("The Water Lily Pond, Claude Monet");
+    mockOffline = true;
+    await view.rerender(review(source));
+    await act(async () => preview.onChoose(preview.candidate));
+    expect(mockMutation.mock.calls.length).toBe(0);
+    expect(screen.getByLabelText("Title")).toHaveProp("editable", true);
+    expect(screen.getByRole("button", { name: "Save to collection" })).toBeEnabled();
+    await act(() => jest.advanceTimersByTime(CONFIRM_WAIT_MS));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(mockDismissTo).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
+  },
+);
+
+it("links the preview's original lookup fields after reconnecting", async () => {
+  jest.useFakeTimers();
+  mockMatches = [pond];
+  mockMutation.mockResolvedValue(null);
+  const view = await render(review());
+  const edited = setFieldValue(form, "title", "Water Lily Pond");
+  await view.rerender(review("manual", edited));
+  const preview = await openMatch("The Water Lily Pond, Claude Monet");
+  mockOffline = true;
+  await view.rerender(review("manual", edited));
+  await act(() => jest.advanceTimersByTime(MATCH_DELAY_MS));
+  expect(mockLookups.at(-1)).toEqual({ scanId, fields: { ...named, title: "Water Lily Pond" } });
+  mockOffline = false;
+  await view.rerender(review("manual", edited));
+  await act(async () => preview.onChoose(preview.candidate));
+  expect(mockMutation).toHaveBeenCalledTimes(1);
+  expect(mockMutation).toHaveBeenCalledWith(expect.anything(), {
+    scanId,
+    objectId: pond.objectId,
+    source: "manual",
     fields: named,
   });
   expect(mockDismissTo).toHaveBeenCalledWith({ pathname: "/result/[scanId]", params: { scanId } });
@@ -187,7 +250,7 @@ it("keeps the details form when choosing a work fails", async () => {
   mockMutation.mockRejectedValue(new Error("invalid_object"));
   await render(review());
   expect(screen.getByRole("header", { name: "Is it one of these?" })).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "Water Lilies, Claude Monet" }));
+  await chooseMatch("Water Lilies, Claude Monet");
   expect(await screen.findByText("Couldn’t choose this artwork. Try again.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Confirm details" })).toBeEnabled();
   expect(reportError).toHaveBeenCalledWith(expect.any(Error), "result.link_artwork");

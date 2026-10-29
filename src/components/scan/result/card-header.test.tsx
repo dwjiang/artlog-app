@@ -22,23 +22,14 @@ it("recovers the image when a different capture replaces a missing image", async
   expect(screen.getByLabelText("Your photo of this painting")).toBeOnTheScreen();
 });
 
-it("offers crop adjustment on the photo only when a handler is given", async () => {
-  const onAdjustCrop = jest.fn();
-  const view = await render(<CardHeader cropUri="file:///crop.jpg" kind="confident" />);
-  expect(screen.queryByRole("button", { name: "Adjust crop" })).toBeNull();
-  await view.rerender(<CardHeader cropUri="file:///crop.jpg" kind="confident" onAdjustCrop={onAdjustCrop} />);
-  await fireEvent.press(screen.getByRole("button", { name: "Adjust crop" }));
-  expect(onAdjustCrop).toHaveBeenCalledTimes(1);
-});
-
 it("opens the photo full screen from the card and closes it again", async () => {
-  await render(<CardHeader cropUri="file:///crop.jpg" kind="confident" onAdjustCrop={jest.fn()} />);
+  await render(<CardHeader cropUri="file:///crop.jpg" kind="confident" />);
   expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "View photo" }));
   expect(screen.getByRole("image", { name: "Your photo of this painting" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Close" }));
   expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Adjust crop" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "View photo" })).toBeOnTheScreen();
 });
 
 it("offers no viewer for a photo that couldn't load", async () => {

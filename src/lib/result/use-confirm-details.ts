@@ -27,12 +27,14 @@ type Pending = { kind: "confirm" } | { kind: "link"; objectId: Id<"objects"> };
 export function useConfirmDetails(scanId: Id<"scans"> | undefined, source: ConfirmedSource) {
   const router = useRouter();
   const offline = isOffline(useNetworkState());
+  const offlineNow = useRef(offline);
   const [busy, setBusy] = useState<Pending>();
   const [error, setError] = useState<string>();
   const [unavailable, setUnavailable] = useState(false);
   const pending = useRef<(() => void) | undefined>(undefined);
 
   useEffect(() => {
+    offlineNow.current = offline;
     if (offline) pending.current?.();
   }, [offline]);
   useEffect(
@@ -45,7 +47,8 @@ export function useConfirmDetails(scanId: Id<"scans"> | undefined, source: Confi
   );
 
   async function submit(scan: Id<"scans">, action: Pending, write: () => Promise<unknown>) {
-    if (pending.current || offline) return;
+    // Match previews retain the callback from when they opened, but connectivity can change before choosing.
+    if (pending.current || offlineNow.current) return;
     const owner = captureOwner();
     let cancel!: () => void;
     const disconnected = new Promise<never>((_, reject) => {

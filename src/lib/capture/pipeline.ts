@@ -1,6 +1,7 @@
 import { randomUUID } from "expo-crypto";
 
 import { captureOwner } from "@/lib/account/owner-store";
+import { removeFileIfExists } from "@/lib/files/remove-file";
 import { errorMessage, isNetworkError, isTransientError } from "@/lib/network-error";
 import { reportError, addBreadcrumb } from "@/lib/observability";
 import { TimeoutError, withTimeout } from "@/lib/with-timeout";
@@ -13,6 +14,7 @@ import type {
   CapturePayload,
   CaptureResult,
   CaptureTimings,
+  VenueContext,
 } from "./stages";
 
 /** A visit sync slower than this sends the scan to the queue; the flusher finishes it. */
@@ -27,6 +29,12 @@ export async function runCapture(
     throw new Error(`Capture model version mismatch: ${deps.embedder.modelVersion} != ${opts.modelVersion}`);
   }
   const current = captureOwner();
+  function checkCurrent() {
+    if (deps.isCurrent?.() === false) throw new Error("Capture cancelled");
+    if (!current.isOwnerCurrent()) throw new Error("Journal owner changed");
+  }
+  let preparedCropUri: string | undefined;
+  let persisting = false;
   const started = performance.now();
   const timings: CaptureTimings = { total: 0 };
   async function timed<T>(stage: Exclude<keyof CaptureTimings, "total">, task: () => Promise<T>): Promise<T> {
@@ -38,7 +46,11 @@ export async function runCapture(
     }
   }
 
+  const context = input.context ?? Promise.resolve<VenueContext>({});
+  // A failed lookup fails the capture once it is needed; a retake before then must not leave it unhandled.
+  context.catch(() => {});
   try {
+    checkCurrent();
     const { rankCrops } = deps;
     const candidates = await timed("warp", () =>
       deps.warper.warpCandidates(
@@ -61,10 +73,11 @@ export async function runCapture(
     const { painting: prepared, vector } = await chooseCrop(
       candidates,
       deps.embedder,
-      rankCrops && ((vectors) => rankCrops(vectors, input.venueId)),
-      timed,
+      rankCrops && (async (vectors) => rankCrops(vectors, (await context).venueId)),
+      { timed, ready: context },
     );
     const { cropUri } = prepared;
+    preparedCropUri = cropUri;
     const triage = await timed("triage", () => deps.triage.check(cropUri));
     if (!triage.ok) {
       return {
@@ -82,6 +95,8 @@ export async function runCapture(
         });
       });
     const features = await timed("orb", () => deps.orb.extract(cropUri));
+    const { venueId, visitId, visitLocalId } = await context;
+    checkCurrent();
     const payload: CapturePayload = {
       owner: current.owner,
       scope: current.scope,
@@ -90,16 +105,15 @@ export async function runCapture(
       descriptors: features.descriptors,
       keypoints: features.keypoints,
       modelVersion: opts.modelVersion,
-      venueId: input.venueId,
-      visitId: input.visitId,
-      visitLocalId: input.visitLocalId,
+      venueId,
+      visitId,
+      visitLocalId,
       capturedAt: input.capturedAt,
       photoUri: input.photoUri,
       cropUri,
       cropCorners: prepared.corners,
       contentBounds: prepared.contentBounds,
     };
-    if (!current.isOwnerCurrent()) throw new Error("Journal owner changed");
     const online = deps.isOnline() && !!current.scope && current.isCurrent();
     if (online && payload.visitLocalId && payload.venueId && deps.resolveVisitId) {
       payload.visitId = await withTimeout(
@@ -114,11 +128,12 @@ export async function runCapture(
         console.warn("The visit has not synced yet; queuing the scan", error);
         return undefined;
       });
-      if (!current.isOwnerCurrent()) throw new Error("Journal owner changed");
+      checkCurrent();
     }
     const identifyNow = online && (!payload.visitLocalId || !!payload.visitId);
     await presentationReady;
-    if (!current.isOwnerCurrent()) throw new Error("Journal owner changed");
+    checkCurrent();
+    persisting = true;
     await timed("enqueue", () => deps.store.enqueue(payload, identifyNow ? "identifying" : "queued"));
     if (identifyNow) {
       try {
@@ -142,6 +157,7 @@ export async function runCapture(
     }
     return { kind: "queued", localId: payload.localId, timings };
   } finally {
+    if (!persisting && preparedCropUri && deps.isCurrent?.() === false) removeFileIfExists(preparedCropUri);
     timings.total = performance.now() - started;
     if (__DEV__) {
       console.debug("Capture timings (ms)", {

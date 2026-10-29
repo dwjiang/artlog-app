@@ -154,6 +154,7 @@ import type * as lib_tavilySpend from "../lib/tavilySpend.js";
 import type * as lib_tentativeEntries from "../lib/tentativeEntries.js";
 import type * as lib_testFactories from "../lib/testFactories.js";
 import type * as lib_textMatch from "../lib/textMatch.js";
+import type * as lib_thumbnailSource from "../lib/thumbnailSource.js";
 import type * as lib_tokenFactory from "../lib/tokenFactory.js";
 import type * as lib_tokenFactoryDiagnostics from "../lib/tokenFactoryDiagnostics.js";
 import type * as lib_validators from "../lib/validators.js";
@@ -366,6 +367,7 @@ declare const fullApi: ApiFromModules<{
   "lib/tentativeEntries": typeof lib_tentativeEntries;
   "lib/testFactories": typeof lib_testFactories;
   "lib/textMatch": typeof lib_textMatch;
+  "lib/thumbnailSource": typeof lib_thumbnailSource;
   "lib/tokenFactory": typeof lib_tokenFactory;
   "lib/tokenFactoryDiagnostics": typeof lib_tokenFactoryDiagnostics;
   "lib/validators": typeof lib_validators;

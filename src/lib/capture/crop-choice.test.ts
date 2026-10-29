@@ -69,6 +69,21 @@ it("keeps the likeliest boundary when ranking outlasts the timeout", async () =>
   expect(mockReportError).not.toHaveBeenCalled();
 });
 
+it("waits for what ranking depends on before its timeout starts", async () => {
+  jest.useFakeTimers();
+  let settle!: () => void;
+  const ready = new Promise<void>((done) => {
+    settle = done;
+  });
+  const rank = jest.fn(() => new Promise<number>((done) => setTimeout(() => done(1), RANK_TIMEOUT_MS / 2)));
+  const choice = chooseCrop([phone, painting], embedder, rank, { ready });
+  await jest.advanceTimersByTimeAsync(RANK_TIMEOUT_MS);
+  expect(rank).not.toHaveBeenCalled();
+  settle();
+  await jest.advanceTimersByTimeAsync(RANK_TIMEOUT_MS / 2);
+  expect(await choice).toEqual({ painting, vector: [0.76543] });
+});
+
 it("reports an unexpected ranking failure and keeps the likeliest boundary", async () => {
   const failure = new ConvexError({ code: "bad_candidates" });
   expect(await chooseCrop([phone, painting], embedder, async () => Promise.reject(failure))).toMatchObject({

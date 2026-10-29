@@ -24,7 +24,7 @@ let mockGranted = true;
 let mockCanRequest = false;
 let mockState: CaptureState = { phase: "searching", occupied: false };
 let mockFeedback: CaptureFeedback = null;
-let mockOnDetection: (detection: unknown) => void;
+let mockOnDetection: (detection: unknown, at?: number) => void;
 let mockTimings: CaptureTimings | undefined;
 let mockMessage: string | undefined;
 let mockPresentation: { attempt: { id: string } } | undefined;
@@ -204,11 +204,18 @@ jest.mock("@/lib/queue/use-queue", () => ({
   }),
 }));
 jest.mock("@/lib/capture/use-rect-detector", () => ({
-  useRectDetector: (active: boolean, orientation: string, callback: (detection: unknown) => void) => {
+  useRectDetector: (active: boolean, orientation: string, callback: (detection: unknown, at?: number) => void) => {
     mockOnDetection = callback;
     mockDetectorActive.push(active);
     mockDetectorOrientation = orientation;
     return mockFrameOutput;
+  },
+}));
+let mockSetMotionReader: ((read: (() => unknown) | undefined) => void) | undefined;
+jest.mock("@/lib/capture/device-motion", () => ({
+  MotionSampler: ({ onReader }: { onReader: (read: (() => unknown) | undefined) => void }) => {
+    mockSetMotionReader = onReader;
+    return null;
   },
 }));
 jest.mock("@/lib/judges-demo", () => ({ isJudgesDemo: () => mockDemoVideo !== undefined }));
@@ -459,6 +466,18 @@ it("takes a still only when the controller accepts a detection", async () => {
   expect(mockCaptureAutomatically).toHaveBeenCalledWith(attempt, expect.any(Function));
   expect(mockPhoto).toHaveBeenCalledWith({}, {});
   expect(mockCapture).not.toHaveBeenCalled();
+});
+
+it("times live detections by their camera frame and passes the phone's motion once the camera runs", async () => {
+  mockSetMotionReader = undefined;
+  await render(<ScanScreen />);
+  expect(mockSetMotionReader).toBeUndefined();
+  await act(() => mockCameraProps.onStarted());
+  const motion = { rotationRate: 0.05, upright: true };
+  await act(() => mockSetMotionReader!(() => motion));
+  const detection = { width: 1080, height: 1440, observations: [] };
+  await act(() => mockOnDetection(detection, 1234.5));
+  expect(mockObserve).toHaveBeenLastCalledWith(detection, expect.any(Object), 1234.5, motion);
 });
 
 it("announces camera startup errors, keeps import available, and clears the error on recovery", async () => {

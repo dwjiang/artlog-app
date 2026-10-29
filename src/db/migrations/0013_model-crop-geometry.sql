@@ -1,0 +1,1 @@
+ALTER TABLE `pendingScans` ADD `modelCropGeometry` text;
