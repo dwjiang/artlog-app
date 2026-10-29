@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import viewfinder from "../media/phone/viewfinder.json" with { type: "json" };
 import { API } from "./api.ts";
@@ -18,8 +18,9 @@ const PAINTINGS = viewfinder.paintings.map(({ title, artist, thumbnail }) => ({
 type Walk = { kind: "idle" } | { kind: "sending"; painting: number } | { kind: "error"; message: string };
 
 /** Stands in for walking up to a painting: the phone's Scan viewfinder plays its walk and scans it. */
-export function PaintingPicker({ sessionId, labelledBy }: { sessionId: string | undefined; labelledBy: string }) {
+export function PaintingPicker({ sessionId }: { sessionId: string | undefined }) {
   const [walk, setWalk] = useState<Walk>({ kind: "idle" });
+  const labelId = useId();
 
   async function pick(painting: number) {
     if (!sessionId) return;
@@ -41,7 +42,13 @@ export function PaintingPicker({ sessionId, labelledBy }: { sessionId: string | 
   }
 
   return (
-    <div role="group" aria-labelledby={labelledBy}>
+    <div className="picker" role="group" aria-labelledby={labelId}>
+      <div className="picker-head">
+        <p id={labelId} className="picker-label">
+          Pick a painting
+        </p>
+        {!sessionId && <p className="picker-hint">Press Start on the iPhone first</p>}
+      </div>
       <div className="paintings">
         {PAINTINGS.map(({ title, artist, thumbnail }, index) => (
           <button

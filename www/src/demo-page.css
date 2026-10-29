@@ -14,6 +14,8 @@
   --accent-pressed: #1f42b3;
   --highlight: #e8edfc;
   --separator: #dce1e8;
+  /* Secondary text darker than muted, so it keeps 4.5:1 on the grouped background. */
+  --quiet: #5f6a75;
   color: var(--ink);
   background: var(--grouped);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
@@ -75,7 +77,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
   padding: 12px 16px 12px 12px;
   border-radius: 16px;
   color: inherit;
@@ -125,7 +127,7 @@ h1 {
   counter-reset: step;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -134,23 +136,17 @@ h1 {
 .steps li {
   counter-increment: step;
   position: relative;
-  padding-left: 46px;
+  padding-left: 40px;
 }
 
 .steps li::before {
   content: counter(step);
   position: absolute;
-  top: -3px;
+  top: 0;
   left: 0;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 15px;
+  font-family: "Space Grotesk", sans-serif;
   font-weight: 600;
   color: var(--accent);
-  background: var(--highlight);
 }
 
 .steps p {
@@ -158,22 +154,27 @@ h1 {
 }
 
 .steps li > * + * {
-  margin-top: 6px;
+  margin-top: 12px;
 }
 
-.tech {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.tech b {
-  color: var(--ink);
+.steps b,
+.closing b {
   font-weight: 600;
 }
 
-.also {
-  margin: 20px 0 0;
+.quiet {
+  color: var(--quiet);
+}
+
+.caption {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.closing {
+  margin: 28px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--separator);
 }
 
 .links {
@@ -214,17 +215,45 @@ a {
   height: 100%;
 }
 
+/* A white tray so the paintings read as the step's control rather than an illustration. */
+.picker {
+  padding: 12px 12px 10px;
+  border-radius: 14px;
+  background: var(--paper);
+}
+
+.picker-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 4px 8px;
+}
+
+.picker-label,
+.picker-hint,
 .picker-error {
   margin: 0;
+}
+
+.picker-label {
+  font-weight: 600;
+}
+
+.picker-hint,
+.picker-error {
   font-size: 14px;
-  color: var(--muted);
+  color: var(--quiet);
+}
+
+.picker-error {
+  margin: 6px 4px 0;
 }
 
 .paintings {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-left: -4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  gap: 4px;
 }
 
 /* Artwork stays square with the app's 2-point thumbnail rounding; the border leaves room for a hover ring. */
@@ -239,7 +268,7 @@ button.painting {
 
 button.painting:hover:enabled {
   background: none;
-  border-color: var(--separator);
+  border-color: #c4d0f4;
 }
 
 button.painting:focus-visible {
@@ -258,6 +287,10 @@ button.painting[aria-busy="true"] {
 
 .painting img {
   display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
   border-radius: 2px;
 }
 
