@@ -3,6 +3,7 @@ import { AppState } from "react-native";
 
 import * as pending from "@/db/repos/pending-scans";
 import { captureOwner, getLocalOwner } from "@/lib/account/owner-store";
+import { snapScanCrop } from "@/lib/capture/edit-crop";
 import { extractFeatures, orb } from "@/lib/capture/features";
 import { isLabelCapture } from "@/lib/capture/photo-draft";
 import type { CaptureStore, IdentifyResponse } from "@/lib/capture/stages";
@@ -12,9 +13,11 @@ import { captureFileUri, persistCapture, scanPreviewPath } from "@/lib/files/pho
 import { removeFile } from "@/lib/label/crop";
 import { LabelFlowError } from "@/lib/label/flow";
 import { runLabelFlowForScan } from "@/lib/label/label-deps";
+import { isTransientError } from "@/lib/network-error";
 import { hasInternetSignal, isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
 import { resolveScanVisit } from "@/lib/venue/visit-sync";
+import { TimeoutError } from "@/lib/with-timeout";
 import model from "@/shared/model/model-version.json";
 
 import { api } from "../../../convex/_generated/api";
@@ -29,6 +32,15 @@ export async function recordResult(
   if (response.status === "unsupported_version") {
     await pending.markFailed(localId, response.error ?? "Update the app to identify.", response.scanId, owner);
   } else {
+    if (response.outcome !== "miss") {
+      try {
+        await snapScanCrop(localId, response.best, owner);
+      } catch (error) {
+        if (!(error instanceof TimeoutError) && !isTransientError(error)) {
+          reportError(error, "capture.snap_crop", { level: "warning" });
+        }
+      }
+    }
     await pending.markIdentified(localId, response.scanId, owner);
   }
 }
@@ -56,6 +68,7 @@ export const captureStore: CaptureStore = {
         localId: payload.localId,
         ...files,
         cropCorners: payload.cropCorners,
+        modelCropGeometry: { corners: payload.cropCorners, contentBounds: payload.contentBounds },
         vector: payload.vector,
         descriptors: payload.descriptors,
         keypoints: payload.keypoints,

@@ -6,8 +6,10 @@ import { artworkPhotos, savedWorks, pendingScans, settings } from "@/db/schema";
 import { recognizeOfflineCapture } from "@/lib/museum-downloads/recognize-capture";
 
 import type { Id } from "../../../convex/_generated/dataModel";
-import { saveEditedArtworkCrop, saveEditedScanCrop, type EditedCrop } from "./edit-crop";
+import { getVisionRect } from "../../../modules/vision-rect/src";
+import { saveEditedArtworkCrop, saveEditedScanCrop, snapScanCrop, type EditedCrop } from "./edit-crop";
 import { readPhotoSession, updatePhotoSession } from "./photo-draft";
+import type { IdentifyResponse, Quad } from "./stages";
 
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
@@ -58,9 +60,24 @@ jest.mock("expo-file-system", () => {
 });
 jest.mock("expo-crypto", () => ({ randomUUID: () => "new-crop-id" }));
 jest.mock("expo-image-manipulator", () => ({
-  ImageManipulator: {},
+  ImageManipulator: {
+    manipulate: () => ({
+      crop: () => ({
+        renderAsync: async () => ({
+          saveAsync: async () => {
+            mockFiles.add("file:///tmp/snapped-preview.jpg");
+            return { uri: "file:///tmp/snapped-preview.jpg" };
+          },
+          release() {},
+        }),
+      }),
+      release() {},
+    }),
+  },
   SaveFormat: {},
 }));
+const mockThumbnail = jest.fn();
+jest.mock("expo-image", () => ({ Image: { loadAsync: (uri: string) => mockThumbnail(uri) } }));
 const owner = "device:test-installation";
 const crop: EditedCrop = {
   modelUri: "file:///tmp/model.jpg",
@@ -256,4 +273,138 @@ it("leaves the old scan intact when extraction fails or the editor closes during
   await expect(saveEditedScanCrop("scan", crop, owner, () => active)).rejects.toThrow("Journal owner changed");
   expect((await getPendingScan("scan"))?.cropPath).toBe("old.jpg");
   expect(mockFiles.has("file:///documents/full.jpg")).toBe(true);
+});
+
+describe("snapping a recognized scan's crop to the painting", () => {
+  // The identified crop kept the frame: the whole photo, where the catalogue image covers the middle three quarters.
+  const identified: Quad = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+  ];
+  const canvas: Quad = [
+    [0.125, 0.125],
+    [0.875, 0.125],
+    [0.875, 0.875],
+    [0.125, 0.875],
+  ];
+  const geometry = {
+    corners: identified,
+    contentBounds: { x: 0, y: 0, width: 512, height: 512 },
+  };
+  const match = {
+    thumbnailUrl: "https://images.example/work.jpg?width=330",
+    thumbnailCorners: [
+      [64, 64],
+      [448, 64],
+      [448, 448],
+      [64, 448],
+    ],
+  } as IdentifyResponse["best"];
+  const warpAndLetterbox = jest.fn();
+
+  beforeEach(async () => {
+    await seedScan();
+    db.update(pendingScans).set({ cropCorners: identified, modelCropGeometry: geometry }).run();
+    mockThumbnail.mockReset().mockResolvedValue({ width: 330, height: 330, release() {} });
+    warpAndLetterbox.mockReset().mockImplementation(async (_path: string, corners: { x: number; y: number }[]) => {
+      mockFiles.add("file:///tmp/snapped-model.png");
+      return {
+        cropPath: "/tmp/snapped-model.png",
+        contentBounds: { x: 0, y: 0, width: 512, height: 512 },
+        usedQuad: corners,
+      };
+    });
+    jest.mocked(getVisionRect).mockReturnValue({ warpAndLetterbox } as unknown as ReturnType<typeof getVisionRect>);
+  });
+
+  it("shows the painting's own edges, keeping the identified crop's features for the model", async () => {
+    await snapScanCrop("scan", match, owner);
+    expect(warpAndLetterbox).toHaveBeenCalledWith(
+      "/documents/full.jpg",
+      canvas.map(([x, y]) => ({ x: expect.closeTo(x, 6), y: expect.closeTo(y, 6) })),
+      512,
+    );
+    const scan = await getPendingScan("scan");
+    expect(scan).toMatchObject({ ...features, status: "identified", scanId: "old-scan", modelCropGeometry: geometry });
+    scan!.cropCorners!.flat().forEach((value, index) => expect(value).toBeCloseTo(canvas.flat()[index], 6));
+    expect(scan?.cropPath).not.toBe("old.jpg");
+    const preview = scan!.cropPath.replace(/\.[^.]+$/, ".preview.jpg");
+    expect(mockFiles.has(`file:///documents/${preview}`)).toBe(true);
+    expect(mockFiles.has("file:///documents/old.jpg")).toBe(false);
+    expect(mockFiles.has("file:///documents/old.preview.jpg")).toBe(false);
+    expect(mockFiles.has("file:///tmp/snapped-model.png")).toBe(false);
+  });
+
+  it("keeps the crop when the painting runs off the photo or nothing places it", async () => {
+    const offPhoto = {
+      ...match,
+      thumbnailCorners: [
+        [-80, 64],
+        [448, 64],
+        [448, 448],
+        [-80, 448],
+      ],
+    } as typeof match;
+    for (const unplaced of [offPhoto, { ...match!, thumbnailCorners: undefined }, undefined]) {
+      await snapScanCrop("scan", unplaced, owner);
+    }
+    expect(warpAndLetterbox).not.toHaveBeenCalled();
+    expect((await getPendingScan("scan"))?.cropPath).toBe("old.jpg");
+  });
+
+  it("does not apply the same snap twice to the unchanged model crop", async () => {
+    await snapScanCrop("scan", match, owner);
+    await snapScanCrop("scan", match, owner);
+    expect(warpAndLetterbox).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps legacy crops without model geometry", async () => {
+    db.update(pendingScans).set({ modelCropGeometry: null }).run();
+    await snapScanCrop("scan", match, owner);
+    expect(mockThumbnail).not.toHaveBeenCalled();
+    expect(warpAndLetterbox).not.toHaveBeenCalled();
+  });
+
+  it("keeps the boundary chosen in the crop editor after queued recognition", async () => {
+    const editedId = await saveEditedScanCrop("scan", crop, owner);
+    expect((await getPendingScan(editedId))?.modelCropGeometry).toBeNull();
+    await snapScanCrop(editedId, match, owner);
+    expect(warpAndLetterbox).not.toHaveBeenCalled();
+  });
+
+  it.each(["old.preview.jpg", "manually-edited.jpg"])(
+    "updates an offline save only while it still uses the original preview: %s",
+    async (savedCrop) => {
+      await insertSavedWork({
+        localId: "saved",
+        title: "Work",
+        artist: "Artist",
+        savedAt: 1,
+        photoPath: "full.jpg",
+        cropPath: savedCrop,
+        cropCorners: identified,
+      });
+      await snapScanCrop("scan", match, owner);
+      const saved = await getSavedWork("saved", owner);
+      const scan = (await getPendingScan("scan", owner))!;
+      const expected =
+        savedCrop === "old.preview.jpg"
+          ? { cropPath: scan.cropPath.replace(/\.[^.]+$/, ".preview.jpg"), cropCorners: scan.cropCorners }
+          : { cropPath: savedCrop, cropCorners: identified };
+      expect(saved).toMatchObject(expected);
+    },
+  );
+
+  it("leaves a crop the owner edited while the snap was cutting", async () => {
+    warpAndLetterbox.mockImplementationOnce(async (_path: string, corners: { x: number; y: number }[]) => {
+      db.update(pendingScans).set({ cropPath: "edited.jpg" }).run();
+      return { cropPath: "/tmp/snapped-model.png", contentBounds: geometry.contentBounds, usedQuad: corners };
+    });
+    await snapScanCrop("scan", match, owner);
+    expect((await getPendingScan("scan"))?.cropPath).toBe("edited.jpg");
+    expect([...mockFiles].filter((uri) => uri.includes("new-crop-id"))).toEqual([]);
+    expect(mockFiles.has("file:///documents/old.jpg")).toBe(true);
+  });
 });

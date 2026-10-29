@@ -155,6 +155,7 @@ const capture = {
   photoPath: "photos/c1.jpg",
   cropPath: "crops/c1.jpg",
   cropCorners: null,
+  modelCropGeometry: null,
   savedPhotoLocalId: null,
   vector: [0.1],
   descriptors: new ArrayBuffer(4),

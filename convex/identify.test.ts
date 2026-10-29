@@ -178,6 +178,59 @@ describe("identify action", () => {
     expect(signals.orbInliers).toBeGreaterThan(0);
   });
 
+  const catalogueImage = "https://commons.wikimedia.org/wiki/Special:FilePath/Water%20Lilies.jpg";
+
+  it.each([
+    ["the thumbnail shows the image the reference came from", catalogueImage, "public_domain", true],
+    ["the reference came from another image", undefined, "public_domain", false],
+    ["no thumbnail is shown", catalogueImage, "in_copyright", false],
+    [
+      "the thumbnail was borrowed from a deduplicated alias",
+      catalogueImage,
+      "public_domain",
+      false,
+      "https://museum.example/framed-alias.jpg",
+    ],
+  ] as const)(
+    "sends the verified corners to place the painting only when %s",
+    async (_case, imageRef, rights, sent, thumbnailOverride?: string) => {
+      const thumbnailUrl = thumbnailOverride ?? `${catalogueImage}?width=330`;
+      const { t, user, args } = await fixture(false);
+      await t.run((ctx) =>
+        seedArtworkWithObject(ctx, {
+          descriptors: pair.ref,
+          objectDetails: { imageRef, thumbnailUrl },
+          artwork: { rightsStatus: rights },
+        }),
+      );
+      const result = await user.as.action(api.identify.identify, {
+        ...args,
+        scope: (await user.as.query(api.accounts.me, {})).scope,
+      });
+      const corners = await storedCorners(t, result.scanId);
+      expect(corners).toHaveLength(4);
+      expect(result.best?.thumbnailCorners).toEqual(sent ? corners : undefined);
+    },
+  );
+
+  it("uses the ORB source to prove thumbnail provenance when imageRef is absent", async () => {
+    const { t, user, args } = await fixture(false);
+    await t.run(async (ctx) => {
+      const work = await seedArtworkWithObject(ctx, {
+        descriptors: pair.ref,
+        objectDetails: { imageRef: catalogueImage, thumbnailUrl: `${catalogueImage}?width=330` },
+      });
+      await patchObjectDetails(ctx, { _id: work.objectId }, { imageRef: undefined });
+    });
+    const result = await user.as.action(api.identify.identify, {
+      ...args,
+      scope: (await user.as.query(api.accounts.me, {})).scope,
+    });
+    const corners = await storedCorners(t, result.scanId);
+    expect(corners).toHaveLength(4);
+    expect(result.best?.thumbnailCorners).toEqual(corners);
+  });
+
   it("matches a new capture while its vector uploads, without reading the vector back", async () => {
     const { t, user, args, work } = await fixture();
     const search = vi.mocked(searchVectorIndex);

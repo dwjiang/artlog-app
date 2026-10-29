@@ -37,6 +37,7 @@ const row: PendingScan = {
   photoPath: "photos/cap-1.jpg",
   cropPath: "crops/cap-1.jpg",
   cropCorners: null,
+  modelCropGeometry: null,
   savedPhotoLocalId: null,
   vector: [0.1],
   descriptors: new ArrayBuffer(0),

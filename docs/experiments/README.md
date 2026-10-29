@@ -59,6 +59,26 @@ ORB byte parity requires identical lossless pixels. JPEG re-encoding changes
 keypoints; reference/query preprocessing and extraction parameters belong in the
 [shared fixtures](../../shared/orb/fixtures/orb-features-v1.json).
 
+## Crop accuracy
+
+The [crop accuracy evaluation](../../scripts/evals/crop-accuracy/README.md) scored
+453 Commons camera photos from the real-photo calibrator set whose whole painting
+was located against its reference. Vision-rectangle crop choice was accurate for
+28.7% of unguided crops (shutter without an outline, steady capture, imports) and
+25.5% of 330 auto-capture approximations; 59.8% and 53.3% kept frame, mat or wall.
+Snapping a verified match to the reference raised accurate crops to 88.7% and 92.1%,
+with 408 and 309 crops snapped. Snapped crops were 97.3% and 98.1% accurate, but
+ground truth comes from the same reference, so that rate checks the projection
+rather than independently measuring painting edges.
+
+The reference's own letterbox padding cannot be trimmed from its ORB keypoints: on
+238 padded references the outermost keypoint stopped a median 1.9% and p90 10%
+short of the content edge on each side. Snapping therefore uses the catalogue
+thumbnail's aspect ratio only when its URL identifies the same image as the ORB
+reference, including known whole-image resizes. An unrelated alias thumbnail leaves
+the crop unchanged. These photos are gallery shots with more frames than phone
+scans, and the set omits unindexed works, so neither rate is an app-wide accuracy.
+
 ## Token Factory models
 
 On-device Apple Vision OCR sends text to Nemotron for label-field sorting.
