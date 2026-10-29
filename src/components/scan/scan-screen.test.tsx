@@ -775,7 +775,7 @@ it("keeps the venue and queue controls", async () => {
   await render(<ScanScreen />);
   await fireEvent.press(screen.getByRole("button", { name: "Legion of Honor" }));
   expect(mockPush).toHaveBeenCalledWith("/venue-picker");
-  expect(screen.getByLabelText("Recent scans, 2 scans")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Recent Scans, 2 scans")).toBeOnTheScreen();
 });
 
 it("keeps the venue and queue entry points reachable without camera access", async () => {
@@ -786,7 +786,7 @@ it("keeps the venue and queue entry points reachable without camera access", asy
   expect(screen.getByRole("button", { name: "Open Settings" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Legion of Honor" }));
   expect(mockPush).toHaveBeenCalledWith("/venue-picker");
-  expect(screen.getByLabelText("Recent scans, 1 scan")).toBeOnTheScreen();
+  expect(screen.getByLabelText("Recent Scans, 1 scan")).toBeOnTheScreen();
   expect(screen.queryByRole("button", { name: "Scan artwork" })).toBeNull();
 });
 

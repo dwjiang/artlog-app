@@ -296,7 +296,7 @@ it("asks a guest to sign in once on the Friends feed, with the gate taking over 
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByRole("header", { name: "Add your friends." })).toBeOnTheScreen();
   expect(screen.queryByRole("header", { name: "Sign in to add friends." })).toBeNull();
-  expect(screen.getAllByRole("button", { name: "Sign in" })).toHaveLength(1);
+  expect(screen.getAllByRole("button", { name: "Sign In" })).toHaveLength(1);
   await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
   expect(screen.getByRole("header", { name: "Sign in to add friends." })).toBeOnTheScreen();
   expect(screen.getAllByRole("button", { name: "Sign in" })).toHaveLength(1);
@@ -309,7 +309,7 @@ it("keeps the guest header consistent across feeds, including after dismissing t
   await renderHome();
   expect(screen.getByText("Add your friends.")).toBeOnTheScreen();
   await layOutHeader(232);
-  expect(scrollViewHolding(screen.getByRole("button", { name: "Sign in" })).props.scrollEnabled).toBe(true);
+  expect(scrollViewHolding(screen.getByRole("button", { name: "Sign In" })).props.scrollEnabled).toBe(true);
   await fireEvent.press(screen.getByRole("button", { name: "Friends" }));
   expect(screen.getByText("Add your friends.")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "Leaderboards" })).toBeOnTheScreen();
@@ -336,7 +336,7 @@ it("keeps the judges' demo on Global without friend sign-in prompts", async () =
 it("sends guests from the invitation to sign in for friends", async () => {
   mockSession = { ...mockSession, key: "guest", status: "signed-out", token: null, profileId: undefined };
   await renderHome();
-  await fireEvent.press(screen.getByRole("button", { name: "Sign in" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Sign In" }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: "/sign-in", params: { context: "friends" } });
 });
 

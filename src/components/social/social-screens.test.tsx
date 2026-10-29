@@ -356,9 +356,9 @@ it("loads public visits for guests and opens their details without signing in", 
     pathname: "/artwork",
     params: { kind: "visit", postId: "post-a", itemId: "art-a" },
   });
-  expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Sign In" })).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "Not Now" }));
-  expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Sign In" })).toBeNull();
 });
 
 it("switches a signed-in Home between friends’ visits and Global public visits", async () => {

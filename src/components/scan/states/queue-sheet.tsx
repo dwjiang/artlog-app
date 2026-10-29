@@ -94,7 +94,7 @@ function QueueContent() {
     >
       <View style={styles.header}>
         <ThemedText type="title" style={styles.title}>
-          Recent scans
+          Recent Scans
         </ThemedText>
         <CloseButton onPress={() => router.dismiss()} />
       </View>

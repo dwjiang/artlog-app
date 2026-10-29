@@ -116,7 +116,7 @@ it("shows grouped settings and opens the matching detail", async () => {
   expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://artlog.dwjiang.com/terms");
   await fireEvent.press(screen.getByRole("button", { name: "Widgets" }));
   expect(mockPush).toHaveBeenLastCalledWith("/widgets");
-  await fireEvent.press(screen.getByRole("button", { name: "Send feedback" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Send Feedback" }));
   expect(mockPush).toHaveBeenLastCalledWith("/send-feedback");
 });
 
@@ -143,7 +143,7 @@ it("opens account management from the profile row", async () => {
 it("keeps About details accessible", async () => {
   await render(<SettingsDetailScreen section="about" />);
   expect(screen.getByRole("header", { name: "Artlog" })).toBeOnTheScreen();
-  expect(screen.queryByRole("button", { name: "Send feedback" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Send Feedback" })).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "Open source licenses" }));
   expect(mockOpenBrowser).toHaveBeenLastCalledWith("https://artlog.dwjiang.com/licenses");
 });
@@ -163,7 +163,7 @@ it("opens contextual sign-in while keeping the guest journal available", async (
 it("lets a guest delete their data from the account page behind their collection card", async () => {
   mockAccount = { linked: false, deviceCount: 0 };
   await render(<SettingsScreen />);
-  await fireEvent.press(screen.getByRole("button", { name: "Your collection" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Your Collection" }));
   expect(mockPush).toHaveBeenLastCalledWith({ pathname: "/settings-detail", params: { section: "account" } });
   await render(<SettingsDetailScreen section="account" />);
   await fireEvent.press(screen.getByRole("button", { name: "Delete my data" }));

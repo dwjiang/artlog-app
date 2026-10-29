@@ -59,7 +59,7 @@ export function VisitAddSheet() {
       bounces={false}
     >
       <ThemedText type="subtitle" accessibilityRole="header">
-        Add visit
+        Add Visit
       </ThemedText>
       {visit && (
         <ThemedText variant="secondary" themeColor="textSecondary">

@@ -172,7 +172,7 @@ export function HomeScreen() {
                   title="Add your friends."
                   detail="Sign in to see the museum visits and artworks they share."
                   visual={<AvatarStack people={INVITATION_FACES} size={40} />}
-                  action={{ label: "Sign in", onPress: () => router.push(signInRoute("friends")) }}
+                  action={{ label: "Sign In", onPress: () => router.push(signInRoute("friends")) }}
                   secondaryAction={{ label: "Not Now", onPress: () => setDismissedPrompt(true) }}
                 />
               </View>

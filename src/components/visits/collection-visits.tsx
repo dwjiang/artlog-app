@@ -95,7 +95,7 @@ export function CollectionVisits({
               { value: "list", label: "List", icon: "list.bullet" },
             ]}
           />
-          <GalleryButton label="Add visit" icon="plus" onPress={() => router.push("/visit-add")} />
+          <GalleryButton label="Add Visit" icon="plus" onPress={() => router.push("/visit-add")} />
         </View>
         {mode === "list" && (
           <SearchField

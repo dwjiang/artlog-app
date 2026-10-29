@@ -13,7 +13,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { scheduleOnRN } from "react-native-worklets";
+import { scheduleOnRN, scheduleOnUI } from "react-native-worklets";
 
 import { GlassSurface } from "@/components/glass-surface";
 import { Modal } from "@/components/modal";
@@ -79,9 +79,6 @@ function ViewerContent({ uri, label, onClose, actions }: Omit<PhotoViewerProps, 
   const fitted = containSize(natural, { width, height });
   // The gesture worklets read the screen and the fitted picture from here.
   const layout = useSharedValue({ frame: { width, height }, fitted });
-  useEffect(() => {
-    layout.set({ frame: { width, height }, fitted: { width: fitted.width, height: fitted.height } });
-  }, [layout, width, height, fitted.width, fitted.height]);
   const scale = useSharedValue(1);
   const x = useSharedValue(0);
   const y = useSharedValue(0);
@@ -90,6 +87,26 @@ function ViewerContent({ uri, label, onClose, actions }: Omit<PhotoViewerProps, 
   const pinchStart = useSharedValue({ scale: 1, offset: { x: 0, y: 0 }, focal: { x: 0, y: 0 } });
   // A drag that a pinch joined stops moving the picture until its finger lifts; the pinch owns the picture by then.
   const panStart = useSharedValue({ x: 0, y: 0, zoomed: false, pinched: false });
+
+  useEffect(() => {
+    const next = { frame: { width, height }, fitted: { width: fitted.width, height: fitted.height } };
+    scheduleOnUI(() => {
+      "worklet";
+      // Rotation and newly loaded image dimensions invalidate the previous animation bounds.
+      cancelAnimation(scale);
+      cancelAnimation(x);
+      cancelAnimation(y);
+      cancelAnimation(dragX);
+      cancelAnimation(dragY);
+      const settled = settledZoom(scale.get(), { x: x.get(), y: y.get() }, next.fitted, next.frame);
+      layout.set(next);
+      scale.set(settled.scale);
+      x.set(settled.offset.x);
+      y.set(settled.offset.y);
+      dragX.set(0);
+      dragY.set(0);
+    });
+  }, [layout, scale, x, y, dragX, dragY, width, height, fitted.width, fitted.height]);
 
   const close = () => onClose();
   const zoomTo = (target: { scale: number; offset: Point }) => {
@@ -105,6 +122,7 @@ function ViewerContent({ uri, label, onClose, actions }: Omit<PhotoViewerProps, 
   };
 
   const pinch = Gesture.Pinch()
+    .withTestId("photo-viewer-pinch")
     .onStart((event) => {
       cancelAnimation(scale);
       cancelAnimation(x);
