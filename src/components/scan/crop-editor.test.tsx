@@ -113,12 +113,18 @@ it("keeps the header out of the editor's own re-renders", async () => {
   expect(mockHeaderRender).toHaveBeenCalledTimes(1);
 });
 
-it("hides the back button only while the editor is open", async () => {
+it("overlays the header and replaces Back with Cancel only while the editor is open", async () => {
   const view = await render(<CropEditor photoPath="full.jpg" onSave={jest.fn()} onCancel={jest.fn()} />);
   await screen.findByRole("button", { name: "Save crop" });
-  expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({ headerBackVisible: false });
+  expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({
+    headerBackVisible: false,
+    headerTransparent: true,
+  });
   await view.unmount();
-  expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({ headerBackVisible: undefined });
+  expect(mockNavigation.setOptions).toHaveBeenLastCalledWith({
+    headerBackVisible: undefined,
+    headerTransparent: undefined,
+  });
 });
 
 it("cancels without saving", async () => {

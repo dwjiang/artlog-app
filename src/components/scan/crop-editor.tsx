@@ -103,11 +103,11 @@ export function CropEditor({
   }, [uri, attempt]);
 
   const navigation = useNavigation();
-  // Cancel takes the back button's place. Navigation options outlive the component that set them, and the scan result
-  // opens this editor in place, so closing it brings the back button back.
+  // The editor pads for the header, so it must overlay the content on every iOS version.
+  // Scan results open this editor in place; restore their header defaults when it closes.
   useLayoutEffect(() => {
-    navigation.setOptions({ headerBackVisible: false });
-    return () => navigation.setOptions({ headerBackVisible: undefined });
+    navigation.setOptions({ headerBackVisible: false, headerTransparent: true });
+    return () => navigation.setOptions({ headerBackVisible: undefined, headerTransparent: undefined });
   }, [navigation]);
   const saving = busy === "saving";
   // Keep native toolbar options stable as photo loading and crop commits update the editor.
@@ -150,7 +150,6 @@ export function CropEditor({
     <View
       style={[
         styles.screen,
-        // The screen runs under the navigation bar, which only scroll views clear on their own.
         {
           paddingTop: headerHeight,
           paddingLeft: insets.left,
