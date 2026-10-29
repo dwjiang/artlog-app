@@ -7,6 +7,8 @@ import { Colors, Motion } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { reportError } from "@/lib/observability";
 
+import { recordCameraFailure } from "./camera-diagnostics";
+
 const SQUARE_SIZE = 76;
 const LINE = 1;
 const TICK = 6;
@@ -73,6 +75,14 @@ export function TapToFocusCamera(props: Omit<CameraViewProps, "ref" | "style" | 
     >
       <Camera
         {...props}
+        onError={
+          props.onError
+            ? (error) => {
+                recordCameraFailure(props);
+                props.onError?.(error);
+              }
+            : undefined
+        }
         ref={camera}
         style={StyleSheet.absoluteFill}
         // The tapped point holds until the view moves on, then focus returns to the center.
