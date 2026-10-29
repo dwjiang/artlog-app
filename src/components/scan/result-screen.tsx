@@ -44,6 +44,7 @@ import { LocalScanScreen } from "./local-scan-screen";
 import { CardHeader } from "./result/card-header";
 import { NotRightSheet } from "./result/not-right-sheet";
 import { ResultCard } from "./result/result-card";
+import { ScanOptionsToolbar } from "./result/scan-options-toolbar";
 import { ScanCropEditor } from "./scan-crop-editor";
 import { FailedCard } from "./states/failed-card";
 import { SaveAnywayForm } from "./states/save-anyway-form";
@@ -247,6 +248,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
       </ThemedView>
     );
   }
+  const cropAction = capture && !saving && !savedId ? adjustCrop : undefined;
   const header = (
     <CardHeader
       cropUri={cropUri}
@@ -258,7 +260,6 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
       picked={view.picked}
       onNotRight={view.editable && view.primary && !saving && !savedId ? notRight : undefined}
       onEditDetails={namedBy && !saving && !savedId ? editConfirmed : undefined}
-      onAdjustCrop={capture && !saving && !savedId ? adjustCrop : undefined}
     />
   );
   const photoError = captureError && (
@@ -268,6 +269,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
   );
   return (
     <ThemedView style={styles.container}>
+      {!view.editable && cropAction && <ScanOptionsToolbar onAdjustCrop={cropAction} />}
       {view.editable ? (
         <ResultCard
           key={`${view.kind}:${view.primary?.objectId ?? "none"}:${confirmed?.confirmedAt ?? ""}`}
@@ -279,6 +281,7 @@ function ScanResultScreen({ scanId }: { scanId: Id<"scans"> }) {
           onRetryDocent={() => client.mutation(api.docent.retry, { scanId })}
           onOpenMatch={openMatch}
           onEdit={() => setHasEdits(true)}
+          onAdjustCrop={cropAction}
           onLabel={openLabel}
           onEnterDetails={namedBy ? editConfirmed : enterDetails}
           savePhotoOnly={

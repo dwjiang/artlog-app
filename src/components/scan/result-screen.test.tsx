@@ -410,7 +410,7 @@ it("shows a confident match with its fields, chip, prose and sources", async () 
       { uri: "file:///documents/crops/c1.preview.jpg" },
     ]),
   );
-  expect(screen.getByRole("button", { name: "Adjust crop" })).toBeEnabled();
+  expect(within(screen.getByLabelText("Scan options")).getByRole("button", { name: "Adjust Crop" })).toBeEnabled();
   expect(client.watchQuery).toHaveBeenCalledWith(expect.anything(), { scanId: SCAN_ID }, {});
 });
 
@@ -968,6 +968,13 @@ it("shows a failed card when the server refuses the scan", async () => {
   await render(result());
   expect(await screen.findByText("Identification failed.")).toBeOnTheScreen();
   expect(screen.queryByText(haystacks.title)).toBeNull();
+});
+
+it("offers Adjust Crop in Scan options when identification failed", async () => {
+  results.set("scans:get", failedScan);
+  await render(result());
+  expect(await screen.findByText("Identification failed.")).toBeOnTheScreen();
+  expect(within(screen.getByLabelText("Scan options")).getByRole("button", { name: "Adjust Crop" })).toBeEnabled();
 });
 
 it("explains an invalid scan link without exposing server details and offers a way out", async () => {

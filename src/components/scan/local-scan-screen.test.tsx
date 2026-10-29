@@ -361,13 +361,13 @@ it("opens a ready result after the user explicitly discards the draft", async ()
   });
 });
 
-it("asks before the photo's crop control discards an unsaved draft", async () => {
+it("asks before Adjust Crop discards an unsaved draft", async () => {
   await enqueuePendingScan(row("crop-draft", { status: "queued" }));
   const alert = jest.spyOn(Alert, "alert");
   await render(<LocalScanScreen localId="crop-draft" />);
   await fireEvent.press(await screen.findByRole("button", { name: "Add details (optional)" }));
   await fireEvent.changeText(await screen.findByLabelText("Title"), "Unsaved title");
-  await fireEvent.press(screen.getByRole("button", { name: "Adjust crop" }));
+  await fireEvent.press(screen.getByRole("button", { name: "Adjust Crop" }));
   expect(alert).toHaveBeenCalledWith("Adjust this crop?", expect.any(String), expect.any(Array));
   expect(screen.getByLabelText("Title").props.defaultValue).toBe("Unsaved title");
 });
