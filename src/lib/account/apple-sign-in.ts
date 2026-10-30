@@ -4,6 +4,7 @@ import { AppState } from "react-native";
 import { addBreadcrumb } from "@/lib/observability";
 
 import { diagnosticAppState, signInPresentationSnapshot } from "../../../modules/sign-in-diagnostics/src";
+import { presentWhenActive } from "./sign-in-presentation";
 
 const failureCodes = new Set([
   "ERR_WINDOW_UNAVAILABLE",
@@ -15,12 +16,21 @@ const failureCodes = new Set([
   "ERR_INVALID_SCOPE",
 ]);
 
+function errorCode(error: unknown): unknown {
+  try {
+    return error && typeof error === "object" && "code" in error ? error.code : undefined;
+  } catch {
+    // Do not inspect raw messages or native userInfo, which may contain account data.
+    return undefined;
+  }
+}
+
 export async function appleSignIn(
   purpose: "sign_in" | "revocation",
   options?: AppleAuthentication.AppleAuthenticationSignInOptions,
 ): Promise<AppleAuthentication.AppleAuthenticationCredential> {
   const started = Date.now();
-  const data: Record<string, string | number | boolean | null> = { diagnostic_version: 1, purpose };
+  const data: Record<string, string | number | boolean | null> = { diagnostic_version: 2, purpose };
   const state = () => {
     try {
       return diagnosticAppState(AppState.currentState);
@@ -47,24 +57,25 @@ export async function appleSignIn(
       // Diagnostic failures must never change the authentication result.
     }
   };
-  await snapshot("before");
-  record("start");
-  try {
-    const credential = await AppleAuthentication.signInAsync(options);
-    record("success");
-    return credential;
-  } catch (error) {
-    let code: unknown;
-    try {
-      code = error && typeof error === "object" && "code" in error ? error.code : undefined;
-    } catch {
-      // Do not inspect raw messages or native userInfo, which may contain account data.
-    }
-    if (code !== "ERR_REQUEST_CANCELED") {
-      data.error_code = typeof code === "string" && failureCodes.has(code) ? code : "unknown";
-      await snapshot("after");
-      record("failure");
-    }
-    throw error;
-  }
+  return presentWhenActive(
+    async () => {
+      await snapshot("before");
+      record("start");
+      try {
+        const credential = await AppleAuthentication.signInAsync(options);
+        record("success");
+        return credential;
+      } catch (error) {
+        const code = errorCode(error);
+        if (code !== "ERR_REQUEST_CANCELED") {
+          data.error_code = typeof code === "string" && failureCodes.has(code) ? code : "unknown";
+          await snapshot("after");
+          record("failure");
+        }
+        throw error;
+      }
+    },
+    (error) => errorCode(error) === "ERR_WINDOW_UNAVAILABLE",
+    data,
+  );
 }

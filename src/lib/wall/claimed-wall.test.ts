@@ -161,7 +161,12 @@ it("keeps the guest wall for the next read when publishing fails", async () => {
   const { owner, transport, repository } = await signIn(emptyWall);
   transport.setLayout.mockRejectedValueOnce(new Error("Server unavailable"));
   await publishClaimedWall(repository);
-  expect(reportError).toHaveBeenCalledWith(expect.any(Error), "wall.claimed.publish");
+  expect(reportError).toHaveBeenCalledWith(expect.any(Error), "wall.claimed.publish", { data: undefined });
+  jest.mocked(flushCollectionMedia).mockRejectedValueOnce(new Error("Photo upload failed with HTTP 500"));
+  await publishClaimedWall(repository);
+  expect(reportError).toHaveBeenLastCalledWith(expect.any(Error), "wall.claimed.publish", {
+    data: { step: "flush_media" },
+  });
   expect(repository.getSnapshot()).toMatchObject({ layoutDraft: null, pending: false, acknowledged: emptyWall });
   expect(await getSetting(`wall:${owner}`)).toBe(JSON.stringify(guestWall));
 

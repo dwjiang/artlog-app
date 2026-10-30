@@ -1,6 +1,9 @@
 import { randomUUID } from "expo-crypto";
 import { File, Paths } from "expo-file-system";
 import * as SecureStore from "expo-secure-store";
+import { AppState } from "react-native";
+
+import { reportError } from "./observability";
 
 let installationId: string | undefined;
 
@@ -42,4 +45,31 @@ export const installationStorage = {
   async removeItem(key: string): Promise<void> {
     await SecureStore.deleteItemAsync(storageKey(key));
   },
+};
+
+function authItem(key: string): string {
+  if (key.startsWith("__convexAuthJWT")) return "jwt";
+  if (key.startsWith("__convexAuthRefreshToken")) return "refresh";
+  if (key.startsWith("__convexAuthOAuthVerifier")) return "verifier";
+  if (key.startsWith("__convexAuthServerStateFetchTime")) return "fetch_time";
+  return "other";
+}
+
+async function reportFailure<T>(stage: "get" | "set" | "remove", key: string, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    reportError(error, "auth.session_storage", {
+      data: { stage, item: authItem(key), app_state: AppState.currentState },
+    });
+    throw error;
+  }
+}
+
+// Convex Auth reads the saved session at launch without a catch, so a Keychain failure would leave sign-in
+// loading for the whole session with no report.
+export const convexAuthStorage = {
+  getItem: (key: string) => reportFailure("get", key, () => installationStorage.getItem(key)),
+  setItem: (key: string, value: string) => reportFailure("set", key, () => installationStorage.setItem(key, value)),
+  removeItem: (key: string) => reportFailure("remove", key, () => installationStorage.removeItem(key)),
 };

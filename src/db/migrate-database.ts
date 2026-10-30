@@ -73,8 +73,28 @@ function restoreUnownedDatabase(database: Database, installationId: string): voi
   });
 }
 
-export async function migrateDatabase(database: Database, installationId: string): Promise<void> {
+export type MigrationStep = "legacy_restore" | "migrate" | "photo_timestamp";
+
+export const bundledMigrationCount = migrations.journal.entries.length;
+
+/** How many migrations this database has applied, or null before the first launch creates the ledger. */
+export function appliedMigrationCount(database: Pick<Database, "get">): number | null {
+  try {
+    return database.get<{ count: number }>(sql`SELECT count(*) AS count FROM __drizzle_migrations`)?.count ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function migrateDatabase(
+  database: Database,
+  installationId: string,
+  onStep: (step: MigrationStep) => void = () => {},
+): Promise<void> {
+  onStep("legacy_restore");
   restoreUnownedDatabase(database, installationId);
+  onStep("migrate");
   await migrate(database, migrations);
+  onStep("photo_timestamp");
   ensureSavedWorkPhotoTimestamp(database);
 }

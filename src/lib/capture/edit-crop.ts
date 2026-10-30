@@ -12,12 +12,14 @@ import { pendingScans, savedWorks } from "@/db/schema";
 import { captureOwner, getLocalOwner } from "@/lib/account/owner-store";
 import { removePhotoFile } from "@/lib/account/photo-transfer";
 import { embedder } from "@/lib/embed/embedder";
+import { tagFailure } from "@/lib/failure-step";
 import { filePath } from "@/lib/file-uri";
 import { captureFileUri, copyArtworkPhoto, scanPreviewPath } from "@/lib/files/photos";
 import { removeFileIfExists } from "@/lib/files/remove-file";
 import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
 import { recognizeOfflineCapture } from "@/lib/museum-downloads/recognize-capture";
 import { isOffline } from "@/lib/network-state";
+import { reportError } from "@/lib/observability";
 import { withTimeout } from "@/lib/with-timeout";
 import model from "@/shared/model/model-version.json";
 
@@ -54,11 +56,12 @@ export async function prepareEditedCrop(photoPath: string, corners: Quad): Promi
   if (!validCrop(corners)) {
     throw new Error("Choose four corners around the painting.");
   }
-  const result = await getVisionRect().warpAndLetterbox(
-    filePath(captureFileUri(photoPath)),
-    toCorners(corners),
-    model.inputSize,
-  );
+  const result = await getVisionRect()
+    .warpAndLetterbox(filePath(captureFileUri(photoPath)), toCorners(corners), model.inputSize)
+    .catch((error: unknown) => {
+      tagFailure(error, { step: "warp" });
+      throw error;
+    });
   const modelUri = `file://${result.cropPath}`;
   const context = ImageManipulator.manipulate(modelUri);
   let image;
@@ -71,6 +74,7 @@ export async function prepareEditedCrop(photoPath: string, corners: Quad): Promi
     });
     return { modelUri, previewUri: preview.uri, width, height, photoPath, corners: toQuad(result.usedQuad) };
   } catch (error) {
+    tagFailure(error, { step: "render_preview" });
     removeFileIfExists(modelUri);
     throw error;
   } finally {
@@ -88,13 +92,17 @@ export async function saveEditedArtworkCrop(savedId: string, crop: EditedCrop, o
   if (!current.isOwnerCurrent() || !isCurrent()) {
     throw new Error("Crop edit cancelled");
   }
-  const path = await copyArtworkPhoto(crop.previewUri, randomUUID());
+  const path = await copyArtworkPhoto(crop.previewUri, randomUUID()).catch((error: unknown) => {
+    tagFailure(error, { step: "copy_files", target: "artwork" });
+    throw error;
+  });
   try {
     if (!current.isOwnerCurrent() || !isCurrent()) {
       throw new Error("Journal owner changed");
     }
     replaceSavedCrop(savedId, path, crop.corners, crop.photoPath, owner);
   } catch (error) {
+    tagFailure(error, { step: "db_write", target: "artwork" });
     removePhotoFile(path);
     throw error;
   }
@@ -111,12 +119,19 @@ export async function saveEditedScanCrop(
   const current = captureOwner();
   const capture = await getPendingScan(localId, owner);
   if (current.owner !== owner || !capture) throw new Error("Scan unavailable");
-  const features = await extractFeatures(crop.modelUri, { embedder, orb });
+  const features = await extractFeatures(crop.modelUri, { embedder, orb }).catch((error: unknown) => {
+    tagFailure(error, { step: "extract_features", target: "scan" });
+    throw error;
+  });
   if (!current.isOwnerCurrent() || !isCurrent()) {
     throw new Error("Journal owner changed");
   }
   const nextId = randomUUID();
-  const modelPath = await copyArtworkPhoto(crop.modelUri, nextId);
+  let step = "copy_files";
+  const modelPath = await copyArtworkPhoto(crop.modelUri, nextId).catch((error: unknown) => {
+    tagFailure(error, { step, target: "scan" });
+    throw error;
+  });
   const previewPath = scanPreviewPath(modelPath);
   let photoPath: string | undefined;
   try {
@@ -125,6 +140,7 @@ export async function saveEditedScanCrop(
     if (!current.isOwnerCurrent() || !isCurrent()) {
       throw new Error("Journal owner changed");
     }
+    step = "db_write";
     db.transaction((tx) => {
       const original = tx
         .select()
@@ -164,6 +180,7 @@ export async function saveEditedScanCrop(
       clearPhotoDraft(owner, capture.photoPath);
     });
   } catch (error) {
+    tagFailure(error, { step, target: "scan" });
     removePhotoFile(modelPath);
     removePhotoFile(previewPath);
     if (photoPath) removePhotoFile(photoPath);
@@ -179,7 +196,9 @@ export async function saveEditedScanCrop(
       venueId: capture.venueId ?? undefined,
     },
     current.scope,
-  ).catch((error) => console.warn("Offline identification unavailable; edited capture stays queued", error));
+  ).catch((error: unknown) =>
+    reportError(error, "capture.recognize_offline", { level: "warning", data: { edited: true } }),
+  );
   return nextId;
 }
 

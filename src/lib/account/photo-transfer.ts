@@ -1,6 +1,7 @@
 import { Directory, File, Paths, UploadType } from "expo-file-system";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 
+import { tagFailure } from "@/lib/failure-step";
 import { PHOTO_FOLDERS } from "@/lib/files/photo-folders";
 import { captureFileUri } from "@/lib/files/photos";
 import { removeFileIfExists } from "@/lib/files/remove-file";
@@ -33,26 +34,38 @@ export async function uploadCollectionPhoto(
   photoId?: string,
 ): Promise<PhotoUpload> {
   const context = ImageManipulator.manipulate(captureFileUri(path));
-  const source = await context.renderAsync();
+  let source;
+  try {
+    source = await context.renderAsync();
+  } catch (error) {
+    // A crop whose file is gone fails here on every sweep; whether it exists separates that from a bad image.
+    tagFailure(error, { step: "read_source", source_exists: new File(captureFileUri(path)).exists });
+    context.release();
+    throw error;
+  }
   const dimension = kind === "photo" || source.width >= source.height ? "width" : "height";
   const limit = kind === "photo" ? COLLECTION_PHOTO_MAX_WIDTH : 512;
   const resize = ImageManipulator.manipulate(source);
   let rendered = source;
   let file: File | undefined;
+  let step = "resize";
   try {
     if (source[dimension] > limit) {
       rendered = await resize.resize({ [dimension]: limit }).renderAsync();
     }
+    step = "encode";
     // Re-encoding the rendered image omits the original camera and location metadata.
     const encoded = await rendered.saveAsync({
       format: SaveFormat.JPEG,
       compress: 0.85,
     });
     file = new File(encoded.uri);
+    step = "size_limit";
     if (file.size > MAX_COLLECTION_PHOTO_BYTES) {
       throw new Error("Photo exceeds the upload limit");
     }
     if (!isCurrent()) throw new Error("Photo upload cancelled");
+    step = "upload";
     const response = await file.upload(endpoint(scope, localId, kind, photoId), {
       httpMethod: "POST",
       uploadType: UploadType.BINARY_CONTENT,
@@ -66,11 +79,15 @@ export async function uploadCollectionPhoto(
     if (response.status !== 200) {
       throw new Error(`Photo upload failed with HTTP ${response.status}`);
     }
+    step = "response";
     const result = JSON.parse(response.body) as PhotoUpload;
     if (!result.storageId || !Number.isFinite(result.photoUpdatedAt)) {
       throw new Error("Photo upload did not return a storage reference");
     }
     return result;
+  } catch (error) {
+    tagFailure(error, { step });
+    throw error;
   } finally {
     if (file) removeFileIfExists(file);
     if (rendered !== source) rendered.release();
@@ -91,10 +108,15 @@ export async function downloadCollectionPhoto(
   const directory = new Directory(Paths.document, PHOTO_FOLDERS.backup);
   directory.create({ intermediates: true, idempotent: true });
   const path = `${PHOTO_FOLDERS.backup}/${encodeURIComponent(scope)}-${encodeURIComponent(localId)}-${photoId ?? kind}-${storageId}.jpg`;
-  await File.downloadFileAsync(endpoint(scope, localId, kind, photoId), new File(captureFileUri(path)), {
-    headers: { Authorization: `Bearer ${token}` },
-    idempotent: true,
-  });
+  try {
+    await File.downloadFileAsync(endpoint(scope, localId, kind, photoId), new File(captureFileUri(path)), {
+      headers: { Authorization: `Bearer ${token}` },
+      idempotent: true,
+    });
+  } catch (error) {
+    tagFailure(error, { step: "download" });
+    throw error;
+  }
   return path;
 }
 

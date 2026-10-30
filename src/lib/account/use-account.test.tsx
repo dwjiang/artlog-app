@@ -50,6 +50,7 @@ jest.mock("./google-sign-in", () => ({
   googleSignInAvailable: true,
   googleSignIn: () => mockGoogle(),
 }));
+jest.mock("./sign-in-presentation", () => ({ presentWhenActive: (present: () => unknown) => present() }));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => true }));
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),

@@ -13,7 +13,7 @@ import {
   revokeSaveMedia,
 } from "./lib/displayMedia";
 import { fileStorage, retainFile } from "./lib/fileStorage";
-import { reportBackendError } from "./lib/observability";
+import { reportBackendError, reportMissingStoredFile } from "./lib/observability";
 import { requirePublicWallItem } from "./lib/publicationAccess";
 import schema from "./schema";
 import { serveSharedMedia } from "./sharedMedia";
@@ -243,12 +243,9 @@ export const download = httpAction(async (ctx, request) => {
     if (kind !== "wallItem") return await serveSharedMedia(ctx, context, params.has("size") ? "feed" : undefined);
     const storageId = await ctx.runQuery(internal.displayMedia.findForWallItem, { context });
     const blob = storageId ? await fileStorage.get(ctx, storageId) : null;
-    if (
-      !blob
-      || (await ctx.runQuery(internal.displayMedia.findForWallItem, {
-        context,
-      })) !== storageId
-    ) {
+    const current = (await ctx.runQuery(internal.displayMedia.findForWallItem, { context })) === storageId;
+    if (!blob || !current) {
+      if (storageId && !blob && current) await reportMissingStoredFile("displayMedia.download", "wallItem");
       throw new ConvexError({ code: "not_found" });
     }
     return new Response(blob, {

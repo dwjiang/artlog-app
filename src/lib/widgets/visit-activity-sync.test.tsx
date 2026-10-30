@@ -135,7 +135,10 @@ it("reports native failures and continues syncing later snapshots", async () => 
   mockHydrated = true;
   mockVisit = visit;
   const view = await render(<VisitActivitySync />);
-  expect(mockReportError).toHaveBeenCalledWith(failure, "visit.live-activity", { level: "warning" });
+  expect(mockReportError).toHaveBeenCalledWith(failure, "visit.live-activity", {
+    level: "warning",
+    data: { step: "update", app_state: expect.anything() },
+  });
   mockCount = 2;
   await view.rerender(<VisitActivitySync />);
   expect(activity.update).toHaveBeenLastCalledWith(expect.objectContaining({ count: 2 }));

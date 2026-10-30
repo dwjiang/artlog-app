@@ -1,4 +1,4 @@
-import { decodeJwt, exportPKCS8, generateKeyPair } from "jose";
+import { decodeJwt, errors, exportPKCS8, generateKeyPair } from "jose";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 
 import { api, internal } from "./_generated/api";
@@ -107,6 +107,16 @@ it("rejects invalid Google tokens, forged subjects and proofs from another provi
   await googleSignIn(device);
   await expect(link(device, "forged", "google")).rejects.toThrow("sign_in_required");
   await expect(link(device, "google-user", "apple")).rejects.toThrow("sign_in_required");
+  expect((await device.as.query(api.accounts.me, {})).linked).toBe(false);
+});
+
+it("names a token jose rejected with a sign-in code instead of a bare server error", async () => {
+  const t = harness();
+  const device = await seedDevice(t);
+  vi.mocked(verifyGoogleIdentityToken).mockRejectedValueOnce(
+    new errors.JWTClaimValidationFailed("unexpected aud", {}, "aud", "check_failed"),
+  );
+  await expect(googleSignIn(device)).rejects.toThrow(/invalid_google_identity.*ERR_JWT_CLAIM_VALIDATION_FAILED/);
   expect((await device.as.query(api.accounts.me, {})).linked).toBe(false);
 });
 

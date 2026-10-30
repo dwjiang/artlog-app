@@ -19,6 +19,7 @@ import { upsertVisit } from "@/db/repos/visits";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { SavedWorkScreen } from "./saved-work-screen";
 
+jest.mock("expo-network", () => ({ useNetworkState: () => ({ isConnected: true, isInternetReachable: true }) }));
 jest.mock("@/lib/audio/use-listening");
 jest.mock("@/hooks/use-screen-active", () => ({ useScreenActive: () => true }));
 jest.mock("@/lib/audio/use-cached-narration-duration", () => ({

@@ -1,4 +1,5 @@
 import * as AppleAuthentication from "expo-apple-authentication";
+import { AppState } from "react-native";
 
 import { addBreadcrumb } from "@/lib/observability";
 
@@ -12,16 +13,20 @@ jest.mock("../../../modules/sign-in-diagnostics/src", () => ({
   signInPresentationSnapshot: jest.fn(),
 }));
 
+const presetState = AppState.currentState;
+
 beforeEach(() => {
   jest.resetAllMocks();
+  Object.assign(AppState, { currentState: "active" });
   jest
     .mocked(signInPresentationSnapshot)
     .mockResolvedValue({ snapshot: "available", hasApplePresentationWindow: false });
 });
 
 afterEach(() => jest.restoreAllMocks());
+afterAll(() => Object.assign(AppState, { currentState: presetState }));
 
-it("records the Apple presentation-window failure without logging inputs or error content", async () => {
+it("records a repeated Apple presentation-window failure without logging inputs or error content", async () => {
   const error = Object.assign(new Error("private account content"), {
     code: "ERR_WINDOW_UNAVAILABLE",
     userInfo: "private URL",
@@ -29,17 +34,39 @@ it("records the Apple presentation-window failure without logging inputs or erro
   jest.mocked(AppleAuthentication.signInAsync).mockRejectedValue(error);
   const options = { nonce: "private nonce" };
   await expect(appleSignIn("sign_in", options)).rejects.toBe(error);
-  expect(AppleAuthentication.signInAsync).toHaveBeenCalledWith(options);
+  expect(AppleAuthentication.signInAsync).toHaveBeenCalledTimes(2);
+  expect(AppleAuthentication.signInAsync).toHaveBeenLastCalledWith(options);
   expect(addBreadcrumb).toHaveBeenLastCalledWith(
     "auth.apple_native.failure",
     expect.objectContaining({
       purpose: "sign_in",
       error_code: "ERR_WINDOW_UNAVAILABLE",
+      presentation_retried: true,
       before_hasApplePresentationWindow: false,
       after_hasApplePresentationWindow: false,
     }),
   );
   expect(JSON.stringify(jest.mocked(addBreadcrumb).mock.calls)).not.toContain("private");
+});
+
+it("retries once when Apple had no window to present on", async () => {
+  const credential = {} as AppleAuthentication.AppleAuthenticationCredential;
+  jest
+    .mocked(AppleAuthentication.signInAsync)
+    .mockRejectedValueOnce({ code: "ERR_WINDOW_UNAVAILABLE" })
+    .mockResolvedValueOnce(credential);
+  await expect(appleSignIn("revocation")).resolves.toBe(credential);
+  expect(addBreadcrumb).toHaveBeenLastCalledWith(
+    "auth.apple_native.success",
+    expect.objectContaining({ active_wait: "none", presentation_retried: true, retry_active_wait: "none" }),
+  );
+});
+
+it("does not retry other Apple failures", async () => {
+  const error = { code: "ERR_REQUEST_FAILED" };
+  jest.mocked(AppleAuthentication.signInAsync).mockRejectedValue(error);
+  await expect(appleSignIn("sign_in")).rejects.toBe(error);
+  expect(AppleAuthentication.signInAsync).toHaveBeenCalledTimes(1);
 });
 
 it("returns the original credential without logging its tokens or user", async () => {

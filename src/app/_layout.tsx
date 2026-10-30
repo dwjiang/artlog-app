@@ -22,10 +22,11 @@ import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { CollectionSync } from "@/lib/account/collection-sync";
 import { ListeningProvider } from "@/lib/audio/listening-provider";
 import { convex } from "@/lib/convex-client";
+import { ConvexConnectionWatch } from "@/lib/convex-connection";
 import { DeviceIdentity } from "@/lib/device-identity";
 import { PhotoMaintenance } from "@/lib/files/photo-maintenance-lifecycle";
 import { limitImageCache } from "@/lib/image-cache";
-import { installationStorage } from "@/lib/installation-storage";
+import { convexAuthStorage } from "@/lib/installation-storage";
 import { isJudgesDemo } from "@/lib/judges-demo";
 import { MuseumDownloadLifecycle } from "@/lib/museum-downloads/use-museum-downloads";
 import { ExhibitionReminderSync } from "@/lib/notifications/exhibition-reminder-sync";
@@ -66,7 +67,8 @@ function AppContent() {
   return (
     <DatabaseGate>
       <PhotoMaintenance />
-      <ConvexAuthProvider client={convex} storage={installationStorage}>
+      <ConvexAuthProvider client={convex} storage={convexAuthStorage}>
+        <ConvexConnectionWatch />
         <DeviceIdentity />
         <CollectionSync />
         <ProfileSetupPrompt />

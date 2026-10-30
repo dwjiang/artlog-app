@@ -162,9 +162,11 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
     if (!remoteScanId) return;
     const qr = !!source.qrUrl;
     let keepSource = false;
+    let step: string = qr ? "qr" : "read";
     setPhase({ kind: "running", stage: qr ? "qr" : "read", qr });
     try {
       const flow = await runLabelFlowForScan(remoteScanId, source, (stage) => {
+        step = stage;
         if (mounted.current) {
           setPhase((current) => (current.kind === "running" ? { ...current, stage } : current));
         }
@@ -172,7 +174,7 @@ function LabelCapture({ scanId }: LabelCaptureScreenProps) {
       if (!mounted.current) return;
       setPhase({ kind: "review", flow, fresh: true });
     } catch (error) {
-      reportError(error, "label.verify");
+      reportError(error, "label.verify", { data: { step, source: qr ? "qr" : "photo" } });
       console.warn("Label flow failed", error);
       if (isTransientError(error instanceof LabelFlowError ? (error.cause ?? error) : error)) {
         keepSource = true;

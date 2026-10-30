@@ -1,6 +1,7 @@
 import { removeSetting } from "@/db/repos/settings";
 import { flushCollectionMedia } from "@/lib/account/collection-sync";
 import { captureOwner } from "@/lib/account/owner-store";
+import { failureDetails, tagFailure } from "@/lib/failure-step";
 import { reportError } from "@/lib/observability";
 
 import { privateWallKey, readPrivateWall } from "./local-wall-repository";
@@ -21,7 +22,7 @@ let publishing: Promise<void> | undefined;
  */
 export function publishClaimedWall(repository: Repository): Promise<void> {
   publishing ??= publish(repository)
-    .catch((error: unknown) => reportError(error, "wall.claimed.publish"))
+    .catch((error: unknown) => reportError(error, "wall.claimed.publish", { data: failureDetails(error) }))
     .finally(() => {
       publishing = undefined;
     });
@@ -41,6 +42,9 @@ async function publish(repository: Repository) {
       // The claimed journal's first sync and uploads can take a while, so they finish before `pending` locks the wall.
       await flushCollectionMedia({
         photoLocalIds: wall.items.flatMap((item) => (item.photoLocalId ? [item.photoLocalId] : [])),
+      }).catch((error: unknown) => {
+        tagFailure(error, { step: "flush_media" });
+        throw error;
       });
       const current = repository.getSnapshot();
       // An owner change or closed screen meanwhile leaves the claim for the next read to settle.

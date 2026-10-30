@@ -8,6 +8,7 @@ import { forgetDeviceAuthSecret, getDeviceAuthSecret } from "@/lib/device-creden
 import { installationStorage } from "@/lib/installation-storage";
 import { rateLimitRetryAfterMs } from "@/lib/network-error";
 import { addBreadcrumb, reportError } from "@/lib/observability";
+import { reportIfStalled } from "@/lib/stall-report";
 
 import { api } from "../../convex/_generated/api";
 
@@ -16,6 +17,10 @@ type DeviceFunctions = {
   createChallenge: ReactMutation<typeof api.devices.createChallenge>;
   attestDevice: ReactAction<typeof api.devices.attestDevice>;
 };
+
+// Setup runs one step at a time, so the current step names where a failure or hang happened.
+let setupStep = "start";
+const SETUP_STALL_MS = 60_000;
 
 // Apple attests a key once. Keep its challenge and proof while retrying server submission.
 let pendingAttestation: {
@@ -27,7 +32,9 @@ let pendingAttestation: {
 
 async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
   addBreadcrumb("auth.device_registration.start");
+  setupStep = "read_key";
   const storedKeyId = await installationStorage.getItem(APP_ATTEST_KEY_ID);
+  setupStep = "register";
   const result = await fns.registerDevice({
     platform: Device.isDevice ? "ios" : "simulator",
     appAttestKeyId: storedKeyId ?? undefined,
@@ -36,6 +43,7 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
   // Every backend this phone signs in to shares the saved key id, so attesting on one can overwrite the id another
   // already holds. The server attests one key per device, and that key remains on the phone.
   if (result.attestedKeyId !== undefined && result.attestedKeyId !== storedKeyId) {
+    setupStep = "save_key";
     await installationStorage.setItem(APP_ATTEST_KEY_ID, result.attestedKeyId);
   }
   if (result.attested || result.attestedKeyId !== undefined || !appAttest) {
@@ -49,16 +57,21 @@ async function registerAndAttest(fns: DeviceFunctions): Promise<void> {
   try {
     for (let attempt = 0; attempt < 2; attempt++) {
       if (keyId === null) {
+        setupStep = "generate_key";
         keyId = await appAttest.generateKey();
+        setupStep = "save_key";
         await installationStorage.setItem(APP_ATTEST_KEY_ID, keyId);
       }
       if (pendingAttestation?.keyId !== keyId || pendingAttestation.deviceId !== result.deviceId) {
+        setupStep = "challenge";
         const { nonce } = await fns.createChallenge({ purpose: "attest" });
         pendingAttestation = { deviceId: result.deviceId, keyId, nonce };
       }
       const request = pendingAttestation;
       try {
+        setupStep = "attest_key";
         request.attestationBase64 ??= await appAttest.attestKey(keyId, request.nonce);
+        setupStep = "submit_attestation";
         await fns.attestDevice({
           keyId,
           attestationBase64: request.attestationBase64,
@@ -122,11 +135,22 @@ let signInInFlight: Promise<unknown> | null = null;
 let registration: Promise<void> | null = null;
 
 export function signInAnonymously(signIn: ReturnType<typeof useAuthActions>["signIn"]): Promise<unknown> {
-  signInInFlight ??= getDeviceAuthSecret()
-    .then((secret) => signIn("anonymous", { secret }))
-    .finally(() => {
-      signInInFlight = null;
-    });
+  if (!signInInFlight) {
+    setupStep = "read_secret";
+    signInInFlight = reportIfStalled(
+      getDeviceAuthSecret()
+        .then((secret) => {
+          setupStep = "sign_in";
+          return signIn("anonymous", { secret });
+        })
+        .finally(() => {
+          signInInFlight = null;
+        }),
+      "auth.anonymous_sign_in_stalled",
+      SETUP_STALL_MS,
+      { requiresNetwork: true, data: () => ({ step: setupStep }) },
+    );
+  }
   return signInInFlight;
 }
 
@@ -179,13 +203,15 @@ export function useDeviceIdentity(): void {
       pending = signInAnonymously(signIn);
     } else if (revoked) {
       registration = null;
+      setupStep = "revoked_sign_out";
       pending = signOut();
     } else {
-      registration ??= registerAndAttest({
-        registerDevice,
-        createChallenge,
-        attestDevice,
-      }).catch((error: unknown) => {
+      registration ??= reportIfStalled(
+        registerAndAttest({ registerDevice, createChallenge, attestDevice }),
+        "auth.device_registration_stalled",
+        SETUP_STALL_MS,
+        { requiresNetwork: true, data: () => ({ step: setupStep }) },
+      ).catch((error: unknown) => {
         registration = null;
         throw error;
       });
@@ -198,9 +224,12 @@ export function useDeviceIdentity(): void {
       if (!active || errorCode(error) === "session_revoked") return;
       console.warn("Device identity setup failed", error);
       const retrying = canRetrySetup(error);
-      reportError(error, isAuthenticated ? "auth.device_registration" : "auth.anonymous_sign_in", {
-        data: { attempt: attempt + 1, retrying },
-      });
+      const operation = !isAuthenticated
+        ? "auth.anonymous_sign_in"
+        : revoked
+          ? "auth.revoked_sign_out"
+          : "auth.device_registration";
+      reportError(error, operation, { data: { attempt: attempt + 1, retrying, step: setupStep } });
       if (!retrying) return;
       const delay = Math.max(Math.min(1000 * 2 ** attempt, 30_000), rateLimitRetryAfterMs(error) ?? 0);
       retry = setTimeout(() => setAttempt((value) => value + 1), delay);

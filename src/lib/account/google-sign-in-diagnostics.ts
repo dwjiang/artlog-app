@@ -26,6 +26,24 @@ export function googleSignInCancelled(error: unknown): boolean {
   }
 }
 
+// AppAuth's fixed, unlocalized description for a browser sheet that never started, which GIDSignIn
+// forwards under its generic code -1.
+const browserNotStarted = "Unable to open Safari.";
+
+export function googleSignInMissingWindow(error: unknown): boolean {
+  try {
+    const value = object(error);
+    if (code(value?.code) === "NULL_PRESENTER") return true;
+    const descriptions = [object(value?.userInfo)?.NSLocalizedDescription, value?.message];
+    return (
+      code(value?.code) === "-1"
+      && descriptions.some((text) => typeof text === "string" && text.includes(browserNotStarted))
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function googleSignInErrorData(error: unknown): Record<string, string> {
   const data: Record<string, string> = {};
   try {

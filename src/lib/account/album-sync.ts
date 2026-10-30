@@ -18,10 +18,10 @@ import { photoFileExists } from "@/lib/files/photo-transfer-needed";
 import { scanPreviewPath } from "@/lib/files/photos";
 import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
 import { isTransientError } from "@/lib/network-error";
-import { reportError } from "@/lib/observability";
 
 import { api } from "../../../convex/_generated/api";
 import { downloadCollectionPhoto, removePhotoFile, uploadCollectionPhoto } from "./photo-transfer";
+import { reportTransferFailure } from "./photo-transfer-failures";
 import type { SyncContext } from "./sync";
 
 export async function syncArtworkAlbums(context: SyncContext, token: string, isCurrent: () => boolean) {
@@ -128,12 +128,7 @@ export async function syncArtworkAlbums(context: SyncContext, token: string, isC
         }
       } catch (error) {
         if (isTransientError(error)) throw error;
-        reportError(error, "sync.photos", {
-          data: {
-            kind: "album",
-            direction: upload ? "upload" : "download",
-          },
-        });
+        reportTransferFailure(error, "album", upload ? "upload" : "download");
         failure = error;
       }
     }

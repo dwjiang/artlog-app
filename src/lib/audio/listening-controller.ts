@@ -6,13 +6,18 @@ import { showErrorToast } from "@/lib/ui/toast";
 
 import type { FactChip, GuideSentence } from "../../../convex/lib/validators";
 import { researchKey, trackKey, type ListeningTrack } from "./narration";
+import { playbackDiagnostics } from "./narration-diagnostics";
 import type { NarrationPreparationStage } from "./narration-preparation";
+import { DownloadTimeoutError } from "./narration-renderer";
 
-async function reportRemotePlaybackFailure(message: string) {
+type DiagnosticData = Record<string, string | number | boolean | null | undefined>;
+
+// Streams and downloads also fail when the connection drops, which is not worth an event.
+async function reportWhenOnline(message: string, operation: string, data: DiagnosticData) {
   try {
     const network = await getNetworkStateAsync();
     if (network.isConnected && network.isInternetReachable !== false) {
-      reportError(new Error(message), "narration.playback");
+      reportError(new Error(message), operation, { data });
     }
   } catch {
     // Diagnostics must not prevent playback recovery when connectivity cannot be checked.
@@ -46,6 +51,7 @@ export type Playback = {
   didJustFinish: boolean;
   playbackState?: string;
   timeControlStatus?: string;
+  reasonForWaitingToPlay?: string;
   error?: string | null;
   playbackRate?: number;
 };
@@ -214,7 +220,10 @@ export class ListeningController {
         this.update({ position: status.currentTime, duration: status.duration || this.state.duration });
         this.remember();
         this.fail("Audio stopped responding.");
-        void reportRemotePlaybackFailure("Narration playback stalled");
+        void reportWhenOnline("Narration playback stalled", "narration.playback", {
+          watchdog: "stall",
+          ...playbackDiagnostics(status),
+        });
       }
     }, 1000);
   }
@@ -267,8 +276,14 @@ export class ListeningController {
       let finished = false;
       this.loadTimeout = setTimeout(() => {
         if (generation === this.generation && !started) {
-          if (local) reportError(new Error("Narration load timed out"), "narration.playback");
-          else void reportRemotePlaybackFailure("Narration load timed out");
+          const data = {
+            watchdog: "load",
+            source: local ? "file" : "live",
+            starting,
+            ...playbackDiagnostics(player.currentStatus),
+          };
+          if (local) reportError(new Error("Narration load timed out"), "narration.playback", { data });
+          else void reportWhenOnline("Narration load timed out", "narration.playback", data);
           this.fail("Couldn’t load audio.");
         }
       }, 15000);
@@ -302,8 +317,9 @@ export class ListeningController {
               reportError(error, "narration.cache");
             }
           }
-          if (local) reportError(new Error("Narration player failed"), "narration.playback");
-          else void reportRemotePlaybackFailure("Narration player failed");
+          const data = { source: local ? "file" : "live", ...playbackDiagnostics(status) };
+          if (local) reportError(new Error("Narration player failed"), "narration.playback", { data });
+          else void reportWhenOnline("Narration player failed", "narration.playback", data);
           this.fail("Couldn’t play audio.");
           return;
         }
@@ -389,9 +405,19 @@ export class ListeningController {
       onStatus(player.currentStatus);
     } catch (error) {
       if (generation !== this.generation) return;
-      // The backend reports its own failures; this covers the download, the transcript check and the player.
-      if (!isBackendError(error) && !isNetworkError(error)) {
-        reportError(error, "narration.prepare", { data: { artworkId: track.work.artworkId } });
+      const stage = this.state.preparationStage;
+      // A timed-out download reads as a dropped connection to the listener, but online it means a stalled server.
+      if (error instanceof DownloadTimeoutError) {
+        void reportWhenOnline("Narration download timed out", "narration.prepare", {
+          artworkId: track.work.artworkId,
+          stage,
+          timeout: error.timeout,
+          received_kb: error.receivedKb,
+          expected_kb: error.expectedKb,
+        });
+      } else if (!isBackendError(error) && !isNetworkError(error)) {
+        // The backend reports its own failures; this covers the download, the transcript check and the player.
+        reportError(error, "narration.prepare", { data: { artworkId: track.work.artworkId, stage } });
       }
       this.fail(preparationError(error));
     }

@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { Text } from "react-native";
 
 import { db } from "@/db/client";
+import { bundledMigrationCount } from "@/db/migrate-database";
 import { savedWorks } from "@/db/schema";
 import { createTestDatabase } from "@/db/test-db";
 import { reportError } from "@/lib/observability";
@@ -67,7 +68,13 @@ it("keeps consumers behind the gate after a failed repair and recovers on relaun
 
   expect(screen.getByText("Could not open the local database")).toBeOnTheScreen();
   expect(screen.queryByText(/Photo timestamp:/)).toBeNull();
-  expect(reportError).toHaveBeenCalledWith(error, "database.initialize");
+  expect(reportError).toHaveBeenCalledWith(error, "database.initialize", {
+    data: {
+      step: "photo_timestamp",
+      applied_migrations: bundledMigrationCount,
+      bundled_migrations: bundledMigrationCount,
+    },
+  });
   expect(db.get(sql`SELECT title FROM savedWorks`)).toEqual({ title: "Test painting" });
 
   const ledger = db.all(sql`SELECT * FROM __drizzle_migrations`);

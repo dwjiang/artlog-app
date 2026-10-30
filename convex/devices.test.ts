@@ -340,7 +340,7 @@ describe("attestDevice", () => {
     const args = { keyId: "a2V5", attestationBase64: "AAAA", nonce };
 
     await expect(user.as.action(api.devices.attestDevice, args)).rejects.toMatchObject({
-      data: { code: "invalid_attestation" },
+      data: { code: "invalid_attestation", reason: "format" },
     });
     await expect(user.as.action(api.devices.attestDevice, args)).rejects.toMatchObject({
       data: { code: "challenge_invalid" },

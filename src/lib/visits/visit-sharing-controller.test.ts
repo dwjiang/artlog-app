@@ -297,7 +297,9 @@ it("reports publication failures without attaching the selected artwork or refle
   const error = new Error("Unexpected server failure");
   transport.publish.mockRejectedValueOnce(error);
   expect(await controller.publish()).toBe(false);
-  expect(reportError).toHaveBeenCalledWith(error, "visit.sharing.publish");
+  expect(reportError).toHaveBeenCalledWith(error, "visit.sharing.publish", {
+    data: { step: "request", timed_out: false, elapsed_ms: expect.any(Number), save_count: 60 },
+  });
   expect(controller.getSnapshot().draft).not.toBeNull();
   expect(addBreadcrumb).toHaveBeenCalledWith("visit.sharing.publish.started");
   expect(addBreadcrumb).not.toHaveBeenCalledWith("visit.sharing.publish.completed");
@@ -314,6 +316,7 @@ it("reports a timed-out load and releases the busy state for retry", async () =>
     expect(reportError).toHaveBeenCalledWith(
       expect.objectContaining({ message: "Visit sharing timed out" }),
       "visit.sharing.load",
+      { data: { step: "request", timed_out: true, elapsed_ms: 30_000, save_count: 60 } },
     );
   } finally {
     jest.useRealTimers();

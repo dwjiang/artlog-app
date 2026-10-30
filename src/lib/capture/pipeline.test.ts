@@ -1,6 +1,7 @@
 import { ConvexError } from "convex/values";
 
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
+import { failureDetails } from "@/lib/failure-step";
 
 import { runCapture } from "./pipeline";
 import type {
@@ -371,6 +372,31 @@ it("does not send or report queued if the store rejects the write", async () => 
   deps.store.enqueue.mockRejectedValue(new Error("Disk full"));
   await expect(runCapture(input, deps, options)).rejects.toThrow("Disk full");
   expect(deps.identify).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["orb", (deps: ReturnType<typeof dependencies>) => deps.orb.extract.mockRejectedValue(new Error("OpenCV failed"))],
+  ["enqueue", (deps: ReturnType<typeof dependencies>) => deps.store.enqueue.mockRejectedValue(new Error("Disk full"))],
+  [
+    "identify",
+    (deps: ReturnType<typeof dependencies>) => deps.identify.mockRejectedValue(new ConvexError({ code: "bad_crop" })),
+  ],
+  [
+    "record_result",
+    (deps: ReturnType<typeof dependencies>) => deps.store.recordResult.mockRejectedValue(new Error("Disk full")),
+  ],
+  [
+    "requeue",
+    (deps: ReturnType<typeof dependencies>) => {
+      deps.identify.mockRejectedValue(new ConvexError({ code: "bad_crop" }));
+      deps.store.requeue.mockRejectedValue(new Error("Disk full"));
+    },
+  ],
+] as const)("names the %s step that failed, so a report can tell the steps apart", async (step, fail) => {
+  const deps = dependencies();
+  fail(deps);
+  const error = await runCapture(input, deps, options).catch((cause: unknown) => cause);
+  expect(failureDetails(error)).toEqual({ step });
 });
 
 it("rejects a model mismatch before processing the photo", async () => {

@@ -2,7 +2,7 @@ import { ConvexError } from "convex/values";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import type { Id } from "../_generated/dataModel";
-import { reportBackendError, withErrorReporting } from "./observability";
+import { reportBackendError, reportMissingStoredFile, withErrorReporting } from "./observability";
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -212,4 +212,47 @@ it("drops unknown diagnostic strings and invalid numeric values", async () => {
   const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
   expect(event.contexts.token_factory).toEqual({ version: 1, model: "other", outputChars: 0 });
   expect(JSON.stringify(event)).not.toContain("private");
+});
+
+it("sends only identifier-like operation diagnostics with the event", async () => {
+  await reportBackendError(new Error("private failure text"), "auth.nativeSignIn", {
+    diagnostics: {
+      provider: "apple",
+      step: "verify",
+      joseCode: "ERR_JWT_EXPIRED",
+      httpStatus: 503,
+      cached: false,
+      email: "person@example.com",
+      note: "private free text",
+      url: "https://private.example/path?token=secret",
+      huge: Number.MAX_SAFE_INTEGER,
+      "Bad Key": "x",
+    },
+  });
+  const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
+  expect(event.contexts.operation).toEqual({
+    provider: "apple",
+    step: "verify",
+    joseCode: "ERR_JWT_EXPIRED",
+    httpStatus: 503,
+    cached: false,
+  });
+  expect(JSON.stringify(event)).not.toMatch(/private|person@|secret/);
+});
+
+it("reports a photo whose stored bytes are gone with its route kind", async () => {
+  await reportMissingStoredFile("collectionPhotos.download", "photo");
+  const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
+  expect(event.tags).toMatchObject({ operation: "collectionPhotos.download", error_code: "photo_file_missing" });
+  expect(event.contexts.operation).toEqual({ kind: "photo" });
+});
+
+it("keeps an allowlisted code and status reason carried by a plain error, never its message", async () => {
+  await reportBackendError(
+    Object.assign(new Error("R2 upload failed (403) private-key"), { code: "storage_failed", reason: "http_403" }),
+    "files.store",
+  );
+  const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
+  expect(event.tags).toMatchObject({ operation: "files.store", error_code: "storage_failed", reason: "http_403" });
+  expect(JSON.stringify(event)).not.toContain("private-key");
 });

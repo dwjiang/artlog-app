@@ -1,6 +1,7 @@
 import { randomUUID } from "expo-crypto";
 
 import { captureOwner } from "@/lib/account/owner-store";
+import { tagFailure } from "@/lib/failure-step";
 import { removeFileIfExists } from "@/lib/files/remove-file";
 import { errorMessage, isNetworkError, isTransientError } from "@/lib/network-error";
 import { reportError, addBreadcrumb } from "@/lib/observability";
@@ -37,7 +38,9 @@ export async function runCapture(
   let persisting = false;
   const started = performance.now();
   const timings: CaptureTimings = { total: 0 };
+  let step = "start";
   async function timed<T>(stage: Exclude<keyof CaptureTimings, "total">, task: () => Promise<T>): Promise<T> {
+    step = stage;
     const start = performance.now();
     try {
       return await task();
@@ -95,6 +98,7 @@ export async function runCapture(
         });
       });
     const features = await timed("orb", () => deps.orb.extract(cropUri));
+    step = "context";
     const { venueId, visitId, visitLocalId } = await context;
     checkCurrent();
     const payload: CapturePayload = {
@@ -141,10 +145,14 @@ export async function runCapture(
         if (!current.isCurrent()) {
           return { kind: "queued", localId: payload.localId, timings };
         }
+        step = "record_result";
         await deps.store.recordResult(payload.localId, response, current.owner);
         return { kind: "sent", scanId: response.scanId, response, timings };
       } catch (error) {
+        const failedStep = step;
+        step = "requeue";
         await deps.store.requeue(payload.localId, errorMessage(error), current.owner);
+        step = failedStep;
         if (!isNetworkError(error)) throw error;
         addBreadcrumb("capture.queued", { reason: "offline" });
       }
@@ -153,9 +161,12 @@ export async function runCapture(
     if (current.isOwnerCurrent() && deps.recognizeOffline) {
       void deps
         .recognizeOffline(payload)
-        .catch((error: unknown) => console.warn("Offline identification unavailable; capture stays queued", error));
+        .catch((error: unknown) => reportError(error, "capture.recognize_offline", { level: "warning" }));
     }
     return { kind: "queued", localId: payload.localId, timings };
+  } catch (error) {
+    tagFailure(error, { step });
+    throw error;
   } finally {
     if (!persisting && preparedCropUri && deps.isCurrent?.() === false) removeFileIfExists(preparedCropUri);
     timings.total = performance.now() - started;

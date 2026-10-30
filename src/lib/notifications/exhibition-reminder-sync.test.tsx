@@ -4,6 +4,7 @@ import * as Notifications from "expo-notifications";
 import { db } from "@/db/client";
 import { settings } from "@/db/schema";
 import type { ExploreCatalog } from "@/lib/explore/types";
+import { reportError } from "@/lib/observability";
 
 import { ExhibitionReminderSync } from "./exhibition-reminder-sync";
 import { notificationPermission } from "./permission";
@@ -12,6 +13,7 @@ import { setNotificationPreference } from "./preferences";
 let mockCatalog: ExploreCatalog | undefined;
 let mockSavedReady: boolean;
 jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
+jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("@/lib/explore/want-to-see", () => ({
   useWantToSee: () => ({ saved: new Set(["orchard"]), ready: mockSavedReady }),
 }));
@@ -43,9 +45,19 @@ beforeEach(async () => {
   jest.clearAllMocks();
   jest.spyOn(Date, "now").mockReturnValue(new Date(2026, 9, 12, 14).getTime());
   jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(2));
-  jest
-    .mocked(Notifications.getAllScheduledNotificationsAsync)
-    .mockResolvedValue([pending("exhibition-closing:closed-show"), pending("open-visit-reminder")]);
+  // Like iOS, the pending list holds whatever was scheduled since.
+  const scheduled = new Map([
+    ["exhibition-closing:closed-show", pending("exhibition-closing:closed-show")],
+    ["open-visit-reminder", pending("open-visit-reminder")],
+  ]);
+  jest.mocked(Notifications.getAllScheduledNotificationsAsync).mockImplementation(async () => [...scheduled.values()]);
+  jest.mocked(Notifications.cancelScheduledNotificationAsync).mockImplementation(async (identifier) => {
+    scheduled.delete(identifier);
+  });
+  jest.mocked(Notifications.scheduleNotificationAsync).mockImplementation(async (request) => {
+    scheduled.set(request.identifier!, pending(request.identifier!));
+    return request.identifier!;
+  });
   mockCatalog = catalog;
   mockSavedReady = true;
   await db.delete(settings);
@@ -117,4 +129,37 @@ it.each(["saved list", "catalog"])("cancels reminders switched off while the %s 
   );
   expect(Notifications.cancelScheduledNotificationAsync).not.toHaveBeenCalledWith("open-visit-reminder");
   expect(Notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+});
+
+it("reports reminders iOS did not keep, and stays quiet when it kept them all", async () => {
+  await render(<ExhibitionReminderSync />);
+  await waitFor(() => expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledTimes(2));
+  await act(async () => {});
+  expect(reportError).not.toHaveBeenCalled();
+
+  jest.clearAllMocks();
+  jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(2));
+  jest
+    .mocked(Notifications.getAllScheduledNotificationsAsync)
+    .mockResolvedValue([pending("exhibition-opening:orchard")]);
+  mockCatalog = { ...catalog, exhibitions: [{ ...catalog.exhibitions[0], title: "Orchard Light, extended" }] };
+  await render(<ExhibitionReminderSync />);
+  await waitFor(() =>
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), "explore.reminders_dropped", {
+      level: "warning",
+      data: { requested: 2, pending: 1 },
+    }),
+  );
+});
+
+it("reports which reminder step failed", async () => {
+  const failure = new Error("Notification scheduling failed");
+  jest.mocked(Notifications.scheduleNotificationAsync).mockRejectedValueOnce(failure);
+  await render(<ExhibitionReminderSync />);
+  await waitFor(() =>
+    expect(reportError).toHaveBeenCalledWith(failure, "explore.reminders", {
+      level: "warning",
+      data: { step: "schedule", requested: 2, cancelled: 1 },
+    }),
+  );
 });

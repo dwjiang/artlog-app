@@ -38,7 +38,13 @@ export function LocalScanScreen({ localId, manual = false }: { localId: string; 
   useEffect(() => {
     if (loadError) reportError(loadError, "result.load_local_scan");
   }, [loadError]);
-  const { data: offlineResults } = useLiveQuery(offlineResultQuery(localId, owner), [localId, owner]);
+  const { data: offlineResults, error: offlineError } = useLiveQuery(offlineResultQuery(localId, owner), [
+    localId,
+    owner,
+  ]);
+  useEffect(() => {
+    if (offlineError) reportError(offlineError, "result.load_offline_result", { level: "warning" });
+  }, [offlineError]);
   const offlineResult = offlineResults?.find((result) => result.owner === owner)?.result;
   const row = data.find((row) => row.owner === owner);
   const labelCapture = !manual && !!row?.photoPath && isLabelCapture(row);

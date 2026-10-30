@@ -55,27 +55,43 @@ async function offline() {
   }
 }
 
+/** Keeps the network-failure message the listener sees, plus what an event needs to tell a stalled server apart. */
+export class DownloadTimeoutError extends Error {
+  constructor(
+    readonly timeout: "idle" | "limit",
+    readonly receivedKb: number,
+    readonly expectedKb: number | null,
+  ) {
+    super("Network request timed out");
+    this.name = "DownloadTimeoutError";
+  }
+}
+
 async function download(uri: string, cancel: AbortSignal): Promise<Uint8Array> {
   const transfer = new AbortController();
-  let timedOut = false;
-  const expire = () => {
-    timedOut = true;
+  let timedOut: "idle" | "limit" | undefined;
+  const expire = (reason: "idle" | "limit") => () => {
+    timedOut = reason;
     transfer.abort();
   };
   const stop = () => transfer.abort();
   cancel.addEventListener("abort", stop);
-  let idle = setTimeout(expire, DOWNLOAD_IDLE_MS);
-  const limit = setTimeout(expire, DOWNLOAD_LIMIT_MS);
+  let idle = setTimeout(expire("idle"), DOWNLOAD_IDLE_MS);
+  const limit = setTimeout(expire("limit"), DOWNLOAD_LIMIT_MS);
   const progressed = () => {
     clearTimeout(idle);
-    idle = setTimeout(expire, DOWNLOAD_IDLE_MS);
+    idle = setTimeout(expire("idle"), DOWNLOAD_IDLE_MS);
   };
+  let length = 0;
+  let expected: number | null = null;
   try {
     const response = await fetch(uri, { signal: transfer.signal });
+    // The declared length only sizes a timeout report, so a response without headers still downloads.
+    const declared = Number(response.headers?.get("content-length"));
+    expected = Number.isFinite(declared) && declared > 0 ? declared : null;
     const reader = response.ok ? response.body?.getReader() : undefined;
-    if (!reader) throw new Error("Narration download failed.");
+    if (!reader) throw new Error(`Narration download failed with HTTP ${response.status}`);
     const chunks: Uint8Array[] = [];
-    let length = 0;
     for (;;) {
       progressed();
       const { done, value } = await reader.read();
@@ -92,7 +108,13 @@ async function download(uri: string, cancel: AbortSignal): Promise<Uint8Array> {
     return bytes;
   } catch (error) {
     if (cancel.aborted) throw new Error("Narration cancelled.");
-    if (timedOut) throw new Error("Network request timed out");
+    if (timedOut) {
+      throw new DownloadTimeoutError(
+        timedOut,
+        Math.round(length / 1024),
+        expected === null ? null : Math.round(expected / 1024),
+      );
+    }
     throw error;
   } finally {
     clearTimeout(idle);

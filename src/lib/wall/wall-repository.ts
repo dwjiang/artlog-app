@@ -1,3 +1,4 @@
+import { tagFailure } from "@/lib/failure-step";
 import { convexErrorCode } from "@/lib/network-error";
 
 import type { LayoutInput, OwnerWall, WallTransport } from "./wall-transport";
@@ -126,7 +127,10 @@ export function createWallRepository(deps: Dependencies) {
       current.check();
       if (convexErrorCode(error) === "conflict") {
         update({ acknowledged: null });
-        const fresh = await deps.transport.getMine(current.context);
+        const fresh = await deps.transport.getMine(current.context).catch((refreshError: unknown) => {
+          tagFailure(refreshError, { step: "conflict_refresh" });
+          throw refreshError;
+        });
         current.check();
         if (fresh.scope !== current.scope) {
           throw new Error("Wall account changed");

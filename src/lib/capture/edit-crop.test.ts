@@ -3,6 +3,7 @@ import { addArtworkPhoto } from "@/db/repos/artwork-album";
 import { enqueuePendingScan, getPendingScan, markIdentified, recordAttemptFailure } from "@/db/repos/pending-scans";
 import { getSavedWork, insertSavedWork } from "@/db/repos/saved-works";
 import { artworkPhotos, savedWorks, pendingScans, settings } from "@/db/schema";
+import { failureDetails } from "@/lib/failure-step";
 import { recognizeOfflineCapture } from "@/lib/museum-downloads/recognize-capture";
 
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -193,7 +194,9 @@ it("keeps the previous saved crop if writing the new file fails, and can retry t
     cropPath: "old.preview.jpg",
   });
   mockFailCopy = true;
-  await expect(saveEditedArtworkCrop("work", crop, owner)).rejects.toThrow("copy failed");
+  const failure = await saveEditedArtworkCrop("work", crop, owner).catch((error: unknown) => error);
+  expect(failure).toEqual(new Error("copy failed"));
+  expect(failureDetails(failure)).toEqual({ step: "copy_files", target: "artwork" });
   expect((await getSavedWork("work"))?.cropPath).toBe("old.preview.jpg");
   mockFailCopy = false;
   await saveEditedArtworkCrop("work", crop, owner);
@@ -263,8 +266,10 @@ it("matches the new crop against downloaded museums while offline, after the edi
 
 it("leaves the old scan intact when extraction fails or the editor closes during extraction", async () => {
   await seedScan();
-  mockFeatures.mockRejectedValueOnce(new Error("Model failed"));
+  const modelFailure = new Error("Model failed");
+  mockFeatures.mockRejectedValueOnce(modelFailure);
   await expect(saveEditedScanCrop("scan", crop, owner)).rejects.toThrow("Model failed");
+  expect(failureDetails(modelFailure)).toEqual({ step: "extract_features", target: "scan" });
   let active = true;
   mockFeatures.mockImplementationOnce(async () => {
     active = false;

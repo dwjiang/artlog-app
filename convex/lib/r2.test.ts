@@ -38,7 +38,11 @@ it("reports failed transfers without putting signed URLs or credentials in the e
     method: "PUT",
     headers: { "If-None-Match": "*", "Content-Length": "5" },
   });
-  await expect(r2.get("file-id")).rejects.toThrow("R2 download failed (503)");
+  await expect(r2.get("file-id")).rejects.toMatchObject({
+    message: "R2 download failed (503)",
+    code: "storage_failed",
+    reason: "http_503",
+  });
   await expect(r2.remove("file-id")).rejects.toThrow("R2 deletion failed (503)");
   fetcher.mockResolvedValue(new Response(null, { status: 404 }));
   expect(await r2.get("missing")).toBeNull();

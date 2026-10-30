@@ -12,9 +12,10 @@ import { getSetting, setSetting } from "@/db/repos/settings";
 import { listUnsyncedVisits } from "@/db/repos/visits";
 import { convex } from "@/lib/convex-client";
 import { removeUnreferencedPhotos } from "@/lib/files/unreferenced-photos";
-import { isTransientError, SyncUnavailableError } from "@/lib/network-error";
+import { convexErrorCode, isTransientError, SyncUnavailableError } from "@/lib/network-error";
 import { hasInternetSignal } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
+import { createStuckRetryTracker } from "@/lib/stuck-retry-tracker";
 import { useDeviceReady } from "@/lib/use-device-ready";
 
 import { api } from "../../../convex/_generated/api";
@@ -40,10 +41,31 @@ type Queue = {
   timer?: ReturnType<typeof setTimeout>;
   failures: number;
   retryAt: number;
+  stage: string;
+  reportedFailures: Set<string>;
+  stuck: ReturnType<typeof createStuckRetryTracker>;
+  // Server answers that are validation errors for a person's request but leave a background batch stuck forever.
+  rejections?: readonly string[];
 };
 
 const RETRY_BASE_MS = 30_000;
 const RETRY_MAX_MS = 15 * 60_000;
+
+// A rejected batch fails the same way on every retry: report each new failure, then a few repeats, not every retry.
+function reportQueueFailure(queue: Queue, error: unknown): void {
+  const kind = convexErrorCode(error) ?? (error instanceof Error ? `${error.name}:${error.message}` : "unknown");
+  const data = { stage: queue.stage, failures: queue.failures };
+  if (!queue.reportedFailures.has(kind) || queue.failures === 5 || queue.failures === 20) {
+    queue.reportedFailures.add(kind);
+    reportError(error, queue.operation, { data, alwaysReport: queue.rejections });
+  }
+  if (queue.stuck.recordFailure(error)) {
+    reportError(new Error(`${queue.label} is stuck`), `${queue.operation}.stuck`, {
+      level: "warning",
+      data: { ...data, code: convexErrorCode(error) ?? (error instanceof Error ? error.name : "unknown") },
+    });
+  }
+}
 
 function schedule(queue: Queue, delay: number): void {
   queue.requested = true;
@@ -76,13 +98,15 @@ async function flush(queue: Queue): Promise<unknown> {
       if (!isCurrent()) return;
       queue.failures = 0;
       queue.retryAt = 0;
+      queue.reportedFailures.clear();
+      queue.stuck.reset();
     })
     .catch((error: unknown) => {
       failure = error;
       if (!isCurrent()) return;
       console.warn(`${queue.label} will retry`, error);
-      reportError(error, queue.operation);
       queue.failures++;
+      reportQueueFailure(queue, error);
       queue.retryAt = Date.now() + Math.min(RETRY_BASE_MS * 2 ** (queue.failures - 1), RETRY_MAX_MS);
       schedule(queue, 0);
     })
@@ -102,14 +126,20 @@ const transfers: Queue = {
   requested: false,
   failures: 0,
   retryAt: 0,
+  stage: "albums",
+  reportedFailures: new Set(),
+  stuck: createStuckRetryTracker(),
   run: async (context, token, isCurrent) => {
     let failure: unknown;
+    let photosFailed = false;
+    transfers.stage = "albums";
     await syncArtworkAlbums(context, token, isCurrent).catch((error: unknown) => {
       if (!isCurrent()) return;
       if (isTransientError(error)) throw error;
       failure = error;
     });
     if (!isCurrent()) return;
+    transfers.stage = "photos";
     await syncCollectionPhotos(
       {
         ...savedWorks,
@@ -134,10 +164,14 @@ const transfers: Queue = {
       },
       isCurrent,
     ).catch((error: unknown) => {
-      if (failure !== undefined) reportError(failure, "sync.photos");
+      if (failure !== undefined) reportError(failure, "sync.photos", { data: { stage: "albums" } });
       failure = error;
+      photosFailed = true;
     });
-    if (failure !== undefined) throw failure;
+    if (failure !== undefined) {
+      if (!photosFailed) transfers.stage = "albums";
+      throw failure;
+    }
   },
 };
 // Saved-scan uploads get their own queue too: flushCollectionMedia waits on transfers, never on this backlog.
@@ -148,6 +182,9 @@ const recognition: Queue = {
   requested: false,
   failures: 0,
   retryAt: 0,
+  stage: "upload",
+  reportedFailures: new Set(),
+  stuck: createStuckRetryTracker(),
   run: (context, _token, isCurrent) => syncSavedRecognition(context, isCurrent),
 };
 const sync: Queue = {
@@ -157,9 +194,15 @@ const sync: Queue = {
   requested: false,
   failures: 0,
   retryAt: 0,
+  stage: "claim",
+  reportedFailures: new Set(),
+  stuck: createStuckRetryTracker(),
+  rejections: ["invalid_visit", "invalid_save", "invalid_venue", "not_found"],
   run: async (context, _token, isCurrent) => {
+    sync.stage = "claim";
     if (context.accountId) await completeJournalClaim(context, isCurrent);
     if (!isCurrent()) return;
+    sync.stage = "sync";
     await syncJournal(
       {
         ...savedWorks,
@@ -219,6 +262,8 @@ function stop(): void {
     queue.timer = undefined;
     queue.failures = 0;
     queue.retryAt = 0;
+    queue.reportedFailures.clear();
+    queue.stuck.reset();
   }
 }
 
@@ -263,6 +308,13 @@ export async function flushCollectionMedia(dependsOn: Parameters<typeof albumMed
   const failure = await flush(transfers);
   if (current !== generation || !ready()) throw new SyncUnavailableError();
   if (albumMediaPending(owner, dependsOn)) {
+    // A clean transfer run that still leaves the media missing will not change on a retry.
+    if (failure === undefined) {
+      reportError(new Error("Photos still missing after a clean transfer"), "sync.media_stuck", {
+        level: "warning",
+        data: { transfer_failures: transfers.failures },
+      });
+    }
     throw failure ?? new SyncUnavailableError();
   }
 }

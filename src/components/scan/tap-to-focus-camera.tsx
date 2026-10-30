@@ -5,10 +5,13 @@ import { Camera, type CameraRef, type CameraViewProps } from "react-native-visio
 
 import { Colors, Motion } from "@/constants/theme";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
-import { reportError } from "@/lib/observability";
+import { addBreadcrumb, reportError } from "@/lib/observability";
+import { reportIfStalled } from "@/lib/stall-report";
 
 import { recordCameraFailure } from "./camera-diagnostics";
 
+// A camera that has neither started nor failed by now leaves only a spinner, which no error reports.
+const CAMERA_START_STALL_MS = 8_000;
 const SQUARE_SIZE = 76;
 const LINE = 1;
 const TICK = 6;
@@ -38,12 +41,24 @@ export function TapToFocusCamera(props: Omit<CameraViewProps, "ref" | "style" | 
   const currentRequest = useRef<symbol>(undefined);
   const [focus, setFocus] = useState<{ x: number; y: number; tap: number }>();
   const reduced = useReducedMotion();
+  const startup = useRef<() => void>(undefined);
+  const interruption = useRef<string>(undefined);
   useEffect(
     () => () => {
       currentRequest.current = undefined;
     },
     [props.isActive],
   );
+  useEffect(() => {
+    if (!props.isActive) return;
+    const settled = new Promise<void>((resolve) => {
+      startup.current = resolve;
+    });
+    void reportIfStalled(settled, "camera.start_stalled", CAMERA_START_STALL_MS, {
+      data: () => ({ interruption: interruption.current ?? null }),
+    });
+    return () => startup.current?.();
+  }, [props.isActive]);
 
   function resetFocus() {
     // Invalidate first: resetting rejects any pending metering request as canceled.
@@ -75,14 +90,29 @@ export function TapToFocusCamera(props: Omit<CameraViewProps, "ref" | "style" | 
     >
       <Camera
         {...props}
+        onStarted={() => {
+          startup.current?.();
+          props.onStarted?.();
+        }}
         onError={
           props.onError
             ? (error) => {
+                startup.current?.();
                 recordCameraFailure(props);
                 props.onError?.(error);
               }
             : undefined
         }
+        onInterruptionStarted={(reason) => {
+          interruption.current = reason;
+          addBreadcrumb("camera.interrupted", { reason });
+          props.onInterruptionStarted?.(reason);
+        }}
+        onInterruptionEnded={() => {
+          interruption.current = undefined;
+          addBreadcrumb("camera.interruption_ended");
+          props.onInterruptionEnded?.();
+        }}
         ref={camera}
         style={StyleSheet.absoluteFill}
         // The tapped point holds until the view moves on, then focus returns to the center.

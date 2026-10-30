@@ -5,6 +5,7 @@ import type { LocalPackage, MuseumDownload } from "./model";
 
 const mockRead = jest.fn();
 const mockRecognize = jest.fn();
+const mockReportError = jest.fn();
 let mockDownloads: Record<string, MuseumDownload> = {};
 jest.mock("./storage", () => ({
   museumDownloads: {
@@ -13,6 +14,7 @@ jest.mock("./storage", () => ({
   },
   readEntries: (...args: unknown[]) => mockRead(...args),
 }));
+jest.mock("@/lib/observability", () => ({ reportError: (...args: unknown[]) => mockReportError(...args) }));
 jest.mock("@/shared/offline/recognition", () => ({
   ...jest.requireActual("@/shared/offline/recognition"),
   recognizeEntries: (...args: unknown[]) => mockRecognize(...args),
@@ -51,7 +53,6 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 it("keeps matching the remaining museums when one downloaded package cannot be read", async () => {
-  jest.spyOn(console, "warn").mockImplementation(() => {});
   mockDownloads = {
     damaged: downloaded("damaged"),
     intact: downloaded("intact"),
@@ -66,11 +67,11 @@ it("keeps matching the remaining museums when one downloaded package cannot be r
 
   expect(await identifyOffline(capture)).toEqual({ outcome: "confident" });
   expect(rankedIds()).toEqual(["obj-intact"]);
-  expect(console.warn).toHaveBeenCalledWith(
-    "Museum download unreadable; skipping it for this scan",
-    "damaged-v1",
-    expect.any(Error),
-  );
+  expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), "capture.offline_package_unreadable", {
+    level: "warning",
+    data: { chunk_count: 1 },
+  });
+  expect(JSON.stringify(mockReportError.mock.calls)).not.toContain("damaged-v1");
 });
 
 it("ranks across every package built for the bundled model and skips the others", async () => {

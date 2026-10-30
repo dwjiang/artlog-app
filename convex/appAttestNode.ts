@@ -5,6 +5,7 @@ import { verifyAttestation as verifyAppleAttestation } from "node-app-attest";
 
 import { internalAction, env } from "./_generated/server";
 import { base64ToBytes } from "./lib/appAttest";
+import { attestationFailureReason } from "./lib/attestationFailure";
 
 function pemToBase64(pem: string): string {
   return pem.replaceAll(/-----[A-Z ]+-----/g, "").replaceAll(/\s+/g, "");
@@ -50,7 +51,7 @@ export const verifyAttestation = internalAction({
     } catch (error) {
       return {
         ok: false,
-        reason: error instanceof Error ? error.message : String(error),
+        reason: attestationFailureReason(error instanceof Error ? error.message : String(error)),
       };
     }
   },

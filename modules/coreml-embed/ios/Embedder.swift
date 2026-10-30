@@ -23,18 +23,23 @@ enum EmbedError: Error, CustomStringConvertible {
   case modelMissing(String)
   case badInput(String)
   case badOutput(String)
+  /// Core ML's own failure. Its localized text is dropped; the phase, domain and code tell a cold
+  /// model load apart from a failed prediction.
+  case coreML(phase: String, error: NSError)
 
   var code: String {
     switch self {
     case .modelMissing: return "model_missing"
     case .badInput: return "bad_input"
     case .badOutput: return "bad_output"
+    case .coreML(let phase, _): return "coreml_\(phase)"
     }
   }
 
   var description: String {
     switch self {
     case .modelMissing(let message), .badInput(let message), .badOutput(let message): return message
+    case .coreML(let phase, let error): return "Core ML \(phase) failed (\(error.domain) \(error.code))"
     }
   }
 }
@@ -99,14 +104,24 @@ final class Embedder {
     }
     let configuration = MLModelConfiguration()
     configuration.computeUnits = Self.computeUnits
-    let model = try MLModel(contentsOf: modelURL, configuration: configuration)
+    let model: MLModel
+    do {
+      model = try MLModel(contentsOf: modelURL, configuration: configuration)
+    } catch {
+      throw EmbedError.coreML(phase: "load", error: error as NSError)
+    }
     self.model = model
     return (model, false)
   }
 
   private func predict(_ model: MLModel, buffer: CVPixelBuffer) throws -> [Float] {
-    let input = try MLDictionaryFeatureProvider(dictionary: [manifest.inputName: MLFeatureValue(pixelBuffer: buffer)])
-    let output = try model.prediction(from: input)
+    let output: MLFeatureProvider
+    do {
+      let input = try MLDictionaryFeatureProvider(dictionary: [manifest.inputName: MLFeatureValue(pixelBuffer: buffer)])
+      output = try model.prediction(from: input)
+    } catch {
+      throw EmbedError.coreML(phase: "predict", error: error as NSError)
+    }
     guard let array = output.featureValue(for: manifest.outputName)?.multiArrayValue else {
       throw EmbedError.badOutput("The model returned no \(manifest.outputName) output")
     }

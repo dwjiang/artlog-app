@@ -8,10 +8,16 @@ import { setNotificationPreference } from "./preferences";
 import { PushRegistration } from "./push-registration";
 
 const mockRegister = jest.fn(async (_: unknown) => null);
+const mockReportError = jest.fn();
 let mockReady = true;
 jest.mock("@/db/client", () => ({ db: jest.requireActual("@/db/test-db").createTestDatabase() }));
 jest.mock("@/lib/use-device-ready", () => ({ useDeviceReady: () => mockReady }));
 jest.mock("convex/react", () => ({ useMutation: () => mockRegister }));
+jest.mock("@/lib/observability", () => ({ reportError: (...args: unknown[]) => mockReportError(...args) }));
+jest.mock("expo-network", () => ({
+  getNetworkStateAsync: async () => ({ isConnected: true, isInternetReachable: true }),
+  addNetworkStateListener: () => ({ remove: jest.fn() }),
+}));
 
 const permission = (status: number) => ({ status: "", granted: status === 2, ios: { status } }) as never;
 
@@ -62,4 +68,17 @@ it("asks for no token until notifications are allowed and the device is register
 
   expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
   expect(mockRegister).not.toHaveBeenCalled();
+});
+
+it("reports which step of registration failed", async () => {
+  jest.mocked(Notifications.getPermissionsAsync).mockResolvedValue(permission(2));
+  const failure = new Error("Server Error");
+  mockRegister.mockRejectedValueOnce(failure);
+  await render(<PushRegistration />);
+  await waitFor(() =>
+    expect(mockReportError).toHaveBeenCalledWith(failure, "notifications.push.register", {
+      level: "warning",
+      data: { stage: "register", is_device: expect.any(Boolean), attempt: 0 },
+    }),
+  );
 });

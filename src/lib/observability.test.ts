@@ -36,6 +36,7 @@ it.each([
   new Error("Photo upload cancelled"),
   new ConvexError({ code: "qr_no_artwork" }),
   new ConvexError({ code: "spend_cap" }),
+  Object.assign(new Error("Live Activities are not enabled"), { code: "ERR_LIVE_ACTIVITIES_NOT_SUPPORTED" }),
   new Error("Unable to download a file: The Internet connection appears to be offline."),
   new Error("Unable to upload a file: Network request failed"),
   new Error("fetch failed: The Internet connection appears to be offline."),
@@ -53,6 +54,29 @@ it.each([
 ])("keeps expected retry, validation and cancellation outcomes out of Sentry issues (%#)", (error) => {
   reportError(error, "test.expected");
   expect(Sentry.captureException).not.toHaveBeenCalled();
+});
+
+it("reports a routine code only for a caller that treats it as a failure, never an offline one", () => {
+  reportError(new ConvexError({ code: "invalid_visit" }), "test.interactive");
+  expect(Sentry.captureException).not.toHaveBeenCalled();
+  reportError(new ConvexError({ code: "invalid_visit" }), "test.background", { alwaysReport: ["invalid_visit"] });
+  expect(Sentry.captureException).toHaveBeenCalledWith(
+    expect.any(Error),
+    expect.objectContaining({ tags: { operation: "test.background", error_code: "invalid_visit" } }),
+  );
+  reportError(new ConvexError({ code: "rate_limited" }), "test.background", { alwaysReport: ["rate_limited"] });
+  expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+});
+
+it("reports every failure, even an offline one, for a caller where any failure is a bug", () => {
+  const offline = new Error("Network request failed");
+  reportError(offline, "test.render", { alwaysReport: "all" });
+  reportError(new ConvexError({ code: "not_found" }), "test.render", { alwaysReport: "all" });
+  expect(Sentry.captureException).toHaveBeenCalledTimes(2);
+  expect(Sentry.captureException).toHaveBeenCalledWith(
+    expect.any(Error),
+    expect.objectContaining({ tags: { operation: "test.render", error_code: "not_found" } }),
+  );
 });
 
 it("reports distinct failures from the same operation within the retry window", () => {

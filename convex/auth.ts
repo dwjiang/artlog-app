@@ -6,6 +6,8 @@ import { internal } from "./_generated/api";
 import { verifyAppleIdentityToken } from "./lib/appleToken";
 import { authUserId } from "./lib/auth";
 import { verifyGoogleIdentityToken } from "./lib/googleToken";
+import { identityTokenFailure } from "./lib/identityTokenFailure";
+import { reportBackendError } from "./lib/observability";
 import type { AccountProvider } from "./lib/validators";
 
 const anonymous = ConvexCredentials({
@@ -40,23 +42,35 @@ const nativeProvider = (provider: AccountProvider) =>
       if (typeof params.identityToken !== "string" || typeof params.nonce !== "string") {
         throw new ConvexError({ code: `invalid_${provider}_identity` });
       }
-      const { sub, email } =
-        provider === "apple"
-          ? await verifyAppleIdentityToken(params.identityToken, params.nonce)
-          : await verifyGoogleIdentityToken(params.identityToken);
-      await ctx.runMutation(internal.nativeLogin.recordVerifiedIdentity, {
-        provider,
-        sub,
-        email,
-        nonce: params.nonce,
-      });
-      await createAccount(ctx, {
-        provider: `${provider}-native`,
-        account: { id: sub },
-        profile: email ? { email } : {},
-        shouldLinkViaEmail: false,
-        shouldLinkViaPhone: false,
-      });
+      let step = "verify";
+      try {
+        const { sub, email } =
+          provider === "apple"
+            ? await verifyAppleIdentityToken(params.identityToken, params.nonce)
+            : await verifyGoogleIdentityToken(params.identityToken);
+        step = "record";
+        await ctx.runMutation(internal.nativeLogin.recordVerifiedIdentity, {
+          provider,
+          sub,
+          email,
+          nonce: params.nonce,
+        });
+        step = "create_account";
+        await createAccount(ctx, {
+          provider: `${provider}-native`,
+          account: { id: sub },
+          profile: email ? { email } : {},
+          shouldLinkViaEmail: false,
+          shouldLinkViaPhone: false,
+        });
+      } catch (error) {
+        const failure = identityTokenFailure(error);
+        // Convex Auth passes these failures to the app without logging them.
+        await reportBackendError(error, "auth.nativeSignIn", { diagnostics: { provider, step, ...failure } });
+        // A token jose rejected reaches the phone as a bare "Server Error"; a code lets the app's report name it.
+        if (failure.joseCode) throw new ConvexError({ code: `invalid_${provider}_identity`, reason: failure.joseCode });
+        throw error;
+      }
       // Auth associations belong to the first device. Subsequent sessions keep their own device user.
       return { userId };
     },

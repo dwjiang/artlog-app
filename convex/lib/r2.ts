@@ -11,10 +11,15 @@ import { env } from "../_generated/server";
 
 export const UPLOAD_LIFETIME_SECONDS = 15 * 60;
 
+// Error messages never reach Sentry, so the status rides on an allowlisted code and reason instead.
+function storageError(message: string, reason: string): Error {
+  return Object.assign(new Error(message), { code: "storage_failed", reason });
+}
+
 function client() {
   const { R2_BUCKET, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = env;
   if (!R2_BUCKET || !R2_ENDPOINT || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY) {
-    throw new Error("R2 storage is not configured");
+    throw storageError("R2 storage is not configured", "unconfigured");
   }
   return {
     bucket: R2_BUCKET,
@@ -58,7 +63,7 @@ export const r2 = {
     const url = await getSignedUrl(s3, new HeadObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 60 });
     const response = await fetch(url, { method: "HEAD" });
     if (response.status === 404) return null;
-    if (!response.ok) throw new Error(`R2 metadata read failed (${response.status})`);
+    if (!response.ok) throw storageError(`R2 metadata read failed (${response.status})`, `http_${response.status}`);
     return {
       size: Number(response.headers.get("content-length") ?? NaN),
       contentType: response.headers.get("content-type"),
@@ -76,18 +81,20 @@ export const r2 = {
       headers: { "Content-Type": blob.type, "Content-Length": String(blob.size), "If-None-Match": "*" },
       body: blob,
     });
-    if (!response.ok) throw new Error(`R2 upload failed (${response.status})`);
+    if (!response.ok) throw storageError(`R2 upload failed (${response.status})`, `http_${response.status}`);
   },
   async get(key: string): Promise<Blob | null> {
     const response = await fetch(await r2.downloadUrl(key));
     if (response.status === 404) return null;
-    if (!response.ok) throw new Error(`R2 download failed (${response.status})`);
+    if (!response.ok) throw storageError(`R2 download failed (${response.status})`, `http_${response.status}`);
     return response.blob();
   },
   async remove(key: string): Promise<void> {
     const { s3, bucket } = client();
     const url = await getSignedUrl(s3, new DeleteObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 60 });
     const response = await fetch(url, { method: "DELETE" });
-    if (!response.ok && response.status !== 404) throw new Error(`R2 deletion failed (${response.status})`);
+    if (!response.ok && response.status !== 404) {
+      throw storageError(`R2 deletion failed (${response.status})`, `http_${response.status}`);
+    }
   },
 };

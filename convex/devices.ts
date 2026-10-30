@@ -5,8 +5,9 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { action, internalQuery, query, type MutationCtx, type QueryCtx, env } from "./_generated/server";
 import { internalMutation, mutation } from "./functions";
 import { appIdHash, bytesToBase64Url, verifyAssertion } from "./lib/appAttest";
+import { SERVER_ATTESTATION_REASONS } from "./lib/attestationFailure";
 import { authUserId, findDeviceForUser, requireAuthUserId, requireDevice, requireDeviceFromAction } from "./lib/auth";
-import { withErrorReporting } from "./lib/observability";
+import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { limitKey } from "./lib/rateLimits";
 import { challengePurpose, devicePlatform } from "./lib/validators";
 import schema from "./schema";
@@ -217,7 +218,13 @@ export const attestDevice = action({
         challenge: args.nonce,
       });
       if (!result.ok || result.publicKeySpkiBase64 === undefined) {
-        const code = result.reason === "keyId does not match" ? "key_mismatch" : "invalid_attestation";
+        // The phone's codes are expected and go unreported, so a server setup fault that fails every phone is reported here.
+        if (result.reason && SERVER_ATTESTATION_REASONS.has(result.reason)) {
+          await reportBackendError(new ConvexError({ code: "attest_failed" }), "devices.attestDevice", {
+            diagnostics: { reason: result.reason },
+          });
+        }
+        const code = result.reason === "key_id" ? "key_mismatch" : "invalid_attestation";
         throw new ConvexError({ code, reason: result.reason });
       }
       await ctx.runMutation(internal.devices.markAttested, {

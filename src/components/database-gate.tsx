@@ -10,11 +10,11 @@ import { addBreadcrumb, reportError } from "@/lib/observability";
 
 /** Holds the app until the local store is migrated; nothing below it touches the database earlier. */
 export function DatabaseGate({ children }: PropsWithChildren) {
-  const { success, error } = useDatabaseMigrations();
+  const { success, error, diagnostics } = useDatabaseMigrations();
   useEffect(() => {
-    if (error) reportError(error, "database.initialize");
+    if (error) reportError(error, "database.initialize", { data: diagnostics });
     else if (success) addBreadcrumb("database.ready");
-  }, [error, success]);
+  }, [error, success, diagnostics]);
   if (error) {
     return (
       <ThemedView style={styles.gate}>

@@ -23,7 +23,7 @@ it("reports a screen crash and lets the visitor retry without exposing raw error
   const error = new Error("internal query and private arguments");
   const retry = jest.fn().mockResolvedValue(undefined);
   const view = await render(<AppErrorBoundary error={error} retry={retry} />);
-  expect(reportError).toHaveBeenCalledWith(error, "app.render");
+  expect(reportError).toHaveBeenCalledWith(error, "app.render", { alwaysReport: "all" });
   expect(screen.getByRole("alert")).toHaveTextContent("Artlog could not open this screen");
   expect(screen.queryByText(error.message)).toBeNull();
   await view.rerender(<AppErrorBoundary error={error} retry={retry} />);

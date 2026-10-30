@@ -6,8 +6,9 @@ import { captureOwner, getLocalOwner } from "@/lib/account/owner-store";
 import { snapScanCrop } from "@/lib/capture/edit-crop";
 import { extractFeatures, orb } from "@/lib/capture/features";
 import { isLabelCapture } from "@/lib/capture/photo-draft";
-import type { CaptureStore, IdentifyResponse } from "@/lib/capture/stages";
+import { IDENTIFY_STALL_MS, type CaptureStore, type IdentifyResponse } from "@/lib/capture/stages";
 import { convex } from "@/lib/convex-client";
+import { connectionDiagnostics } from "@/lib/convex-connection";
 import { embedder } from "@/lib/embed/embedder";
 import { captureFileUri, persistCapture, scanPreviewPath } from "@/lib/files/photos";
 import { removeFile } from "@/lib/label/crop";
@@ -16,6 +17,7 @@ import { runLabelFlowForScan } from "@/lib/label/label-deps";
 import { isTransientError } from "@/lib/network-error";
 import { hasInternetSignal, isOffline } from "@/lib/network-state";
 import { reportError } from "@/lib/observability";
+import { reportIfStalled } from "@/lib/stall-report";
 import { resolveScanVisit } from "@/lib/venue/visit-sync";
 import { TimeoutError } from "@/lib/with-timeout";
 import model from "@/shared/model/model-version.json";
@@ -118,10 +120,12 @@ function makeFlusher() {
       if (!current.isCurrent() || !current.scope) {
         throw new Error("Journal owner changed");
       }
-      return convex.action(api.identify.identify, {
-        ...args,
-        scope: current.scope,
-      });
+      return reportIfStalled(
+        convex.action(api.identify.identify, { ...args, scope: current.scope }),
+        "queue.identify_stalled",
+        IDENTIFY_STALL_MS,
+        { requiresNetwork: true, data: connectionDiagnostics },
+      );
     },
     runLabelFlow: async (scanId, label) => {
       try {
