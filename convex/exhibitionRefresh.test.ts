@@ -494,8 +494,72 @@ describe("exhibition listing refresh", () => {
     expect((await refreshRow(t, museumId))?.failures).toBe(0);
   });
 
+  it.each([
+    { redirected: false, type: "text/html; private_type=secret", body: "private_response_body", kind: "html" },
+    { redirected: true, type: "application/json; private_type=secret", body: "private_response_body", kind: "other" },
+    { redirected: false, type: null, body: "", kind: "missing" },
+    { redirected: false, type: " TEXT/HTML ; private_type=secret", body: "private_response_body", kind: "html" },
+  ])(
+    "reports bounded detail-page diagnostics: $kind, redirected=$redirected",
+    async ({ redirected, type, body, kind }) => {
+      vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+      const t = harness();
+      const { museumId, url } = await listedMuseum(t, "private-host.example");
+      const showUrl = "https://private-host.example/exhibitions/private_path?token=private_query";
+      const finalUrl = "https://private-host.example/exhibitions/private_redirect";
+      web[url] = { body: listing(`<a href="${showUrl}">Tides of Light</a>`) };
+      answer = () => modelAnswer([undatedShow(url)]);
+      const envelopes: string[] = [];
+      const fetchPage = fetchMock.getMockImplementation()!;
+      fetchMock.mockImplementation((input, init) => {
+        const target = String(input);
+        if (target.startsWith("https://example.ingest.sentry.io/")) {
+          envelopes.push(String(init?.body));
+          return Promise.resolve(new Response("{}", { status: 200 }));
+        }
+        if (target === showUrl && redirected) {
+          return Promise.resolve(new Response(null, { status: 302, headers: { location: finalUrl } }));
+        }
+        if (target === showUrl || target === finalUrl) {
+          const response = new Response(body, { status: 500 });
+          if (type === null) response.headers.delete("content-type");
+          else response.headers.set("content-type", type);
+          response.headers.set("set-cookie", "private_cookie");
+          return Promise.resolve(response);
+        }
+        return fetchPage(input, init);
+      });
+      await readDue(t);
+      expect(envelopes).toHaveLength(1);
+      const event = JSON.parse(envelopes[0].split("\n")[2]);
+      expect(event.tags).toMatchObject({ operation: "exhibitionRefresh.showPage", reason: "http_500" });
+      expect(event.contexts.operation).toEqual({
+        step: "response",
+        responseBytes: new TextEncoder().encode(body).byteLength,
+        responseKind: kind,
+        finalUrlChanged: redirected,
+      });
+      for (const marker of [
+        "private-host",
+        "private_path",
+        "private_query",
+        "private_redirect",
+        "private_response_body",
+        "private_type",
+        "private_cookie",
+      ]) {
+        expect(envelopes[0]).not.toContain(marker);
+      }
+      const row = (await refreshRow(t, museumId))!;
+      expect(row.failures).toBe(1);
+      expect(row.pageHash).toBeUndefined();
+      expect(row.dueAt).toBeGreaterThanOrEqual(NOW + DAY);
+      expect(requested(showUrl)).toHaveLength(1);
+    },
+  );
+
   describe.each([false, true])("when another detail page succeeds: %s", (anotherSucceeds) => {
-    it.each([503, 429, "network"] as const)("retries a detail page after %s", async (failure) => {
+    it.each([500, 503, 429, "network"] as const)("retries a detail page after %s", async (failure) => {
       const t = harness();
       const { museumId, url } = await listedMuseum(t, "museum.example");
       const showUrl = "https://museum.example/exhibitions/tides";
