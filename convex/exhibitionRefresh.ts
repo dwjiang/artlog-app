@@ -473,9 +473,23 @@ async function readShowPage(client: PoliteClient, url: string): Promise<ListingP
     const { status, headers, body } = followed.response;
     if ([401, 403, 451].includes(status)) return "blocked";
     if (status >= 500) {
+      const contentType = headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
       await reportBackendError(
         new ConvexError({ code: "page_unavailable", reason: `http_${status}` }),
         "exhibitionRefresh.showPage",
+        {
+          diagnostics: {
+            step: "response",
+            responseBytes: body.byteLength,
+            responseKind:
+              contentType === undefined
+                ? "missing"
+                : contentType === "text/html" || contentType === "application/xhtml+xml"
+                  ? "html"
+                  : "other",
+            finalUrlChanged: followed.url.href !== start.href,
+          },
+        },
       );
     }
     if (status !== 200 || !headers.get("content-type")?.includes("html")) return "failed";
