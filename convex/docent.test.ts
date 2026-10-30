@@ -19,7 +19,7 @@ const WIKIDATA = "https://www.wikidata.org/w/api.php";
 const PAGE = "https://www.metmuseum.org/art/collection/search/436535";
 const WIKIDATA_PAGE = "https://www.wikidata.org/wiki/Q18689458";
 const SEARCH_HIT = "https://www.metmuseum.org/perspectives/wheat-field-cypresses-acquired";
-const FACT_SHEET_MODEL = "nvidia/nemotron-3-super-120b-a12b";
+const FACT_SHEET_MODEL = "nvidia/Nemotron-3.5-Super-VL";
 const DOCENT_MODEL = "nvidia/Nemotron-3_5-Lightning";
 
 const ownerPage = `<!doctype html><html><head><title>Wheat Field with Cypresses</title><script>var x = 1;</script></head>

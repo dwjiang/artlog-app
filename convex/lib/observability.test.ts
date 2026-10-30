@@ -154,7 +154,7 @@ it("reports only allowlisted bounded model diagnostics", async () => {
       code: "model_error",
       reason: "truncated",
       diagnostics: {
-        model: "nvidia/nemotron-3-super-120b-a12b",
+        model: "nvidia/Nemotron-3.5-Super-VL",
         stage: "completion",
         finishReason: "length",
         maxTokens: 12000,
@@ -175,7 +175,7 @@ it("reports only allowlisted bounded model diagnostics", async () => {
   const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
   expect(event.contexts.token_factory).toEqual({
     version: 1,
-    model: "nvidia/nemotron-3-super-120b-a12b",
+    model: "nvidia/Nemotron-3.5-Super-VL",
     stage: "completion",
     finishReason: "length",
     maxTokens: 12000,

@@ -1,5 +1,5 @@
 const models = new Set([
-  "nvidia/nemotron-3-super-120b-a12b",
+  "nvidia/Nemotron-3.5-Super-VL",
   "nvidia/Nemotron-3_5-Lightning",
   "nvidia/Nemotron-3-Ultra-550b-a55b",
 ]);

@@ -29,6 +29,11 @@
       "input_per_million": 0.3,
       "output_per_million": 0.9
     },
+    "super-vl": {
+      "id": "nvidia/Nemotron-3.5-Super-VL",
+      "input_per_million": 0.3,
+      "output_per_million": 0.9
+    },
     "kimi": {
       "id": "moonshotai/Kimi-K2.6",
       "input_per_million": 0.95,
@@ -47,7 +52,7 @@
       "max_tokens": 2048
     },
     "label-ocr": {
-      "models": ["super", "lightning"],
+      "models": ["super", "super-vl", "lightning"],
       "manifest": "labels/manifest.json",
       "ocr": "labels/ocr-lines.jsonl",
       "repeats": 1,
@@ -60,7 +65,7 @@
       "max_tokens": 1024
     },
     "factsheet": {
-      "models": ["super"],
+      "models": ["super", "super-vl"],
       "manifest": "fixtures/factsheet.json",
       "repeats": 1,
       "max_tokens": 4096
