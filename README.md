@@ -122,6 +122,9 @@ Recognizing a painting doesn't depend on Tavily. A daily credit cap limits spend
 No museum nearby? On the Scan tab, tap **Photos** and pick a photo of a painting, such as one
 from [The Met's open-access collection](https://www.metmuseum.org/art/collection).
 
+No iPhone? **[Try Artlog in your browser](https://artlog.dwjiang.com/demo)** on a cloud iPhone
+that uses the App Store app's live backend. The tour takes about 4 minutes.
+
 ## Run it yourself
 
 You need a Mac with Xcode 27.1, Node 22.13 or newer, and an iPhone on iOS 17 or later. Scanning
