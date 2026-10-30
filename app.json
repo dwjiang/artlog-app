@@ -2,7 +2,7 @@
   "expo": {
     "name": "Artlog",
     "slug": "artlog",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "artlog",
