@@ -153,8 +153,8 @@ export function DemoPage() {
             <p>
               <b>Read its story.</b> Every sentence in About this work links to the page it came from.{" "}
               <span className="quiet">
-                Tavily finds sources, Nemotron 3 Super pulls out quoted facts, and Nemotron 3.5 Lightning writes only
-                from those.
+                Tavily finds sources, Nemotron 3.5 Super VL pulls out quoted facts, and Nemotron 3.5 Lightning writes
+                only from those.
               </span>
             </p>
           </li>
@@ -206,7 +206,7 @@ export function DemoPage() {
               <b>See what&rsquo;s on.</b> Open Explore for current exhibitions around New York, each linked to the page
               it came from.{" "}
               <span className="quiet">
-                Tavily reads museum pages that only load in a browser. Nemotron 3 Super lists each show, and Artlog
+                Tavily reads museum pages that only load in a browser. Nemotron 3.5 Super VL lists each show, and Artlog
                 keeps one only if its quoted title and dates are on the page.
               </span>
             </p>
@@ -215,9 +215,9 @@ export function DemoPage() {
         <p className="closing">
           <b>Also in the app.</b>{" "}
           <span className="quiet">
-            For a painting Artlog doesn&rsquo;t know, Nemotron 3 Super sorts the wall label&rsquo;s text into fields and
-            Tavily checks them on the museum&rsquo;s website. Nemotron 3.5 Lightning screens what people add. Every
-            Nemotron model runs on Nebius Token Factory.
+            For a painting Artlog doesn&rsquo;t know, Nemotron 3.5 Super VL sorts the wall label&rsquo;s text into
+            fields and Tavily checks them on the museum&rsquo;s website. Nemotron 3.5 Lightning screens what people add.
+            Every Nemotron model runs on Nebius Token Factory.
           </span>
         </p>
         <footer className="links">

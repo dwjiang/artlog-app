@@ -72,12 +72,12 @@ what you saw.
 | What it does                                  | NVIDIA model                                                 | Where it runs                 |
 | --------------------------------------------- | ------------------------------------------------------------ | ----------------------------- |
 | Recognize the painting from the camera        | **C-RADIOv3-B**                                              | On the iPhone's Neural Engine |
-| Sort wall-label text into fields              | **Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`)   | Nebius Token Factory          |
-| Pull cited facts from museum pages and others | **Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`)   | Nebius Token Factory          |
+| Sort wall-label text into fields              | **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`)   | Nebius Token Factory          |
+| Pull cited facts from museum pages and others | **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`)   | Nebius Token Factory          |
 | Write the short "About this work"             | **Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`) | Nebius Token Factory          |
 | Write the audio guide                         | **Nemotron 3 Ultra** (`nvidia/Nemotron-3-Ultra-550b-a55b`)   | Nebius Token Factory          |
 | Screen label text and contributions           | **Nemotron 3.5 Lightning** (`nvidia/Nemotron-3_5-Lightning`) | Nebius Token Factory          |
-| List museums' current exhibitions             | **Nemotron 3 Super** (`nvidia/nemotron-3-super-120b-a12b`)   | Nebius Token Factory          |
+| List museums' current exhibitions             | **Nemotron 3.5 Super VL** (`nvidia/Nemotron-3.5-Super-VL`)   | Nebius Token Factory          |
 
 C-RADIOv3-B takes about 67 ms per painting on an iPhone 16 Pro. The catalog's fingerprints were
 made on a Mac with the same model weights the phone runs, and every catalog build is checked
@@ -94,8 +94,8 @@ against fingerprints taken on a real iPhone.
   whose evidence doesn't match the research.
 - **Comparing models side by side.** The same test sets ran against several candidate models
   through one endpoint ([model comparisons](scripts/evals/token-factory/README.md)). On 25 real
-  wall labels, Nemotron 3 Super got both title and artist right on 21. Two misses came from
-  text-recognition errors and two from labels naming several artists.
+  wall labels, Nemotron 3.5 Super VL got both title and artist right on 22. Two misses came from
+  text-recognition errors and one from a label naming several artists.
 
 Token Factory is the only Nebius service Artlog uses. Every model call goes through Artlog's
 backend, never straight from the phone, with per-device limits and a daily call cap.

@@ -82,10 +82,11 @@ scans, and the set omits unindexed works, so neither rate is an app-wide accurac
 ## Token Factory models
 
 On-device Apple Vision OCR sends text to Nemotron for label-field sorting.
-On a 25-label Mac harness using the app's prompt, Nemotron 3 Super got both title
-and artist correct on 21 labels (24 correct titles and 22 artists). Two joint
-misses came from OCR errors and two from labels naming several makers. The
-121 ms median OCR measurement is from the Mac harness, not an iPhone.
+On a 25-label Mac harness using the app's prompt, Nemotron 3.5 Super VL got both
+title and artist correct on 22 labels (24 correct titles and 23 artists); Nemotron
+3 Super, which it replaced, got 21 (24 and 22). Two of Super VL's joint misses came
+from OCR errors and one from a label naming several makers. The 121 ms median OCR
+measurement is from the Mac harness, not an iPhone.
 
 Strict JSON-schema output and valid citation IDs do not establish factual
 support. A reviewed docent sentence invented an exhibition venue while citing

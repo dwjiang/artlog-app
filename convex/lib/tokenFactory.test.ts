@@ -227,7 +227,7 @@ it("carries truncation diagnostics through the backend Sentry envelope", async (
     .mockResolvedValueOnce(new Response("{}", { status: 200 }));
   const failure = await chatJson({
     ...request,
-    model: "nvidia/nemotron-3-super-120b-a12b",
+    model: "nvidia/Nemotron-3.5-Super-VL",
     maxTokens: 12000,
     user: "private input",
   }).catch((error) => error);
@@ -235,7 +235,7 @@ it("carries truncation diagnostics through the backend Sentry envelope", async (
   const body = String(fetchMock.mock.calls[1][1]?.body);
   const event = JSON.parse(body.split("\n")[2]);
   expect(event.contexts.token_factory).toMatchObject({
-    model: "nvidia/nemotron-3-super-120b-a12b",
+    model: "nvidia/Nemotron-3.5-Super-VL",
     maxTokens: 12000,
     promptTokens: 800,
     completionTokens: 12000,

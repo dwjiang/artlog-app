@@ -10,7 +10,7 @@ import {
 } from "../../shared/exhibitions/acceptance";
 import { decodeEntities, visibleText } from "./pageExtract";
 
-export const EXHIBITION_MODEL = "nvidia/nemotron-3-super-120b-a12b";
+export const EXHIBITION_MODEL = "nvidia/Nemotron-3.5-Super-VL";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Museums list shows months ahead, so a monthly read catches new ones; a show closing is the likeliest change.
