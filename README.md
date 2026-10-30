@@ -3,7 +3,7 @@
 **Point your iPhone at a painting. Artlog tells you what it is and the story behind it, then
 remembers your visit.**
 
-![Six Artlog screens: point at a painting, learn its story, listen while you look, hang your own wall, remember every visit, and see what friends saw](docs/screenshots/app-screenshots.jpg)
+![Eight Artlog screens: point at a painting, learn its story, listen while you look, hang your own wall, remember every visit, see what friends saw, see what's on near you, and plan your next visit](docs/screenshots/app-screenshots.jpg)
 
 Artlog is an iPhone app for museum visitors, built for the Nebius x NVIDIA Global AI Hackathon
 (Best Apps and Agents track). It is open source under the [AGPL-3.0](LICENSE).
