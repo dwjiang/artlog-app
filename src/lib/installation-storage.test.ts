@@ -6,6 +6,7 @@ const mockSetItem = jest.fn();
 const mockDeleteItem = jest.fn();
 const mockRandomUUID = jest.fn();
 const mockRandomBytes = jest.fn();
+const mockReportError = jest.fn();
 
 jest.mock("expo-file-system", () => ({
   Paths: { document: "documents" },
@@ -29,6 +30,7 @@ jest.mock("expo-crypto", () => ({
   randomUUID: () => mockRandomUUID(),
   getRandomBytesAsync: () => mockRandomBytes(),
 }));
+jest.mock("./observability", () => ({ reportError: (...args: unknown[]) => mockReportError(...args) }));
 jest.mock("expo-secure-store", () => ({
   getItemAsync: (...args: unknown[]) => mockGetItem(...args),
   setItemAsync: (...args: unknown[]) => mockSetItem(...args),
@@ -117,4 +119,22 @@ it("does not access credentials until the installation ID is persisted, and can 
   expect(mockGetItem).not.toHaveBeenCalled();
   await app.storage.setItem("token", "session");
   expect(await launch().storage.getItem("token")).toBe("session");
+});
+
+it("reports a Keychain failure behind the saved session by step and item, without the key, then rethrows it", async () => {
+  const { convexAuthStorage } = jest.requireActual<typeof import("./installation-storage")>("./installation-storage");
+  const failure = new Error("User interaction is not allowed.");
+  mockGetItem.mockRejectedValueOnce(failure);
+  await expect(convexAuthStorage.getItem("__convexAuthJWT_httpsexampleconvexcloud")).rejects.toBe(failure);
+  expect(mockReportError).toHaveBeenCalledWith(failure, "auth.session_storage", {
+    data: { stage: "get", item: "jwt", app_state: expect.anything() },
+  });
+  expect(JSON.stringify(mockReportError.mock.calls)).not.toContain("httpsexample");
+  mockSetItem.mockRejectedValueOnce(failure);
+  await expect(convexAuthStorage.setItem("__convexAuthRefreshToken_x", "secret")).rejects.toBe(failure);
+  expect(mockReportError).toHaveBeenLastCalledWith(failure, "auth.session_storage", {
+    data: { stage: "set", item: "refresh", app_state: expect.anything() },
+  });
+  await expect(convexAuthStorage.setItem("__convexAuthJWT_x", "jwt")).resolves.toBeUndefined();
+  expect(mockReportError).toHaveBeenCalledTimes(2);
 });

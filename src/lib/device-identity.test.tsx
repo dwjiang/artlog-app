@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
+import type { NetworkState } from "expo-network";
 import * as React from "react";
 
 const mockAuth = { isAuthenticated: false, isLoading: true };
@@ -14,6 +15,8 @@ const mockSetItem = jest.fn();
 const mockDeleteItem = jest.fn();
 const mockRandomBytes = jest.fn();
 const mockReportError = jest.fn();
+let mockNetwork: NetworkState = { isConnected: true, isInternetReachable: true };
+let mockNetworkChange: ((state: NetworkState) => void) | undefined;
 const mockStorage = new Map<string, string>();
 const mockAppAttest = {
   isSupported: jest.fn(),
@@ -41,6 +44,13 @@ jest.mock("../../convex/_generated/api", () => ({
   },
 }));
 jest.mock("expo-device", () => ({ isDevice: false }));
+jest.mock("expo-network", () => ({
+  getNetworkStateAsync: async () => mockNetwork,
+  addNetworkStateListener: (callback: (state: NetworkState) => void) => {
+    mockNetworkChange = callback;
+    return { remove: jest.fn() };
+  },
+}));
 jest.mock("expo-crypto", () => ({
   getRandomBytesAsync: (...args: unknown[]) => mockRandomBytes(...args),
 }));
@@ -71,6 +81,8 @@ beforeEach(() => {
   mockAuth.isAuthenticated = false;
   mockAuth.isLoading = true;
   mockRevoked = false;
+  mockNetwork = { isConnected: true, isInternetReachable: true };
+  mockNetworkChange = undefined;
   mockSignIn.mockResolvedValue({ signingIn: true });
   mockSignOut.mockResolvedValue(undefined);
   mockStorage.clear();
@@ -141,6 +153,46 @@ it("signs a session revoked by data deletion out, then signs the installation in
   await view.rerender(undefined);
   expect(mockSignIn).toHaveBeenCalledWith("anonymous", { secret: "a1".repeat(32) });
   expect(mockReportError).not.toHaveBeenCalled();
+});
+
+it("reports a registration step that never finishes once, without retrying it", async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockRegister.mockReturnValue(new Promise(() => {}));
+  await renderHook(useDeviceIdentity);
+  await act(() => jest.advanceTimersByTimeAsync(59_999));
+  expect(mockReportError).not.toHaveBeenCalled();
+  await act(() => jest.advanceTimersByTimeAsync(1));
+  expect(mockReportError).toHaveBeenCalledTimes(1);
+  expect(mockReportError).toHaveBeenCalledWith(expect.any(Error), "auth.device_registration_stalled", {
+    level: "warning",
+    data: expect.objectContaining({ step: "register", limit_ms: 60_000 }),
+  });
+  expect(mockRegister).toHaveBeenCalledTimes(1);
+});
+
+it("does not report registration waiting for a disconnected phone to reconnect", async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockRegister.mockReturnValue(new Promise(() => {}));
+  await renderHook(useDeviceIdentity);
+  await act(() => jest.advanceTimersByTimeAsync(30_000));
+  mockNetworkChange?.({ isConnected: false, isInternetReachable: false });
+  await act(() => jest.advanceTimersByTimeAsync(60_000));
+  expect(mockReportError).not.toHaveBeenCalled();
+  expect(mockRegister).toHaveBeenCalledTimes(1);
+});
+
+it("reports a failed sign-out of a revoked session under its own operation", async () => {
+  mockAuth.isLoading = false;
+  mockAuth.isAuthenticated = true;
+  mockRevoked = true;
+  const failure = new Error("Keychain unavailable");
+  mockSignOut.mockRejectedValueOnce(failure);
+  await renderHook(useDeviceIdentity);
+  expect(mockReportError).toHaveBeenCalledWith(failure, "auth.revoked_sign_out", {
+    data: { attempt: 1, retrying: true, step: "revoked_sign_out" },
+  });
 });
 
 it("holds sign-in while the installation is erased, then signs in with a new secret", async () => {
@@ -357,7 +409,7 @@ it.each(["ERR_APP_INTEGRITY_INVALID_KEY", "ERR_APP_INTEGRITY_INVALID_INPUT", "ER
     expect(mockReportError).toHaveBeenCalledTimes(1);
     expect(console.warn).toHaveBeenCalledWith("Device identity setup failed", error);
     expect(mockReportError).toHaveBeenCalledWith(error, "auth.device_registration", {
-      data: { attempt: 1, retrying: false },
+      data: { attempt: 1, retrying: false, step: "attest_key" },
     });
   },
 );
@@ -513,7 +565,7 @@ it("waits for keychain persistence before making any sign-in request", async () 
   await renderHook(useDeviceIdentity);
   expect(mockSignIn).not.toHaveBeenCalled();
   expect(mockReportError).toHaveBeenCalledWith(failure, "auth.anonymous_sign_in", {
-    data: { attempt: 1, retrying: true },
+    data: { attempt: 1, retrying: true, step: "read_secret" },
   });
   await act(() => jest.advanceTimersByTimeAsync(1000));
   expect(mockSignIn).toHaveBeenCalledWith("anonymous", {
@@ -536,6 +588,6 @@ it("does not rotate or retry when key generation has a system failure", async ()
   expect(mockSetItem).not.toHaveBeenCalled();
   expect(mockDeleteItem).not.toHaveBeenCalled();
   expect(mockReportError).toHaveBeenCalledWith(error, "auth.device_registration", {
-    data: { attempt: 1, retrying: false },
+    data: { attempt: 1, retrying: false, step: "generate_key" },
   });
 });

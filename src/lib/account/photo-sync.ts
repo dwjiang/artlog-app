@@ -1,10 +1,10 @@
 import type * as repository from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
 import { isTransientError } from "@/lib/network-error";
-import { reportError } from "@/lib/observability";
 import type { CollectionPhotoKind } from "@/shared/collection/photo-limits";
 
 import type { PhotoUpload } from "./photo-transfer";
+import { reportTransferFailure } from "./photo-transfer-failures";
 
 export type PhotoSyncDependencies = Pick<
   typeof repository,
@@ -79,12 +79,7 @@ export async function syncCollectionPhotos(deps: PhotoSyncDependencies, isCurren
         }
       } catch (error) {
         if (isTransientError(error)) throw error;
-        reportError(error, "sync.photos", {
-          data: {
-            kind: "crop",
-            direction: current.cropStorageId ? "download" : "upload",
-          },
-        });
+        reportTransferFailure(error, "crop", current.cropStorageId ? "download" : "upload");
         failure = error;
       }
     }

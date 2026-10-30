@@ -4,6 +4,7 @@ import { AccessibilityInfo } from "react-native";
 
 import { confidentScan, missScan, softScan } from "@/components/scan/result/__fixtures__/scan";
 import { anonymousOwner, switchOwner } from "@/lib/account/owner-store";
+import { tagFailure } from "@/lib/failure-step";
 import { reportError } from "@/lib/observability";
 import { playErrorHaptic, playLightHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 
@@ -18,6 +19,7 @@ import type {
 import { useCapture } from "./use-capture";
 
 const mockVisit = jest.fn();
+jest.mock("@/lib/convex-connection", () => ({ connectionDiagnostics: () => ({}) }));
 jest.mock("@/lib/observability", () => ({
   reportError: jest.fn(),
   addBreadcrumb: jest.fn(),
@@ -357,13 +359,17 @@ it("shows picker errors and releases the capture for another import", async () =
 
 it("reports a handled capture failure without including the photo", async () => {
   const error = new Error("Native image processing failed");
+  tagFailure(error, { step: "embed" });
   mockPipeline.mockRejectedValue(error);
   const hook = await renderHook(useCapture);
   await act(async () => {
     await hook.result.current.capture(async () => input);
   });
   expect(reportError).toHaveBeenCalledTimes(1);
-  expect(reportError).toHaveBeenCalledWith(error, "capture.process");
+  expect(reportError).toHaveBeenCalledWith(error, "capture.process", {
+    data: { step: "embed", source: input.source, steady: false, online: true },
+  });
+  expect(JSON.stringify(jest.mocked(reportError).mock.calls)).not.toContain(input.photoUri);
   expect(hook.result.current.state.phase).toBe("retry");
 });
 

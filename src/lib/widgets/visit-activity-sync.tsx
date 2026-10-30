@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { AppState } from "react-native";
 
 import { useLocalOwner } from "@/lib/account/owner-store";
 import { formatVisitStart } from "@/lib/journal/history";
@@ -32,6 +33,7 @@ export function VisitActivitySync() {
   const writes = useRef(Promise.resolve());
   useEffect(() => {
     let cancelled = false;
+    let step = "end_stale";
     writes.current = writes.current
       .then(async () => {
         if (cancelled || !hydrated) return;
@@ -48,24 +50,32 @@ export function VisitActivitySync() {
         await prepareWidgetFont().catch((cause: unknown) => {
           reportError(cause, "visit.live-activity.font", { level: "warning" });
         });
+        step = "thumbnails";
         const thumbnails = await prepareVisitThumbnails(photos ? photos.split("\n") : []);
         if (cancelled) return;
         const props = { venueName, count, since, thumbnails };
         const [adopted, ...extra] = VisitActivity.getInstances();
+        step = "end_extra";
         for (const activity of extra) {
           if (cancelled) return;
           await activity.end("immediate");
         }
         if (cancelled) return;
         if (adopted) {
+          step = "update";
           await adopted.update(props);
         } else {
+          step = "start";
           VisitActivity.start(props, "artlog:///scan");
         }
+        step = "prune";
         pruneVisitThumbnails(thumbnails);
       })
       .catch((cause: unknown) => {
-        reportError(cause, "visit.live-activity", { level: "warning" });
+        reportError(cause, "visit.live-activity", {
+          level: "warning",
+          data: { step, app_state: AppState.currentState },
+        });
       });
     return () => {
       cancelled = true;

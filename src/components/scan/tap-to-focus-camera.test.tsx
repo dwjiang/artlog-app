@@ -10,6 +10,8 @@ const mockResetFocus = jest.fn(async () => {});
 let mockCameraError: ((error: Error) => void) | undefined;
 const mockDevices = jest.fn(() => [{ position: "back", id: "private-camera-id", localizedName: "private-name" }]);
 let mockSubjectAreaChanged: (() => void) | undefined;
+let mockStarted: (() => void) | undefined;
+let mockInterrupted: ((reason: string) => void) | undefined;
 
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
 
@@ -20,13 +22,19 @@ jest.mock("react-native-vision-camera", () => ({
     ref,
     onSubjectAreaChanged,
     onError,
+    onStarted,
+    onInterruptionStarted,
   }: {
     ref: Ref<unknown>;
     onSubjectAreaChanged?: () => void;
     onError?: (error: Error) => void;
+    onStarted?: () => void;
+    onInterruptionStarted?: (reason: string) => void;
   }) => {
     mockCameraError = onError;
     mockSubjectAreaChanged = onSubjectAreaChanged;
+    mockStarted = onStarted;
+    mockInterrupted = onInterruptionStarted;
     jest
       .requireActual<typeof import("react")>("react")
       .useImperativeHandle(ref, () => ({ focusTo: mockFocusTo, resetFocus: mockResetFocus }));
@@ -239,4 +247,32 @@ it("preserves the original error when telemetry fails", async () => {
   await render(<TapToFocusCamera device="back" isActive onError={onError} />);
   await act(() => mockCameraError?.(error));
   expect(onError).toHaveBeenCalledWith(error);
+});
+
+describe("a camera that never starts", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it("is reported once with the interruption that held it, and a started camera is not", async () => {
+    const onInterruptionStarted = jest.fn();
+    const view = await render(
+      <TapToFocusCamera device="back" isActive onInterruptionStarted={onInterruptionStarted} />,
+    );
+    await act(async () => mockInterrupted?.("video-device-in-use-by-another-client"));
+    expect(onInterruptionStarted).toHaveBeenCalledWith("video-device-in-use-by-another-client");
+    expect(addBreadcrumb).toHaveBeenCalledWith("camera.interrupted", {
+      reason: "video-device-in-use-by-another-client",
+    });
+    await act(() => jest.advanceTimersByTimeAsync(8_000));
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), "camera.start_stalled", {
+      level: "warning",
+      data: expect.objectContaining({ interruption: "video-device-in-use-by-another-client", limit_ms: 8_000 }),
+    });
+    jest.mocked(reportError).mockClear();
+    await view.rerender(<TapToFocusCamera device="back" isActive={false} />);
+    await view.rerender(<TapToFocusCamera device="back" isActive />);
+    await act(async () => mockStarted?.());
+    await act(() => jest.advanceTimersByTimeAsync(8_000));
+    expect(reportError).not.toHaveBeenCalled();
+  });
 });

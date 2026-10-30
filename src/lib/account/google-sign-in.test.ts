@@ -12,6 +12,7 @@ jest.mock("../../../modules/sign-in-diagnostics/src", () => ({
 
 const originalIos = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
 const originalWeb = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+const presetState = AppState.currentState;
 
 function loadSignIn() {
   let module!: typeof import("./google-sign-in");
@@ -23,6 +24,7 @@ function loadSignIn() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  Object.assign(AppState, { currentState: "active" });
   jest
     .mocked(signInPresentationSnapshot)
     .mockResolvedValue({ snapshot: "available", guidedAccess: false, hasPresenter: true });
@@ -53,7 +55,7 @@ it("reports bounded stage and presentation diagnostics without forwarding native
     tags: { operation: "auth.google_sign_in" },
     contexts: {
       operation: {
-        diagnostic_version: 1,
+        diagnostic_version: 2,
         failed_stage: "native_sign_in",
         native_code: "-3",
         native_domain: "org.openid.appauth.general",
@@ -100,7 +102,7 @@ it("records lifecycle changes during native sign-in and removes the listener", a
     onChange("inactive");
     onChange("background");
     onChange("active");
-    throw { code: "NULL_PRESENTER" };
+    throw { code: "-3" };
   });
   await expect(loadSignIn().googleSignIn()).rejects.toThrow("before identity exchange");
   expect(Sentry.captureException).toHaveBeenCalledWith(
@@ -113,6 +115,48 @@ it("records lifecycle changes during native sign-in and removes the listener", a
   );
   expect(remove).toHaveBeenCalledTimes(1);
   listener.mockRestore();
+});
+
+const browserNotStarted = {
+  code: "-1",
+  domain: "com.google.GIDSignIn",
+  message:
+    'RNGoogleSignIn: Unknown error in google sign in., Error Domain=com.google.GIDSignIn Code=-1 "Unable to open Safari."',
+  userInfo: { NSLocalizedDescription: "Unable to open Safari." },
+};
+
+it("retries once when the browser sheet could not start", async () => {
+  jest
+    .mocked(GoogleSignin.signIn)
+    .mockRejectedValueOnce(browserNotStarted)
+    .mockResolvedValueOnce({ type: "success", data: { idToken: "token", user: { id: "google-user" } } } as never);
+  await expect(loadSignIn().googleSignIn()).resolves.toMatchObject({ identityToken: "token" });
+  expect(GoogleSignin.signIn).toHaveBeenCalledTimes(2);
+  expect(Sentry.captureException).not.toHaveBeenCalled();
+  expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+    expect.objectContaining({
+      message: "auth.google_sign_in.native_success",
+      data: expect.objectContaining({ active_wait: "none", presentation_retried: true, retry_active_wait: "none" }),
+    }),
+  );
+});
+
+it("reports a repeated browser-start failure with its retry", async () => {
+  jest.mocked(GoogleSignin.signIn).mockRejectedValueOnce(browserNotStarted).mockRejectedValueOnce(browserNotStarted);
+  await expect(loadSignIn().googleSignIn()).rejects.toThrow("before identity exchange");
+  expect(GoogleSignin.signIn).toHaveBeenCalledTimes(2);
+  expect(Sentry.captureException).toHaveBeenCalledWith(
+    expect.any(Error),
+    expect.objectContaining({
+      contexts: {
+        operation: expect.objectContaining({
+          failed_stage: "native_sign_in",
+          native_code: "-1",
+          presentation_retried: true,
+        }),
+      },
+    }),
+  );
 });
 
 it("does not report a rejected native cancellation", async () => {
@@ -139,7 +183,7 @@ it("does not collapse distinct native errors within the shared report cooldown",
   jest
     .mocked(GoogleSignin.signIn)
     .mockRejectedValueOnce({ code: "-3", message: "private" })
-    .mockRejectedValueOnce({ code: "NULL_PRESENTER", message: "private" });
+    .mockRejectedValueOnce({ code: "-1", message: "private" });
   await expect(googleSignIn()).rejects.toThrow("before identity exchange");
   await expect(googleSignIn()).rejects.toThrow("before identity exchange");
   expect(Sentry.captureException).toHaveBeenCalledTimes(2);
@@ -170,6 +214,8 @@ it("preserves success with unavailable native diagnostics and keeps credentials 
     /private-id-token|private-user|Private Name/,
   );
 });
+
+afterAll(() => Object.assign(AppState, { currentState: presetState }));
 
 afterEach(() => {
   if (originalIos === undefined) delete process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;

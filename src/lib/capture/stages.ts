@@ -117,3 +117,6 @@ export type CaptureDependencies = {
 };
 
 export type CaptureOptions = { inputSize: number; modelVersion: string };
+
+// An identify request still pending after this long is reported as stalled; the request itself keeps waiting.
+export const IDENTIFY_STALL_MS = 20_000;

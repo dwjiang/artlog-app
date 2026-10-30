@@ -93,15 +93,26 @@ export function createVisitSharingController({
     }, 30_000);
     addBreadcrumb(`visit.sharing.${operation}.started`);
     emit({ busy: true, error: undefined });
+    const started = Date.now();
+    // One timer covers the photo upload and the request, so the step says which one ran out of time.
+    let step = "flush";
     try {
       await Promise.race([flush(), cancelled]);
       if (!current()) return false;
+      step = "request";
       await Promise.race([work(context, current), cancelled]);
       if (current()) addBreadcrumb(`visit.sharing.${operation}.completed`);
       return current();
     } catch (cause) {
       if (!disposed && abort === request && session.isCurrent()) {
-        reportError(timedOut ? new Error("Visit sharing timed out") : cause, `visit.sharing.${operation}`);
+        reportError(timedOut ? new Error("Visit sharing timed out") : cause, `visit.sharing.${operation}`, {
+          data: {
+            step,
+            timed_out: timedOut,
+            elapsed_ms: Math.min(60_000, Date.now() - started),
+            save_count: saveLocalIds().length,
+          },
+        });
         const conflict = convexErrorCode(cause) === "conflict";
         emit({
           profileRequired: convexErrorCode(cause) === "profile_required",

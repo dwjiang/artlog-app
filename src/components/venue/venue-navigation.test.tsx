@@ -26,8 +26,9 @@ jest.mock("@/components/database-gate", () => ({
   DatabaseGate: ({ children }: PropsWithChildren) => children,
 }));
 jest.mock("@/lib/convex-client", () => ({ convex: {} }));
-jest.mock("@/lib/installation-storage", () => ({ installationStorage: {} }));
+jest.mock("@/lib/installation-storage", () => ({ installationStorage: {}, convexAuthStorage: {} }));
 jest.mock("@/lib/device-identity", () => ({ DeviceIdentity: () => null }));
+jest.mock("@/lib/convex-connection", () => ({ ConvexConnectionWatch: () => null }));
 jest.mock("@/lib/files/photo-maintenance-lifecycle", () => ({ PhotoMaintenance: () => null }));
 jest.mock("@/lib/account/collection-sync", () => ({
   CollectionSync: () => null,

@@ -12,6 +12,7 @@ import { confirmDiscardEdits } from "@/hooks/use-discard-edits-guard";
 import { fitPhoto, validCrop, wholePhoto } from "@/lib/capture/crop-geometry";
 import { discardEditedCrop, prepareEditedCrop, type EditedCrop } from "@/lib/capture/edit-crop";
 import type { Quad } from "@/lib/capture/stages";
+import { failureDetails } from "@/lib/failure-step";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
 import { showErrorToast, useLiftToasts } from "@/lib/ui/toast";
@@ -143,7 +144,7 @@ export function CropEditor({
     } catch (error) {
       // Save is the retry, and it uses the corners as they are now.
       if (active.current) {
-        reportError(error, "capture.save_crop");
+        reportError(error, "capture.save_crop", { data: failureDetails(error) ?? { step: crop ? "save" : "prepare" } });
         showErrorToast("Couldn’t save this crop. Your previous crop is still available.");
       }
     } finally {

@@ -94,17 +94,20 @@ function Editor({ work }: { work: SavedWork }) {
     }
     setMergingInto(target.localId);
     setError(undefined);
+    let step = "flush_media";
     try {
       await flushCollectionMedia({
         saveLocalIds: [work.localId, target.localId],
       });
       if (!session.isCurrent()) return;
+      step = "merge";
       const result = await convex.mutation(api.artworkAlbums.merge, {
         scope: session.scope,
         sourceLocalId: work.localId,
         targetLocalId: target.localId,
       });
       if (!session.isCurrent()) return;
+      step = "apply";
       await removeUnreferencedPhotos(await upsertFromRemote(result.saves, session.owner));
       applyAlbum(result.photos, result.encounters, session.owner);
       leave(() =>
@@ -114,7 +117,7 @@ function Editor({ work }: { work: SavedWork }) {
         }),
       );
     } catch (cause) {
-      reportError(cause, "collection.artwork.merge");
+      reportError(cause, "collection.artwork.merge", { data: { step } });
       setError("Could not merge these artworks. Check your connection. Albums over 100 photos need editing first.");
     } finally {
       setMergingInto(undefined);

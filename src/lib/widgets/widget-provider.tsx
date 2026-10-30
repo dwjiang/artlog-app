@@ -9,6 +9,7 @@ import { listSavedWorks } from "@/db/repos/saved-works";
 import { listVisits } from "@/db/repos/visits";
 import { settings as settingsTable } from "@/db/schema";
 import { getLocalOwner, subscribeOwnerChange, useLocalOwner } from "@/lib/account/owner-store";
+import { reportError } from "@/lib/observability";
 
 import { widgetCollection, type PreparedWidgetArtwork, type WidgetArtwork } from "./widget-collection";
 import { createWidgetPublisher } from "./widget-publisher";
@@ -75,19 +76,29 @@ function useWidgetState(owner: string) {
     return () => subscription.remove();
   }, []);
   useEffect(() => {
+    if (queryError) reportError(queryError, "widget.publish", { level: "warning", data: { stage: "query" } });
+  }, [queryError]);
+  useEffect(() => {
     if (loading || queryError) return;
     let cancelled = false;
+    let stage = "font";
     void (async () => {
       try {
         await prepareWidgetFont();
         if (cancelled) return;
+        stage = "publish";
         const result = await publisher.publish(owner, artworks, preferences);
         if (!cancelled && result) {
           setPrepared(result);
           setError(undefined);
         }
-      } catch {
-        if (!cancelled) setError("Your widget could not update. Try again.");
+      } catch (error) {
+        if (cancelled) return;
+        reportError(error, "widget.publish", {
+          level: "warning",
+          data: { stage, source: preferences.source.kind, artwork_count: artworks.length },
+        });
+        setError("Your widget could not update. Try again.");
       } finally {
         if (!cancelled) setSettled({ artworks, preferences, revision });
       }

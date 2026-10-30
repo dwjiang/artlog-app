@@ -1,4 +1,5 @@
 import type { CapturePayload } from "@/lib/capture/stages";
+import { reportError } from "@/lib/observability";
 import { rankEntries, recognizeEntries } from "@/shared/offline/recognition";
 import type { MuseumEntry } from "@/shared/offline/types";
 
@@ -16,7 +17,10 @@ export async function identifyOffline(
     // A package file truncated by a kill mid-write passes the hydration existence check, so skipping
     // the museum here keeps one damaged download from hiding every other museum on this phone.
     candidates = await rankPackage(payload.vector, pack, candidates).catch((error: unknown) => {
-      console.warn("Museum download unreadable; skipping it for this scan", pack.folder, error);
+      reportError(error, "capture.offline_package_unreadable", {
+        level: "warning",
+        data: { chunk_count: pack.manifest.chunks.length },
+      });
       return candidates;
     });
   }

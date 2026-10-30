@@ -17,6 +17,7 @@ import { selectSavedWork } from "@/db/repos/saved-works";
 import type { SavedWork } from "@/db/schema";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { useLocalOwner } from "@/lib/account/owner-store";
+import { failureDetails } from "@/lib/failure-step";
 import { captureFileUri } from "@/lib/files/photos";
 import { reportError } from "@/lib/observability";
 import { useCollectionWall } from "@/lib/wall/use-collection-wall";
@@ -89,7 +90,7 @@ function SavedArtwork({ work, visitId, photoId }: { work: SavedWork; visitId?: s
     try {
       await wall.repository.publishLayout();
     } catch (cause) {
-      reportError(cause, "wall.layout.publish");
+      reportError(cause, "wall.layout.publish", { data: failureDetails(cause) });
       wall.setError("Your wall change was not saved. Tap Retry to save these changes.");
     }
   }

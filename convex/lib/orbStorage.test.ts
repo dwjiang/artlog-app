@@ -29,7 +29,9 @@ describe("stored ORB references", () => {
     const t = harness();
     await t.run(async (ctx) => {
       const storageId = await fileStorage.store(ctx, new Blob([new Uint8Array(47)]));
-      await expect(loadOrb(ctx, storageId, 1)).rejects.toThrow("bad_orb_file");
+      await expect(loadOrb(ctx, storageId, 1)).rejects.toMatchObject({
+        data: { code: "orb_file_invalid", reason: "size" },
+      });
       await fileStorage.delete(ctx, storageId);
       await expect(loadOrb(ctx, storageId, 1)).rejects.toMatchObject({
         data: { code: "orb_file_missing" },

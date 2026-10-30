@@ -12,6 +12,8 @@ import type { VenueView } from "@/lib/venue/use-venue";
 
 import { ScanScreen } from "./scan-screen";
 
+// The camera start watchdog also listens to AppState; this suite drives only the screen's own listener.
+jest.mock("@/lib/stall-report", () => ({ reportIfStalled: (task: Promise<unknown>) => task }));
 jest.mock("@/lib/audio/use-listening");
 
 jest.mock("@/lib/observability", () => ({

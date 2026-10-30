@@ -8,6 +8,8 @@ import { AccessibilityInfo } from "react-native";
 
 import { getVisit } from "@/db/repos/visits";
 import { captureOwner, subscribeOwnerChange } from "@/lib/account/owner-store";
+import { connectionDiagnostics } from "@/lib/convex-connection";
+import { failureDetails } from "@/lib/failure-step";
 import { removeCameraTempFile } from "@/lib/files/camera-temp";
 import { shrinkLibraryPhoto } from "@/lib/files/kept-photos";
 import { errorMessage, isBackendError } from "@/lib/network-error";
@@ -15,6 +17,7 @@ import { isOffline } from "@/lib/network-state";
 import { reportError, addBreadcrumb } from "@/lib/observability";
 import { failureCopy } from "@/lib/result/failure-copy";
 import { toResultViewState } from "@/lib/result/state";
+import { reportIfStalled } from "@/lib/stall-report";
 import { playErrorHaptic, playLightHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { resolveVenueForScan } from "@/lib/venue/use-venue";
 import { venueIdAt } from "@/lib/venue/venue-db";
@@ -26,7 +29,14 @@ import { captureOptions, defaultStages } from "./default-stages";
 import { extractCaptureMeta } from "./exif";
 import { runCapture } from "./pipeline";
 import { PresentationImages } from "./presentation-images";
-import type { CaptureInput, CaptureResult, CaptureTimings, PreparedPainting, VenueContext } from "./stages";
+import {
+  IDENTIFY_STALL_MS,
+  type CaptureInput,
+  type CaptureResult,
+  type CaptureTimings,
+  type PreparedPainting,
+  type VenueContext,
+} from "./stages";
 import type { UprightPhoto } from "./use-upright-photo";
 
 export type CapturePresentation = {
@@ -162,6 +172,7 @@ export function useCapture({
     pendingResult.current = undefined;
     setTimings(undefined);
     let cameraPhotoUri: string | undefined;
+    let source: CaptureInput["source"] | undefined;
     try {
       // A chosen visit is checked before the photo is taken, so a missing one costs no shutter press.
       let chosen: VenueContext | undefined;
@@ -180,6 +191,7 @@ export function useCapture({
       }
       const input = await getInput();
       if (input?.source === "camera") cameraPhotoUri = input.photoUri;
+      source = input?.source;
       if (!current()) return;
       if (!input) {
         (onCancel ?? reset)();
@@ -236,7 +248,13 @@ export function useCapture({
             if (!scope || !owner.isCurrent()) {
               throw new Error("Journal owner changed");
             }
-            return identify({ ...payload, scope });
+            return reportIfStalled(identify({ ...payload, scope }), "capture.identify_stalled", IDENTIFY_STALL_MS, {
+              requiresNetwork: true,
+              data: () => ({
+                ...connectionDiagnostics(),
+                online: online.current,
+              }),
+            });
           },
           rankCrops: (vectors, venueId) => rankCrops({ vectors, venueId, modelVersion: captureOptions.modelVersion }),
           isOnline: () => online.current,
@@ -265,7 +283,14 @@ export function useCapture({
       }
     } catch (error) {
       if (current()) {
-        reportError(error, "capture.process");
+        reportError(error, "capture.process", {
+          data: {
+            step: failureDetails(error)?.step ?? "setup",
+            source: source ?? null,
+            steady: attempt.steady,
+            online: online.current,
+          },
+        });
         images.current?.release();
         images.current = undefined;
         setPresentation((value) =>

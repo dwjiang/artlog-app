@@ -2,6 +2,7 @@ import { selectAllArtworkPhotos } from "@/db/repos/artwork-album";
 import { listSavedWorks } from "@/db/repos/saved-works";
 import { getSetting, setSetting } from "@/db/repos/settings";
 import { captureOwner, subscribeOwnerChange } from "@/lib/account/owner-store";
+import { tagFailure } from "@/lib/failure-step";
 import { randomWallStyle } from "@/shared/wall/defaults";
 
 import type { WallDraft } from "./wall-layout";
@@ -87,7 +88,10 @@ export function createLocalWallRepository() {
     const current = session();
     update({ pending: true });
     try {
-      await setSetting(privateWallKey(current.owner), JSON.stringify(layoutDraft));
+      await setSetting(privateWallKey(current.owner), JSON.stringify(layoutDraft)).catch((error: unknown) => {
+        tagFailure(error, { step: "save_local" });
+        throw error;
+      });
       current.check();
       update({
         acknowledged: layoutDraft,

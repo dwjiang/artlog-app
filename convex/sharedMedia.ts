@@ -6,7 +6,7 @@ import { internalQuery, type ActionCtx } from "./_generated/server";
 import { ownedAlbumPhoto } from "./lib/albumMedia";
 import { resolveDisplayAsset } from "./lib/displayMedia";
 import { fileStorage } from "./lib/fileStorage";
-import { reportBackendError } from "./lib/observability";
+import { reportBackendError, reportMissingStoredFile } from "./lib/observability";
 import { optionalProfile } from "./lib/ownership";
 import { projectArtwork } from "./lib/projections";
 import { requireSharedVisitItem } from "./lib/publicationAccess";
@@ -54,7 +54,12 @@ export async function serveSharedMedia(
   try {
     const storageId = await ctx.runQuery(internal.sharedMedia.authorize, { context, size });
     const blob = await fileStorage.get(ctx, storageId);
-    if (!blob) throw new ConvexError({ code: "not_found" });
+    if (!blob) {
+      if ((await ctx.runQuery(internal.sharedMedia.authorize, { context, size })) === storageId) {
+        await reportMissingStoredFile("sharedMedia.download", context.kind);
+      }
+      throw new ConvexError({ code: "not_found" });
+    }
     // Recheck after fetching the bytes so a revocation during storage IO is honored.
     if ((await ctx.runQuery(internal.sharedMedia.authorize, { context, size })) !== storageId) {
       throw new ConvexError({ code: "not_found" });

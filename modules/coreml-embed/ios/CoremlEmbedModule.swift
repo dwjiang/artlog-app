@@ -53,6 +53,14 @@ public final class CoremlEmbedModule: Module {
       return try body(try embedder.get())
     } catch let error as EmbedError {
       throw Exception(name: "CoremlEmbedError", description: error.description, code: error.code)
+    } catch {
+      // Expo would forward only the localized text; keep the domain and code an event can group by.
+      let error = error as NSError
+      throw Exception(
+        name: "CoremlEmbedError",
+        description: "Core ML failed (\(error.domain) \(error.code))",
+        code: "coreml_unexpected"
+      )
     }
   }
 }

@@ -10,7 +10,8 @@ import { addBreadcrumb, reportError } from "@/lib/observability";
 
 export function AppErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   useEffect(() => {
-    reportError(error, "app.render");
+    // The screen is gone whatever the cause, so even an offline or "not found" error that reached it is a bug.
+    reportError(error, "app.render", { alwaysReport: "all" });
   }, [error]);
   return (
     <SafeAreaScrollView

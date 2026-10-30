@@ -42,21 +42,42 @@ export function ExhibitionReminderSync() {
   const writes = useRef(Promise.resolve());
   useEffect(() => {
     if (!settled) return;
+    let step = "list";
+    let requested = 0;
+    let cancelled = 0;
     writes.current = writes.current
       .then(async () => {
         const now = Date.now();
         const saved = wanted ? (JSON.parse(shows) as ReminderShow[]) : [];
         const requests = saved.flatMap((show) => exhibitionReminders(show, now));
+        requested = requests.length;
         const keep = new Set(requests.map((request) => request.identifier));
         for (const { identifier } of await Notifications.getAllScheduledNotificationsAsync()) {
           if (identifier.startsWith(EXHIBITION_REMINDER_PREFIX) && !keep.has(identifier)) {
+            step = "cancel";
             await Notifications.cancelScheduledNotificationAsync(identifier);
+            cancelled++;
           }
         }
+        step = "schedule";
         // Scheduling an identifier again replaces it, which picks up changed dates and titles.
         for (const request of requests) await Notifications.scheduleNotificationAsync(request);
+        if (requests.length === 0) return;
+        step = "verify";
+        // iOS can drop pending local notifications past its limit without an error, so count what it kept.
+        const pending = (await Notifications.getAllScheduledNotificationsAsync()).filter(({ identifier }) =>
+          keep.has(identifier),
+        ).length;
+        if (pending < requests.length) {
+          reportError(new Error("Exhibition reminders were not all kept"), "explore.reminders_dropped", {
+            level: "warning",
+            data: { requested: requests.length, pending },
+          });
+        }
       })
-      .catch((cause: unknown) => reportError(cause, "explore.reminders", { level: "warning" }));
+      .catch((cause: unknown) =>
+        reportError(cause, "explore.reminders", { level: "warning", data: { step, requested, cancelled } }),
+      );
   }, [settled, wanted, shows]);
   return null;
 }

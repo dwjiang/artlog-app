@@ -1,6 +1,8 @@
 import { isTransientError } from "@/lib/network-error";
+import { reportError } from "@/lib/observability";
 
 import { downloadCollectionPhoto, uploadCollectionPhoto } from "./photo-transfer";
+import { reportTransferFailure } from "./photo-transfer-failures";
 
 const mockUpload = jest.fn();
 const mockDownload = jest.fn();
@@ -11,6 +13,7 @@ const mockRelease = jest.fn();
 let mockWidth = 4000;
 let mockHeight = 3000;
 let mockSize = 1000;
+jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 jest.mock("@/lib/files/photos", () => ({
   captureFileUri: (path: string) => `file:///documents/${path}`,
 }));
@@ -186,4 +189,24 @@ it("downloads through the authenticated endpoint into the document directory", a
     "file:///documents/collection-photos/scope-save-1-photo-photo-id.jpg",
     { headers: { Authorization: "Bearer token" }, idempotent: true },
   );
+});
+
+it("reports which step of a transfer failed, once a session for the same failure", async () => {
+  mockUpload.mockResolvedValue({ status: 413, body: "" });
+  const tooLarge = await uploadCollectionPhoto("token", "scope", "a", "crop", "crop.jpg").catch(
+    (error: unknown) => error,
+  );
+  reportTransferFailure(tooLarge, "crop", "upload");
+  expect(reportError).toHaveBeenCalledWith(tooLarge, "sync.photos", {
+    data: { kind: "crop", direction: "upload", step: "upload" },
+  });
+  const again = await uploadCollectionPhoto("token", "scope", "a", "crop", "crop.jpg").catch((error: unknown) => error);
+  reportTransferFailure(again, "crop", "upload");
+  expect(reportError).toHaveBeenCalledTimes(1);
+  mockDownload.mockRejectedValueOnce(new Error("Unable to download a file: response has status 404"));
+  const missing = await downloadCollectionPhoto("token", "scope", "a", "photo", "id").catch((error: unknown) => error);
+  reportTransferFailure(missing, "album", "download");
+  expect(reportError).toHaveBeenLastCalledWith(missing, "sync.photos", {
+    data: { kind: "album", direction: "download", step: "download" },
+  });
 });

@@ -11,7 +11,7 @@ import { requireDeviceFromAction } from "./lib/auth";
 import { deleteUnreferencedPhoto } from "./lib/collectionPhotos";
 import { queueFeedPhoto } from "./lib/feedPhotos";
 import { fileStorage, retainFile } from "./lib/fileStorage";
-import { reportBackendError } from "./lib/observability";
+import { reportBackendError, reportMissingStoredFile } from "./lib/observability";
 import { nextChangeVersion, requireJournalOwner, requireOwnedSave } from "./lib/ownership";
 import { limitDevice } from "./lib/rateLimits";
 
@@ -200,7 +200,9 @@ export const download = httpAction(async (ctx, request) => {
     const input = parameters(request);
     const storageId = await ctx.runQuery(internal.collectionPhotos.findForCaller, input);
     const blob = storageId ? await fileStorage.get(ctx, storageId) : null;
-    if (!blob || (await ctx.runQuery(internal.collectionPhotos.findForCaller, input)) !== storageId) {
+    const current = (await ctx.runQuery(internal.collectionPhotos.findForCaller, input)) === storageId;
+    if (!blob || !current) {
+      if (storageId && !blob && current) await reportMissingStoredFile("collectionPhotos.download", "photo");
       throw new ConvexError({ code: "not_found" });
     }
     return new Response(blob, {

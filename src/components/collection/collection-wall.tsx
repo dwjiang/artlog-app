@@ -21,6 +21,7 @@ import { selectArtworkPhotos } from "@/db/repos/artwork-album";
 import type { SavedWork } from "@/db/schema";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { captureOwner, useLocalOwner } from "@/lib/account/owner-store";
+import { failureDetails } from "@/lib/failure-step";
 import { captureFileUri } from "@/lib/files/photos";
 import { convexErrorCode } from "@/lib/network-error";
 import { reportError } from "@/lib/observability";
@@ -202,7 +203,7 @@ export function CollectionWallContent({
       if (!session.isCurrent() || !wall.repository.getSnapshot().layoutDraft) {
         return;
       }
-      reportError(cause, "wall.layout.publish");
+      reportError(cause, "wall.layout.publish", { data: failureDetails(cause) });
       setOptions(false);
       wall.setError(
         convexErrorCode(cause) === "conflict"

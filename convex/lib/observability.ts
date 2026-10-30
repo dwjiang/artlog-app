@@ -115,6 +115,7 @@ const diagnosticCodes = new Set([
   "apple_account_mismatch",
   "google_unconfigured",
   "orb_file_missing",
+  "orb_file_invalid",
   "vector_payload_missing",
   "import_upload_mismatch",
   "bad_candidates",
@@ -123,6 +124,14 @@ const diagnosticCodes = new Set([
   "push_message_too_big",
   "push_rate_exceeded",
   "push_rejected",
+  "invalid_apple_identity",
+  "invalid_google_identity",
+  "vector_archive_missing",
+  "vector_archive_invalid",
+  "file_missing",
+  "photo_file_missing",
+  "storage_failed",
+  "attest_failed",
 ]);
 const errorTypes = new Set([
   "Error",
@@ -139,10 +148,12 @@ let cached: { dsn: string; transport: Transport } | undefined;
 const reported = new WeakSet<object>();
 
 function errorData(error: unknown): { code?: string; reason?: string; schema?: string; diagnostics?: unknown } {
-  if (!(error instanceof ConvexError) || !error.data || typeof error.data !== "object") {
+  // Plain errors can carry a code and reason as properties; both still pass the allowlists below.
+  const data = error instanceof ConvexError ? error.data : error instanceof Error ? error : undefined;
+  if (!data || typeof data !== "object") {
     return {};
   }
-  const { code, reason, schema, diagnostics } = error.data as Record<string, unknown>;
+  const { code, reason, schema, diagnostics } = data as Record<string, unknown>;
   return {
     code: typeof code === "string" ? code : undefined,
     reason: typeof reason === "string" ? reason : undefined,
@@ -211,7 +222,26 @@ function transportFor(dsn: string): Transport | undefined {
 }
 
 // Catalog ids name public works, never a person, so they can tie an event to the work it affected.
-type ReportContext = { artworkId?: Id<"artworks"> };
+type ReportContext = {
+  artworkId?: Id<"artworks">;
+  diagnostics?: Record<string, string | number | boolean | undefined>;
+};
+
+// Callers pass step names, providers, statuses and timings. Keys and string values must look like identifiers, so
+// free text, URLs and email addresses cannot reach the event even if a caller passes one by mistake.
+function safeDiagnostics(values: ReportContext["diagnostics"]): Record<string, string | number | boolean> | undefined {
+  if (!values) return;
+  const safe = Object.fromEntries(
+    Object.entries(values).filter(
+      ([key, value]) =>
+        /^[a-z][a-zA-Z0-9_]{0,39}$/.test(key)
+        && (typeof value === "boolean"
+          || (typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= 1e9)
+          || (typeof value === "string" && /^[A-Za-z0-9_.-]{1,60}$/.test(value))),
+    ),
+  ) as Record<string, string | number | boolean>;
+  return Object.keys(safe).length > 0 ? safe : undefined;
+}
 
 export async function reportBackendError(
   error: unknown,
@@ -224,6 +254,7 @@ export async function reportBackendError(
     if (!dsn) return null;
     const { code, reason, schema, diagnostics } = errorData(error);
     const modelDiagnostics = code === "model_error" ? tokenFactoryDiagnostics(diagnostics) : undefined;
+    const operationDiagnostics = safeDiagnostics(context.diagnostics);
     if ((code && expectedCodes.has(code)) || (error instanceof Error && error.name === "AbortError")) {
       return null;
     }
@@ -238,7 +269,7 @@ export async function reportBackendError(
     const safeCode = code && diagnosticCodes.has(code) ? code : undefined;
     const safeReason =
       reason
-      && /^(http_[45]\d\d|bad_response|bad_json|schema|truncated|timeout|network|fetch_failed|invalid_output|sources_unavailable|no_facts|prose_rejected|catalogue_only|first_segment_timeout|invalid_client|invalid_grant)$/.test(
+      && /^(http_[45]\d\d|bad_response|bad_json|schema|truncated|timeout|network|fetch_failed|invalid_output|sources_unavailable|no_facts|prose_rejected|catalogue_only|first_segment_timeout|invalid_client|invalid_grant|size|decode|unconfigured)$/.test(
         reason,
       )
         ? reason
@@ -260,7 +291,14 @@ export async function reportBackendError(
         ...(schema && /^[A-Za-z]{1,40}$/.test(schema) ? { model_schema: schema } : {}),
         ...(context.artworkId ? { artwork_id: context.artworkId } : {}),
       },
-      ...(modelDiagnostics ? { contexts: { token_factory: modelDiagnostics } } : {}),
+      ...(modelDiagnostics || operationDiagnostics
+        ? {
+            contexts: {
+              ...(modelDiagnostics ? { token_factory: modelDiagnostics } : {}),
+              ...(operationDiagnostics ? { operation: operationDiagnostics } : {}),
+            },
+          }
+        : {}),
       exception: {
         values: [
           {
@@ -277,6 +315,11 @@ export async function reportBackendError(
   } catch {
     return null;
   }
+}
+
+/** A photo row still names a file whose bytes are gone; callers answer not_found either way. */
+export async function reportMissingStoredFile(operation: string, kind: string): Promise<void> {
+  await reportBackendError(new ConvexError({ code: "photo_file_missing" }), operation, { diagnostics: { kind } });
 }
 
 export async function withErrorReporting<T>(operation: string, run: () => Promise<T>): Promise<T> {

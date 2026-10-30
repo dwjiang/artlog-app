@@ -218,7 +218,7 @@ it("reports a failed queued task while retaining its retry state", async () => {
   const flusher = createFlusher(deps);
   await flusher.start();
   expect(reportError).toHaveBeenCalledWith(error, "queue.identify", {
-    data: { attempts: 1, status: "queued" },
+    data: { attempts: 1, status: "queued", step: "identify" },
   });
   expect(store.get("a")).toMatchObject({ status: "queued", attempts: 1 });
   flusher.stop();
@@ -360,6 +360,59 @@ it.each([
   expect(deps.identify).toHaveBeenCalledTimes(3);
   expect(store.get("a")).toMatchObject({ status: "identified" });
   expect(store.get("b")).toMatchObject({ status: "identified" });
+});
+
+it("reports the queue as stuck once a server answer has paused it ten times, but never for offline failures", async () => {
+  const { deps } = fakeDependencies([pendingScan("a")]);
+  deps.identify.mockRejectedValue(new ConvexError({ code: "device_not_registered" }));
+  await createFlusher(deps).start();
+  // Pauses double from 2 s to the 60 s cap, so fifteen minutes covers ten attempts.
+  await jest.advanceTimersByTimeAsync(15 * 60_000);
+  expect(reportError).toHaveBeenCalledTimes(1);
+  expect(reportError).toHaveBeenCalledWith(expect.any(Error), "queue.identify.stuck", {
+    level: "warning",
+    data: { step: "identify", failures: 10, code: "device_not_registered" },
+  });
+  jest.mocked(reportError).mockClear();
+  const offline = fakeDependencies([pendingScan("b")]);
+  offline.deps.identify.mockRejectedValue(new TypeError("Network request failed"));
+  await createFlusher(offline.deps).start();
+  await jest.advanceTimersByTimeAsync(15 * 60_000);
+  expect(reportError).not.toHaveBeenCalled();
+});
+
+it("reports persistent server failures after transport failures, once until recovery", async () => {
+  const { deps, store } = fakeDependencies([pendingScan("a")]);
+  const flusher = createFlusher(deps);
+  const retry = async (times: number) => {
+    for (let i = 0; i < times; i++) await jest.runOnlyPendingTimersAsync();
+  };
+  deps.identify.mockRejectedValue(new Error("Network request failed"));
+  await flusher.start();
+  await retry(9);
+  expect(deps.identify).toHaveBeenCalledTimes(10);
+  expect(reportError).not.toHaveBeenCalled();
+
+  deps.identify.mockRejectedValue(new ConvexError({ code: "device_not_registered" }));
+  await retry(9);
+  expect(reportError).not.toHaveBeenCalled();
+  await retry(1);
+  expect(reportError).toHaveBeenCalledWith(expect.any(Error), "queue.identify.stuck", {
+    level: "warning",
+    data: { step: "identify", failures: 20, code: "device_not_registered" },
+  });
+  await retry(3);
+  expect(reportError).toHaveBeenCalledTimes(1);
+
+  deps.identify.mockResolvedValueOnce(identified("a"));
+  await retry(1);
+  store.set("b", pendingScan("b"));
+  await flusher.flush();
+  await retry(8);
+  expect(reportError).toHaveBeenCalledTimes(1);
+  await retry(1);
+  expect(reportError).toHaveBeenCalledTimes(2);
+  flusher.stop();
 });
 
 it("honors the server retry delay for the entire batch despite repeated flush triggers", async () => {

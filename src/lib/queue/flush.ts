@@ -3,8 +3,9 @@ import type { FunctionArgs } from "convex/server";
 import type { PendingScan, PendingScanStatus } from "@/db/schema";
 import type { ScanFeatures } from "@/lib/capture/features";
 import type { IdentifyResponse } from "@/lib/capture/stages";
-import { errorMessage, isTransientError, rateLimitRetryAfterMs } from "@/lib/network-error";
+import { convexErrorCode, errorMessage, isTransientError, rateLimitRetryAfterMs } from "@/lib/network-error";
 import { reportError, addBreadcrumb } from "@/lib/observability";
+import { createStuckRetryTracker } from "@/lib/stuck-retry-tracker";
 
 import type { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -56,12 +57,14 @@ export function createFlusher(deps: FlushDependencies): Flusher {
   let rerun = false;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   const backoff = {
-    identify: { transientFailures: 0, pauseUntil: 0 },
-    label: { transientFailures: 0, pauseUntil: 0 },
+    identify: { transientFailures: 0, pauseUntil: 0, stuck: createStuckRetryTracker() },
+    label: { transientFailures: 0, pauseUntil: 0, stuck: createStuckRetryTracker() },
   };
   const retryAt = new Map<string, number>();
   let active = false;
   let generation = 0;
+  // Rows run one at a time, so the step of the row in progress names where a failure happened.
+  let step = "start";
 
   function scheduleRetry(delayMs: number): void {
     clearTimeout(retryTimer);
@@ -75,6 +78,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
   }
 
   async function processRow(row: PendingScan, isCurrent: () => boolean): Promise<void> {
+    step = "reset_model";
     if (row.attemptModelVersion !== deps.modelVersion) {
       await deps.resetAttemptsForModel(row.localId, deps.modelVersion);
       if (!isCurrent()) return;
@@ -86,14 +90,17 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       modelVersion: row.modelVersion,
     };
     if (row.modelVersion !== deps.modelVersion) {
+      step = "reembed";
       features = {
         ...(await deps.reembed(row.cropPath)),
         modelVersion: deps.modelVersion,
       };
       if (!isCurrent()) return;
+      step = "update_features";
       await deps.updateFeatures(row.localId, features);
     }
     let visitId = row.visitId ?? undefined;
+    step = "resolve_visit";
     if (row.visitLocalId) {
       if (!row.venueId) {
         throw new Error("The capture visit is missing its venue");
@@ -101,6 +108,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       visitId = await deps.resolveVisitId(row.visitLocalId);
     }
     if (!isCurrent()) return;
+    step = "mark_identifying";
     if (!(await deps.markIdentifying(row.localId))) return;
     if (!isCurrent()) {
       await deps.recordFailure(row.localId, "Identification interrupted", {
@@ -108,6 +116,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       });
       return;
     }
+    step = "identify";
     const response = await deps.identify({
       localId: row.localId,
       ...features,
@@ -117,6 +126,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       cropCorners: row.modelCropGeometry?.corners ?? row.cropCorners ?? undefined,
     });
     if (!isCurrent()) return;
+    step = "record_result";
     await deps.recordResult(row.localId, response);
     const label: LabelInput = {
       labelPhotoPath: row.labelPhotoPath ?? undefined,
@@ -129,18 +139,22 @@ export function createFlusher(deps: FlushDependencies): Flusher {
       && isCurrent()
       && (label.labelPhotoPath || label.qrUrl)
     ) {
+      step = "clear_label";
       await deps.clearPendingLabel(row.localId, label);
     }
   }
 
   async function processLabel(queued: PendingScan, isCurrent: () => boolean): Promise<void> {
+    step = "load_row";
     const row = await deps.getPendingScan(queued.localId);
     if (!isCurrent() || row?.status !== "identified" || !row.scanId || (!row.labelPhotoPath && !row.qrUrl)) return;
     const label = {
       labelPhotoPath: row.labelPhotoPath ?? undefined,
       qrUrl: row.qrUrl ?? undefined,
     };
+    step = "label_flow";
     await deps.runLabelFlow(row.scanId, label);
+    step = "clear_label";
     if (isCurrent()) await deps.clearPendingLabel(row.localId, label);
   }
 
@@ -172,6 +186,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
           retryAt.delete(key);
           taskBackoff.transientFailures = 0;
           taskBackoff.pauseUntil = 0;
+          taskBackoff.stuck.reset();
         } catch (error) {
           if (!isCurrent()) return;
           const transient = isTransientError(error);
@@ -180,7 +195,7 @@ export function createFlusher(deps: FlushDependencies): Flusher {
             countAttempt: !transient,
           });
           if (!transient) {
-            reportError(error, `queue.${task}`, { data: { attempts, status } });
+            reportError(error, `queue.${task}`, { data: { attempts, status, step } });
           }
           if (transient) {
             addBreadcrumb("queue.paused", {
@@ -189,6 +204,13 @@ export function createFlusher(deps: FlushDependencies): Flusher {
             });
             taskBackoff.pauseUntil =
               Date.now() + Math.max(backoffMs(++taskBackoff.transientFailures), rateLimitRetryAfterMs(error) ?? 0);
+            // Transient failures are never reported, so a server answer that keeps pausing the queue is reported once.
+            if (taskBackoff.stuck.recordFailure(error)) {
+              reportError(new Error("Scan queue is stuck"), `queue.${task}.stuck`, {
+                level: "warning",
+                data: { step, failures: taskBackoff.transientFailures, code: convexErrorCode(error) ?? "other" },
+              });
+            }
             nextRetryAt = Math.min(nextRetryAt, taskBackoff.pauseUntil);
             return;
           }

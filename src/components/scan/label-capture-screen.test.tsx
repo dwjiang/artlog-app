@@ -540,6 +540,26 @@ it("retains an interrupted label even after navigating away", async () => {
   expect(mockFlush).toHaveBeenCalledTimes(1);
 });
 
+it("reports which step of the label flow failed", async () => {
+  let advance!: StageCallback;
+  let fail!: (error: unknown) => void;
+  mockRun.mockImplementation(
+    (_id: unknown, _source: unknown, onStage: StageCallback) =>
+      new Promise<LabelFlowDisplay>((_resolve, reject) => {
+        advance = onStage;
+        fail = reject;
+      }),
+  );
+  await start();
+  await fireEvent.press(screen.getByRole("button", { name: "Read label" }));
+  const failure = new Error("Vision text recognition failed");
+  await act(async () => {
+    advance("verify");
+    fail(failure);
+  });
+  expect(reportError).toHaveBeenCalledWith(failure, "label.verify", { data: { step: "verify", source: "photo" } });
+});
+
 it("explains a paused reader and offers a retake", async () => {
   const flow = deferFlow();
   await start();

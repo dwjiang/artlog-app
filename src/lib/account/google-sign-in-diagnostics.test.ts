@@ -1,4 +1,4 @@
-import { googleSignInCancelled, googleSignInErrorData } from "./google-sign-in-diagnostics";
+import { googleSignInCancelled, googleSignInErrorData, googleSignInMissingWindow } from "./google-sign-in-diagnostics";
 
 it("only keeps numeric or known bridge codes and known native domains", () => {
   expect(googleSignInErrorData({ code: "person@example.com", domain: "private-account", message: "secret" })).toEqual({
@@ -32,4 +32,20 @@ it("survives unexpected getters and recognizes only the known cancellation code"
   expect(googleSignInCancelled({ code: -5 })).toBe(true);
   expect(googleSignInCancelled({ code: "-5" })).toBe(true);
   expect(googleSignInCancelled({ code: -3 })).toBe(false);
+});
+
+it("recognizes only presenter and browser-start failures as a missing window", () => {
+  const safari = "Unable to open Safari.";
+  expect(googleSignInMissingWindow({ code: "NULL_PRESENTER" })).toBe(true);
+  expect(googleSignInMissingWindow({ code: "-1", userInfo: { NSLocalizedDescription: safari } })).toBe(true);
+  expect(googleSignInMissingWindow({ code: -1, message: `RNGoogleSignIn: Unknown error, "${safari}"` })).toBe(true);
+  expect(googleSignInMissingWindow({ code: "-1", message: "The network connection was lost." })).toBe(false);
+  expect(googleSignInMissingWindow({ code: "-5", message: safari })).toBe(false);
+  expect(
+    googleSignInMissingWindow({
+      get code() {
+        throw new Error("unreadable");
+      },
+    }),
+  ).toBe(false);
 });

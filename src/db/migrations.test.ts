@@ -6,7 +6,7 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/expo-sqlite/migrator";
 
-import { migrateDatabase } from "./migrate-database";
+import { appliedMigrationCount, bundledMigrationCount, migrateDatabase } from "./migrate-database";
 import migrations from "./migrations/migrations";
 import { selectArtworkEncounters, selectArtworkPhotos } from "./repos/artwork-album";
 import * as schema from "./schema";
@@ -602,3 +602,13 @@ it.each([0, 8])(
     ).toEqual(["legacy"]);
   },
 );
+
+it("names each startup step and counts applied migrations, so a failed launch shows which migration broke", async () => {
+  openDatabase();
+  const database = mockDb as unknown as Parameters<typeof migrateDatabase>[0];
+  expect(appliedMigrationCount(database)).toBeNull();
+  const steps: string[] = [];
+  await migrateDatabase(database, "upgrade-installation", (step) => steps.push(step));
+  expect(steps).toEqual(["legacy_restore", "migrate", "photo_timestamp"]);
+  expect(appliedMigrationCount(database)).toBe(bundledMigrationCount);
+});

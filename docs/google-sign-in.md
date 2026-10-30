@@ -71,6 +71,11 @@ These snapshots are not atomic with the SDK's presentation attempt. The
 not prove that a browser or sheet opened. Snapshot absence, failure or a 150 ms
 timeout must not prevent sign-in.
 
+Apple and Google sheets open only once the app is active (waiting up to a minute),
+and a missing-window failure (`ERR_WINDOW_UNAVAILABLE`, `NULL_PRESENTER`, or AppAuth's
+"Unable to open Safari.") is retried once. Diagnostics record `active_wait`,
+`presentation_retried` and `retry_active_wait`.
+
 A native rebuild is required for the presentation module. When investigating a
 new event, compare its release/build with that build's resolved `Podfile.lock`
 versions for GoogleSignIn, AppAuth and GTMAppAuth; JavaScript package versions do

@@ -14,6 +14,7 @@ import {
   type ListeningDependencies,
 } from "./listening-controller";
 import { trackKey, type ListeningTrack } from "./narration";
+import { DownloadTimeoutError } from "./narration-renderer";
 
 jest.mock("expo-network", () => ({ getNetworkStateAsync: jest.fn() }));
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
@@ -424,12 +425,36 @@ it("reports an unavailable narration in a toast whose Retry replays the failed t
   controller.dispose();
 });
 
+it("reports a download that timed out while online, and only then", async () => {
+  const { controller, deps } = setup();
+  deps.render.mockRejectedValueOnce(new DownloadTimeoutError("idle", 120, 900));
+  await controller.play(track("a"));
+  await Promise.resolve();
+  expect(showErrorToast).toHaveBeenCalledWith(
+    "Couldn’t prepare narration. Check your connection.",
+    expect.any(Function),
+    { quiet: true },
+  );
+  expect(reportError).toHaveBeenCalledWith(new Error("Narration download timed out"), "narration.prepare", {
+    data: { artworkId: "a", stage: "preparing", timeout: "idle", received_kb: 120, expected_kb: 900 },
+  });
+  jest.mocked(reportError).mockClear();
+  jest.mocked(getNetworkStateAsync).mockResolvedValue({ isConnected: false, isInternetReachable: false });
+  deps.render.mockRejectedValueOnce(new DownloadTimeoutError("limit", 10, null));
+  await controller.play(track("b"));
+  await Promise.resolve();
+  expect(reportError).not.toHaveBeenCalled();
+  controller.dispose();
+});
+
 it("reports a narration that failed on the phone with its artwork, leaving backend failures to the backend", async () => {
   const { controller, deps } = setup();
   const invalid = new Error("Narration transcript is invalid.");
   deps.render.mockRejectedValueOnce(invalid);
   await controller.play(track("a"));
-  expect(reportError).toHaveBeenCalledWith(invalid, "narration.prepare", { data: { artworkId: "a" } });
+  expect(reportError).toHaveBeenCalledWith(invalid, "narration.prepare", {
+    data: { artworkId: "a", stage: "preparing" },
+  });
   expect(showErrorToast).toHaveBeenCalledWith("Couldn’t prepare narration.", expect.any(Function), { quiet: true });
   jest.mocked(reportError).mockClear();
   deps.render.mockRejectedValueOnce(new ConvexError({ code: "narration_provider_failed" }));
@@ -750,7 +775,9 @@ it("offers Retry for a stalled playlist even when the native player stops emitti
   expect(showErrorToast).toHaveBeenCalledWith("Audio stopped responding.", expect.any(Function), { quiet: true });
   expect(controller.snapshot().queue).toEqual([track("b")]);
   expect(player.remove).toHaveBeenCalledTimes(1);
-  expect(reportError).toHaveBeenCalledWith(expect.any(Error), "narration.playback");
+  expect(reportError).toHaveBeenCalledWith(expect.any(Error), "narration.playback", {
+    data: expect.objectContaining({ watchdog: "stall", time_control: "waitingToPlayAtSpecifiedRate", position_s: 4 }),
+  });
   controller.toggle();
   await Promise.resolve();
   await Promise.resolve();
@@ -1036,7 +1063,9 @@ it.each([false, true])("invalidates only local audio on native playback failure 
   player.emit({ playbackState: "failed" });
   await Promise.resolve();
   expect(deps.invalidate.mock.calls).toEqual(live ? [] : [["stored-render"]]);
-  expect(reportError).toHaveBeenCalledWith(expect.any(Error), "narration.playback");
+  expect(reportError).toHaveBeenCalledWith(expect.any(Error), "narration.playback", {
+    data: expect.objectContaining({ source: live ? "live" : "file", playback_state: "failed" }),
+  });
   expect(controller.snapshot().phase).toBe("error");
   controller.dispose();
 });
@@ -1205,7 +1234,9 @@ describe("audio that never finishes loading", () => {
     expect(controller.snapshot().phase).toBe("error");
     expect(showErrorToast).toHaveBeenCalledWith("Couldn’t load audio.", expect.any(Function), { quiet: true });
     expect(reportError).toHaveBeenCalledTimes(1);
-    expect(reportError).toHaveBeenCalledWith(new Error("Narration load timed out"), "narration.playback");
+    expect(reportError).toHaveBeenCalledWith(new Error("Narration load timed out"), "narration.playback", {
+      data: expect.objectContaining({ watchdog: "load", source: "file", starting: false }),
+    });
     await jest.advanceTimersByTimeAsync(60_000);
     expect(reportError).toHaveBeenCalledTimes(1);
     expect(deps.render).toHaveBeenCalledTimes(1);
@@ -1218,7 +1249,9 @@ describe("audio that never finishes loading", () => {
     await controller.play(track("a"));
     await jest.advanceTimersByTimeAsync(15_000);
     expect(reportError).toHaveBeenCalledTimes(1);
-    expect(reportError).toHaveBeenCalledWith(new Error("Narration load timed out"), "narration.playback");
+    expect(reportError).toHaveBeenCalledWith(new Error("Narration load timed out"), "narration.playback", {
+      data: expect.objectContaining({ watchdog: "load", source: "live" }),
+    });
     controller.dispose();
   });
 });

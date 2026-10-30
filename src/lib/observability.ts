@@ -4,7 +4,13 @@ import { ConvexError } from "convex/values";
 import { isTransientError } from "./network-error";
 
 type DiagnosticData = Record<string, string | number | boolean | null | undefined>;
-type ReportOptions = { level?: "warning" | "error"; data?: DiagnosticData };
+type ReportOptions = {
+  level?: "warning" | "error";
+  data?: DiagnosticData;
+  // Codes that are routine answers to an interactive request but a stuck failure for this caller, such as background
+  // sync. "all" also keeps offline and cancelled failures, for a caller where any failure is a bug.
+  alwaysReport?: readonly string[] | "all";
+};
 
 const expectedCodes = new Set([
   "ERR_REQUEST_CANCELED",
@@ -13,6 +19,8 @@ const expectedCodes = new Set([
   "ERR_CAMERA_PERMISSION",
   "ERR_LOCATION_UNAUTHORIZED",
   "ERR_LOCATION_SERVICES_DISABLED",
+  // The person turned Live Activities off in Settings.
+  "ERR_LIVE_ACTIVITIES_NOT_SUPPORTED",
   "permission/camera-permission-denied",
   "not_found",
   "profile_required",
@@ -99,10 +107,13 @@ function message(error: unknown): string {
   return "Unknown error";
 }
 
-function expected(error: unknown): boolean {
+function expected(error: unknown, alwaysReport: readonly string[] | "all" = []): boolean {
+  if (alwaysReport === "all") return false;
+  if (isTransientError(error)) return true;
+  const code = errorCode(error);
+  if (code && alwaysReport.includes(code)) return false;
   return (
-    isTransientError(error)
-    || expectedCodes.has(errorCode(error) ?? "")
+    expectedCodes.has(code ?? "")
     || expectedCodes.has(message(error))
     || (error instanceof Error && error.name === "AbortError")
     || expectedMessages.has(message(error))
@@ -176,7 +187,7 @@ export function reportError(error: unknown, operation: string, options: ReportOp
       }
       chain.push(last.cause);
     }
-    if (chain.some(expected)) return;
+    if (chain.some((entry) => expected(entry, options.alwaysReport))) return;
     const objects = chain.filter((entry): entry is object => typeof entry === "object" && entry !== null);
     if (objects.some((entry) => reported.has(entry))) return;
     for (const entry of objects) reported.add(entry);

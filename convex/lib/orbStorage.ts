@@ -1,6 +1,12 @@
 import { ConvexError } from "convex/values";
 
-import { decodeOrbFeatures, DESCRIPTOR_BYTES, KEYPOINT_BYTES, MAX_KEYPOINTS } from "../../shared/orb/features";
+import {
+  decodeOrbFeatures,
+  DESCRIPTOR_BYTES,
+  KEYPOINT_BYTES,
+  MAX_KEYPOINTS,
+  OrbFormatError,
+} from "../../shared/orb/features";
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../_generated/server";
 import { fileStorage } from "./fileStorage";
@@ -40,12 +46,20 @@ export async function loadOrb(ctx: Parameters<typeof fileStorage.get>[0], storag
     || count > MAX_KEYPOINTS
     || file.size !== count * (DESCRIPTOR_BYTES + KEYPOINT_BYTES)
   ) {
-    throw new ConvexError({ code: "bad_orb_file", storageId });
+    // Unlike bad_orb_file, which rejects a client upload, this is a stored reference and is reported.
+    throw new ConvexError({ code: "orb_file_invalid", reason: "size", storageId });
   }
   const packed = await file.arrayBuffer();
   const descriptors = packed.slice(0, count * DESCRIPTOR_BYTES);
   const keypoints = packed.slice(count * DESCRIPTOR_BYTES);
-  decodeOrbFeatures(descriptors, keypoints);
+  try {
+    decodeOrbFeatures(descriptors, keypoints);
+  } catch (error) {
+    if (error instanceof OrbFormatError) {
+      throw new ConvexError({ code: "orb_file_invalid", reason: "decode", storageId });
+    }
+    throw error;
+  }
   return { descriptors, keypoints };
 }
 

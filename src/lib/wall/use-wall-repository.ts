@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { flushCollectionMedia } from "@/lib/account/collection-sync";
 import { captureOwner, subscribeOwner, useLocalOwner } from "@/lib/account/owner-store";
+import { tagFailure } from "@/lib/failure-step";
 
 import { createLocalWallRepository } from "./local-wall-repository";
 import { createWallRepository } from "./wall-repository";
@@ -19,8 +20,14 @@ function createSession() {
         setLayout: async (...args: Parameters<typeof transport.setLayout>) => {
           await flushCollectionMedia({
             photoLocalIds: args[0].items.flatMap((item) => (item.photoLocalId ? [item.photoLocalId] : [])),
+          }).catch((error: unknown) => {
+            tagFailure(error, { step: "flush_media" });
+            throw error;
           });
-          return transport.setLayout(...args);
+          return transport.setLayout(...args).catch((error: unknown) => {
+            tagFailure(error, { step: "set_layout" });
+            throw error;
+          });
         },
       };
     })(),

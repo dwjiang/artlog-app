@@ -5,7 +5,9 @@ import { reportError } from "@/lib/observability";
 
 import { DatabaseGate } from "./database-gate";
 
-const mockState: { success: boolean; error?: Error } = { success: false };
+const mockState: { success: boolean; error?: Error; diagnostics?: Record<string, string | number | null> } = {
+  success: false,
+};
 
 jest.mock("@/db/use-database-migrations", () => ({
   useDatabaseMigrations: () => mockState,
@@ -41,9 +43,12 @@ it("renders the app once the store is migrated", async () => {
 it("explains a migration failure instead of rendering the app", async () => {
   mockState.success = false;
   mockState.error = new Error("disk I/O error");
+  mockState.diagnostics = { step: "migrate", applied_migrations: 12, bundled_migrations: 14 };
   await renderGate();
   expect(screen.getByText("Could not open the local database")).toBeTruthy();
   expect(screen.getByText("disk I/O error")).toBeTruthy();
   expect(screen.queryByText("App ready")).toBeNull();
-  expect(reportError).toHaveBeenCalledWith(mockState.error, "database.initialize");
+  expect(reportError).toHaveBeenCalledWith(mockState.error, "database.initialize", {
+    data: { step: "migrate", applied_migrations: 12, bundled_migrations: 14 },
+  });
 });

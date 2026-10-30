@@ -12,7 +12,7 @@ import { requireDevice } from "./lib/auth";
 import { fileStorage, retainFile } from "./lib/fileStorage";
 import { chunk, preview, type museumPackage } from "./lib/museumDownloadValidators";
 import { readObjectDetails, readObjectOrb } from "./lib/objectDetails";
-import { withErrorReporting } from "./lib/observability";
+import { reportBackendError, withErrorReporting } from "./lib/observability";
 import { loadOrb, orbHash } from "./lib/orbStorage";
 import { loadCurrentPlacement } from "./lib/placements";
 import { eligibleObject, eligibleVector } from "./lib/recognitionEligibility";
@@ -228,9 +228,11 @@ export const buildPage = internalAction({
       const previews: Infer<typeof preview>[] = [];
       for (const { object, details, artwork, content, descriptor, vectors, placement } of result.page) {
         // Skipping a damaged reference keeps one unreadable ORB file from failing every rebuild of this museum.
-        const features = await loadOrb(ctx, descriptor.storageId, descriptor.keypointCount).catch((error: unknown) => {
-          console.warn("Museum download skipped an unreadable ORB reference", object._id, error);
-        });
+        const features = await loadOrb(ctx, descriptor.storageId, descriptor.keypointCount).catch(
+          async (error: unknown) => {
+            await reportBackendError(error, "museumDownloads.skippedReference", { artworkId: artwork._id });
+          },
+        );
         if (!features) continue;
         const values = [];
         for (const vector of vectors) values.push(await readVector(ctx, vector));
