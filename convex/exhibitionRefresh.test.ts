@@ -494,6 +494,62 @@ describe("exhibition listing refresh", () => {
     expect((await refreshRow(t, museumId))?.failures).toBe(0);
   });
 
+  it.each(["declared_size", "actual_size", "other", "untyped_size", "abort"])(
+    "reports only bounded detail-page exception diagnostics for %s",
+    async (failure) => {
+      vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+      const t = harness();
+      const { museumId, url } = await listedMuseum(t, "private-host.example");
+      const showUrl = "https://private-host.example/exhibitions/private_path?token=private_query";
+      web[url] = { body: listing(`<a href="${showUrl}">Tides of Light</a>`) };
+      answer = () => modelAnswer([undatedShow(url)]);
+      const envelopes: string[] = [];
+      const fetchPage = fetchMock.getMockImplementation()!;
+      fetchMock.mockImplementation((input, init) => {
+        if (String(input).startsWith("https://example.ingest.sentry.io/")) {
+          envelopes.push(String(init?.body));
+          return Promise.resolve(new Response("{}"));
+        }
+        if (String(input) !== showUrl) return fetchPage(input, init);
+        if (failure === "declared_size") {
+          return Promise.resolve(new Response("private_body", { headers: { "content-length": "3145729" } }));
+        }
+        if (failure === "actual_size") return Promise.resolve(new Response(new Uint8Array(3145729)));
+        if (failure === "abort") return Promise.reject(new DOMException("private_error", "AbortError"));
+        return Promise.reject(new Error(failure === "untyped_size" ? "Response too large" : "private_error"));
+      });
+      await readDue(t);
+      if (failure === "abort") {
+        expect(envelopes).toHaveLength(0);
+      } else {
+        expect(envelopes).toHaveLength(1);
+        const event = JSON.parse(envelopes[0].split("\n")[2]);
+        expect(event.tags.operation).toBe("exhibitionRefresh.showPage");
+        expect(event.fingerprint).toEqual(["convex", "exhibitionRefresh.showPage", "{{ default }}"]);
+        expect(event.exception.values[0].value).toBe("Backend operation failed");
+        expect(event.contexts.operation).toEqual({
+          step: "fetch",
+          failureKind: failure === "declared_size" || failure === "actual_size" ? "size" : "other",
+        });
+        for (const marker of [
+          "private-host",
+          "private_path",
+          "private_query",
+          "private_body",
+          "private_error",
+          "Response too large",
+        ]) {
+          expect(envelopes[0]).not.toContain(marker);
+        }
+      }
+      const row = (await refreshRow(t, museumId))!;
+      expect(row.failures).toBe(1);
+      expect(row.pageHash).toBeUndefined();
+      expect(row.dueAt).toBeGreaterThanOrEqual(NOW + DAY);
+      expect(requested(showUrl)).toHaveLength(1);
+    },
+  );
+
   describe.each([false, true])("when another detail page succeeds: %s", (anotherSucceeds) => {
     it.each([503, 429, "network"] as const)("retries a detail page after %s", async (failure) => {
       const t = harness();

@@ -7,6 +7,12 @@ export type Followed =
   | { url: URL; response: Fetched }
   | { reason: "robots" | "robots_unavailable" | "redirect_elsewhere" | "too_many_redirects" };
 
+export class PoliteResponseTooLargeError extends Error {
+  constructor() {
+    super("Response too large");
+  }
+}
+
 const ROBOT = "artlog-bot";
 const HOST_GAP_MS = 1000;
 const TIMEOUT_MS = 15_000;
@@ -54,9 +60,9 @@ export function politeClient({
         signal: controller.signal,
       });
       const declared = Number(response.headers.get("content-length"));
-      if (declared > maxBytes) throw new Error("Response too large");
+      if (declared > maxBytes) throw new PoliteResponseTooLargeError();
       const body = new Uint8Array(await response.arrayBuffer());
-      if (body.byteLength > maxBytes) throw new Error("Response too large");
+      if (body.byteLength > maxBytes) throw new PoliteResponseTooLargeError();
       return { status: response.status, headers: response.headers, body };
     } finally {
       clearTimeout(timer);
