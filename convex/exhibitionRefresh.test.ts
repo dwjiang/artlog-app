@@ -520,23 +520,26 @@ describe("exhibition listing refresh", () => {
       });
       await readDue(t);
       const events = envelopes.map((envelope) => JSON.parse(envelope.split("\n")[2]));
-      expect(events).toEqual(
+      expect(
+        events.map((event) => ({
+          operation: event.tags.operation,
+          fingerprint: event.fingerprint,
+          value: event.exception.values[0].value,
+          diagnostics: event.contexts.operation,
+        })),
+      ).toEqual(
         failure === "abort"
           ? []
           : [
-              expect.objectContaining({
-                tags: expect.objectContaining({ operation: "exhibitionRefresh.showPage" }),
+              {
+                operation: "exhibitionRefresh.showPage",
                 fingerprint: ["convex", "exhibitionRefresh.showPage", "{{ default }}"],
-                exception: expect.objectContaining({
-                  values: [expect.objectContaining({ value: "Backend operation failed" })],
-                }),
-                contexts: {
-                  operation: {
-                    step: "fetch",
-                    failureKind: failure === "declared_size" || failure === "actual_size" ? "size" : "other",
-                  },
+                value: "Backend operation failed",
+                diagnostics: {
+                  step: "fetch",
+                  failureKind: failure === "declared_size" || failure === "actual_size" ? "size" : "other",
                 },
-              }),
+              },
             ],
       );
       for (const marker of [
