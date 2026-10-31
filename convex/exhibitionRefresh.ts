@@ -2,7 +2,7 @@ import tzLookup from "@photostructure/tz-lookup";
 import { ConvexError, v, type Infer } from "convex/values";
 
 import type { ExhibitionCandidate } from "../shared/exhibitions/acceptance";
-import { politeClient, sameSite } from "../shared/exhibitions/polite-client";
+import { politeClient, PoliteResponseTooLargeError, sameSite } from "../shared/exhibitions/polite-client";
 import { calendarDate } from "../shared/journal/limits";
 import { regionCountry } from "../shared/sources/region-country";
 import { internal } from "./_generated/api";
@@ -465,6 +465,7 @@ async function readShows(
 
 async function readShowPage(client: PoliteClient, url: string): Promise<ListingPage | "blocked" | "failed"> {
   const start = new URL(url);
+  let step = "fetch";
   try {
     const followed = await client.follow(start, "text/html, application/xhtml+xml;q=0.9", MAX_LISTING_BYTES, (next) =>
       sameSite(next, start),
@@ -479,10 +480,13 @@ async function readShowPage(client: PoliteClient, url: string): Promise<ListingP
       );
     }
     if (status !== 200 || !headers.get("content-type")?.includes("html")) return "failed";
+    step = "parse";
     const page = showPage(new TextDecoder().decode(body), SHOW_PAGE_CHARS);
     return page.text.length >= MIN_LISTING_CHARS ? { ...page, url: followed.url.href } : "failed";
   } catch (error) {
-    await reportBackendError(error, "exhibitionRefresh.showPage");
+    await reportBackendError(error, "exhibitionRefresh.showPage", {
+      diagnostics: { step, failureKind: error instanceof PoliteResponseTooLargeError ? "size" : "other" },
+    });
     return "failed";
   }
 }
