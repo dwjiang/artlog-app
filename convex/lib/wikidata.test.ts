@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { jsonResponse, wikidataEntities, wikidataEntitiesResponse, wikidataSearchWaterLilies } from "./labelFixtures";
+import { reportBackendError } from "./observability";
 import {
   collections,
   countries,
@@ -26,6 +27,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  vi.useRealTimers();
 });
 
 const entity = (id: string) => wikidataEntities[id] as WikidataEntity;
@@ -180,6 +182,54 @@ describe("Wikidata client", () => {
       data: { code: "wikidata_error" },
     });
   });
+
+  it.each(["timeout", "body_timeout", "size", "fetch_failed", "untyped_size"])(
+    "reports a bounded %s reason without request or error content",
+    async (failure) => {
+      const reason = failure === "body_timeout" ? "timeout" : failure === "untyped_size" ? "fetch_failed" : failure;
+      vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+      const envelopes: string[] = [];
+      fetchMock.mockImplementation(async (url, init) => {
+        if (String(url).startsWith("https://example.ingest.sentry.io/")) {
+          envelopes.push(String(init?.body));
+          return new Response("{}");
+        }
+        if (failure === "body_timeout") {
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                init?.signal?.addEventListener("abort", () =>
+                  controller.error(new DOMException("private_error", "AbortError")),
+                );
+              },
+            }),
+          );
+        }
+        if (failure === "untyped_size") throw new Error("Response too large");
+        if (failure === "timeout") {
+          return new Promise<Response>((_, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(new DOMException("private_error", "AbortError")));
+          });
+        }
+        if (reason === "size") return new Response(new Uint8Array(8 * 1024 * 1024 + 1));
+        throw new TypeError("private_error https://private.example/?token=private_token");
+      });
+      if (reason === "timeout") vi.useFakeTimers();
+      const pending = searchEntities("private_search").catch((error: unknown) => error);
+      if (reason === "timeout") await vi.advanceTimersByTimeAsync(8000);
+      const error = await pending;
+      vi.useRealTimers();
+      expect(error).toMatchObject({ data: { code: "wikidata_error", reason } });
+      await reportBackendError(error, "exhibitionRefresh.names");
+      expect(envelopes).toHaveLength(1);
+      const event = JSON.parse(envelopes[0].split("\n")[2]);
+      expect(event.tags).toMatchObject({ error_code: "wikidata_error", reason, operation: "exhibitionRefresh.names" });
+      for (const marker of ["private_search", "private_error", "private.example", "private_token"]) {
+        expect(envelopes[0]).not.toContain(marker);
+      }
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    },
+  );
 
   it("surfaces HTTP and parse failures as wikidata_error", async () => {
     fetchMock.mockResolvedValueOnce(new Response("slow down", { status: 429 }));

@@ -1,6 +1,6 @@
 import { ConvexError } from "convex/values";
 
-import { fetchText, userAgent } from "./politeFetch";
+import { fetchText, ResponseTooLargeError, userAgent } from "./politeFetch";
 
 const API = "https://www.wikidata.org/w/api.php";
 const TIMEOUT_MS = 8000;
@@ -50,8 +50,14 @@ async function call(params: Record<string, string>, api = API): Promise<unknown>
         maxBytes: MAX_BYTES,
       },
     );
-  } catch {
-    throw new ConvexError({ code: "wikidata_error", reason: "fetch_failed" });
+  } catch (error) {
+    const reason =
+      error instanceof ResponseTooLargeError
+        ? "size"
+        : error instanceof Error && error.name === "AbortError"
+          ? "timeout"
+          : "fetch_failed";
+    throw new ConvexError({ code: "wikidata_error", reason });
   }
   if (page.status !== 200) {
     throw new ConvexError({
