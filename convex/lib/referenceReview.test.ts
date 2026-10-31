@@ -34,6 +34,7 @@ it.each(["other", "uncertain"])("excludes %s artwork pages", (relation) => {
     sources: [],
     conflicts: [],
     incomplete: false,
+    diagnostics: expect.any(Object),
   });
 });
 
@@ -48,6 +49,7 @@ it("accepts a caption copied without its punctuation or markdown", () => {
     sources: [caption],
     conflicts: [expect.objectContaining({ field: "date", text: "June, 1889" })],
     incomplete: false,
+    diagnostics: expect.any(Object),
   });
 });
 
@@ -63,6 +65,7 @@ it.each([
     sources: [caption],
     conflicts: [expect.objectContaining(conflict)],
     incomplete: false,
+    diagnostics: expect.any(Object),
   });
 });
 
@@ -76,6 +79,7 @@ it.each([
     sources: [],
     conflicts: [],
     incomplete: true,
+    diagnostics: expect.any(Object),
   });
 });
 
@@ -87,7 +91,12 @@ it.each([
   { reviews: [{ ...row, conflicts: [{ field: "artist", text: "invented" }] }] },
   { reviews: [{ ...row, conflicts: [{ field: "title", text: "Follower of Pieter Brueghel II." }] }] },
 ])("leaves out a reference whose review is missing or ungrounded, without failing the research", (value) => {
-  expect(applyReferenceReview(value, [source])).toEqual({ sources: [], conflicts: [], incomplete: true });
+  expect(applyReferenceReview(value, [source])).toEqual({
+    sources: [],
+    conflicts: [],
+    incomplete: true,
+    diagnostics: expect.any(Object),
+  });
 });
 
 it("reads each row on its own: a repeated or broken row costs only its reference", () => {
@@ -101,6 +110,7 @@ it("reads each row on its own: a repeated or broken row costs only its reference
     sources: [source],
     conflicts: [],
     incomplete: true,
+    diagnostics: expect.any(Object),
   });
 });
 
@@ -130,6 +140,7 @@ it.each([
     sources: [page],
     conflicts: [],
     incomplete: false,
+    diagnostics: expect.any(Object),
   });
 });
 
@@ -143,4 +154,24 @@ it.each([
   const page = { ...source, text: `Object record. ${text}. Oil on panel.` };
   const review = { ...row, evidence: "Object record", conflicts: [{ field, text }] };
   expect(applyReferenceReview({ reviews: [review] }, [page], target).conflicts).toHaveLength(1);
+});
+
+it.each([
+  [{ reviews: [] }, { missingReviewCount: 1 }],
+  [{ reviews: [{ ...row, evidence: "private-invented-evidence" }] }, { ungroundedEvidenceCount: 1 }],
+  [
+    { reviews: [{ ...row, conflicts: [{ field: "date", text: "private-invented-conflict" }] }] },
+    { invalidConflictCount: 1 },
+  ],
+  [{ reviews: [{ ...row, relation: "invalid-private-relation" }] }, { invalidReviewCount: 1 }],
+])("summarizes rejection categories without copying model or source content", (value, counts) => {
+  const result = applyReferenceReview(value, [source]);
+  expect(result).toMatchObject({
+    incomplete: true,
+    diagnostics: { referenceCount: 1, reviewCount: value.reviews.length, ...counts },
+  });
+  const diagnostics = JSON.stringify((result as unknown as { diagnostics: unknown }).diagnostics);
+  for (const secret of [source.url, source.text, source.referenceUrl, "private-invented"]) {
+    expect(diagnostics).not.toContain(secret);
+  }
 });
