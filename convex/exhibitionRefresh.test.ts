@@ -519,28 +519,35 @@ describe("exhibition listing refresh", () => {
         return Promise.reject(new Error(failure === "untyped_size" ? "Response too large" : "private_error"));
       });
       await readDue(t);
-      if (failure === "abort") {
-        expect(envelopes).toHaveLength(0);
-      } else {
-        expect(envelopes).toHaveLength(1);
-        const event = JSON.parse(envelopes[0].split("\n")[2]);
-        expect(event.tags.operation).toBe("exhibitionRefresh.showPage");
-        expect(event.fingerprint).toEqual(["convex", "exhibitionRefresh.showPage", "{{ default }}"]);
-        expect(event.exception.values[0].value).toBe("Backend operation failed");
-        expect(event.contexts.operation).toEqual({
-          step: "fetch",
-          failureKind: failure === "declared_size" || failure === "actual_size" ? "size" : "other",
-        });
-        for (const marker of [
-          "private-host",
-          "private_path",
-          "private_query",
-          "private_body",
-          "private_error",
-          "Response too large",
-        ]) {
-          expect(envelopes[0]).not.toContain(marker);
-        }
+      const events = envelopes.map((envelope) => JSON.parse(envelope.split("\n")[2]));
+      expect(events).toEqual(
+        failure === "abort"
+          ? []
+          : [
+              expect.objectContaining({
+                tags: expect.objectContaining({ operation: "exhibitionRefresh.showPage" }),
+                fingerprint: ["convex", "exhibitionRefresh.showPage", "{{ default }}"],
+                exception: expect.objectContaining({
+                  values: [expect.objectContaining({ value: "Backend operation failed" })],
+                }),
+                contexts: {
+                  operation: {
+                    step: "fetch",
+                    failureKind: failure === "declared_size" || failure === "actual_size" ? "size" : "other",
+                  },
+                },
+              }),
+            ],
+      );
+      for (const marker of [
+        "private-host",
+        "private_path",
+        "private_query",
+        "private_body",
+        "private_error",
+        "Response too large",
+      ]) {
+        expect(envelopes.join("\n")).not.toContain(marker);
       }
       const row = (await refreshRow(t, museumId))!;
       expect(row.failures).toBe(1);
