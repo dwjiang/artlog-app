@@ -1772,3 +1772,82 @@ describe("story states", () => {
     expect(await t.mutation(internal.docent.claim, { artworkId: work.artworkId })).toEqual(expect.any(Number));
   });
 });
+
+it("reports only reference rejection counts when research stays retryable", async () => {
+  const t = harness();
+  const { deviceId } = await seedDevice(t);
+  const { artworkId } = await t.run((ctx) =>
+    seedArtworkWithObject(ctx, {
+      artwork: { title: "Private target title", artist: "Private artist", wikidataId: "Q1" },
+    }),
+  );
+  const citation = "https://auction.example/private-source?secret=private-token";
+  const text =
+    "Private source passage describing a painting in sufficient detail to be included in the reference review.";
+  vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+  routes.push((url) => {
+    if (url.href.startsWith("https://example.ingest.sentry.io/")) return new Response("{}");
+    if (url.href.startsWith(WIKIDATA)) {
+      return jsonResponse({
+        entities: {
+          Q1: {
+            id: "Q1",
+            claims: {
+              P170: [{ references: [{ snaks: { P854: [{ datavalue: { value: citation } }] } }] }],
+            },
+          },
+        },
+      });
+    }
+    if (url.href === "https://api.tavily.com/extract") {
+      return jsonResponse({ results: [{ url: citation, raw_content: text }], usage: { credits: 1 } });
+    }
+    if (url.href === TOKEN_FACTORY) {
+      return completion({
+        reviews: [
+          {
+            source: "s1",
+            relation: "same_artwork",
+            evidence: "Private fabricated quotation",
+            comparison: "Private comparison",
+            conflicts: [],
+          },
+        ],
+      });
+    }
+  });
+  tavily({ results: [], images: [], usage: { credits: 1 } });
+  await t.action(internal.docent.ensure, { artworkId, deviceId });
+  const envelopes = calls("https://example.ingest.sentry.io/").map(([, init]) =>
+    JSON.parse(String(init?.body).split("\n")[2]),
+  );
+  const review = envelopes.find((event) => event.tags.operation === "docent.referenceReview");
+  expect(review.contexts.operation).toEqual({
+    referenceCount: 1,
+    reviewCount: 1,
+    missingReviewCount: 0,
+    invalidReviewCount: 0,
+    ungroundedEvidenceCount: 1,
+    invalidConflictCount: 0,
+  });
+  expect(
+    envelopes.some((event) => event.tags.operation === "docent.ensure" && event.tags.reason === "sources_unavailable"),
+  ).toBe(true);
+  const serialized = JSON.stringify(envelopes);
+  for (const sensitive of [
+    citation,
+    text,
+    "Private target",
+    "Private artist",
+    "Private fabricated",
+    "Private comparison",
+    "private-token",
+  ]) {
+    expect(serialized).not.toContain(sensitive);
+  }
+  const artwork = await readArtwork(t, artworkId);
+  expect(artwork?.docentFailedAt).toBeTypeOf("number");
+  expect(artwork?.docentNoSources).toBeUndefined();
+  expect(artwork?.factSheet).toBeUndefined();
+  expect(artwork?.docent).toBeUndefined();
+});

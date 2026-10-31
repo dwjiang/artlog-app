@@ -402,6 +402,7 @@ async function generate(
             await reportBackendError(
               new ConvexError({ code: "model_error", reason: "schema", schema: "referenceReview" }),
               "docent.referenceReview",
+              { diagnostics: review.diagnostics },
             );
           }
           if (review.conflicts.length > 0) {

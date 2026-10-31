@@ -80,12 +80,20 @@ export function applyReferenceReview(
   value: unknown,
   sources: SourceDoc[],
   target?: ReviewTarget,
-): { sources: SourceDoc[]; conflicts: ResearchConflict[]; incomplete: boolean } {
+): { sources: SourceDoc[]; conflicts: ResearchConflict[]; incomplete: boolean; diagnostics: Record<string, number> } {
   const references = new Map(
     sources.flatMap((source, index) => (source.referenceUrl ? [[`s${index + 1}`, source] as const] : [])),
   );
   const rows =
     value && typeof value === "object" && "reviews" in value && Array.isArray(value.reviews) ? value.reviews : [];
+  const diagnostics = {
+    referenceCount: references.size,
+    reviewCount: rows.length,
+    missingReviewCount: 0,
+    invalidReviewCount: 0,
+    ungroundedEvidenceCount: 0,
+    invalidConflictCount: 0,
+  };
   const accepted = new Set<SourceDoc>();
   const conflicts: ResearchConflict[] = [];
   let incomplete = false;
@@ -97,11 +105,20 @@ export function applyReferenceReview(
     references.delete(row.source);
     if (!source) continue;
     if (row.relation === "other" || row.relation === "uncertain") {
-      incomplete ||= !Array.isArray(row.conflicts) || row.conflicts.length > 0;
+      if (!Array.isArray(row.conflicts) || row.conflicts.length > 0) {
+        incomplete = true;
+        diagnostics.invalidConflictCount++;
+      }
       continue;
     }
-    if (row.relation !== "same_artwork" || !Array.isArray(row.conflicts) || !quoted(row.evidence, source)) {
+    if (row.relation !== "same_artwork" || !Array.isArray(row.conflicts)) {
       incomplete = true;
+      diagnostics.invalidReviewCount++;
+      continue;
+    }
+    if (!quoted(row.evidence, source)) {
+      incomplete = true;
+      diagnostics.ungroundedEvidenceCount++;
       continue;
     }
     const listed: unknown[] = row.conflicts;
@@ -113,6 +130,7 @@ export function applyReferenceReview(
     );
     if (cited.length !== listed.length || cited.some((conflict) => !quoted(conflict.text, source))) {
       incomplete = true;
+      diagnostics.invalidConflictCount++;
       continue;
     }
     accepted.add(source);
@@ -127,7 +145,9 @@ export function applyReferenceReview(
       });
     }
   }
+  diagnostics.missingReviewCount = references.size;
   return {
+    diagnostics,
     sources: sources.filter((source) => !source.referenceUrl || source.firstParty || accepted.has(source)),
     conflicts,
     incomplete: incomplete || references.size > 0,
