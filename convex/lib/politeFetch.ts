@@ -7,6 +7,12 @@ export function userAgent(): string {
   return `artlog-bot/0.1 (+${REPO_URL}${contact ? `; mailto:${contact}` : ""})`;
 }
 
+export class ResponseTooLargeError extends Error {
+  constructor() {
+    super("Response too large");
+  }
+}
+
 export async function readBody(response: Response, maxBytes: number): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) return "";
@@ -18,7 +24,7 @@ export async function readBody(response: Response, maxBytes: number): Promise<st
       const { done, value } = await reader.read();
       if (done) return body + decoder.decode();
       size += value.byteLength;
-      if (size > maxBytes) throw new Error("Response too large");
+      if (size > maxBytes) throw new ResponseTooLargeError();
       body += decoder.decode(value, { stream: true });
     }
   } finally {
