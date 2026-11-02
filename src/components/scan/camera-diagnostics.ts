@@ -3,7 +3,12 @@ import { getAllCameraDevices, VisionCamera, type CameraViewProps } from "react-n
 
 import { addBreadcrumb } from "@/lib/observability";
 
-export function recordCameraFailure(props: Pick<CameraViewProps, "device" | "isActive">): void {
+export type CameraSessionEvent = "none" | "started" | "stopped";
+
+export function recordCameraFailure(
+  props: Pick<CameraViewProps, "device" | "isActive">,
+  lastSessionEvent: CameraSessionEvent,
+): void {
   try {
     const devices = getAllCameraDevices();
     const position = typeof props.device === "string" ? props.device : "explicit";
@@ -12,6 +17,7 @@ export function recordCameraFailure(props: Pick<CameraViewProps, "device" | "isA
     addBreadcrumb("camera.failure_snapshot", {
       requested_position: ["front", "back", "external", "explicit"].includes(position) ? position : "other",
       requested_active: props.isActive === true,
+      last_session_event: lastSessionEvent,
       app_state: ["active", "inactive", "background"].includes(AppState.currentState ?? "unknown")
         ? AppState.currentState
         : "unknown",
