@@ -11,6 +11,7 @@ let mockCameraError: ((error: Error) => void) | undefined;
 const mockDevices = jest.fn(() => [{ position: "back", id: "private-camera-id", localizedName: "private-name" }]);
 let mockSubjectAreaChanged: (() => void) | undefined;
 let mockStarted: (() => void) | undefined;
+let mockStopped: (() => void) | undefined;
 let mockInterrupted: ((reason: string) => void) | undefined;
 
 jest.mock("@/lib/observability", () => ({ reportError: jest.fn(), addBreadcrumb: jest.fn() }));
@@ -23,17 +24,20 @@ jest.mock("react-native-vision-camera", () => ({
     onSubjectAreaChanged,
     onError,
     onStarted,
+    onStopped,
     onInterruptionStarted,
   }: {
     ref: Ref<unknown>;
     onSubjectAreaChanged?: () => void;
     onError?: (error: Error) => void;
     onStarted?: () => void;
+    onStopped?: () => void;
     onInterruptionStarted?: (reason: string) => void;
   }) => {
     mockCameraError = onError;
     mockSubjectAreaChanged = onSubjectAreaChanged;
     mockStarted = onStarted;
+    mockStopped = onStopped;
     mockInterrupted = onInterruptionStarted;
     jest
       .requireActual<typeof import("react")>("react")
@@ -202,6 +206,7 @@ it("records bounded camera discovery evidence before forwarding the original fai
       requested_active: true,
       permission: "authorized",
       discovery_source: "cached_non_atomic",
+      last_session_event: "none",
       cached_device_count: 1,
       cached_back_count: 1,
     }),
@@ -209,6 +214,39 @@ it("records bounded camera discovery evidence before forwarding the original fai
   expect(JSON.stringify(jest.mocked(addBreadcrumb).mock.calls)).not.toMatch(
     /private-camera-id|private-name|native failure/,
   );
+});
+
+it("records the last observed session callback without treating requested activity as native state", async () => {
+  const error = new Error("private native failure");
+  const onStarted = jest.fn();
+  const onStopped = jest.fn();
+  const onError = jest.fn();
+  const view = await render(
+    <TapToFocusCamera device="back" isActive onStarted={onStarted} onStopped={onStopped} onError={onError} />,
+  );
+  await act(() => mockStarted?.());
+  await act(() => mockCameraError?.(error));
+  expect(addBreadcrumb).toHaveBeenLastCalledWith(
+    "camera.failure_snapshot",
+    expect.objectContaining({ last_session_event: "started" }),
+  );
+  expect(onStarted).toHaveBeenCalledTimes(1);
+  await act(() => mockStopped?.());
+  await view.rerender(
+    <TapToFocusCamera device="back" isActive={false} onStarted={onStarted} onStopped={onStopped} onError={onError} />,
+  );
+  await view.rerender(
+    <TapToFocusCamera device="back" isActive onStarted={onStarted} onStopped={onStopped} onError={onError} />,
+  );
+  await act(() => mockCameraError?.(error));
+  expect(addBreadcrumb).toHaveBeenLastCalledWith(
+    "camera.failure_snapshot",
+    expect.objectContaining({ requested_active: true, last_session_event: "stopped" }),
+  );
+  expect(onStopped).toHaveBeenCalledTimes(1);
+  expect(onError.mock.calls).toEqual([[error], [error]]);
+  expect(addBreadcrumb).toHaveBeenCalledTimes(2);
+  expect(JSON.stringify(jest.mocked(addBreadcrumb).mock.calls)).not.toMatch(/private/);
 });
 
 it("distinguishes an empty cached device list without preventing error handling", async () => {

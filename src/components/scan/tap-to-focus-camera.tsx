@@ -8,7 +8,7 @@ import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { addBreadcrumb, reportError } from "@/lib/observability";
 import { reportIfStalled } from "@/lib/stall-report";
 
-import { recordCameraFailure } from "./camera-diagnostics";
+import { recordCameraFailure, type CameraSessionEvent } from "./camera-diagnostics";
 
 // A camera that has neither started nor failed by now leaves only a spinner, which no error reports.
 const CAMERA_START_STALL_MS = 8_000;
@@ -43,6 +43,7 @@ export function TapToFocusCamera(props: Omit<CameraViewProps, "ref" | "style" | 
   const reduced = useReducedMotion();
   const startup = useRef<() => void>(undefined);
   const interruption = useRef<string>(undefined);
+  const lastSessionEvent = useRef<CameraSessionEvent>("none");
   useEffect(
     () => () => {
       currentRequest.current = undefined;
@@ -91,14 +92,19 @@ export function TapToFocusCamera(props: Omit<CameraViewProps, "ref" | "style" | 
       <Camera
         {...props}
         onStarted={() => {
+          lastSessionEvent.current = "started";
           startup.current?.();
           props.onStarted?.();
+        }}
+        onStopped={() => {
+          lastSessionEvent.current = "stopped";
+          props.onStopped?.();
         }}
         onError={
           props.onError
             ? (error) => {
                 startup.current?.();
-                recordCameraFailure(props);
+                recordCameraFailure(props, lastSessionEvent.current);
                 props.onError?.(error);
               }
             : undefined
