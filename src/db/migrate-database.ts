@@ -11,6 +11,7 @@ function columns(database: Pick<Database, "all">, table: string) {
   return database.all<{ name: string }>(sql`PRAGMA table_info(${sql.identifier(table)})`).map((column) => column.name);
 }
 
+// Drain migration reads: Expo raw get() leaves a cursor open that blocks schema changes.
 function restoreUnownedDatabase(database: Database, installationId: string): void {
   const savedColumns = columns(database, "savedWorks");
   if (savedColumns.length === 0 || savedColumns.includes("owner")) return;
@@ -22,7 +23,7 @@ function restoreUnownedDatabase(database: Database, installationId: string): voi
     if (ledger.length !== 1 || ![1789093778194, 1789163450901].includes(ledger[0].created_at)) {
       throw new Error("Unrecognized legacy database version");
     }
-    const checkpoint = tx.get<{ value: string }>(sql`SELECT value FROM settings WHERE key = 'collectionSync'`);
+    const checkpoint = tx.all<{ value: string }>(sql`SELECT value FROM settings WHERE key = 'collectionSync'`)[0];
     let owner = `device:${installationId}`;
     if (checkpoint) {
       const value: unknown = JSON.parse(checkpoint.value);
@@ -78,9 +79,9 @@ export type MigrationStep = "legacy_restore" | "migrate" | "photo_timestamp";
 export const bundledMigrationCount = migrations.journal.entries.length;
 
 /** How many migrations this database has applied, or null before the first launch creates the ledger. */
-export function appliedMigrationCount(database: Pick<Database, "get">): number | null {
+export function appliedMigrationCount(database: Pick<Database, "all">): number | null {
   try {
-    return database.get<{ count: number }>(sql`SELECT count(*) AS count FROM __drizzle_migrations`)?.count ?? null;
+    return database.all<{ count: number }>(sql`SELECT count(*) AS count FROM __drizzle_migrations`)[0]?.count ?? null;
   } catch {
     return null;
   }
