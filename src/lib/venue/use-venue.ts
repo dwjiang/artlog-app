@@ -255,6 +255,11 @@ export async function confirmPlace(
   };
 }
 
+function resolveAppState(): "active" | "inactive" | "background" | "unknown" {
+  const status = AppState.currentState;
+  return status === "active" || status === "inactive" || status === "background" ? status : "unknown";
+}
+
 export function createVenueController(): VenueController {
   let state: VenueState = initialVenueState;
   const listeners = new Set<() => void>();
@@ -534,6 +539,8 @@ export function createVenueController(): VenueController {
     const wanted = () => revision === selectionRevision;
     dispatch({ type: "locating" });
     let fix: Fix | undefined;
+    let stage: "permission" | "position" | "lookup" = "permission";
+    const appStateAtStart = resolveAppState();
     try {
       const permission = await (forScan
         ? Location.requestForegroundPermissionsAsync()
@@ -543,6 +550,7 @@ export function createVenueController(): VenueController {
         dispatch({ type: "denied", at: Date.now() });
         return { failure: "denied" };
       }
+      stage = "position";
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
@@ -552,6 +560,7 @@ export function createVenueController(): VenueController {
         lng: position.coords.longitude,
         at: Date.now(),
       };
+      stage = "lookup";
       const resolution = pickVenue(await nearest(await openVenueDb(), fix, CHOOSE_RADIUS_M));
       if (!wanted()) return recentFix();
       if (__DEV__) {
@@ -571,7 +580,15 @@ export function createVenueController(): VenueController {
       return { fix };
     } catch (error) {
       if (!wanted()) return recentFix();
-      reportError(error, "venue.resolve", { level: "warning" });
+      reportError(error, "venue.resolve", {
+        level: "warning",
+        data: {
+          stage,
+          for_scan: forScan,
+          app_state_at_start: appStateAtStart,
+          app_state_at_failure: resolveAppState(),
+        },
+      });
       console.warn("Venue resolution failed", error);
       dispatch({ type: "failed", error: fix ? "lookup" : "location" });
       return fix ? { fix } : { failure: "unavailable" };
