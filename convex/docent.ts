@@ -309,13 +309,21 @@ type Generated = {
 };
 // Why a run wrote nothing. Research that found nothing to say ("no_sources", or catalogue lines alone) is settled;
 // failures, facts the model failed to copy and rejected prose stay retryable.
-type Unwritten = "no_sources" | "sources_unavailable" | "no_facts" | "no_prose" | "prose_rejected";
-const settled = (reason: Unwritten) => reason === "no_sources" || reason === "no_prose";
+type UnwrittenReason = "no_sources" | "sources_unavailable" | "no_facts" | "no_prose" | "prose_rejected";
+type Unwritten = {
+  unwritten: UnwrittenReason;
+  diagnostics?: { stage: "gather" | "selection" | "catalogue"; sourceCount: number; gatherFailures: number };
+};
+const settled = (reason: UnwrittenReason) => reason === "no_sources" || reason === "no_prose";
 
 // Empty and label-only research are expected; other failures leave the written docent retryable.
-async function reportUnwritten(reason: Unwritten, operation: string, artworkId?: Id<"artworks">) {
+async function reportUnwritten(
+  { unwritten: reason, diagnostics }: Unwritten,
+  operation: string,
+  artworkId?: Id<"artworks">,
+) {
   if (reason === "no_sources" || reason === "no_prose") return;
-  await reportBackendError(new ConvexError({ code: "research_failed", reason }), operation, { artworkId });
+  await reportBackendError(new ConvexError({ code: "research_failed", reason }), operation, { artworkId, diagnostics });
 }
 
 // Only successful empty research is permanent; source failures and rejected model output stay retryable.
@@ -338,7 +346,14 @@ async function generate(
       pageUrl: context.pageUrl,
       accession: context.accession,
     });
-    if (gathered.sources.length === 0) return gathered.failures > 0 ? "sources_unavailable" : "no_sources";
+    if (gathered.sources.length === 0) {
+      return gathered.failures > 0
+        ? {
+            unwritten: "sources_unavailable",
+            diagnostics: { stage: "gather", sourceCount: 0, gatherFailures: gathered.failures },
+          }
+        : { unwritten: "no_sources" };
+    }
   }
   const sources = gathered?.sources ?? [];
   let sourcesUnavailable = (gathered?.failures ?? 0) > 0;
@@ -419,7 +434,14 @@ async function generate(
       // Re-trimming the trimmed catalogue changes nothing, so the references follow it in the same budget.
       const references = trimSources([...catalogue, ...accepted]).slice(catalogue.length);
       const read = [...catalogue, ...references];
-      if (read.length === 0) return sourcesUnavailable ? "sources_unavailable" : "no_sources";
+      if (read.length === 0) {
+        return sourcesUnavailable
+          ? {
+              unwritten: "sources_unavailable",
+              diagnostics: { stage: "selection", sourceCount: sources.length, gatherFailures: gathered?.failures ?? 0 },
+            }
+          : { unwritten: "no_sources" };
+      }
       const extracted = [...(await catalogueFacts), ...(await extract(references))];
       // A source that runs out of tokens stalled on its required first fact and has nothing to give. Any other
       // failure of the museum's own text fails the run, since a retry may read it; a lesser source is left out
@@ -440,14 +462,19 @@ async function generate(
         read,
       );
     }
-    if (factSheet.length === 0) return "no_facts";
+    if (factSheet.length === 0) return { unwritten: "no_facts" };
     const hasProse = factSheet.some((fact) => !isCatalogueLine(fact.text));
     // Caching only label rows after an outage would prevent the next attempt from reading the missing sources.
-    if (!hasProse && sourcesUnavailable) return "sources_unavailable";
+    if (!hasProse && sourcesUnavailable) {
+      return {
+        unwritten: "sources_unavailable",
+        diagnostics: { stage: "catalogue", sourceCount: sources.length, gatherFailures: gathered?.failures ?? 0 },
+      };
+    }
     // Validated research survives an independent prose failure and can already feed the audio guide.
     if (!cached && !(await saveResearch(factSheet))) return null;
     // Catalogue lines alone make a label, not a story; the work goes without one rather than show filler.
-    if (!hasProse) return "no_prose";
+    if (!hasProse) return { unwritten: "no_prose" };
     const factIds = factSheet.map((fact) => fact.id);
     const write = async (previousAttemptProblems?: string) => {
       let reservation = reservations[0];
@@ -477,9 +504,9 @@ async function generate(
     // Facts copied from another language's page pull a small model into that language.
     if (docentEn.length > 0 && !writtenInEnglish(docentEn.map(({ sentence }) => sentence).join(" "))) {
       docentEn = await write("The sentences were not in English. Write them in English, translating the facts.");
-      if (!writtenInEnglish(docentEn.map(({ sentence }) => sentence).join(" "))) return "prose_rejected";
+      if (!writtenInEnglish(docentEn.map(({ sentence }) => sentence).join(" "))) return { unwritten: "prose_rejected" };
     }
-    return docentEn.length > 0 ? { docentEn } : "prose_rejected";
+    return docentEn.length > 0 ? { docentEn } : { unwritten: "prose_rejected" };
   } finally {
     for (const reservation of reservations) {
       await ctx.runMutation(internal.spend.reconcile, { kind: "tokenFactory", ...reservation });
@@ -525,8 +552,8 @@ export async function researchArtwork(ctx: ActionCtx, artworkId: Id<"artworks">,
       (factSheet) => ctx.runMutation(internal.docent.saveResearch, { artworkId, generation, factSheet }),
     );
     if (!result) return;
-    if (typeof result === "string") {
-      noSources = settled(result);
+    if ("unwritten" in result) {
+      noSources = settled(result.unwritten);
       await reportUnwritten(result, "docent.ensure", artworkId);
       return;
     }
@@ -733,8 +760,8 @@ export const ensureForScan = internalAction({
         ctx.runMutation(internal.docent.saveScanResearch, { scanId, generation, factSheet }),
       );
       if (!result) return null;
-      if (typeof result === "string") {
-        unavailable = settled(result);
+      if ("unwritten" in result) {
+        unavailable = settled(result.unwritten);
         await reportUnwritten(result, "docent.ensureForScan");
         return null;
       }
