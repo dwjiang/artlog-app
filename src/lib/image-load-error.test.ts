@@ -64,7 +64,13 @@ it.each(["Download image failed with code 503", "Download image failed with code
       expect.objectContaining({ message: "Image load failed (HTTP 503)" }),
       expect.objectContaining({
         contexts: {
-          operation: { source: "remote", source_kind: "https", requested_host: "images.example.org", status_code: 503 },
+          operation: {
+            source: "remote",
+            source_kind: "https",
+            requested_host: "images.example.org",
+            failure_kind: "http",
+            status_code: 503,
+          },
         },
       }),
     );
@@ -77,4 +83,24 @@ it("handles an absent native description", () => {
     expect.objectContaining({ message: "Image load failed" }),
     expect.anything(),
   );
+});
+
+it.each([
+  ["Downloaded image decode failed", "decode_failed"],
+  ["Downloaded image has 0 pixels", "zero_pixels"],
+  ["Image data is nil", "empty_data"],
+  ["Download marked as failed because response is nil", "missing_response"],
+  ["Session delegate is nil and invalid", "invalid_operation"],
+  ["Task can't be initialized", "invalid_operation"],
+  [undefined, "missing"],
+  ["", "missing"],
+  ["Downloaded image decode failed https://private.example/secret", "other"],
+  ["secret: Downloaded image decode failed", "other"],
+  ["constructor", "other"],
+  ["Download image failed with code 403", "http"],
+])("classifies native failures without exposing the description: %s", (description, failureKind) => {
+  reportImageLoadError("https://images.example.org/private?signature=secret", description);
+  const [, options] = jest.mocked(Sentry.captureException).mock.calls[0];
+  expect(options).toMatchObject({ contexts: { operation: { failure_kind: failureKind } } });
+  expect(JSON.stringify(options)).not.toMatch(/private|secret|signature|Downloaded|delegate|initialized/);
 });
