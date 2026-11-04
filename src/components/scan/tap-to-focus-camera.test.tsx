@@ -239,12 +239,12 @@ it("preserves camera failure handling when native discovery fails", async () => 
 });
 
 it("preserves the original error when telemetry fails", async () => {
-  jest.mocked(addBreadcrumb).mockImplementationOnce(() => {
-    throw new Error("telemetry");
-  });
   const onError = jest.fn();
   const error = new Error("original");
   await render(<TapToFocusCamera device="back" isActive onError={onError} />);
+  jest.mocked(addBreadcrumb).mockImplementationOnce(() => {
+    throw new Error("telemetry");
+  });
   await act(() => mockCameraError?.(error));
   expect(onError).toHaveBeenCalledWith(error);
 });
@@ -274,5 +274,40 @@ describe("a camera that never starts", () => {
     await act(async () => mockStarted?.());
     await act(() => jest.advanceTimersByTimeAsync(8_000));
     expect(reportError).not.toHaveBeenCalled();
+  });
+});
+
+describe("camera lifecycle diagnostics", () => {
+  it("records mount, requested-active changes and unmount without duplicate render entries", async () => {
+    const view = await render(<TapToFocusCamera device="back" isActive />);
+    await view.rerender(<TapToFocusCamera device="back" isActive />);
+    await view.rerender(<TapToFocusCamera device="back" isActive={false} />);
+    await view.rerender(<TapToFocusCamera device="back" isActive />);
+    await view.unmount();
+
+    expect(jest.mocked(addBreadcrumb).mock.calls).toEqual([
+      ["camera.mounted"],
+      ["camera.active_requested", { requested_active: true }],
+      ["camera.active_requested", { requested_active: false }],
+      ["camera.active_requested", { requested_active: true }],
+      ["camera.unmounted"],
+    ]);
+  });
+
+  it("records inactive mounts and remounts without device or output details", async () => {
+    const first = await render(<TapToFocusCamera device="back" isActive={false} />);
+    await first.unmount();
+    const second = await render(<TapToFocusCamera device="front" isActive={false} />);
+    await second.unmount();
+
+    expect(jest.mocked(addBreadcrumb).mock.calls).toEqual([
+      ["camera.mounted"],
+      ["camera.active_requested", { requested_active: false }],
+      ["camera.unmounted"],
+      ["camera.mounted"],
+      ["camera.active_requested", { requested_active: false }],
+      ["camera.unmounted"],
+    ]);
+    expect(mockDevices).not.toHaveBeenCalled();
   });
 });

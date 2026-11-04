@@ -9,6 +9,7 @@ import { addBreadcrumb, reportError } from "@/lib/observability";
 import { reportIfStalled } from "@/lib/stall-report";
 
 import { recordCameraFailure } from "./camera-diagnostics";
+import { useCameraLifecycle } from "./use-camera-lifecycle";
 
 // A camera that has neither started nor failed by now leaves only a spinner, which no error reports.
 const CAMERA_START_STALL_MS = 8_000;
@@ -37,6 +38,7 @@ const settle = {
  * must let taps through (`box-none`) wherever they draw nothing.
  */
 export function TapToFocusCamera(props: Omit<CameraViewProps, "ref" | "style" | "onSubjectAreaChanged">) {
+  useCameraLifecycle(props.isActive);
   const camera = useRef<CameraRef>(null);
   const currentRequest = useRef<symbol>(undefined);
   const [focus, setFocus] = useState<{ x: number; y: number; tap: number }>();
