@@ -217,11 +217,15 @@ const PICKER = { pathname: "/venue-picker", params: { mode: "choose" } };
 /** A museum picked from search on the museum's current day. */
 const byHand = () => museumDay(met, mockNow);
 
+const presetAppState = AppState.currentState;
+afterAll(() => Object.assign(AppState, { currentState: presetAppState }));
+
 let controller: VenueController;
 let appStateListener: ((state: AppStateStatus) => void) | undefined;
 
 beforeEach(() => {
   jest.resetAllMocks();
+  Object.assign(AppState, { currentState: "active" });
   jest.spyOn(console, "warn").mockImplementation(() => {});
   jest.spyOn(Date, "now").mockImplementation(() => mockNow);
   jest.spyOn(AppState, "addEventListener").mockImplementation((_event, listener) => {
@@ -567,6 +571,61 @@ describe("resolving the museum", () => {
     expect(mockVisits.get(visit.localId)).toMatchObject({ endedAt: null });
   });
 
+  it("records the position-request lifecycle without copying native text into diagnostic fields", async () => {
+    const cause = new Error("private native message with location and identifiers");
+    mockGetPosition.mockImplementation(async () => {
+      Object.assign(AppState, { currentState: "background" });
+      throw cause;
+    });
+    await expect(controller.resolve()).resolves.toEqual({ failure: "unavailable" });
+    expect(reportError).toHaveBeenCalledWith(cause, "venue.resolve", {
+      level: "warning",
+      data: {
+        stage: "position",
+        for_scan: false,
+        app_state_at_start: "active",
+        app_state_at_failure: "background",
+      },
+    });
+    expect(mockGetPermission).toHaveBeenCalledTimes(1);
+    expect(mockRequestPermission).not.toHaveBeenCalled();
+    expect(mockGetPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it("distinguishes a scan permission failure and bounds unknown lifecycle values", async () => {
+    const cause = new Error("permission lookup failed");
+    Object.assign(AppState, { currentState: "unexpected-private-value" });
+    mockRequestPermission.mockRejectedValue(cause);
+    await controller.resolveForScan(mockNow);
+    expect(reportError).toHaveBeenCalledWith(cause, "venue.resolve", {
+      level: "warning",
+      data: {
+        stage: "permission",
+        for_scan: true,
+        app_state_at_start: "unknown",
+        app_state_at_failure: "unknown",
+      },
+    });
+    expect(mockGetPosition).not.toHaveBeenCalled();
+    expect(mockRequestPermission).toHaveBeenCalledTimes(1);
+  });
+
+  it("distinguishes lookup failures while retaining the successful fix", async () => {
+    const cause = new Error("database lookup failed");
+    Object.assign(AppState, { currentState: "inactive" });
+    mockNearest.mockRejectedValue(cause);
+    await expect(controller.resolve()).resolves.toEqual({ fix: { lat: met.lat, lng: met.lng, at: mockNow } });
+    expect(reportError).toHaveBeenCalledWith(cause, "venue.resolve", {
+      level: "warning",
+      data: {
+        stage: "lookup",
+        for_scan: false,
+        app_state_at_start: "inactive",
+        app_state_at_failure: "inactive",
+      },
+    });
+  });
+
   it("keeps the last venue when the fix fails and reports the error", async () => {
     mockNearest.mockResolvedValue([metRow]);
     await controller.resolve();
@@ -582,7 +641,7 @@ describe("resolving the museum", () => {
       visitId: "remote-1",
     });
     expect(controller.getState()).toMatchObject({ status: "resolved", error: "location" });
-    expect(reportError).toHaveBeenCalledWith(cause, "venue.resolve", { level: "warning" });
+    expect(reportError).toHaveBeenCalledWith(cause, "venue.resolve", expect.objectContaining({ level: "warning" }));
   });
 
   it("tells a failed fix from a failed museum lookup, never keeping the native error text", async () => {
