@@ -723,7 +723,7 @@ describe("research failure reports", () => {
     expect(modelCalls("docent")).toEqual([]);
   });
 
-  it("names the artwork whose every source failed", async () => {
+  it("names the artwork whose every source failed with bounded source diagnostics", async () => {
     const { work, ensure } = await fixture();
     page(PAGE, "down", { status: 503 });
     wikidata(500);
@@ -736,6 +736,7 @@ describe("research failure reports", () => {
           reason: "sources_unavailable",
           artwork_id: work.artworkId,
         }),
+        contexts: { operation: { stage: "gather", sourceCount: 0, gatherFailures: 3 } },
       }),
     ]);
   });
@@ -1157,6 +1158,9 @@ describe("reference attribution review", () => {
   )("recovers from a review $failure with $remaining remaining research", async ({ remaining, failure }) => {
     vi.useFakeTimers();
     try {
+      vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+      const sentry = "https://example.ingest.sentry.io/";
+      routes.push((url) => (url.href.startsWith(sentry) ? new Response("{}") : undefined));
       const t = harness();
       const { deviceId, as } = await seedDevice(t);
       const { artworkId } = await t.run((ctx) =>
@@ -1215,6 +1219,20 @@ describe("reference attribution review", () => {
       expect(work?.docentNoSources).toBeUndefined();
       expect(work?.docent?.en).toEqual(
         remaining === "prose" ? [{ sentence: catalogueFact, factIds: ["f1"] }] : undefined,
+      );
+      const reports = calls(sentry)
+        .map(([, init]) => JSON.parse(String(init?.body).split("\n")[2]))
+        .filter((event) => event.tags.operation === "docent.ensure");
+      expect(reports.map((event) => event.contexts.operation)).toEqual(
+        remaining === "prose"
+          ? []
+          : [
+              {
+                stage: remaining === "none" ? "selection" : "catalogue",
+                sourceCount: remaining === "none" ? 1 : 2,
+                gatherFailures: 0,
+              },
+            ],
       );
       if (remaining === "prose") return;
       expect(work?.docentFailedAt).toBeDefined();
@@ -1523,6 +1541,26 @@ describe("docent for confirmed scan details", () => {
     await settle();
     vi.useRealTimers();
     expect(calls(TAVILY)).toHaveLength(searches);
+    expect(calls(TOKEN_FACTORY)).toEqual([]);
+  });
+
+  it("reports only bounded source diagnostics for a failed private scan search", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+    const sentry = "https://example.ingest.sentry.io/";
+    routes.push((url) => (url.href.startsWith(sentry) ? new Response("{}") : undefined));
+    const { confirm, view, settle } = await confirmedFixture();
+    tavily({}, 503);
+    await confirm("manual", { title: "PrivateArtworkMarker", artist: "PrivateArtistMarker" });
+    await settle();
+    vi.useRealTimers();
+    const events = calls(sentry).map(([, init]) => JSON.parse(String(init?.body).split("\n")[2]));
+    const reports = events.filter((event) => event.tags.operation === "docent.ensureForScan");
+    expect(reports).toHaveLength(1);
+    expect(reports[0].contexts).toEqual({ operation: { stage: "gather", sourceCount: 0, gatherFailures: 1 } });
+    expect(reports[0].fingerprint).toEqual(["convex", "docent.ensureForScan", "research_failed"]);
+    expect(JSON.stringify(reports)).not.toMatch(/PrivateArtworkMarker|PrivateArtistMarker|https?:|scan_id|device_id/);
+    expect((await view())?.docentStatus).toBe("failed");
     expect(calls(TOKEN_FACTORY)).toEqual([]);
   });
 
