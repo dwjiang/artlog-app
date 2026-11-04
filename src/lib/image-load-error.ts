@@ -21,6 +21,28 @@ function sourceDetails(uri: string): Record<string, string> {
   return { source: "unknown", source_kind: "unknown" };
 }
 
+// Match SDWebImage's fixed descriptions exactly; suffixes can contain private URLs or content.
+function failureKind(description: string | undefined): string {
+  switch (description) {
+    case undefined:
+    case "":
+      return "missing";
+    case "Downloaded image decode failed":
+      return "decode_failed";
+    case "Downloaded image has 0 pixels":
+      return "zero_pixels";
+    case "Image data is nil":
+      return "empty_data";
+    case "Download marked as failed because response is nil":
+      return "missing_response";
+    case "Session delegate is nil and invalid":
+    case "Task can't be initialized":
+      return "invalid_operation";
+    default:
+      return "other";
+  }
+}
+
 export function reportImageLoadError(uri: string, description: string | undefined): void {
   const error = new Error(description || "Image could not load");
   if (isTransientError(error)) return;
@@ -32,6 +54,10 @@ export function reportImageLoadError(uri: string, description: string | undefine
     )?.[1];
   reportError(new Error(status ? `Image load failed (HTTP ${status})` : "Image load failed"), "media.load", {
     level: "warning",
-    data: { ...sourceDetails(uri), ...(status ? { status_code: Number(status) } : {}) },
+    data: {
+      ...sourceDetails(uri),
+      failure_kind: status ? "http" : failureKind(description),
+      ...(status ? { status_code: Number(status) } : {}),
+    },
   });
 }

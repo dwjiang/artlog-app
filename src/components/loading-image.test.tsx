@@ -38,7 +38,7 @@ it("ends loading on failure, keeps an accessible fallback, and retries a new sou
   expect(onError).toHaveBeenCalledTimes(1);
   expect(reportError).toHaveBeenCalledWith(expect.any(Error), "media.load", {
     level: "warning",
-    data: { source: "local", source_kind: "file" },
+    data: { source: "local", source_kind: "file", failure_kind: "other" },
   });
   expect(JSON.stringify(jest.mocked(reportError).mock.calls)).not.toContain("file:///broken.jpg");
   expect(screen.queryByRole("progressbar")).toBeNull();
@@ -63,7 +63,13 @@ it("passes the native error string and remote source to privacy-safe diagnostics
     "media.load",
     {
       level: "warning",
-      data: { source: "remote", source_kind: "https", requested_host: "images.example.org", status_code: 403 },
+      data: {
+        source: "remote",
+        source_kind: "https",
+        failure_kind: "http",
+        requested_host: "images.example.org",
+        status_code: 403,
+      },
     },
   );
 });
