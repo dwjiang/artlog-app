@@ -3,6 +3,7 @@ const models = new Set([
   "nvidia/Nemotron-3_5-Lightning",
   "nvidia/Nemotron-3-Ultra-550b-a55b",
 ]);
+const fetchErrorNames = new Set(["AbortError", "TimeoutError", "TypeError", "Error"]);
 const stages = new Set(["fetch", "http", "response", "completion", "json", "schema"]);
 const finishReasons = new Set(["stop", "length", "content_filter", "tool_calls", "function_call"]);
 const numericLimits: Record<string, number> = {
@@ -25,6 +26,17 @@ export function tokenFactoryDiagnostics(value: unknown): Record<string, string |
   if (typeof source.stage === "string" && stages.has(source.stage)) result.stage = source.stage;
   if (typeof source.finishReason === "string" && finishReasons.has(source.finishReason)) {
     result.finishReason = source.finishReason;
+  }
+  if (typeof source.fetchErrorName === "string") {
+    result.fetchErrorName = fetchErrorNames.has(source.fetchErrorName) ? source.fetchErrorName : "other";
+  }
+  const { previousHttpStatus } = source;
+  if (
+    typeof previousHttpStatus === "number"
+    && Number.isInteger(previousHttpStatus)
+    && (previousHttpStatus === 429 || (previousHttpStatus >= 500 && previousHttpStatus <= 599))
+  ) {
+    result.previousHttpStatus = previousHttpStatus;
   }
   for (const [key, maximum] of Object.entries(numericLimits)) {
     const number = source[key];

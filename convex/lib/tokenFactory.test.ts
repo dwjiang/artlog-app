@@ -245,3 +245,104 @@ it("carries truncation diagnostics through the backend Sentry envelope", async (
   expect(event.tags).toMatchObject({ operation: "exhibitionRefresh.extract", reason: "truncated" });
   expect(body).not.toMatch(/private input|private output|test-key/);
 });
+
+it.each([
+  ["header_timeout", "AbortError"],
+  ["body_timeout", "AbortError"],
+  ["network", "TypeError"],
+  ["timeout_error", "TimeoutError"],
+  ["generic_error", "Error"],
+  ["custom_name", "other"],
+  ["untyped", "other"],
+])("reports %s without exposing error content or retrying transport failures", async (failure, fetchErrorName) => {
+  vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+  const envelopes: string[] = [];
+  fetchMock.mockImplementation(async (url, init) => {
+    if (String(url).startsWith("https://example.ingest.sentry.io/")) {
+      envelopes.push(String(init?.body));
+      return new Response("{}");
+    }
+    if (failure === "header_timeout") {
+      return new Promise<Response>((_, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("private_error", "AbortError")));
+      });
+    }
+    if (failure === "body_timeout") {
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            init?.signal?.addEventListener("abort", () =>
+              controller.error(new DOMException("private_error", "AbortError")),
+            );
+          },
+        }),
+      );
+    }
+    if (failure === "timeout_error") throw new DOMException("private_error", "TimeoutError");
+    if (failure === "generic_error") throw new Error("private_error");
+    if (failure === "untyped") throw { name: "AbortError", message: "private_error" };
+    if (failure === "custom_name") {
+      const error = new Error("private_error");
+      error.name = "private_error_name";
+      throw error;
+    }
+    throw new TypeError("private_error https://private.example/?token=private_token");
+  });
+  const timed = failure.endsWith("timeout");
+  if (timed) vi.useFakeTimers();
+  const pending = chatJson({ ...request, user: "private input", schemaName: "referenceReview" }).catch(
+    (error: unknown) => error,
+  );
+  if (timed) await vi.advanceTimersByTimeAsync(8000);
+  const error = await pending;
+  vi.useRealTimers();
+  expect(error).toMatchObject({
+    data: {
+      code: "model_error",
+      reason: "fetch_failed",
+      schema: "referenceReview",
+      calls: 1,
+      diagnostics: { stage: "fetch", fetchErrorName },
+    },
+  });
+  await reportBackendError(error, "docent.referenceReview");
+  expect(envelopes).toHaveLength(1);
+  const event = JSON.parse(envelopes[0].split("\n")[2]);
+  expect(event.tags).toMatchObject({ operation: "docent.referenceReview", reason: "fetch_failed" });
+  expect(event.contexts.token_factory).toMatchObject({ fetchErrorName, calls: 1, stage: "fetch" });
+  expect(event.contexts.token_factory).not.toHaveProperty("previousHttpStatus");
+  for (const marker of ["private input", "private_error", "private.example", "private_token", "test-key"]) {
+    expect(envelopes[0]).not.toContain(marker);
+  }
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+it.each([429, 529])("retains the first HTTP %s when the retry fails in transport", async (status) => {
+  vi.useFakeTimers();
+  vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+  fetchMock
+    .mockResolvedValueOnce(new Response("private response", { status }))
+    .mockRejectedValueOnce(new TypeError("private error"))
+    .mockResolvedValueOnce(new Response("{}"));
+  const pending = chatJson({ ...request, schemaName: "referenceReview" }).catch((error: unknown) => error);
+  await vi.advanceTimersByTimeAsync(1000);
+  const error = await pending;
+  vi.useRealTimers();
+  expect(error).toMatchObject({
+    data: {
+      reason: "fetch_failed",
+      calls: 2,
+      diagnostics: { fetchErrorName: "TypeError", previousHttpStatus: status },
+    },
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  await reportBackendError(error, "docent.referenceReview");
+  const envelope = String(fetchMock.mock.calls[2][1]?.body);
+  const event = JSON.parse(envelope.split("\n")[2]);
+  expect(event.contexts.token_factory).toMatchObject({
+    fetchErrorName: "TypeError",
+    previousHttpStatus: status,
+    calls: 2,
+  });
+  expect(envelope).not.toMatch(/private response|private error|test-key/);
+});

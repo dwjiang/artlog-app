@@ -120,6 +120,7 @@ export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJson
     }),
   };
   let calls = 0;
+  let previousHttpStatus: number | undefined;
   for (;;) {
     calls++;
     const started = Date.now();
@@ -130,6 +131,7 @@ export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJson
       timeoutMs: request.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       elapsedMs: Date.now() - started,
       stage,
+      previousHttpStatus,
     });
     let page;
     try {
@@ -137,11 +139,15 @@ export async function chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJson
         timeoutMs: request.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         maxBytes: MAX_RESPONSE_BYTES,
       });
-    } catch {
-      throw modelError("fetch_failed", calls, request.schemaName, diagnostics("fetch"));
+    } catch (error) {
+      throw modelError("fetch_failed", calls, request.schemaName, {
+        ...diagnostics("fetch"),
+        fetchErrorName: error instanceof Error ? error.name : "other",
+      });
     }
     if (page.status === 429 || page.status >= 500) {
       if (calls < 2) {
+        previousHttpStatus = page.status;
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs(page.headers.get("retry-after"))));
         continue;
       }

@@ -157,6 +157,8 @@ it("reports only allowlisted bounded model diagnostics", async () => {
         model: "nvidia/Nemotron-3.5-Super-VL",
         stage: "completion",
         finishReason: "length",
+        fetchErrorName: "TypeError",
+        previousHttpStatus: 529,
         maxTokens: 12000,
         promptTokens: 800,
         completionTokens: 12000,
@@ -178,6 +180,8 @@ it("reports only allowlisted bounded model diagnostics", async () => {
     model: "nvidia/Nemotron-3.5-Super-VL",
     stage: "completion",
     finishReason: "length",
+    fetchErrorName: "TypeError",
+    previousHttpStatus: 529,
     maxTokens: 12000,
     promptTokens: 800,
     completionTokens: 12000,
@@ -256,3 +260,20 @@ it("keeps an allowlisted code and status reason carried by a plain error, never 
   expect(event.tags).toMatchObject({ operation: "files.store", error_code: "storage_failed", reason: "http_403" });
   expect(JSON.stringify(event)).not.toContain("private-key");
 });
+
+it.each([200, 499, 600, -1, 529.5, Infinity, "529"])(
+  "drops invalid retry status %s and unrecognized error names",
+  async (status) => {
+    await reportBackendError(
+      new ConvexError({
+        code: "model_error",
+        reason: "fetch_failed",
+        diagnostics: { fetchErrorName: "private_error_name", previousHttpStatus: status },
+      }),
+      "docent.referenceReview",
+    );
+    const event = JSON.parse(String(fetchMock.mock.calls[0][1]?.body).split("\n")[2]);
+    expect(event.contexts.token_factory).toEqual({ version: 1, fetchErrorName: "other" });
+    expect(JSON.stringify(event)).not.toContain("private_error_name");
+  },
+);
