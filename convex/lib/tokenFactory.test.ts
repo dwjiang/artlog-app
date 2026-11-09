@@ -245,3 +245,37 @@ it("carries truncation diagnostics through the backend Sentry envelope", async (
   expect(event.tags).toMatchObject({ operation: "exhibitionRefresh.extract", reason: "truncated" });
   expect(body).not.toMatch(/private input|private output|test-key/);
 });
+
+it.each([
+  ["whitespace only", " \n\t\r ", 5],
+  ["trailing whitespace", '{"private output":true} \n\t', 3],
+  ["internal whitespace", '{"private output": "two words"}', 0],
+  ["empty content", "", 0],
+  ["unicode whitespace", "private output\u00a0\u2003", 2],
+  ["missing content", undefined, undefined],
+  ["non-string content", { private: "output" }, undefined],
+])("counts %s on truncation without parsing, retrying or reporting content", async (_, content, count) => {
+  vi.stubEnv("SENTRY_DSN", "https://public@example.ingest.sentry.io/123");
+  const parseOutput = vi.fn<typeof parse>(parse);
+  fetchMock
+    .mockResolvedValueOnce(jsonResponse({ choices: [{ message: { content }, finish_reason: "length" }] }))
+    .mockResolvedValueOnce(new Response("{}"));
+  const failure = await chatJson({
+    ...request,
+    schemaName: "docent",
+    user: "private input",
+    parse: parseOutput,
+  }).catch((error: unknown) => error);
+  expect(failure).toMatchObject({ data: { code: "model_error", reason: "truncated", schema: "docent", calls: 1 } });
+  expect(parseOutput).not.toHaveBeenCalled();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  await reportBackendError(failure, "docent.ensureForScan");
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  const envelope = String(fetchMock.mock.calls[1][1]?.body);
+  const event = JSON.parse(envelope.split("\n")[2]);
+  expect(event.contexts.token_factory.trailingWhitespaceChars).toBe(count);
+  expect(event.contexts.token_factory.outputChars).toBe(typeof content === "string" ? content.length : undefined);
+  expect(event.tags).toMatchObject({ operation: "docent.ensureForScan", reason: "truncated", model_schema: "docent" });
+  expect(event.fingerprint).toEqual(["convex", "docent.ensureForScan", "model_error"]);
+  expect(envelope).not.toMatch(/private input|private output|test-key/);
+});

@@ -70,10 +70,14 @@ function parseCompletion<T>(
       choices?: { message?: { content?: unknown }; finish_reason?: unknown }[];
     }
   ).choices?.[0];
-  if (choice?.finish_reason === "length") {
-    throw modelError("truncated", calls, schema, { ...diagnostics, stage: "completion" });
-  }
   const content = choice?.message?.content;
+  if (choice?.finish_reason === "length") {
+    throw modelError("truncated", calls, schema, {
+      ...diagnostics,
+      stage: "completion",
+      trailingWhitespaceChars: typeof content === "string" ? content.length - content.trimEnd().length : undefined,
+    });
+  }
   if (typeof content !== "string") {
     throw modelError("bad_response", calls, schema, { ...diagnostics, stage: "completion" });
   }

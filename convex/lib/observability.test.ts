@@ -164,6 +164,7 @@ it("reports only allowlisted bounded model diagnostics", async () => {
         elapsedMs: 1234,
         inputChars: 2000,
         outputChars: 4000,
+        trailingWhitespaceChars: 3000,
         timeoutMs: 120000,
         prompt: "private text",
         response: "private output",
@@ -185,10 +186,25 @@ it("reports only allowlisted bounded model diagnostics", async () => {
     elapsedMs: 1234,
     inputChars: 2000,
     outputChars: 4000,
+    trailingWhitespaceChars: 3000,
     timeoutMs: 120000,
   });
   expect(JSON.stringify(event)).not.toContain("private");
 });
+
+it.each([-1, 0.5, Infinity, NaN, 10_000_001, "private output"])(
+  "drops invalid trailing whitespace count %s at transmission",
+  async (trailingWhitespaceChars) => {
+    await reportBackendError(
+      new ConvexError({ code: "model_error", reason: "truncated", diagnostics: { trailingWhitespaceChars } }),
+      "docent.ensureForScan",
+    );
+    const envelope = String(fetchMock.mock.calls[0][1]?.body);
+    const event = JSON.parse(envelope.split("\n")[2]);
+    expect(event.contexts.token_factory).toEqual({ version: 1 });
+    expect(envelope).not.toContain("private output");
+  },
+);
 
 it("drops unknown diagnostic strings and invalid numeric values", async () => {
   await reportBackendError(

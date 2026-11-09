@@ -14,6 +14,7 @@ const numericLimits: Record<string, number> = {
   timeoutMs: 3_600_000,
   inputChars: 100_000_000,
   outputChars: 10_000_000,
+  trailingWhitespaceChars: 10_000_000,
 };
 
 // Re-allowlist at both collection and transmission; never serialize provider objects or prompts.
