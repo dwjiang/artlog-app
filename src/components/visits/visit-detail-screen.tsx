@@ -26,6 +26,7 @@ import { playErrorHaptic, playSuccessHaptic } from "@/lib/ui/haptics";
 import { useHorizontalSafeAreaPadding, useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { retryAction, showErrorToast, showToast } from "@/lib/ui/toast";
 import { useVenue } from "@/lib/venue/use-venue";
+import { useVisitDetailDiagnostics } from "@/lib/visits/use-visit-detail-diagnostics";
 import { useVisitSharing } from "@/lib/visits/use-visit-sharing";
 import type { VisitVisibility } from "@/shared/journal/contracts";
 
@@ -57,6 +58,11 @@ export function VisitDetailScreen() {
   }>();
   const { owner, visits, loading, error } = useVisits();
   const visit = visits.find((row) => row.localId === visitId);
+  useVisitDetailDiagnostics({
+    state: visit ? "ready" : error ? "error" : loading ? "loading" : "unavailable",
+    workCount: visit?.works.length,
+    endReview: endVisit === "true",
+  });
   if (!visit) {
     const opening = loading && !error;
     return (

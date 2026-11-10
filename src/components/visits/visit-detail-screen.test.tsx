@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import { Stack } from "expo-router/stack";
@@ -982,4 +983,18 @@ it("asks before a published Private visit is shown to friends", async () => {
   expect(jest.mocked(Alert.alert).mock.calls[0][0]).toBe("Share this visit with friends?");
   expect(save).not.toHaveBeenCalled();
   expect(screen.getByRole("button", { name: "View Post" })).toBeOnTheScreen();
+});
+
+it("records a privacy-safe snapshot of the opened journal detail", async () => {
+  jest.mocked(Sentry.addBreadcrumb).mockClear();
+  await renderRouter(
+    { _layout: () => <Stack />, "journal/[visitId]": VisitDetailScreen },
+    { initialUrl: "/journal/visit?endVisit=true" },
+  );
+  expect(Sentry.addBreadcrumb).toHaveBeenCalledWith({
+    category: "app",
+    message: "visit.detail.snapshot",
+    level: "info",
+    data: { render_state: "ready", work_count: 1, end_review: true },
+  });
 });
