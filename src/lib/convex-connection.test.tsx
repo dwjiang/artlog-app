@@ -12,6 +12,7 @@ jest.mock("./observability", () => ({ reportError: (...args: unknown[]) => mockR
 jest.mock("expo-network", () => ({ useNetworkState: () => mockNetwork }));
 jest.mock("convex/react", () => ({ useConvexAuth: () => ({ isLoading: false, isAuthenticated: true }) }));
 jest.mock("./convex-client", () => ({
+  socketDiagnostics: () => ({ socket_ready_state: 0, socket_last_close_code: 1006, socket_attempt_ms: 30_000 }),
   convex: {
     connectionState: () => ({
       isWebSocketConnected: mockConnected,
@@ -67,6 +68,9 @@ it("reports one stall per outage once the socket stays down for 30 s while the p
     level: "warning",
     data: expect.objectContaining({
       ws_connected: false,
+      socket_ready_state: 0,
+      socket_last_close_code: 1006,
+      socket_attempt_ms: 30_000,
       connection_retries: 7,
       inflight_actions: 1,
       authenticated: true,

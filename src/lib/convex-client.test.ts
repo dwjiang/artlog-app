@@ -25,6 +25,10 @@ class FakeSyncSocket {
     }, 0);
   }
 
+  addEventListener() {
+    // This server fixture exercises Convex's protocol handlers, not diagnostic listeners.
+  }
+
   send(data: string) {
     const message = JSON.parse(data) as { type: string; clientTs: number; baseVersion: number; newVersion: number };
     if (message.type === "Connect") this.clockSkew = message.clientTs - Date.now();
