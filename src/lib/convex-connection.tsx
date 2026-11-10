@@ -3,7 +3,7 @@ import { useNetworkState } from "expo-network";
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
-import { convex } from "./convex-client";
+import { convex, socketDiagnostics } from "./convex-client";
 import { hasInternetSignal } from "./network-state";
 import { reportError } from "./observability";
 
@@ -12,6 +12,7 @@ const STALL_MS = 30_000;
 export function connectionDiagnostics(): Record<string, number | boolean | null> {
   const state = convex.connectionState();
   return {
+    ...socketDiagnostics(),
     ws_connected: state.isWebSocketConnected,
     has_ever_connected: state.hasEverConnected,
     connection_count: Math.min(state.connectionCount, 1_000),
