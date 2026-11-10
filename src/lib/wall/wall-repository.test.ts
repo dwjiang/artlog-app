@@ -194,6 +194,39 @@ it("ignores older reads and rejects reads from a switched account", async () => 
   f.repository.dispose();
 });
 
+it.each(["dispose", "switch"] as const)(
+  "recognizes a native read rejection after %s as a cancelled request",
+  async (end) => {
+    const f = fixture();
+    f.transport.getMine.mockImplementationOnce(
+      ({ signal }) =>
+        new Promise((_, reject) => {
+          signal.addEventListener("abort", () => reject(new Error("fetch failed: Fetch request has been canceled")));
+        }),
+    );
+    const reading = f.repository.refresh();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(f.transport.getMine).toHaveBeenCalledTimes(1);
+    if (end === "dispose") f.repository.dispose();
+    else f.switch();
+    await expect(reading).rejects.toThrow("Wall request cancelled");
+    expect(f.repository.getSnapshot().acknowledged).toBeNull();
+    f.repository.dispose();
+  },
+);
+
+it("preserves an unexplained native cancellation while the read is still current", async () => {
+  const { repository, transport } = fixture();
+  const failure = new Error("fetch failed: Fetch request has been canceled");
+  transport.getMine.mockRejectedValueOnce(failure);
+  await expect(repository.refresh()).rejects.toBe(failure);
+  expect(transport.getMine.mock.calls[0][0].signal.aborted).toBe(false);
+  await repository.refresh();
+  expect(repository.getSnapshot().acknowledged).toEqual(wall);
+  repository.dispose();
+});
+
 it("does not send a request if the account changes during connectivity checking", async () => {
   const f = fixture();
   await f.repository.refresh();

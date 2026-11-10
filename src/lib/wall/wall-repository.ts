@@ -88,6 +88,9 @@ export function createWallRepository(deps: Dependencies) {
         throw new Error("Wall account changed");
       }
       if (read === reading) update({ acknowledged });
+    } catch (error) {
+      current.check();
+      throw error;
     } finally {
       current.finish();
     }

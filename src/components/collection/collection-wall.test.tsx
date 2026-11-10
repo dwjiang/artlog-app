@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react-native";
 import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
 import type { ReactNode } from "react";
@@ -680,6 +681,42 @@ it("treats a missing profile on refresh as a state rather than an error", async 
   expect(result.current.profileRequired).toBe(true);
   expect(result.current.error).toBeUndefined();
   expect(result.current.loading).toBe(false);
+});
+
+it("does not report a refresh aborted by unmounting, but reports a cancellation in an active wall and allows retry", async () => {
+  const view = await renderHook(() => useCollectionWall([]));
+  await waitFor(() => expect(view.result.current.loading).toBe(false));
+  mockTransport.getMine.mockImplementationOnce(
+    ({ signal }) =>
+      new Promise((_, reject) => {
+        signal.addEventListener("abort", () => reject(new Error("fetch failed: Fetch request has been canceled")));
+      }),
+  );
+  let refreshing!: Promise<void>;
+  await act(async () => {
+    refreshing = view.result.current.refresh();
+  });
+  const context = mockTransport.getMine.mock.calls.at(-1)![0];
+  expect(context.signal.aborted).toBe(false);
+  await view.unmount();
+  await refreshing;
+  expect(context.signal.aborted).toBe(true);
+  expect(Sentry.captureException).not.toHaveBeenCalled();
+
+  const next = await renderHook(() => useCollectionWall([]));
+  await waitFor(() => expect(next.result.current.loading).toBe(false));
+  mockTransport.getMine.mockRejectedValueOnce(new Error("fetch failed: Fetch request has been canceled"));
+  await act(() => next.result.current.refresh());
+  expect(next.result.current.error).toBe("Your wall could not load. Check your connection and try again.");
+  expect(next.result.current.loading).toBe(false);
+  expect(Sentry.captureException).toHaveBeenCalledWith(
+    expect.objectContaining({ message: "fetch failed: Fetch request has been canceled" }),
+    expect.objectContaining({ tags: { operation: "wall.load" } }),
+  );
+  await act(() => next.result.current.refresh());
+  expect(next.result.current.error).toBeUndefined();
+  expect(next.result.current.acknowledged).toEqual(published);
+  await next.unmount();
 });
 
 it("re-reads the wall each time the screen regains focus after the first load", async () => {
