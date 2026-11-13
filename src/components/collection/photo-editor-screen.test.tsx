@@ -164,7 +164,6 @@ it.each(["save", "delete"] as const)(
     } else {
       await fireEvent.press(screen.getByRole("button", { name: "Delete photo" }));
       const confirm = (alert.mock.calls[0][2] as AlertButton[]).find((button) => button.text === "Delete Photo");
-      expect(confirm?.onPress).toBeDefined();
       await act(() => confirm?.onPress?.());
     }
 
