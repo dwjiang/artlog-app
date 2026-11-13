@@ -91,6 +91,7 @@ it("sorts by recent save and preserves artist grouping as an option", async () =
 });
 
 it("records only coarse list changes, not the search text or artwork details", async () => {
+  Dimensions.set({ window: { width: 402, height: 874, scale: 3, fontScale: 1 } });
   const breadcrumb = jest.mocked(addBreadcrumb);
   breadcrumb.mockClear();
   const view = await render(<CollectionArtworks works={works} loading={false} error={undefined} search="" />);
