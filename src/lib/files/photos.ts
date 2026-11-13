@@ -2,6 +2,8 @@ import { randomUUID } from "expo-crypto";
 import { Directory, File, Paths } from "expo-file-system";
 import { ImageManipulator, SaveFormat, type ImageRef } from "expo-image-manipulator";
 
+import { reportError } from "@/lib/observability";
+
 import type { CropContentBounds } from "../../../modules/vision-rect/src";
 import { PHOTO_FOLDERS } from "./photo-folders";
 import { removeFileIfExists } from "./remove-file";
@@ -38,7 +40,7 @@ export function scanPreviewPath(cropPath: string): string {
 
 export function scanDisplayPath(cropPath: string): string {
   const preview = scanPreviewPath(cropPath);
-  // Captures saved before separate previews were introduced only have the model crop.
+  // Older captures and captures saved under storage pressure may only have the model crop.
   return new File(captureFileUri(preview)).exists ? preview : cropPath;
 }
 
@@ -70,13 +72,25 @@ export async function persistCapture({
   try {
     const { x, y, width, height } = contentBounds;
     image = await context.crop({ originX: x, originY: y, width, height }).renderAsync();
-    const preview = await image.saveAsync({
-      format: SaveFormat.JPEG,
-      compress: 1,
-    });
+    let previewUri: string | undefined;
+    try {
+      previewUri = (await image.saveAsync({ format: SaveFormat.JPEG, compress: 1 })).uri;
+    } catch (error) {
+      if (
+        !(error instanceof Error)
+        || !("code" in error)
+        || error.code !== "ERR_IMAGE_WRITE_FAILED"
+        || !/\b(?:volume is (?:full|out of space)|no space left on device)\b/i.test(error.message)
+      ) {
+        throw error;
+      }
+      reportError(new Error("Optional scan preview skipped: insufficient storage"), "capture.preview_storage", {
+        level: "warning",
+      });
+    }
     const photoPath = await moveInto(PHOTO_FOLDERS.capture, photoUri, localId);
     const cropPath = await moveInto(PHOTO_FOLDERS.crop, cropUri, localId);
-    await new File(preview.uri).move(new File(captureFileUri(scanPreviewPath(cropPath))));
+    if (previewUri) await new File(previewUri).move(new File(captureFileUri(scanPreviewPath(cropPath))));
     return { photoPath, cropPath };
   } finally {
     image?.release();

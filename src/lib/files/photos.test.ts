@@ -1,3 +1,5 @@
+import { reportError } from "@/lib/observability";
+
 import {
   captureFileUri,
   deleteCapture,
@@ -6,6 +8,8 @@ import {
   scanDisplayPath,
   scanPreviewPath,
 } from "./photos";
+
+jest.mock("@/lib/observability", () => ({ reportError: jest.fn() }));
 
 const mockCreate = jest.fn();
 const mockMove = jest.fn();
@@ -132,6 +136,69 @@ it.each([
   expect(mockMove).toHaveBeenCalledWith("file:///tmp/preview.jpg", captureFileUri(scanPreviewPath(files.cropPath)));
   expect(mockReleaseImage).toHaveBeenCalledTimes(1);
   expect(mockReleaseContext).toHaveBeenCalledTimes(1);
+});
+
+it("keeps the scan and uses its model crop when the optional preview hits a full volume", async () => {
+  const failure = Object.assign(new Error("Writing image data to the file has failed: The volume is full"), {
+    code: "ERR_IMAGE_WRITE_FAILED",
+  });
+  mockSave.mockRejectedValueOnce(failure);
+  const files = await persistCapture({
+    photoUri: "file:///tmp/photo.jpg",
+    cropUri: "file:///tmp/model.jpg",
+    localId: "scan",
+    contentBounds,
+  });
+  expect(files).toEqual({ photoPath: "photos/scan.jpg", cropPath: "crops/scan.jpg" });
+  expect(mockMove.mock.calls).toEqual([
+    ["file:///tmp/photo.jpg", captureFileUri(files.photoPath)],
+    ["file:///tmp/model.jpg", captureFileUri(files.cropPath)],
+  ]);
+  expect(scanDisplayPath(files.cropPath)).toBe(files.cropPath);
+  expect(reportError).toHaveBeenCalledTimes(1);
+  expect(reportError).toHaveBeenCalledWith(
+    new Error("Optional scan preview skipped: insufficient storage"),
+    "capture.preview_storage",
+    { level: "warning" },
+  );
+  expect(mockReleaseImage).toHaveBeenCalledTimes(1);
+  expect(mockReleaseContext).toHaveBeenCalledTimes(1);
+});
+
+it("still rejects when a required move fails after the preview is skipped", async () => {
+  mockSave.mockRejectedValueOnce(
+    Object.assign(new Error("The volume is out of space"), { code: "ERR_IMAGE_WRITE_FAILED" }),
+  );
+  const moveFailure = new Error("Required photo move failed");
+  mockMove.mockImplementationOnce(() => {
+    throw moveFailure;
+  });
+  await expect(
+    persistCapture({
+      photoUri: "file:///tmp/photo.jpg",
+      cropUri: "file:///tmp/model.jpg",
+      localId: "scan",
+      contentBounds,
+    }),
+  ).rejects.toBe(moveFailure);
+  expect(mockMove).toHaveBeenCalledTimes(1);
+});
+
+it("does not swallow a preview file write failure with a different cause", async () => {
+  const failure = Object.assign(new Error("Writing image data to the file has failed: Permission denied"), {
+    code: "ERR_IMAGE_WRITE_FAILED",
+  });
+  mockSave.mockRejectedValueOnce(failure);
+  await expect(
+    persistCapture({
+      photoUri: "file:///tmp/photo.jpg",
+      cropUri: "file:///tmp/model.jpg",
+      localId: "scan",
+      contentBounds,
+    }),
+  ).rejects.toBe(failure);
+  expect(mockMove).not.toHaveBeenCalled();
+  expect(reportError).not.toHaveBeenCalled();
 });
 
 it("releases decoded images and leaves capture files in place when preview encoding fails", async () => {
