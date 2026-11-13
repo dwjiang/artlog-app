@@ -1,5 +1,5 @@
 import { Link, router, useFocusEffect } from "expo-router";
-import { useCallback, useState, type ReactElement, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { View, useWindowDimensions, type ViewStyle } from "react-native";
 
 import { ChoiceMenu } from "@/components/choice-menu";
@@ -16,6 +16,7 @@ import { cropSyncing } from "@/lib/account/photo-sync";
 import { signInRoute } from "@/lib/account/sign-in-context";
 import { filterWorks } from "@/lib/collection/search";
 import type { useCollectionData } from "@/lib/collection/use-collection-data";
+import { addBreadcrumb } from "@/lib/observability";
 import { gridColumns } from "@/lib/ui/grid-columns";
 import { useSafeAreaWidth } from "@/lib/ui/safe-area";
 import { sectionWorksByArtist } from "@/lib/wall/artwork-library";
@@ -59,6 +60,15 @@ export function CollectionArtworks({
   );
   const filtered = filterWorks(works, search);
   const columns = gridColumns(2, width, fontScale);
+  const filtering = search.trim().length > 0;
+  const results =
+    filtered.length === 0 ? "0" : filtered.length < 25 ? "1-24" : filtered.length < 100 ? "25-99" : "100+";
+  const layoutBreadcrumbs = useRef(0);
+  useEffect(() => {
+    if (loading || error || layoutBreadcrumbs.current >= 12) return;
+    layoutBreadcrumbs.current += 1;
+    addBreadcrumb("collection.artworks.layout", { sort, filtering, results, columns });
+  }, [sort, filtering, results, columns, loading, error]);
   const tileWidth = Math.max(1, (width - 40 - (columns - 1) * 14) / columns);
   const rows: Row[] = [];
   function addWorks(items: Work[]) {
