@@ -3,8 +3,11 @@ import type { ComponentProps, ReactNode } from "react";
 import { Alert, Dimensions, Text } from "react-native";
 
 import { scheduleRemoval } from "@/lib/collection/pending-removals";
+import { addBreadcrumb } from "@/lib/observability";
 
 import { CollectionArtworks } from "./collection-artworks";
+
+jest.mock("@/lib/observability", () => ({ ...jest.requireActual("@/lib/observability"), addBreadcrumb: jest.fn() }));
 
 const mockPush = jest.fn();
 jest.mock("expo-router", () => {
@@ -85,6 +88,21 @@ it("sorts by recent save and preserves artist grouping as an option", async () =
   await fireEvent.press(screen.getByRole("button", { name: "Artist" }));
   expect(titles()).toEqual(["Garden, Alice", "Coast, Zora"]);
   expect(screen.getByRole("button", { name: "Sign in" })).toBeOnTheScreen();
+});
+
+it("records only coarse list changes, not the search text or artwork details", async () => {
+  Dimensions.set({ window: { width: 402, height: 874, scale: 3, fontScale: 1 } });
+  const breadcrumb = jest.mocked(addBreadcrumb);
+  breadcrumb.mockClear();
+  const view = await render(<CollectionArtworks works={works} loading={false} error={undefined} search="" />);
+  await view.rerender(<CollectionArtworks works={works} loading={false} error={undefined} search="private text" />);
+  await view.rerender(
+    <CollectionArtworks works={works} loading={false} error={undefined} search="different private text" />,
+  );
+  expect(breadcrumb.mock.calls.filter(([name]) => name === "collection.artworks.layout")).toEqual([
+    ["collection.artworks.layout", { sort: "recent", filtering: false, results: "1-24", columns: 2 }],
+    ["collection.artworks.layout", { sort: "recent", filtering: true, results: "0", columns: 2 }],
+  ]);
 });
 
 it("shows only matching artworks and clears an empty search", async () => {
