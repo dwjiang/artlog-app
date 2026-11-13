@@ -14,11 +14,25 @@ import {
   type ViewInstance,
 } from "react-native";
 
-import { selectArtworkPhotos } from "@/db/repos/artwork-album";
+import { editArtworkPhoto, selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { insertSavedWork } from "@/db/repos/saved-works";
+import { reportError } from "@/lib/observability";
+import { showErrorToast } from "@/lib/ui/toast";
 
 import { PhotoEditorScreen } from "./photo-editor-screen";
 
+jest.mock("@/db/repos/artwork-album", () => {
+  const actual = jest.requireActual<typeof import("@/db/repos/artwork-album")>("@/db/repos/artwork-album");
+  return { ...actual, editArtworkPhoto: jest.fn(actual.editArtworkPhoto) };
+});
+jest.mock("@/lib/observability", () => ({
+  ...jest.requireActual("@/lib/observability"),
+  reportError: jest.fn(),
+}));
+jest.mock("@/lib/ui/toast", () => ({
+  ...jest.requireActual("@/lib/ui/toast"),
+  showErrorToast: jest.fn(),
+}));
 jest.mock("@/db/client", () => ({
   db: jest.requireActual("@/db/test-db").createTestDatabase(),
 }));
@@ -127,3 +141,40 @@ it("scrolls a caption dragged behind the keyboard back above it as the person ty
   expect(scrollTo).toHaveBeenCalledWith({ y: 52, animated: true });
   await act(() => DeviceEventEmitter.emit("keyboardDidHide", { endCoordinates: keyboard }));
 });
+
+it.each(["save", "delete"] as const)(
+  "reports only the photo update action and retry state for %s failures",
+  async (action) => {
+    jest.mocked(reportError).mockClear();
+    jest.mocked(showErrorToast).mockClear();
+    const failure = new Error("Error code 14: unable to open database file");
+    jest
+      .mocked(editArtworkPhoto)
+      .mockImplementationOnce(() => {
+        throw failure;
+      })
+      .mockImplementationOnce(() => {
+        throw failure;
+      });
+    const view = await open();
+
+    if (action === "save") {
+      await fireEvent.changeText(screen.getByLabelText("Photo caption"), "Private caption");
+      await fireEvent.press(screen.getByRole("button", { name: "Save" }));
+    } else {
+      await fireEvent.press(screen.getByRole("button", { name: "Delete photo" }));
+      const confirm = (alert.mock.calls[0][2] as AlertButton[]).find((button) => button.text === "Delete Photo");
+      expect(confirm?.onPress).toBeDefined();
+      await act(() => confirm?.onPress?.());
+    }
+
+    const retry = jest.mocked(showErrorToast).mock.calls[0]?.[1];
+    expect(retry).toEqual(expect.any(Function));
+    await act(() => retry?.());
+    expect(view.getPathname()).toBe("/photo-details");
+    expect(jest.mocked(reportError).mock.calls).toEqual([
+      [failure, "collection.photo.update", { data: { action, retry: false } }],
+      [failure, "collection.photo.update", { data: { action, retry: true } }],
+    ]);
+  },
+);
