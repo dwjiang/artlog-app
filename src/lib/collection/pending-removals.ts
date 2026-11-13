@@ -41,7 +41,15 @@ export function undoRemoval(item: Pick<Removal, "owner" | "localId">) {
   pending = pending.filter((row) => key(row) !== key(item));
   emit();
 }
-export async function commitRemoval(item: Removal) {
+type CommitTrigger = "timer" | "leaving-foreground" | "manual";
+
+export function commitRemoval(item: Removal) {
+  return commit(item, "manual");
+}
+
+async function commit(item: Removal, trigger: CommitTrigger) {
+  const state = AppState.currentState;
+  const appState = state === "active" || state === "inactive" || state === "background" ? state : "unknown";
   clearTimeout(timers.get(key(item)));
   timers.delete(key(item));
   addBreadcrumb("collection.remove.commit", {
@@ -55,7 +63,7 @@ export async function commitRemoval(item: Removal) {
     pending = pending.filter((row) => key(row) !== key(item));
     emit();
   } catch (cause) {
-    reportError(cause, "collection.remove");
+    reportError(cause, "collection.remove", { data: { trigger, appState } });
     update(item, "failed");
   }
 }
@@ -63,7 +71,7 @@ export async function commitRemoval(item: Removal) {
 let appState: { remove: () => void } | undefined;
 function commitUndoable() {
   for (const row of pending) {
-    if (row.status === "undoable") void commitRemoval(row);
+    if (row.status === "undoable") void commit(row, "leaving-foreground");
   }
 }
 export function scheduleRemoval(item: Omit<Removal, "status">) {
@@ -75,7 +83,7 @@ export function scheduleRemoval(item: Omit<Removal, "status">) {
   timers.set(
     key(item),
     setTimeout(() => {
-      void commitRemoval(removal);
+      void commit(removal, "timer");
     }, 6000),
   );
   appState ??= AppState.addEventListener("change", (state) => {

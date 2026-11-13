@@ -13,9 +13,11 @@ jest.mock("@/lib/observability", () => ({
 jest.mock("@/db/repos/saved-works", () => ({
   softDeleteSavedWork: jest.fn().mockResolvedValue(undefined),
 }));
+const presetState = AppState.currentState;
 let appStateListener: ((state: AppStateStatus) => void) | undefined;
 beforeEach(() => {
   jest.useFakeTimers();
+  AppState.currentState = "active";
   jest.clearAllMocks();
   jest.spyOn(AppState, "addEventListener").mockImplementation((_event, listener) => {
     appStateListener = listener;
@@ -23,6 +25,7 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
+  AppState.currentState = presetState;
   jest.useRealTimers();
 });
 
@@ -58,7 +61,9 @@ it("commits to the original owner and exposes a failed removal for retry", async
   await act(() => jest.advanceTimersByTime(6000));
   expect(softDeleteSavedWork).toHaveBeenCalledWith("retry", expect.any(Number), "account:original");
   expect(view.result.current[0].status).toBe("failed");
-  expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: "Disk full" }), "collection.remove");
+  expect(reportError).toHaveBeenCalledWith(expect.objectContaining({ message: "Disk full" }), "collection.remove", {
+    data: { trigger: "timer", appState: "active" },
+  });
   expect(hidden.result.current).not.toContain(item.localId);
   expect(jest.mocked(addBreadcrumb).mock.calls).toEqual([
     ["collection.remove.scheduled"],
@@ -112,4 +117,27 @@ it("commits undoable removals when the app leaves the foreground instead of wait
     ["collection.remove.commit", { retry: false }],
     ["collection.remove.committed"],
   ]);
+});
+
+it("distinguishes a lifecycle flush from a user retry without reporting removal details", async () => {
+  const item = { owner: "account:private", localId: "private-id", title: "Private title" };
+  const failure = new Error("Unable to open database file");
+  jest.mocked(softDeleteSavedWork).mockRejectedValueOnce(failure).mockRejectedValueOnce(failure);
+  const view = await renderHook(usePendingRemovals);
+
+  await act(() => scheduleRemoval(item));
+  await act(() => {
+    AppState.currentState = "inactive";
+    appStateListener?.("inactive");
+  });
+  expect(view.result.current[0].status).toBe("failed");
+
+  AppState.currentState = "active";
+  await act(() => commitRemoval(view.result.current[0]));
+  expect(view.result.current[0].status).toBe("failed");
+  expect(jest.mocked(reportError).mock.calls).toEqual([
+    [failure, "collection.remove", { data: { trigger: "leaving-foreground", appState: "inactive" } }],
+    [failure, "collection.remove", { data: { trigger: "manual", appState: "active" } }],
+  ]);
+  await act(() => undoRemoval(item));
 });
