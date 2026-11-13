@@ -357,6 +357,32 @@ it("shows picker errors and releases the capture for another import", async () =
   expect(hook.result.current.state.message).toBeUndefined();
 });
 
+it.each(["library_pick", "library_prepare"] as const)(
+  "reports the library import step %s without attaching the selected asset",
+  async (step) => {
+    const error = Object.assign(new Error("Image unavailable"), { code: "ERR_FAILED_TO_READ_IMAGE" });
+    const uri = "file:///private-photo.jpg";
+    if (step === "library_pick") {
+      mockPicker.mockRejectedValueOnce(error);
+    } else {
+      mockPicker.mockResolvedValueOnce({ canceled: false, assets: [{ uri }] });
+      mockShrinkLibraryPhoto.mockRejectedValueOnce(error);
+    }
+    const hook = await renderHook(useCapture);
+    await act(async () => {
+      await hook.result.current.importPhoto();
+    });
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(reportError).mock.calls[0]?.[0]).toBe(error);
+    expect(reportError).toHaveBeenCalledWith(error, "capture.process", {
+      data: { step, source: "library", steady: false, online: true },
+    });
+    expect(JSON.stringify(jest.mocked(reportError).mock.calls)).not.toContain(uri);
+    expect(mockPipeline).not.toHaveBeenCalled();
+    expect(hook.result.current.state).toMatchObject({ phase: "retry", occupied: false, message: error.message });
+  },
+);
+
 it("reports a handled capture failure without including the photo", async () => {
   const error = new Error("Native image processing failed");
   tagFailure(error, { step: "embed" });

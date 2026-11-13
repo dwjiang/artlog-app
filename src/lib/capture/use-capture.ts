@@ -9,7 +9,7 @@ import { AccessibilityInfo } from "react-native";
 import { getVisit } from "@/db/repos/visits";
 import { captureOwner, subscribeOwnerChange } from "@/lib/account/owner-store";
 import { connectionDiagnostics } from "@/lib/convex-connection";
-import { failureDetails } from "@/lib/failure-step";
+import { failureDetails, tagFailure } from "@/lib/failure-step";
 import { removeCameraTempFile } from "@/lib/files/camera-temp";
 import { shrinkLibraryPhoto } from "@/lib/files/kept-photos";
 import { errorMessage, isBackendError } from "@/lib/network-error";
@@ -286,7 +286,7 @@ export function useCapture({
         reportError(error, "capture.process", {
           data: {
             step: failureDetails(error)?.step ?? "setup",
-            source: source ?? null,
+            source: source ?? attempt.source,
             steady: attempt.steady,
             online: online.current,
           },
@@ -353,16 +353,23 @@ export function useCapture({
     let position: { lat: number; lng: number } | undefined;
     return capture(
       async () => {
-        const photo = await pick();
-        if (!photo) return null;
-        const { capturedAt, lat, lng } = extractCaptureMeta(photo.exif);
-        if (lat !== undefined && lng !== undefined) position = { lat, lng };
-        return {
-          photoUri: await shrinkLibraryPhoto(photo.uri),
-          quad: null,
-          source: "library",
-          capturedAt,
-        };
+        let step = "library_pick";
+        try {
+          const photo = await pick();
+          if (!photo) return null;
+          step = "library_prepare";
+          const { capturedAt, lat, lng } = extractCaptureMeta(photo.exif);
+          if (lat !== undefined && lng !== undefined) position = { lat, lng };
+          return {
+            photoUri: await shrinkLibraryPhoto(photo.uri),
+            quad: null,
+            source: "library",
+            capturedAt,
+          };
+        } catch (error) {
+          tagFailure(error, { step });
+          throw error;
+        }
       },
       attempt,
       async () => ({
