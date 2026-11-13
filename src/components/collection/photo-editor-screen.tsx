@@ -87,13 +87,17 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
   const destinations = works.data.filter(
     (work) => work.owner === photo.owner && work.localId !== photo.savedLocalId && work.deletedAt === null,
   );
-  const execute = (patch: Parameters<typeof editArtworkPhoto>[1]) => {
+  const execute = (
+    action: "save" | "move" | "delete",
+    patch: Parameters<typeof editArtworkPhoto>[1],
+    retry = false,
+  ) => {
     try {
       editArtworkPhoto(photo.localId, patch, photo.owner);
       leave();
     } catch (cause) {
-      reportError(cause, "collection.photo.update");
-      showErrorToast("Couldn’t update this photo.", () => execute(patch));
+      reportError(cause, "collection.photo.update", { data: { action, retry } });
+      showErrorToast("Couldn’t update this photo.", () => execute(action, patch, true));
     }
   };
   return (
@@ -101,7 +105,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
       {/* A long caption scrolls its label off, so Done sits in the bar, beside Save, while the caption is edited. */}
       <CommitToolbar
         label="Save"
-        onPress={() => execute({ kind, caption })}
+        onPress={() => execute("save", { kind, caption })}
         onDone={captionFocused ? () => Keyboard.dismiss() : undefined}
       />
       <SafeAreaScrollView
@@ -230,7 +234,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                     accessibilityRole="button"
                     accessibilityLabel={`Move photo to ${work.title}`}
                     onPress={() => {
-                      execute({ savedLocalId: work.localId, kind, caption });
+                      execute("move", { savedLocalId: work.localId, kind, caption });
                     }}
                     style={{
                       flexDirection: "row",
@@ -266,7 +270,7 @@ function PhotoEditor({ photo }: { photo: ArtworkPhoto }) {
                   {
                     text: "Delete Photo",
                     style: "destructive",
-                    onPress: () => execute({ deletedAt: Date.now() }),
+                    onPress: () => execute("delete", { deletedAt: Date.now() }),
                   },
                 ],
               )
