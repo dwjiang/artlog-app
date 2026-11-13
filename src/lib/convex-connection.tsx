@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
 import { convex } from "./convex-client";
-import { hasInternetSignal } from "./network-state";
+import { hasInternetSignal, rememberNetworkSignal } from "./network-state";
 import { reportError } from "./observability";
 
 const STALL_MS = 30_000;
@@ -27,7 +27,12 @@ export function connectionDiagnostics(): Record<string, number | boolean | null>
 // Convex keeps queries and requests waiting while its socket is down, so a socket that never comes back (for
 // example after a failed token refresh) shows only spinners. Report one stall per outage while the phone is online.
 export function ConvexConnectionWatch(): null {
-  const online = hasInternetSignal(useNetworkState());
+  const network = useNetworkState();
+  const online = hasInternetSignal(network);
+  useEffect(() => {
+    rememberNetworkSignal(network);
+    return () => rememberNetworkSignal({});
+  }, [network]);
   const { isLoading, isAuthenticated } = useConvexAuth();
   const authState = useRef({ isLoading, isAuthenticated });
   useEffect(() => {
