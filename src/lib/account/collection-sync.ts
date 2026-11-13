@@ -1,8 +1,9 @@
 import { useAuthToken } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
+import { Paths } from "expo-file-system";
 import { addNetworkStateListener } from "expo-network";
 import { useEffect } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { albumMediaPending, selectArtworkPhotos } from "@/db/repos/artwork-album";
 import { createJournalRepository } from "@/db/repos/journal";
@@ -51,13 +52,41 @@ type Queue = {
 const RETRY_BASE_MS = 30_000;
 const RETRY_MAX_MS = 15 * 60_000;
 
+function journalOpenFailureStorage(error: unknown): string | undefined {
+  try {
+    if (Platform.OS !== "ios") return;
+    for (let depth = 0; depth < 5 && error instanceof Error; depth++, error = error.cause) {
+      if (
+        "code" in error
+        && error.code === "ERR_INTERNAL_SQLITE_ERROR"
+        && /\bError code 14: unable to open database file\b/i.test(error.message)
+      ) {
+        try {
+          const bytes = Paths.availableDiskSpace;
+          if (!Number.isFinite(bytes) || bytes < 0) return "unavailable";
+          if (bytes < 10 * 1024 ** 2) return "under-10-mib";
+          return bytes < 100 * 1024 ** 2 ? "10-to-99-mib" : "100-mib-or-more";
+        } catch {
+          return "unavailable";
+        }
+      }
+    }
+  } catch {
+    // A diagnostic must not interfere with reporting the original failure or retrying.
+  }
+}
+
 // A rejected batch fails the same way on every retry: report each new failure, then a few repeats, not every retry.
 function reportQueueFailure(queue: Queue, error: unknown): void {
   const kind = convexErrorCode(error) ?? (error instanceof Error ? `${error.name}:${error.message}` : "unknown");
   const data = { stage: queue.stage, failures: queue.failures };
   if (!queue.reportedFailures.has(kind) || queue.failures === 5 || queue.failures === 20) {
     queue.reportedFailures.add(kind);
-    reportError(error, queue.operation, { data, alwaysReport: queue.rejections });
+    const freeStorage = queue.operation === "sync.journal" ? journalOpenFailureStorage(error) : undefined;
+    reportError(error, queue.operation, {
+      data: freeStorage ? { ...data, freeStorage } : data,
+      alwaysReport: queue.rejections,
+    });
   }
   if (queue.stuck.recordFailure(error)) {
     reportError(new Error(`${queue.label} is stuck`), `${queue.operation}.stuck`, {

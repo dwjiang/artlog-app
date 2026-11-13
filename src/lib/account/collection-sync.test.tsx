@@ -1,6 +1,6 @@
 import { act, render } from "@testing-library/react-native";
 import { ConvexError } from "convex/values";
-import { AppState, type AppStateStatus } from "react-native";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 
 import { SyncUnavailableError } from "@/lib/network-error";
 
@@ -13,6 +13,15 @@ import {
 } from "./collection-sync";
 import { captureOwner, getLocalOwner, switchOwner } from "./owner-store";
 import { requestCollectionSync } from "./sync-events";
+
+const mockAvailableDiskSpace = jest.fn();
+jest.mock("expo-file-system", () => ({
+  Paths: {
+    get availableDiskSpace() {
+      return mockAvailableDiskSpace();
+    },
+  },
+}));
 
 const mockRecognition = jest.fn();
 const mockAlbums = jest.fn();
@@ -82,6 +91,7 @@ jest.mock("@/lib/observability", () => ({
 
 beforeEach(() => {
   jest.useFakeTimers();
+  mockAvailableDiskSpace.mockReset();
   mockSync.mockReset().mockResolvedValue(undefined);
   mockRecognition.mockReset().mockResolvedValue(undefined);
   mockAlbums.mockReset().mockResolvedValue(undefined);
@@ -405,6 +415,60 @@ it("reports persistent server failures after transport failures, once until reco
   expect(stuckReports()).toHaveLength(2);
 });
 
+it.each([
+  [0, "under-10-mib"],
+  [12 * 1024 * 1024, "10-to-99-mib"],
+  [130 * 1024 * 1024, "100-mib-or-more"],
+  [null, "unavailable"],
+  [NaN, "unavailable"],
+  [-1, "unavailable"],
+  ["throws", "unavailable"],
+])("adds only a storage bucket to the existing SQLite open-failure report (%s)", async (space, bucket) => {
+  jest.replaceProperty(Platform, "OS", "ios");
+  jest.spyOn(console, "warn").mockImplementation(() => {});
+  mockAvailableDiskSpace.mockImplementation(() => {
+    if (space === "throws") throw new Error("Disk information not available");
+    return space;
+  });
+  const nativeError = Object.assign(new Error("Error code 14: unable to open database file"), {
+    code: "ERR_INTERNAL_SQLITE_ERROR",
+  });
+  const failure = new Error("Database query failed", { cause: nativeError });
+  await render(<CollectionSync />);
+  await tick();
+  mockSync.mockRejectedValueOnce(failure);
+  await expect(flushJournal()).rejects.toBe(failure);
+  expect(journalReports()).toEqual([
+    [
+      failure,
+      "sync.journal",
+      {
+        data: { stage: "sync", failures: 1, freeStorage: bucket },
+        alwaysReport: ["invalid_visit", "invalid_save", "invalid_venue", "not_found"],
+      },
+    ],
+  ]);
+  expect(mockAvailableDiskSpace).toHaveBeenCalledTimes(1);
+  await act(() => jest.advanceTimersByTimeAsync(30_000));
+  expect(mockSync).toHaveBeenCalledTimes(3);
+});
+
+it.each([
+  ["ios", "Error code 140: unable to open database file"],
+  ["web", "Error code 14: unable to open database file"],
+] as const)("does not probe storage outside the matching iOS failure (%s, %s)", async (platform, message) => {
+  jest.replaceProperty(Platform, "OS", platform);
+  jest.spyOn(console, "warn").mockImplementation(() => {});
+  const failure = Object.assign(new Error(message), { code: "ERR_INTERNAL_SQLITE_ERROR" });
+  await render(<CollectionSync />);
+  await tick();
+  mockSync.mockRejectedValueOnce(failure);
+  await expect(flushJournal()).rejects.toBe(failure);
+  expect(journalReports()).toHaveLength(1);
+  expect(journalReports()[0][2].data).toEqual({ stage: "sync", failures: 1 });
+  expect(mockAvailableDiskSpace).not.toHaveBeenCalled();
+});
+
 it("rejects flushJournal with the sync failure, keeps the scheduled retry, and reports a paused or backgrounded queue", async () => {
   jest.spyOn(console, "warn").mockImplementation(() => {});
   await render(<CollectionSync />);
@@ -416,6 +480,7 @@ it("rejects flushJournal with the sync failure, keeps the scheduled retry, and r
     data: { stage: "sync", failures: 1 },
     alwaysReport: ["invalid_visit", "invalid_save", "invalid_venue", "not_found"],
   });
+  expect(mockAvailableDiskSpace).not.toHaveBeenCalled();
   expect(mockSync).toHaveBeenCalledTimes(2);
   await act(() => jest.advanceTimersByTimeAsync(30_000));
   expect(mockSync).toHaveBeenCalledTimes(3);
