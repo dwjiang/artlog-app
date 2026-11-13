@@ -9,3 +9,13 @@ export function isOffline(state: Connection): boolean {
 export function hasInternetSignal(state: Connection): boolean {
   return !isOffline(state) && (state.isInternetReachable ?? state.isConnected) === true;
 }
+
+let lastSignal: "online" | "offline" | "unknown" = "unknown";
+
+export function rememberNetworkSignal(state: Connection): void {
+  lastSignal = isOffline(state) ? "offline" : hasInternetSignal(state) ? "online" : "unknown";
+}
+
+export function lastNetworkSignal(): typeof lastSignal {
+  return lastSignal;
+}

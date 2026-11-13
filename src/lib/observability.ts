@@ -1,7 +1,9 @@
 import * as Sentry from "@sentry/react-native";
 import { ConvexError } from "convex/values";
+import { AppState } from "react-native";
 
 import { isTransientError } from "./network-error";
+import { lastNetworkSignal } from "./network-state";
 
 type DiagnosticData = Record<string, string | number | boolean | null | undefined>;
 type ReportOptions = {
@@ -252,6 +254,22 @@ export function sanitizeBreadcrumb(breadcrumb: Sentry.Breadcrumb): Sentry.Breadc
 }
 
 export function sanitizeEvent<T extends Sentry.Event>(event: T): T {
+  if (
+    event.exception?.values?.some(
+      ({ mechanism, value }) =>
+        mechanism?.type === "onunhandledrejection"
+        && value === "fetch failed: The Internet connection appears to be offline.",
+    )
+  ) {
+    const state = AppState.currentState;
+    event.contexts = {
+      ...event.contexts,
+      offline_fetch: {
+        app_state: state === "active" || state === "background" || state === "inactive" ? state : "unknown",
+        last_network_signal: lastNetworkSignal(),
+      },
+    };
+  }
   delete event.user;
   delete event.request;
   delete event.extra;

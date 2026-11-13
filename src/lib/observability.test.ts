@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/react-native";
 import { ConvexError } from "convex/values";
+import { AppState } from "react-native";
 
+import { rememberNetworkSignal } from "./network-state";
 import { addBreadcrumb, reportError, sanitizeBreadcrumb, sanitizeEvent, sanitizeTransaction } from "./observability";
 
 beforeEach(() => {
@@ -276,4 +278,39 @@ it("scrubs server validation values and SQL text containing private content", ()
     "Convex argument validation failed",
     "Database query failed",
   ]);
+});
+
+it("annotates the stackless offline fetch rejection without changing grouping or leaking request data", () => {
+  const previous = AppState.currentState;
+  AppState.currentState = "background";
+  rememberNetworkSignal({ isInternetReachable: false });
+  try {
+    const event = sanitizeEvent<Sentry.Event>({
+      fingerprint: ["keep-group"],
+      request: { url: "https://example.com/private?secret=abc" },
+      exception: {
+        values: [
+          {
+            value: "fetch failed: The Internet connection appears to be offline.",
+            mechanism: { type: "onunhandledrejection", handled: true },
+          },
+        ],
+      },
+    });
+    expect(event.contexts?.offline_fetch).toEqual({ app_state: "background", last_network_signal: "offline" });
+    expect(event.fingerprint).toEqual(["keep-group"]);
+    expect(event.request).toBeUndefined();
+    expect(event.exception?.values?.[0]?.mechanism?.handled).toBe(true);
+  } finally {
+    rememberNetworkSignal({});
+    AppState.currentState = previous;
+  }
+});
+
+it.each([
+  ["generic", "fetch failed: The Internet connection appears to be offline."],
+  ["onunhandledrejection", "fetch failed: The request timed out."],
+])("does not add offline fetch diagnostics to other exceptions (%s, %s)", (type, value) => {
+  const event = sanitizeEvent<Sentry.Event>({ exception: { values: [{ value, mechanism: { type, handled: true } }] } });
+  expect(event.contexts?.offline_fetch).toBeUndefined();
 });
