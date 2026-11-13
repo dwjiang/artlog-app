@@ -155,3 +155,43 @@ it("keeps a queued request while another view still needs it", async () => {
   });
   expect(page.result.current).toEqual({ uri: "file:///queued.jpg", settled: true });
 });
+
+it("settles queued stills on a full disk, preserves in-flight images, and retries after the cooldown", async () => {
+  const now = jest.spyOn(Date, "now").mockReturnValue(10_000);
+  try {
+    const pending = pendingStills();
+    const first = await renderHook(() => useLookAroundStill(place("disk-first", 31), "small"));
+    const second = await renderHook(() => useLookAroundStill(place("disk-second", 32), "small"));
+    const queued = await renderHook(() => useLookAroundStill(place("disk-queued", 33), "small"));
+    expect(requestedLats()).toEqual([31, 32]);
+
+    const failure = Object.assign(new Error("The file couldn’t be saved because the volume is out of space."), {
+      code: "ERR_UNEXPECTED",
+    });
+    await act(async () => pending.get(31)!.reject(failure));
+    await act(async () => pending.get(32)!.resolve("file:///kept-still.jpg"));
+
+    expect(first.result.current).toEqual({ uri: undefined, settled: true });
+    expect(second.result.current).toEqual({ uri: "file:///kept-still.jpg", settled: true });
+    expect(queued.result.current).toEqual({ uri: undefined, settled: true });
+    expect(requestedLats()).toEqual([31, 32]);
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(reportError).toHaveBeenCalledWith(
+      new Error("Look Around still paused: insufficient storage"),
+      "venue.look_around.still",
+      { level: "warning" },
+    );
+
+    const during = await renderHook(() => useLookAroundStill(place("disk-queued", 33), "small"));
+    expect(during.result.current).toEqual({ uri: undefined, settled: true });
+    expect(requestedLats()).toEqual([31, 32]);
+
+    now.mockReturnValue(41_000);
+    const retried = await renderHook(() => useLookAroundStill(place("disk-queued", 33), "small"));
+    expect(requestedLats()).toEqual([31, 32, 33]);
+    await act(async () => pending.get(33)!.resolve("file:///new-still.jpg"));
+    expect(retried.result.current).toEqual({ uri: "file:///new-still.jpg", settled: true });
+  } finally {
+    now.mockRestore();
+  }
+});
