@@ -14,6 +14,7 @@ export type LookAroundStillSize = keyof typeof STILL_SIZES;
 export const LOOK_AROUND_STILL_ASPECT = STILL_SIZES.small.width / STILL_SIZES.small.height;
 // Apple throttles a device that asks too quickly, so a long list takes its stills two at a time.
 const MAX_ACTIVE = 2;
+const STORAGE_RETRY_MS = 30_000;
 
 type Place = { id: string; lat: number; lng: number };
 type Job = { key: string; lat: number; lng: number; size: LookAroundStillSize; onFailure: Set<() => void> };
@@ -24,6 +25,7 @@ const listeners = new Set<() => void>();
 const waiting: Job[] = [];
 const pending = new Map<string, Job>();
 let active = 0;
+let storageRetryAt = 0;
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
@@ -32,7 +34,26 @@ function subscribe(listener: () => void) {
   };
 }
 
+function fail(job: Job) {
+  pending.delete(job.key);
+  for (const onFailure of job.onFailure) onFailure();
+}
+
+function isFullVolumeWrite(cause: unknown): boolean {
+  return (
+    cause instanceof Error
+    && "code" in cause
+    && cause.code === "ERR_UNEXPECTED"
+    && /\b(?:couldn['’]t|could not) be saved because the volume is (?:out of space|full)\b/i.test(cause.message)
+  );
+}
+
 function takeNext() {
+  if (Date.now() < storageRetryAt) {
+    // Do not cache a temporary storage failure as permanently missing imagery.
+    for (const job of waiting.splice(0)) fail(job);
+    return;
+  }
   const lookAround = getLookAround();
   while (lookAround && active < MAX_ACTIVE && waiting.length > 0) {
     const job = waiting.shift()!;
@@ -47,9 +68,18 @@ function takeNext() {
           for (const listener of listeners) listener();
         },
         (cause: unknown) => {
-          pending.delete(job.key);
-          if (!isExpectedLookAroundError(cause)) reportError(cause, "venue.look_around.still", { level: "warning" });
-          for (const onFailure of job.onFailure) onFailure();
+          if (isFullVolumeWrite(cause)) {
+            const now = Date.now();
+            if (now >= storageRetryAt) {
+              storageRetryAt = now + STORAGE_RETRY_MS;
+              reportError(new Error("Look Around still paused: insufficient storage"), "venue.look_around.still", {
+                level: "warning",
+              });
+            }
+          } else if (!isExpectedLookAroundError(cause)) {
+            reportError(cause, "venue.look_around.still", { level: "warning" });
+          }
+          fail(job);
         },
       )
       .finally(() => {
