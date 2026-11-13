@@ -439,10 +439,14 @@ it.each([
   mockSync.mockRejectedValueOnce(failure);
   await expect(flushJournal()).rejects.toBe(failure);
   expect(journalReports()).toEqual([
-    [failure, "sync.journal", {
-      data: { stage: "sync", failures: 1, freeStorage: bucket },
-      alwaysReport: ["invalid_visit", "invalid_save", "invalid_venue", "not_found"],
-    }],
+    [
+      failure,
+      "sync.journal",
+      {
+        data: { stage: "sync", failures: 1, freeStorage: bucket },
+        alwaysReport: ["invalid_visit", "invalid_save", "invalid_venue", "not_found"],
+      },
+    ],
   ]);
   expect(mockAvailableDiskSpace).toHaveBeenCalledTimes(1);
   await act(() => jest.advanceTimersByTimeAsync(30_000));
