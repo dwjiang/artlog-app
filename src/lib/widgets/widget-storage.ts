@@ -93,7 +93,14 @@ async function copyWidgetFont() {
 
 export function writeWidgetManifest(entries: WidgetPresentation[]) {
   const manifest = new File(directory(), "collection.json");
-  manifest.writeSync(JSON.stringify({ interval: widgetRotationSeconds, entries }));
+  const contents = JSON.stringify({ interval: widgetRotationSeconds, entries });
+  let unchanged = false;
+  try {
+    unchanged = manifest.exists && manifest.textSync() === contents;
+  } catch {
+    // An unreadable manifest still needs to be replaced.
+  }
+  if (!unchanged) manifest.writeSync(contents);
   artlogWidget.reload();
 }
 
