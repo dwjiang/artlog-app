@@ -2,8 +2,22 @@ import { render, screen, within } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 
 import TabsLayout from "@/app/(tabs)/_layout";
+import { useHideTabBar } from "@/components/tab-bar-visibility";
+import { addBreadcrumb } from "@/lib/observability";
 
 let mockUnseen = 0;
+let mockListening = false;
+let mockHidden = false;
+
+function MockTabScreen() {
+  useHideTabBar(mockHidden);
+  return null;
+}
+
+jest.mock("@/lib/observability", () => ({
+  ...jest.requireActual("@/lib/observability"),
+  addBreadcrumb: jest.fn(),
+}));
 jest.mock("@/lib/social/unseen-notifications", () => ({
   ...jest.requireActual("@/lib/social/unseen-notifications"),
   useWatchUnseenNotifications: () => mockUnseen,
@@ -16,17 +30,25 @@ jest.mock("expo-router/native-tabs", () => {
     </View>
   );
   return {
-    NativeTabs: Object.assign(({ children }: { children: ReactNode }) => <View>{children}</View>, {
-      BottomAccessory: () => null,
-      Trigger: Object.assign(Trigger, {
-        Label: ({ children }: { children: string }) => <Text>{children}</Text>,
-        Icon: () => null,
-        Badge: ({ children }: { children: string }) => <Text>{children}</Text>,
-      }),
-    }),
+    NativeTabs: Object.assign(
+      ({ children }: { children: ReactNode }) => (
+        <View>
+          <MockTabScreen />
+          {children}
+        </View>
+      ),
+      {
+        BottomAccessory: () => null,
+        Trigger: Object.assign(Trigger, {
+          Label: ({ children }: { children: string }) => <Text>{children}</Text>,
+          Icon: () => null,
+          Badge: ({ children }: { children: string }) => <Text>{children}</Text>,
+        }),
+      },
+    ),
   };
 });
-jest.mock("@/lib/audio/use-listening", () => ({ useHasListeningTrack: () => false }));
+jest.mock("@/lib/audio/use-listening", () => ({ useHasListeningTrack: () => mockListening }));
 jest.mock("@/components/audio/mini-player", () => ({ MiniPlayer: () => null }));
 
 it("badges only the Home tab with the unseen notification count, capped, and drops the badge at zero", async () => {
@@ -43,4 +65,29 @@ it("badges only the Home tab with the unseen notification count, capped, and dro
   mockUnseen = 0;
   await screen.rerender(<TabsLayout />);
   expect(within(screen.getAllByRole("tab")[0]).queryByText(/\d/)).toBeNull();
+});
+
+it("records only changes to committed tab-bar and accessory configuration", async () => {
+  jest.mocked(addBreadcrumb).mockClear();
+  mockUnseen = 0;
+  mockListening = false;
+  mockHidden = false;
+  await render(<TabsLayout />);
+  mockUnseen = 12;
+  await screen.rerender(<TabsLayout />);
+  mockListening = true;
+  await screen.rerender(<TabsLayout />);
+  mockHidden = true;
+  await screen.rerender(<TabsLayout />);
+  mockListening = false;
+  await screen.rerender(<TabsLayout />);
+  mockHidden = false;
+  await screen.rerender(<TabsLayout />);
+
+  expect(jest.mocked(addBreadcrumb).mock.calls).toEqual([
+    ["navigation.native_tabs.configuration", { tab_bar_hidden: false, audio_accessory_configured: false }],
+    ["navigation.native_tabs.configuration", { tab_bar_hidden: false, audio_accessory_configured: true }],
+    ["navigation.native_tabs.configuration", { tab_bar_hidden: true, audio_accessory_configured: false }],
+    ["navigation.native_tabs.configuration", { tab_bar_hidden: false, audio_accessory_configured: false }],
+  ]);
 });
