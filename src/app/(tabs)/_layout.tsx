@@ -1,5 +1,6 @@
 import { NativeTabs } from "expo-router/native-tabs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MiniPlayer } from "@/components/audio/mini-player";
@@ -8,6 +9,7 @@ import { VisitBandLayout } from "@/components/visits/visit-band";
 import { TabTitles } from "@/constants/tabs";
 import { Gallery } from "@/constants/theme";
 import { useHasListeningTrack } from "@/lib/audio/use-listening";
+import { addBreadcrumb } from "@/lib/observability";
 import { countBadge, UnseenNotificationCount, useWatchUnseenNotifications } from "@/lib/social/unseen-notifications";
 
 export const unstable_settings = {
@@ -17,6 +19,15 @@ export const unstable_settings = {
 export default function TabsLayout() {
   const listening = useHasListeningTrack();
   const [hidden, setHidden] = useState(false);
+  const accessoryConfigured = !hidden && listening;
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    // A committed React configuration, not an observation of the native transition.
+    addBreadcrumb("navigation.native_tabs.configuration", {
+      tab_bar_hidden: hidden,
+      audio_accessory_configured: accessoryConfigured,
+    });
+  }, [hidden, accessoryConfigured]);
   const unseen = useWatchUnseenNotifications();
   const unseenBadge = countBadge(unseen);
   // Outside the tabs' own safe areas, which the visit band extends.
@@ -33,7 +44,7 @@ export default function TabsLayout() {
             tintColor={Gallery.accent}
             backgroundColor={Gallery.paper}
           >
-            {!hidden && listening && (
+            {accessoryConfigured && (
               <NativeTabs.BottomAccessory>
                 <MiniPlayer />
               </NativeTabs.BottomAccessory>
