@@ -1,4 +1,5 @@
 import { act, render } from "@testing-library/react-native";
+import { AppState, type AppStateStatus } from "react-native";
 
 import type { CurrentVisit } from "@/lib/venue/venue-reducer";
 
@@ -51,7 +52,17 @@ function deferred() {
   return { promise, resolve };
 }
 
+let changeState: (state: AppStateStatus) => void;
+
 beforeEach(() => {
+  AppState.currentState = "active";
+  jest.spyOn(AppState, "addEventListener").mockImplementation((_event, listener) => {
+    changeState = (state) => {
+      AppState.currentState = state;
+      listener(state);
+    };
+    return { remove: jest.fn() };
+  });
   jest.clearAllMocks();
   jest.spyOn(Date, "now").mockReturnValue(Date.UTC(2026, 9, 2, 18));
   mockHydrated = false;
@@ -176,4 +187,99 @@ it("starts the activity in the system font when the widget font cannot be prepar
   await render(<VisitActivitySync />);
   expect(mockReportError).toHaveBeenCalledWith(failure, "visit.live-activity.font", { level: "warning" });
   expect(mockStart).toHaveBeenCalledWith(expect.objectContaining({ venueName: "Met" }), "artlog:///scan");
+});
+
+it("defers a start when preparation crosses into background and resumes with the latest snapshot", async () => {
+  const prepared = deferred();
+  mockPrepareFont.mockImplementationOnce(() => prepared.promise);
+  mockHydrated = true;
+  mockVisit = visit;
+  const view = await render(<VisitActivitySync />);
+  await act(async () => {
+    AppState.currentState = "background";
+    prepared.resolve();
+  });
+  expect(mockStart).not.toHaveBeenCalled();
+  mockCount = 3;
+  await view.rerender(<VisitActivitySync />);
+  expect(mockStart).not.toHaveBeenCalled();
+  await act(async () => {
+    changeState("active");
+  });
+  expect(mockStart).toHaveBeenCalledTimes(1);
+  expect(mockStart).toHaveBeenCalledWith(expect.objectContaining({ count: 3 }), "artlog:///scan");
+  await act(async () => {
+    changeState("active");
+  });
+  expect(mockStart).toHaveBeenCalledTimes(1);
+});
+
+it("does not create a deferred activity after its visit ends", async () => {
+  AppState.currentState = "background";
+  mockHydrated = true;
+  mockVisit = visit;
+  const view = await render(<VisitActivitySync />);
+  mockVisit = undefined;
+  await view.rerender(<VisitActivitySync />);
+  await act(async () => {
+    changeState("active");
+  });
+  expect(mockStart).not.toHaveBeenCalled();
+});
+
+it("still updates and ends existing activities in background", async () => {
+  AppState.currentState = "background";
+  const activity = { update: jest.fn().mockResolvedValue(undefined), end: jest.fn().mockResolvedValue(undefined) };
+  mockInstances = [activity];
+  mockHydrated = true;
+  mockVisit = visit;
+  const view = await render(<VisitActivitySync />);
+  expect(activity.update).toHaveBeenCalledTimes(1);
+  mockVisit = undefined;
+  await view.rerender(<VisitActivitySync />);
+  expect(activity.end).toHaveBeenCalledWith("immediate");
+});
+
+it("cancels preparation on unmount without a stale start on resume", async () => {
+  const prepared = deferred();
+  mockPrepareFont.mockImplementationOnce(() => prepared.promise);
+  mockHydrated = true;
+  mockVisit = visit;
+  const view = await render(<VisitActivitySync />);
+  await view.unmount();
+  await act(async () => {
+    prepared.resolve();
+    changeState("active");
+  });
+  expect(mockStart).not.toHaveBeenCalled();
+});
+
+it("adopts an activity found on resume instead of creating a duplicate", async () => {
+  AppState.currentState = "inactive";
+  mockHydrated = true;
+  mockVisit = visit;
+  await render(<VisitActivitySync />);
+  expect(mockStart).not.toHaveBeenCalled();
+  const activity = { update: jest.fn().mockResolvedValue(undefined), end: jest.fn() };
+  mockInstances = [activity];
+  await act(async () => {
+    changeState("active");
+  });
+  expect(activity.update).toHaveBeenCalledWith(expect.objectContaining({ count: 1 }));
+  expect(mockStart).not.toHaveBeenCalled();
+});
+
+it("discards a superseded preparation and starts only the newest visit", async () => {
+  const prepared = deferred();
+  mockPrepareFont.mockImplementationOnce(() => prepared.promise);
+  mockHydrated = true;
+  mockVisit = visit;
+  const view = await render(<VisitActivitySync />);
+  mockVisit = { ...visit, localId: "visit-2", venueName: "Next venue" };
+  await view.rerender(<VisitActivitySync />);
+  await act(async () => {
+    prepared.resolve();
+  });
+  expect(mockStart).toHaveBeenCalledTimes(1);
+  expect(mockStart).toHaveBeenCalledWith(expect.objectContaining({ venueName: "Next venue" }), "artlog:///scan");
 });

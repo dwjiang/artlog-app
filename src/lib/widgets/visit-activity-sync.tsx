@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 
 import { useLocalOwner } from "@/lib/account/owner-store";
@@ -31,7 +31,19 @@ export function VisitActivitySync() {
     .join("\n");
   // Native updates cannot be cancelled once started; finish them before applying the next visit snapshot.
   const writes = useRef(Promise.resolve());
+  const deferredStart = useRef(false);
+  const [resume, setResume] = useState(0);
   useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active" && deferredStart.current) {
+        deferredStart.current = false;
+        setResume((value) => value + 1);
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+  useEffect(() => {
+    deferredStart.current = false;
     let cancelled = false;
     let step = "end_stale";
     writes.current = writes.current
@@ -65,6 +77,11 @@ export function VisitActivitySync() {
           step = "update";
           await adopted.update(props);
         } else {
+          // Preparation can outlive the foreground session; only creation requires visibility.
+          if (AppState.currentState !== "active") {
+            deferredStart.current = true;
+            return;
+          }
           step = "start";
           VisitActivity.start(props, "artlog:///scan");
         }
@@ -79,7 +96,8 @@ export function VisitActivitySync() {
       });
     return () => {
       cancelled = true;
+      deferredStart.current = false;
     };
-  }, [owner, hydrated, localId, venueName, count, since, photos]);
+  }, [owner, hydrated, localId, venueName, count, since, photos, resume]);
   return null;
 }
